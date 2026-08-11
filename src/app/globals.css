@@ -1,26 +1,136 @@
+/* Font loaded via next/font/google in layout.tsx */
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-}
+  --foreground: #0a2540;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Clinical Color Tokens */
+  --primary: #0ea5e9;
+  --primary-dark: #0a2540;
+  --primary-mid: #0d3b6e;
+  --primary-accent: #38bdf8;
+  --surface-light: #f8fafb;
+  --surface-white: #ffffff;
+  --text-muted: #6b7280;
+  --border-soft: #e5e7eb;
+  --emerald: #10b981;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Tight headline */
+.apple-tight-headline {
+  letter-spacing: -0.02em;
+  font-feature-settings: "ss03";
+}
+
+.apple-body {
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.011em;
+}
+
+/* Button press */
+.apple-btn-active:active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease;
+}
+
+/* Drop shadows */
+.product-shadow {
+  box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
+}
+
+.clinic-card-shadow {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.clinic-card-shadow:hover {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  transform: translateY(-4px);
+}
+
+/* Frosted glass */
+.frosted-glass {
+  background-color: rgba(248, 250, 251, 0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.frosted-glass-dark {
+  background-color: rgba(10, 37, 64, 0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Gradient text utility */
+.gradient-text-sky {
+  background-image: linear-gradient(90deg, #38bdf8, #a5f3fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Pulse dot animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.85); }
+}
+.animate-pulse {
+  animation: pulse-dot 2s cubic-bezier(0.4,0,0.6,1) infinite;
+}
+
+/* Smooth link arrow nudge */
+.arrow-link svg {
+  transition: transform 0.2s ease;
+}
+.arrow-link:hover svg {
+  transform: translateX(4px);
+}
+
+/* Hero primary button */
+.clinic-btn-primary {
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+  color: #0a2540;
+  box-shadow: 0 4px 24px rgba(56,189,248,0.40);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.clinic-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(56,189,248,0.55);
+}
+.clinic-btn-primary:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Hero ghost button */
+.clinic-btn-ghost {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.clinic-btn-ghost:hover {
+  background: rgba(255,255,255,0.20);
+  transform: translateY(-1px);
+}
+
+/* Service card */
+.clinic-service-card {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.clinic-service-card:hover {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  transform: translateY(-4px);
 }
