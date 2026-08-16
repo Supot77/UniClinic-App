@@ -1,0 +1,28 @@
+ชื่อตาราง (Table Name),คำอธิบาย (Description),ฟิลด์ / คอลัมน์ (Columns)
+profiles,ข้อมูลผู้ใช้ทุกคน (ต่อยอดจาก auth.users ของ Supabase),"id (FK → auth.users), student_id, full_name, phone, role, avatar_url"
+departments,แผนก/บริการของคลินิก,"id, name, description"
+doctors,ข้อมูลแพทย์/บุคลากรทางการแพทย์,"id, full_name, specialty, department_id (FK)"
+appointment_slots,ช่วงเวลาว่างที่เปิดให้จอง,"id, doctor_id (FK), slot_date, start_time, end_time, max_capacity, booked_count, status"
+appointments,รายการนัดหมายที่ถูกจองจริง,"id, user_id (FK), slot_id (FK), reason, status"
+
+medications,ฐานข้อมูลกลางของยา (Master Data),"id, name, generic_name, dosage_form, standard_dosage, warnings"
+
+create table public.medications (
+  id uuid not null default gen_random_uuid (),
+  name text not null,
+  type text not null,
+  category text not null,
+  stock integer not null default 0,
+  min_stock integer not null default 0,
+  expiry_date date null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now(),
+  constraint medications_pkey primary key (id)
+) TABLESPACE pg_default;
+create trigger trg_medications_updated_at BEFORE
+update on medications for EACH row
+execute FUNCTION set_updated_at ();
+
+medication_reminders,รายการยาส่วนตัวที่ผู้ใช้ตั้งแจ้งเตือน,"id, user_id (FK), medication_id (FK), reminder_times, start_date, end_date, status"
+medication_logs,ประวัติการกินยาจริง,"id, reminder_id (FK), scheduled_datetime, actual_datetime, status"
+notifications,ศูนย์รวมการแจ้งเตือนทุกประเภท,"id, user_id (FK), type, title, message, is_read"
