@@ -1,0 +1,624 @@
+-- ============================================================
+-- ⚠️ สคริปต์นี้สร้างตารางใหม่ทั้งหมด
+-- เหมาะสำหรับ development / reset database
+-- ถ้ามีข้อมูลจริง ให้ backup ก่อนเสมอ
+-- ============================================================
+
+-- ลบตารางของเก่า (เฉพาะ dev)
+DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.medication_logs CASCADE;
+DROP TABLE IF EXISTS public.medication_reminders CASCADE;
+DROP TABLE IF EXISTS public.appointments CASCADE;
+DROP TABLE IF EXISTS public.appointment_slots CASCADE;
+DROP TABLE IF EXISTS public.patients CASCADE;
+DROP TABLE IF EXISTS public.staffs CASCADE;
+DROP TABLE IF EXISTS public.students CASCADE;
+DROP TABLE IF EXISTS public.doctors CASCADE;
+DROP TABLE IF EXISTS public.departments CASCADE;
+DROP TABLE IF EXISTS public.medications CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+
+-- ============================================================
+-- Trigger function: อัปเดต updated_at อัตโนมัติ
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+
+-- ============================================================
+-- 1. profiles
+-- ตาราง master ของผู้ใช้ทั้งหมด
+-- เชื่อมกับ auth.users
+-- ============================================================
+
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  full_name text NOT NULL,
+  phone text,
+  role text NOT NULL DEFAULT 'patient'::text,
+  avatar_url text,
+  is_external boolean NOT NULL DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  CONSTRAINT profiles_role_check CHECK (
+    role IN (
+      'patient',
+      'student',
+      'staff',
+      'doctor',
+      'admin'
+    )
+  ),
+
+  CONSTRAINT profiles_full_name_not_empty CHECK (
+    trim(full_name) <> ''
+  )
+);
+
+COMMENT ON TABLE public.profiles IS 'ตารางข้อมูลผู้ใช้หลักของระบบ เชื่อมกับ auth.users';
+COMMENT ON COLUMN public.profiles.role IS 'บทบาทหลัก: patient, student, staff, doctor, admin';
+COMMENT ON COLUMN public.profiles.is_external IS 'true = บุคคลภายนอกที่ไม่ได้เป็นนักศึกษา/บุคลากรในระบบ';
+COMMENT ON COLUMN public.profiles.is_active IS 'สถานะเปิด/ปิดบัญชี';
+
+
+-- ============================================================
+-- 2. departments
+-- แผนก / หน่วยงาน
+-- ใช้ได้ทั้งแผนกรักษาและหน่วยงานภายใน ถ้าต้องการ
+-- ============================================================
+
+CREATE TABLE public.departments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT departments_pkey PRIMARY KEY (id),
+  CONSTRAINT departments_name_not_empty CHECK (trim(name) <> '')
+);
+
+COMMENT ON TABLE public.departments IS 'แผนกหรือหน่วยงานในระบบ';
+
+
+-- ============================================================
+-- 3. doctors
+-- ข้อมูลเฉพาะแพทย์
+-- ต้องมี profiles ก่อน
+-- ============================================================
+
+CREATE TABLE public.doctors (
+  id uuid NOT NULL,
+  specialty text,
+  department_id uuid,
+  license_no text,
+  is_verified boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT doctors_pkey PRIMARY KEY (id),
+  CONSTRAINT doctors_id_fkey FOREIGN KEY (id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+  CONSTRAINT doctors_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id) ON DELETE SET NULL,
+  CONSTRAINT doctors_license_no_key UNIQUE (license_no)
+);
+
+COMMENT ON TABLE public.doctors IS 'ข้อมูลเฉพาะแพทย์/ผู้รักษา';
+COMMENT ON COLUMN public.doctors.is_verified IS 'true = ผ่านการยืนยัน/อนุมัติจาก admin';
+
+
+-- ============================================================
+-- 4. students
+-- ข้อมูลเฉพาะนักศึกษา
+-- ย้าย student_id ออกจาก profiles มาที่นี่
+-- ============================================================
+
+CREATE TABLE public.students (
+  id uuid NOT NULL,
+  student_id text NOT NULL,
+  faculty text,
+  department text,
+  academic_year integer,
+  is_verified boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT students_pkey PRIMARY KEY (id),
+  CONSTRAINT students_id_fkey FOREIGN KEY (id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+  CONSTRAINT students_student_id_key UNIQUE (student_id),
+  CONSTRAINT students_academic_year_check CHECK (
+    academic_year IS NULL OR academic_year BETWEEN 1 AND 10
+  )
+);
+
+COMMENT ON TABLE public.students IS 'ข้อมูลเฉพาะนักศึกษา';
+COMMENT ON COLUMN public.students.is_verified IS 'true = ยืนยันตัวตนนักศึกษาแล้ว';
+
+
+-- ============================================================
+-- 5. staffs
+-- ข้อมูลเฉพาะบุคลากรที่ไม่ใช่แพทย์
+-- เช่น เจ้าหน้าที่, พนักงาน, ผู้ดูแลระบบ
+-- ============================================================
+
+CREATE TABLE public.staffs (
+  id uuid NOT NULL,
+  staff_id text,
+  job_title text,
+  department_id uuid,
+  is_verified boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT staffs_pkey PRIMARY KEY (id),
+  CONSTRAINT staffs_id_fkey FOREIGN KEY (id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+  CONSTRAINT staffs_staff_id_key UNIQUE (staff_id),
+  CONSTRAINT staffs_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id) ON DELETE SET NULL
+);
+
+COMMENT ON TABLE public.staffs IS 'ข้อมูลเฉพาะบุคลากร';
+COMMENT ON COLUMN public.staffs.is_verified IS 'true = ผ่านการยืนยัน/อนุมัติ';
+
+
+-- ============================================================
+-- 6. patients
+-- ข้อมูลเฉพาะผู้ป่วย
+-- เช่น กรุ่เลือด, อาการแพ้, ประวัติโรค
+-- ============================================================
+
+CREATE TABLE public.patients (
+  id uuid NOT NULL,
+  blood_type text,
+  height numeric(5,2),
+  weight numeric(5,1),
+  allergies text,
+  medical_history text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT patients_pkey PRIMARY KEY (id),
+  CONSTRAINT patients_id_fkey FOREIGN KEY (id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+  CONSTRAINT patients_blood_type_check CHECK (
+    blood_type IS NULL OR blood_type IN (
+      'A+', 'A-',
+      'B+', 'B-',
+      'AB+', 'AB-',
+      'O+', 'O-'
+    )
+  ),
+  CONSTRAINT patients_height_check CHECK (height IS NULL OR height > 0),
+  CONSTRAINT patients_weight_check CHECK (weight IS NULL OR weight > 0)
+);
+
+COMMENT ON TABLE public.patients IS 'ข้อมูลเฉพาะผู้ป่วย/บุคคลที่มาใช้บริการคลินิก';
+
+
+-- ============================================================
+-- 7. appointment_slots
+-- สล็อตเวลานัดของแพทย์
+-- ============================================================
+
+CREATE TABLE public.appointment_slots (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  doctor_id uuid NOT NULL,
+  slot_date date NOT NULL,
+  start_time time NOT NULL,
+  end_time time NOT NULL,
+  max_capacity integer NOT NULL DEFAULT 1,
+  booked_count integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'available'::text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT appointment_slots_pkey PRIMARY KEY (id),
+  CONSTRAINT appointment_slots_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.doctors(id) ON DELETE CASCADE,
+
+  CONSTRAINT appointment_slots_doctor_date_start_key UNIQUE (
+    doctor_id,
+    slot_date,
+    start_time
+  ),
+
+  CONSTRAINT appointment_slots_times_check CHECK (
+    end_time > start_time
+  ),
+
+  CONSTRAINT appointment_slots_capacity_check CHECK (
+    max_capacity > 0
+    AND booked_count >= 0
+    AND booked_count <= max_capacity
+  ),
+
+  CONSTRAINT appointment_slots_status_check CHECK (
+    status IN (
+      'available',
+      'closed',
+      'cancelled',
+      'full'
+    )
+  )
+);
+
+COMMENT ON TABLE public.appointment_slots IS 'ช่วงเวลา/ช่องเวลานัดของแพทย์';
+COMMENT ON COLUMN public.appointment_slots.booked_count IS 'จำนวนที่จองแล้ว ต้องไม่เกิน max_capacity';
+
+
+-- ============================================================
+-- 8. appointments
+-- การนัดหมายของผู้ใช้
+-- ============================================================
+
+CREATE TABLE public.appointments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  slot_id uuid NOT NULL,
+  reason text,
+  status text NOT NULL DEFAULT 'pending'::text,
+  cancelled_at timestamptz,
+  cancel_reason text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT appointments_pkey PRIMARY KEY (id),
+  CONSTRAINT appointments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+  CONSTRAINT appointments_slot_id_fkey FOREIGN KEY (slot_id) REFERENCES public.appointment_slots(id) ON DELETE CASCADE,
+
+  CONSTRAINT appointments_status_check CHECK (
+    status IN (
+      'pending',
+      'confirmed',
+      'completed',
+      'cancelled',
+      'no_show'
+    )
+  ),
+
+  CONSTRAINT appointments_cancelled_at_check CHECK (
+    status <> 'cancelled' OR cancelled_at IS NOT NULL
+  )
+);
+
+COMMENT ON TABLE public.appointments IS 'การนัดหมายของผู้ใช้';
+COMMENT ON COLUMN public.appointments.status IS 'สถานะการนัดหมาย';
+
+
+-- ============================================================
+-- 9. medications
+-- รายการยา
+-- ============================================================
+
+CREATE TABLE public.medications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  type text NOT NULL,
+  category text NOT NULL,
+  stock integer NOT NULL DEFAULT 0,
+  min_stock integer NOT NULL DEFAULT 0,
+  expiry_date date,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT medications_pkey PRIMARY KEY (id),
+  CONSTRAINT medications_name_not_empty CHECK (trim(name) <> ''),
+  CONSTRAINT medications_stock_check CHECK (
+    stock >= 0
+    AND min_stock >= 0
+  )
+);
+
+COMMENT ON TABLE public.medications IS 'รายการยาในระบบ';
+COMMENT ON COLUMN public.medications.min_stock IS 'ระดับสต็อกขั้นต่ำที่ต้องแจ้งเตือน';
+
+
+-- ============================================================
+-- 10. medication_reminders
+-- การเตือนกินยาของผู้ใช้
+-- ============================================================
+
+CREATE TABLE public.medication_reminders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  medication_id uuid NOT NULL,
+  reminder_times text[] NOT NULL,
+  start_date date NOT NULL,
+  end_date date,
+  status text NOT NULL DEFAULT 'active'::text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT medication_reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT medication_reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+  CONSTRAINT medication_reminders_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id) ON DELETE CASCADE,
+
+  CONSTRAINT medication_reminders_status_check CHECK (
+    status IN (
+      'active',
+      'paused',
+      'completed',
+      'disabled'
+    )
+  ),
+
+  CONSTRAINT medication_reminders_times_not_empty CHECK (
+    cardinality(reminder_times) > 0
+  ),
+
+  CONSTRAINT medication_reminders_dates_check CHECK (
+    end_date IS NULL OR end_date >= start_date
+  )
+);
+
+COMMENT ON TABLE public.medication_reminders IS 'การตั้งค่าเตือนกินยา';
+COMMENT ON COLUMN public.medication_reminders.reminder_times IS 'ตัวอย่าง: {"08:00", "12:00", "18:00"}';
+
+
+-- ============================================================
+-- 11. medication_logs
+-- ประวัติการกินยา / การ remind
+-- ============================================================
+
+CREATE TABLE public.medication_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reminder_id uuid NOT NULL,
+  scheduled_datetime timestamptz NOT NULL,
+  actual_datetime timestamptz,
+  status text NOT NULL DEFAULT 'pending'::text,
+  note text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT medication_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT medication_logs_reminder_id_fkey FOREIGN KEY (reminder_id) REFERENCES public.medication_reminders(id) ON DELETE CASCADE,
+
+  CONSTRAINT medication_logs_status_check CHECK (
+    status IN (
+      'pending',
+      'taken',
+      'skipped',
+      'missed'
+    )
+  ),
+
+  CONSTRAINT medication_logs_actual_check CHECK (
+    status <> 'taken' OR actual_datetime IS NOT NULL
+  )
+);
+
+COMMENT ON TABLE public.medication_logs IS 'บันทึกเหตุการณ์การเตือน/การกินยา';
+
+
+-- ============================================================
+-- 12. notifications
+-- การแจ้งเตือนผู้ใช้
+-- ============================================================
+
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  type text NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  is_read boolean NOT NULL DEFAULT false,
+  read_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE,
+
+  CONSTRAINT notifications_type_check CHECK (
+    type IN (
+      'appointment',
+      'medication',
+      'system',
+      'reminder',
+      'security'
+    )
+  ),
+
+  CONSTRAINT notifications_read_at_check CHECK (
+    is_read = false OR read_at IS NOT NULL
+  )
+);
+
+COMMENT ON TABLE public.notifications IS 'การแจ้งเตือนของระบบ';
+
+
+-- ============================================================
+-- Triggers: อัปเดต updated_at อัตโนมัติ
+-- ============================================================
+
+CREATE TRIGGER profiles_set_updated_at
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER departments_set_updated_at
+BEFORE UPDATE ON public.departments
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER doctors_set_updated_at
+BEFORE UPDATE ON public.doctors
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER students_set_updated_at
+BEFORE UPDATE ON public.students
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER staffs_set_updated_at
+BEFORE UPDATE ON public.staffs
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER patients_set_updated_at
+BEFORE UPDATE ON public.patients
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER appointment_slots_set_updated_at
+BEFORE UPDATE ON public.appointment_slots
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER appointments_set_updated_at
+BEFORE UPDATE ON public.appointments
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER medications_set_updated_at
+BEFORE UPDATE ON public.medications
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER medication_reminders_set_updated_at
+BEFORE UPDATE ON public.medication_reminders
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER medication_logs_set_updated_at
+BEFORE UPDATE ON public.medication_logs
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================================
+-- Indexes
+-- เพื่อเพิ่มประสิทธิภาพการ query
+-- ============================================================
+
+-- profiles
+CREATE INDEX IF NOT EXISTS idx_profiles_role
+ON public.profiles (role);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_phone
+ON public.profiles (phone);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_is_active
+ON public.profiles (is_active);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_is_external
+ON public.profiles (is_external);
+
+-- doctors
+CREATE INDEX IF NOT EXISTS idx_doctors_department
+ON public.doctors (department_id);
+
+CREATE INDEX IF NOT EXISTS idx_doctors_is_verified
+ON public.doctors (is_verified);
+
+-- students
+CREATE INDEX IF NOT EXISTS idx_students_faculty
+ON public.students (faculty);
+
+CREATE INDEX IF NOT EXISTS idx_students_department
+ON public.students (department);
+
+CREATE INDEX IF NOT EXISTS idx_students_is_verified
+ON public.students (is_verified);
+
+-- staffs
+CREATE INDEX IF NOT EXISTS idx_staffs_department
+ON public.staffs (department_id);
+
+CREATE INDEX IF NOT EXISTS idx_staffs_is_verified
+ON public.staffs (is_verified);
+
+-- appointment_slots
+CREATE INDEX IF NOT EXISTS idx_appointment_slots_doctor_date_status
+ON public.appointment_slots (doctor_id, slot_date, status);
+
+CREATE INDEX IF NOT EXISTS idx_appointment_slots_status
+ON public.appointment_slots (status);
+
+CREATE INDEX IF NOT EXISTS idx_appointment_slots_slot_date
+ON public.appointment_slots (slot_date);
+
+-- appointments
+CREATE INDEX IF NOT EXISTS idx_appointments_user
+ON public.appointments (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_slot
+ON public.appointments (slot_id);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_status
+ON public.appointments (status);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_created_at
+ON public.appointments (created_at DESC);
+
+-- medications
+CREATE INDEX IF NOT EXISTS idx_medications_category
+ON public.medications (category);
+
+CREATE INDEX IF NOT EXISTS idx_medications_type
+ON public.medications (type);
+
+CREATE INDEX IF NOT EXISTS idx_medications_expiry_date
+ON public.medications (expiry_date);
+
+CREATE INDEX IF NOT EXISTS idx_medications_is_active
+ON public.medications (is_active);
+
+-- medication_reminders
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_user
+ON public.medication_reminders (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_medication
+ON public.medication_reminders (medication_id);
+
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_status
+ON public.medication_reminders (status);
+
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_start_date
+ON public.medication_reminders (start_date);
+
+-- medication_logs
+CREATE INDEX IF NOT EXISTS idx_medication_logs_reminder
+ON public.medication_logs (reminder_id);
+
+CREATE INDEX IF NOT EXISTS idx_medication_logs_scheduled_datetime
+ON public.medication_logs (scheduled_datetime);
+
+CREATE INDEX IF NOT EXISTS idx_medication_logs_status
+ON public.medication_logs (status);
+
+-- notifications
+CREATE INDEX IF NOT EXISTS idx_notifications_user
+ON public.notifications (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+ON public.notifications (user_id, is_read, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_type
+ON public.notifications (type);
+
+
+-- ============================================================
+-- Partial unique indexes
+-- ============================================================
+
+-- ผู้ใช้ 1 คน ไม่สามารถมี appointment ที่ยังไม่ cancel ซ้ำ slot เดิม
+CREATE UNIQUE INDEX IF NOT EXISTS idx_appointments_user_slot_active
+ON public.appointments (user_id, slot_id)
+WHERE status <> 'cancelled';
+
+-- ผู้ใช้ 1 คน มี active reminder ของยาตัวเดียวกันได้เพียง 1 รายการ
+CREATE UNIQUE INDEX IF NOT EXISTS idx_medication_reminders_user_med_active
+ON public.medication_reminders (user_id, medication_id)
+WHERE status = 'active';
