@@ -1,84 +1,55 @@
-# 04. สถาปัตยกรรมระบบและแนวทางการเชื่อมต่อ (System Architecture & Tech Stack)
+# 04. สถาปัตยกรรมและจุดเชื่อมระบบ
 
-เอกสารนี้อธิบายสถาปัตยกรรมทางเทคนิค รูปแบบการเชื่อมต่อ API และวิธีหลีกเลี่ยงความซ้ำซ้อนในการพัฒนา เพื่อให้ทีมทำงานได้รวดเร็วและเสถียรที่สุด
+ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
----
+package.json ที่ตรวจระบุ Next.js 16.3.0, React 19.2.8, TypeScript 5, Tailwind CSS 4, Supabase JS และ Vitest ไม่ใช้คำแนะนำ Next.js 15 เก่าเป็นหลักในการพัฒนา
 
-## 🛠️ รายละเอียด Tech Stack
+## ชั้นการทำงาน
 
-* **Frontend Framework:** Next.js 15 (React 19, TypeScript, App Router)
-* **Styling & Icons:** Tailwind CSS v4, Lucide React / FontAwesome
-* **Backend as a Service (BaaS):** Supabase (PostgreSQL, Supabase Auth, Storage)
-* **Email Notification Service:** Resend API หรือ Supabase Inbucket/SMTP
-* **Cron Job / Background Worker:** Supabase `pg_cron` / Edge Functions หรือ Vercel Cron
+- src/app และ components: UI ตามบทบาท จัดการ loading/empty/error และ keyboard
+- services/hooks: เรียกข้อมูลและคำสั่ง ไม่เป็นด่านสิทธิ์เพียงชั้นเดียว
+- Supabase Auth และ PostgreSQL: ตรวจสิทธิ์ปัจจุบัน ขอบเขตผู้ป่วย ความจุ สต๊อก version และธุรกรรม
+- Worker ฝั่ง server: ยืนยันข้อเสนอเมื่อครบ 24 ชั่วโมง จัดการสถานะมื้อ สร้างข้อความ และส่งอีเมล โดยไม่ขึ้นกับการเปิดเว็บ
+- Browser ที่เปิดอยู่: แสดงเตือนตามเวลายืนยันและซิงก์ข้อมูลจาก server เมื่อกลับมา ไม่ใช้เวลาของ browser ตัดสินสิทธิ์บันทึก
 
----
+## ธุรกรรมและสิทธิ์
 
-## 📐 รูปแบบสถาปัตยกรรม (Direct BaaS Architecture)
+จอง ยกเลิก เลื่อนนัด กันยา แบ่งจ่าย ปล่อยการกัน และการแก้ส่วนค้างต้องตรวจและเปลี่ยนข้อมูลที่สัมพันธ์กันอย่าง atomic พร้อม idempotency และ audit การทำซ้ำหลัง network timeout ต้องไม่เปลี่ยนยอดซ้ำ
 
-เพื่อลดความซ้ำซ้อนและประหยัดเวลาพัฒนา 17 วัน เราจะ**ไม่สร้าง API Route คั่นกลางแบบดั้งเดิมสำหรับงาน CRUD ทั่วไป** แต่จะใช้ความสามารถของ Supabase Client ในการเชื่อมต่อโดยตรง
+การระงับ/เปลี่ยน role ต้องปฏิเสธ session เก่าที่ฝั่งข้อมูลทันที ไม่รอเพียง JWT หมดอายุ UI ต้องขอเข้าสู่ระบบใหม่ การใช้วิธีใดให้กำหนดใน implementation ภายหลัง
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                 Next.js Frontend (App Router)               │
-│                                                             │
-│  [Client Components]            [Server Actions / Pages]    │
-│  (Forms, Interactive UI)        (Data Fetching, SSR)        │
-└──────────────┬──────────────────────────────┬───────────────┘
-               │                              │
-               ▼                              ▼
-      createClientComponent()        createServerComponent()
-               │                              │
-               └──────────────┬───────────────┘
-                              │ Supabase JS SDK
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Supabase Backend                       │
-│                                                             │
-│  ├── Supabase Auth (JWT, Cookie Session Management)         │
-│  ├── PostgreSQL Database (Protected with RLS Policies)       │
-│  └── Storage (Avatars, Uploaded Files)                      │
-└─────────────────────────────────────────────────────────────┘
-```
+Staff/Pharmacist ใช้ข้อมูลเฉพาะช่องผ่าน view/RPC หรือแบบแยกข้อมูลที่ควบคุมสิทธิ์ได้ Admin ไม่มีสิทธิ์อ่านผลตรวจผ่านบทบาทแอป ส่วน service_role อยู่เฉพาะงาน server/เครื่องหัวหน้าทีม ไม่แจกให้ browser
 
----
+## ลำดับแจ้งเตือน
 
-## 🔑 จุดเน้นสำคัญในการพัฒนา (Best Practices vs. Redundancies)
+เจ้าหน้าที่สร้างจากจ่ายจริง → ผู้ป่วยยืนยันเวลา → สร้างกำหนดมื้อ → อีเมลที่ T−10 นาที → ในเว็บที่ T → missed ที่ T+1 ชั่วโมงหากยังไม่บันทึก
 
-### 1. ระบบยืนยันตัวตน (Authentication) - ฟีม
-* **ห้ามทำ:** อย่าเขียนระบบแฮชรหัสผ่านด้วย `bcrypt` เอง หรือสร้างตาราง `sessions` ในฐานข้อมูลเหมือนในตัวอย่างเดิมของอาจารย์
-* **สิ่งที่ต้องทำ:** ใช้ `supabase.auth.signUp()` และ `supabase.auth.signInWithPassword()` โดยตรง Supabase จะดูแลเรื่อง Cookie, JWT และการ Refresh Token ให้อัตโนมัติ
+มื้อทั่วไปปิดรับบันทึกที่มื้อถัดไป +30 นาที มื้อสุดท้ายเตือนซ้ำทั้งสองช่องทางที่ T+3 ชั่วโมงถ้ายังไม่บันทึก และปิดที่ T+3 ชั่วโมง 30 นาที ยืนยันมื้อแรกเหลือ <10 นาทีให้ส่งอีเมลทันที
 
-### 2. การจัดการข้อมูลและการป้องกันความปลอดภัย (RLS) - ช้อป, ปาย, กัญจน์
-* ทุกตารางจะเปิดใช้งาน **Row Level Security (RLS)** ใน Supabase
-* การดึงข้อมูลสามารถเขียนคำสั่งใน `services/` ได้โดยตรง เช่น:
-  ```typescript
-  // ตัวอย่าง services/appointmentService.ts
-  import { supabase } from "@/lib/supabase";
+ก่อนส่ง worker ตรวจสถานะล่าสุดและการพักอีเมล งานที่ข้ามเพราะพักไม่ตามส่งย้อนหลัง รอบซ้ำมื้อสุดท้ายก็พักได้ ยกเว้นคำสั่ง Staff ตามกติกาหนึ่งครั้งต่อมื้อ ต้องกันคำขอพร้อมกันในฐานข้อมูล
 
-  export async function getAppointments(userId: string) {
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(`*, slot:appointment_slots(*, doctor:doctors(*, profile:profiles(full_name)))`)
-      .eq("user_id", userId);
-    if (error) throw error;
-    return data;
-  }
-  ```
+แยกสถานะสร้างงาน / ผู้ให้บริการรับ / ล้มเหลว / ข้ามเพราะพัก ห้ามอ้างว่าส่งถึงกล่องจากเพียงสร้างงานสำเร็จ ความถี่ worker, retry และ catch-up ยังรอสรุป การใช้รอบ 15 นาทีแบบเดิมไม่ตรงความต้องการใหม่ และยังไม่รับประกันเวลาถึงของอีเมล
 
-### 3. สถาปัตยกรรมการแจ้งเตือน (Notifications Architecture) - กลอง & เฮิร์บ
+Bootstrap ไม่ส่งจริง แต่วันสาธิตต้องส่งจริงสู่กล่องทดสอบที่ทีมควบคุม ลิงก์อีเมลเปิดมื้อในเว็บและยังต้องยืนยันหลังล็อกอิน
+
+## ภาพรวมชั้นระบบ
 
 ```text
-[Cron Job / Edge Function] 
-       │ ตรวจสอบตาราง medication_reminders และ medication_logs ทุกๆ 15 นาที
-       ▼
-┌──────────────────────────────────────────────────────────────┐
-│  พบรายการยาที่ถึงเวลาทานแต่ยังไม่ได้ทาน (status = 'pending')    │
-└──────┬───────────────────────────────────────────────┬───────┘
-       │                                               │
-       ▼ (1. ส่งแจ้งเตือนภายนอก)                         ▼ (2. ส่งแจ้งเตือนภายใน)
-[ยิง Resend Email API]                       [Insert ลงตาราง notifications]
-       │                                               │
-       ▼                                               ▼
-ส่งเข้า Email ผู้ป่วย                          ผู้ป่วยเห็นในเว็บ (In-app Notification)
+Next.js App Router
+├── Client UI: ฟอร์ม หน้าจอ และสถานะตาม role
+├── Server layer: งานสิทธิ์สูง, transaction, worker และการเรียก Email provider
+└── Supabase
+    ├── Auth: สมัคร ยืนยันอีเมล session และบัญชีคลินิก
+    ├── PostgreSQL: ข้อมูลธุรกิจ ข้อจำกัด RLS, View/RPC
+    └── Realtime: สะท้อนข้อความ/สถานะเมื่อเลือกใช้
 ```
+
+CRUD ที่อ่านข้อมูลตามสิทธิ์อาจใช้ Supabase client ผ่าน service layer ได้ งานที่เปลี่ยนหลายข้อมูลพร้อมกัน เช่น จอง/ย้ายรอบ จ่าย/กัน/ปล่อยยา หรือส่ง override ต้องผ่าน Server/RPC ที่ตรวจสิทธิ์, version และ idempotency ไม่เปิด `service_role` ไป browser
+
+## ขอบเขตเทคโนโลยีและการตรวจ
+
+- ใช้ Next.js App Router, React, TypeScript, Tailwind CSS, Supabase และบริการอีเมลตาม `package.json`; เวอร์ชันจริงยึด package ไม่ยึดเอกสารเก่า
+- Supabase Auth จัดการรหัสผ่านและ email verification ห้ามสร้างระบบ hash/session ของตัวเองโดยไม่มีเหตุผล
+- RLS รายแถวไม่พอสำหรับ Staff/Pharmacist ที่ห้ามอ่าน diagnosis ต้องใช้ View, RPC หรือ query ที่คืนเฉพาะ field อนุญาต
+- แยกสถานะ “สร้างงานส่ง”, “ผู้ให้บริการรับ”, “ล้มเหลว”, “ข้ามเพราะพัก” ออกจาก “อีเมลถึงกล่อง” เพื่อไม่แสดงผลสำเร็จเกินหลักฐาน
+- ความถี่ worker, retry และ catch-up ยังเป็นเรื่องค้าง ห้ามนำ Cron ทุก 15 นาทีเดิมกลับมาเป็นข้อกำหนดใหม่

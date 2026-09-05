@@ -1,98 +1,57 @@
-# 05. โครงสร้างโฟลเดอร์และข้อตกลงการใช้ Git/GitHub (Folder & Git Guidelines)
+# 05. โฟลเดอร์และข้อตกลง Git
 
-เอกสารนี้ระบุการแบ่งโฟลเดอร์ในโปรเจกต์ และข้อตกลงการใช้งาน GitHub เพื่อให้ผู้พัฒนาทั้ง 6 คนสามารถทำงานคู่ขนานกันได้โดยไม่เกิด Code Conflict
+ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
----
+## พื้นที่งาน
 
-## 📂 โครงสร้างโฟลเดอร์แบบแบ่งตามฟีเจอร์ (Feature-based Modular Structure)
+โครงสร้างที่พบ: src/app/(auth), (clinic), (patient), (dashboard); src/components, src/services, src/hooks, src/lib, src/types และ supabase/migrations, supabase/seed.sql ใช้โครงสร้างจริงแทนตัวอย่างเส้นทางที่ตั้งตามชื่อสมาชิก
+
+| เจ้าของ | งาน | ผู้ตรวจ |
+| --- | --- | --- |
+| ฟีม | สมาชิก โปรไฟล์ สิทธิ์และ session | เฮิร์บ |
+| ช้อป | แผนก แพทย์ ตารางและความจุรอบ | ปาย |
+| ปาย | นัด เลื่อนนัด คิว ผลตรวจและแก้ใบสั่ง | ช้อป |
+| กัญจน์ | คลัง แบ่งจ่าย กันยาและค้างจ่าย | กลอง |
+| กลอง | เจ้าหน้าที่ตั้งเตือน ผู้ป่วยยืนยันเวลา บันทึกมื้อและอีเมล | กัญจน์ |
+| เฮิร์บ | แจ้งเตือน Broadcast และ Dashboard 5 บทบาท | ฟีม |
+
+ไฟล์กลางให้ประสานหัวหน้าทีมและเจ้าของโมดูลพร้อมคู่ตรวจ ไม่แก้สัญญาข้อมูลของเพื่อนโดยไม่แจ้ง งานเอกสารครั้งนี้ได้รับคำสั่งเจ้าของโครงการให้ปรับทั้งชุด
+
+## Git และตรวจงาน
+
+ใช้แนวทาง feature → develop → main ตามกิ่งจริงใน repository ไม่มีการสร้าง เปลี่ยนชื่อ หรือ merge branch ในงานเอกสารนี้
+
+- ก่อนส่ง PR ดึงงานร่วมและแก้ conflict ตรวจ diff ว่าอยู่ในขอบเขต
+- คู่ตรวจรับผิดชอบตรวจซึ่งกันและกัน: ฟีม↔เฮิร์บ ช้อป↔ปาย กัญจน์↔กลอง
+- ก่อนรวม main ต้องผ่าน lint, typecheck, build และกรณีทดสอบหลัก; SCN-01–07 ต้องผ่านก่อนนำเสนอ
+- ไม่ commit ความลับ .env.local หรือ service_role; .env.example มีเพียงชื่อค่าและ placeholder ไม่ใช่คีย์จริง
+- ผู้รวมโค้ดและผู้ดูแลไฟล์กลางรายบุคคลยังต้องระบุ ไม่ถือว่าคู่ตรวจเป็นผู้อนุมัติทุกการเปลี่ยนแปลงโดยอัตโนมัติ
+
+รายละเอียดวันส่งอยู่ใน [06](06_development_roadmap.md) สัญญาส่งต่อใน [09](09_implementation_plan.md)
+
+## โครงสร้างโฟลเดอร์ปัจจุบัน
 
 ```text
-campus-clinic-web/
-├── app/
-│   ├── (auth)/                  # 👤 [ฟีม] หน้า Login, Register, Profile
-│   │   ├── login/page.tsx
-│   │   ├── register/page.tsx
-│   │   └── profile/page.tsx
-│   │
-│   ├── (clinic)/
-│   │   ├── departments/page.tsx # 👤 [ช้อป] แผนกและตารางตรวจแพทย์
-│   │   ├── schedules/page.tsx   # 👤 [ช้อป]
-│   │   ├── appointments/page.tsx# 👤 [ปาย] ระบบจองคิวและนัดหมาย
-│   │   ├── records/page.tsx     # 👤 [ปาย] บันทึกการตรวจ (Medical Records)
-│   │   └── pharmacy/page.tsx    # 👤 [กัญจน์] คลังยาและประวัติ Inventory Logs
-│   │
-│   ├── (patient)/
-│   │   ├── reminders/page.tsx   # 👤 [กลอง] ตั้งเวลาแจ้งเตือนกินยา
-│   │   └── notifications/page.tsx # 👤 [เฮิร์บ] กล่องแจ้งเตือน In-app
-│   │
-│   ├── (dashboard)/             # 👤 [เฮิร์บ] หน้าแดชบอร์ดสรุปสถิติ
-│   │   └── dashboard/page.tsx
-│   │
-│   ├── layout.tsx               # ⚠️ ส่วนกลาง (Navbar/Footer หลัก)
-│   ├── page.tsx                 # ⚠️ หน้าแรก (Landing Page)
-│   └── globals.css              # ⚠️ สไตล์กลาง
-│
-├── components/                  # ชิ้นส่วน UI แยกตามคนทำ
-│   ├── common/                  # ⚠️ กองกลาง: Button, Modal, Navbar, Input, Badge
-│   ├── auth/                    # 👤 [ฟีม] ฟอร์มล็อกอิน, การ์ดโปรไฟล์
-│   ├── schedule/                # 👤 [ช้อป] ตารางปฏิทิน, การ์ดข้อมูลแพทย์ (ห้ามปายแตะ)
-│   ├── appointment/             # 👤 [ปาย] การ์ดคิวตรวจ, ฟอร์มนัดหมาย (ห้ามช้อปแตะ)
-│   ├── pharmacy/                # 👤 [กัญจน์] ตารางสต๊อกยา, ฟอร์มเบิกจ่ายยา
-│   ├── reminders/               # 👤 [กลอง] การ์ดยาที่ต้องกิน, สวิตช์เปิด/ปิดเตือน
-│   └── dashboard/               # 👤 [เฮิร์บ] กราฟ, การ์ดสรุปตัวเลข
-│
-├── services/                    # ฟังก์ชันคุยกับ Supabase (แยกตามไฟล์)
-│   ├── authService.ts           # 👤 [ฟีม]
-│   ├── scheduleService.ts       # 👤 [ช้อป]
-│   ├── appointmentService.ts    # 👤 [ปาย]
-│   ├── medicationService.ts     # 👤 [กัญจน์]
-│   ├── reminderService.ts       # 👤 [กลอง]
-│   └── dashboardService.ts      # 👤 [เฮิร์บ]
-│
-├── lib/
-│   └── supabase.ts              # ⚠️ Client กลางสำหรับเรียกใช้ Supabase
-└── types/
-    └── database.ts              # ⚠️ Type ของ Supabase Tables (ห้ามแก้ตามใจชอบ)
+wu-clinic-booking/
+├── src/app/                 # route groups: (auth), (clinic), (patient), (dashboard)
+├── src/components/          # common, layout, schedules, reminders, dashboard
+├── src/context/ src/hooks/  # AuthContext และ hooks
+├── src/lib/                 # Supabase client/helper
+├── src/services/            # Auth, Schedule, Appointment, Medication, Reminder, Dashboard
+├── src/types/               # contract TypeScript กลาง
+├── supabase/migrations/     # schema/RLS เดิม; ยังไม่ sync ข้อสรุปล่าสุด
+├── supabase/seed.sql        # seed เดิม
+└── docs/                    # ข้อกำหนด แผน Catalog และ SQL อ้างอิง
 ```
 
----
+ไฟล์กลาง เช่น `globals.css`, layout, `src/types/database.ts`, Supabase client และ migration ต้องแจ้งเจ้าของที่กระทบก่อนแก้ ไม่ใช่พื้นที่ห้ามแตะ แต่ต้องรวมอย่างระวังและมีคู่ตรวจ
 
-## 🛡️ กฎเหล็กป้องกัน Git Merge Conflict (Zero-Conflict Rules)
+## วงจร Git รายวัน
 
-1. **ทำงานเฉพาะในพื้นที่ของตนเอง:** ทุกคนมีโฟลเดอร์ของตัวเองใน `app/`, `components/`, และ `services/` ห้ามเข้าไปแก้ไขไฟล์ของเพื่อนเด็ดขาด
-2. **ไฟล์กองกลางต้องสร้างให้เสร็จตั้งแต่วันแรก:** เช่น `lib/supabase.ts`, `components/common/` และ `types/database.ts` ให้หัวหน้าทีมหรือฟีมทำไว้ก่อน จากนั้นให้ทุกคน `git pull` ไปใช้
-3. **ห้าม Commit ข้อมูล Secret:** ไฟล์ `.env.local` ต้องอยู่ใน `.gitignore` เสมอ ให้แชร์ค่า Key ผ่าน `.env.example` แทน
+1. เริ่มจาก `develop` ล่าสุด สร้างกิ่ง `feat/<module>-<summary>` ของตน
+2. แก้เฉพาะโมดูลและ contract ที่ตกลง หากต้องแก้ไฟล์กลางให้แจ้งใน PR
+3. ก่อนเปิด PR ดึง `develop` มาแก้ conflict และรัน gate ที่เกี่ยวข้อง
+4. เปิด PR จาก feature ไป `develop`; คู่ตรวจตรวจสิทธิ์, contract และกรณีทดสอบ ไม่รวมเข้า `main` ตรง
+5. ผู้รวมงาน merge หลังผ่าน lint, typecheck, build และกรณีหลัก; เก็บหลักฐาน SCN ก่อนนำเสนอ
 
----
-
-## 🌿 ข้อตกลงการใช้ Git Branching & GitHub
-
-### โครงสร้างกิ่ง (Branches)
-* **`main`**: สำหรับโค้ดเวอร์ชันเสร็จสมบูรณ์ พร้อมนำเสนออาจารย์ (ห้าม Push ตรงเด็ดขาด)
-* **`dev`**: สำหรับรวมโค้ดล่าสุดของทุกคนที่ผ่านการทดสอบแล้ว
-* **Feature Branches**: กิ่งของแต่ละคน แตกออกจาก `dev` โดยตั้งชื่อดังนี้:
-  * `feat/auth-feem`
-  * `feat/schedule-shop`
-  * `feat/appointment-pai`
-  * `feat/pharmacy-kan`
-  * `feat/reminder-klong`
-  * `feat/dashboard-herb`
-
-### วงจรการทำงานประจำวัน (Daily Git Workflow)
-```bash
-# 1. ก่อนเริ่มงานทุกเช้า: ดึงโค้ดล่าสุดจาก dev เข้ากิ่งของตัวเอง
-git checkout feat/your-feature
-git pull origin dev
-
-# 2. เขียนโค้ดในโฟลเดอร์ของตัวเอง และบันทึกงาน
-git add .
-git commit -m "feat(pharmacy): add inventory logs table UI"
-
-# 3. ก่อนส่งงาน: ดึง dev มาตรวจสอบว่าไม่มี conflict
-git pull origin dev
-
-# 4. ส่งโค้ดขึ้น GitHub
-git push origin feat/your-feature
-
-# 5. เปิด Pull Request (PR) บน GitHub: จาก feat/your-feature เข้าหา dev
-```
+ตัวอย่างคำสั่งใช้ได้เมื่อเริ่มพัฒนา: `git switch develop`, `git pull`, `git switch -c feat/<module>-<summary>`, `git status`, `git add`, `git commit`, `git push -u origin <branch>` ห้าม commit key หรือข้อมูลจริง
