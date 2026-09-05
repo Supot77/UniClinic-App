@@ -130,13 +130,13 @@ export default function InventoryPage() {
     value: string
   ) => {
     if (value === "") {
-      setDraft({ ...draft, [field]: 0 });
+      setDraft((prev) => ({ ...prev, [field]: 0 }));
       return;
     }
 
     const parsed = Number(value);
     if (!Number.isNaN(parsed)) {
-      setDraft({ ...draft, [field]: parsed });
+      setDraft((prev) => ({ ...prev, [field]: parsed }));
     }
   };
 
