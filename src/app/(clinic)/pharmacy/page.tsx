@@ -1,19 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useClinicMockDatabase } from "@/features/mock-database/ClinicMockProvider";
+import { supabase } from "@/lib/supabase";
+import { Medication, MOCK_DB } from "../../../../docs/superpowers/specs/MOCK_MEDICATIONS";
 
-type Medication = {
-  id: string;
-  name: string;
-  type: string;
-  category: string;
-  stock: number;
-  min_stock: number;
-  expiry_date: string | null;
-};
-
-type Status = "มีเพียงพอ" | "ต้องสั่งเพิ่ม" | "วิกฤตใกล้หมด" | "หมดอายุ";
+type Status = "มีเพียงพอ" | "ต้องสั่งเพิ่ม" | "วิกฤตใกล้หมด" | "หมดอายุ" | "นำออก";
 
 const TYPE_OPTIONS = [
   "ยาเม็ด (Tablet)",
@@ -37,6 +28,10 @@ const EMPTY_DRAFT = {
 
 // คำนวณสถานะสต็อกอัตโนมัติจาก stock เทียบ min_stock — ไม่ต้องเก็บใน DB, ไม่มีวันไม่ตรงกับตัวเลขจริง
 function getMedicationStatus(item: Medication): Status {
+  if (item.is_deleted) {
+    return "นำออก";
+  }
+
   if (isExpired(item.expiry_date)) {
     return "หมดอายุ";
   }
@@ -56,6 +51,7 @@ const STATUS_STYLE: Record<Status, string> = {
   "ต้องสั่งเพิ่ม": "bg-amber-500/10 text-amber-600",
   "วิกฤตใกล้หมด": "bg-rose-500/10 text-rose-600",
   "หมดอายุ": "bg-red-500/10 text-red-600",
+  "นำออก": "bg-zinc-500/10 text-zinc-600",
 };
 
 function formatExpiry(dateStr: string | null) {
@@ -112,7 +108,6 @@ function normalizeCategoryName(value: string) {
 }
 
 export default function InventoryPage() {
-  const { repositories } = useClinicMockDatabase();
   const [items, setItems] = useState<Medication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -168,12 +163,26 @@ export default function InventoryPage() {
     });
   };
 
-  // Supabase-compatible mock repository: async data/error contract.
+  // --- โหลดข้อมูลจริงจาก Supabase --------------------------------------
   const fetchMedications = useCallback(async () => {
     setIsLoading(true);
     setErrorMsg(null);
 
-    const { data, error } = await repositories.pharmacy.listMedications();
+    /* --- COMMENTED OUT FOR MOCKUP ---
+    if (!supabase) {
+      setErrorMsg(
+        "ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local ก่อนใช้งานหน้า Inventory"
+      );
+      setItems([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("medications")
+      .select("*")
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
 
     if (error) {
       setErrorMsg("โหลดข้อมูลไม่สำเร็จ: " + error.message);
@@ -181,8 +190,23 @@ export default function InventoryPage() {
     } else {
       setItems(data as Medication[]);
     }
+    ---------------------------------- */
+
+    // MOCKUP LOGIC
+    let currentMock = MOCK_DB.MOCK_MEDICATIONS;
+    try {
+      const stored = localStorage.getItem("pharmacy_mock");
+      if (stored) {
+        currentMock = JSON.parse(stored);
+        MOCK_DB.MOCK_MEDICATIONS = currentMock;
+      } else {
+        localStorage.setItem("pharmacy_mock", JSON.stringify(currentMock));
+      }
+    } catch (e) {}
+
+    setItems([...currentMock]);
     setIsLoading(false);
-  }, [repositories]);
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -191,7 +215,22 @@ export default function InventoryPage() {
       setIsLoading(true);
       setErrorMsg(null);
 
-      const { data, error } = await repositories.pharmacy.listMedications();
+      /* --- COMMENTED OUT FOR MOCKUP ---
+      if (!supabase) {
+        if (!isActive) return;
+        setErrorMsg(
+          "ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local ก่อนใช้งานหน้า Inventory"
+        );
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("medications")
+        .select("*")
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false });
 
       if (!isActive) return;
 
@@ -201,6 +240,22 @@ export default function InventoryPage() {
       } else {
         setItems(data as Medication[]);
       }
+      ----------------------------------- */
+
+      // MOCKUP LOGIC
+      if (!isActive) return;
+      let currentMock = MOCK_DB.MOCK_MEDICATIONS;
+      try {
+        const stored = localStorage.getItem("pharmacy_mock");
+        if (stored) {
+          currentMock = JSON.parse(stored);
+          MOCK_DB.MOCK_MEDICATIONS = currentMock;
+        } else {
+          localStorage.setItem("pharmacy_mock", JSON.stringify(currentMock));
+        }
+      } catch (e) {}
+
+      setItems([...currentMock]);
 
       setIsLoading(false);
     };
@@ -210,7 +265,7 @@ export default function InventoryPage() {
     return () => {
       isActive = false;
     };
-  }, [repositories]);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -230,6 +285,9 @@ export default function InventoryPage() {
               : status === selectedStatus;
 
       return matchesSearch && matchesCategory && matchesStatus;
+    }).sort((a, b) => {
+      if (a.is_deleted === b.is_deleted) return 0;
+      return a.is_deleted ? 1 : -1;
     });
   }, [items, searchTerm, selectedCategory, selectedStatus]);
 
@@ -239,6 +297,7 @@ export default function InventoryPage() {
       "ต้องสั่งเพิ่ม": 0,
       "วิกฤตใกล้หมด": 0,
       "หมดอายุ": 0,
+      "นำออก": 0,
     } as Record<Status, number>;
 
     for (const item of items) {
@@ -266,6 +325,7 @@ export default function InventoryPage() {
       reorder: statusSummary["ต้องสั่งเพิ่ม"],
       critical: statusSummary["วิกฤตใกล้หมด"],
       expired: statusSummary["หมดอายุ"],
+      removed: statusSummary["นำออก"],
       expiringSoon: expiringSoon.length,
       categorySummary,
       statusSummary,
@@ -302,6 +362,7 @@ export default function InventoryPage() {
     { label: "ต้องสั่งเพิ่ม", value: summaryData.reorder, color: "#f59e0b" },
     { label: "วิกฤตใกล้หมด", value: summaryData.critical, color: "#f43f5e" },
     { label: "หมดอายุ", value: summaryData.expired, color: "#ef4444" },
+    { label: "นำออก", value: summaryData.removed, color: "#71717a" }, // zinc-500
   ].filter((segment) => segment.value > 0);
 
   const donutTotal = donutSegments.reduce((sum, segment) => sum + segment.value, 0) || 1;
@@ -384,7 +445,16 @@ export default function InventoryPage() {
       expiry_date: draft.expiry_date || null,
     };
 
-    const { error } = await repositories.pharmacy.saveMedication(payload, editingId ?? undefined);
+    /* --- COMMENTED OUT FOR MOCKUP ---
+    if (!supabase) {
+      setFormError("ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local");
+      setIsSaving(false);
+      return;
+    }
+
+    const { error } = editingId
+      ? await supabase.from("medications").update(payload).eq("id", editingId)
+      : await supabase.from("medications").insert(payload);
 
     setIsSaving(false);
 
@@ -392,6 +462,18 @@ export default function InventoryPage() {
       setFormError("บันทึกไม่สำเร็จ: " + error.message);
       return;
     }
+    ----------------------------------- */
+
+    // MOCKUP LOGIC
+    setIsSaving(false);
+    if (editingId) {
+      MOCK_DB.MOCK_MEDICATIONS = MOCK_DB.MOCK_MEDICATIONS.map(m => m.id === editingId ? { ...m, ...payload } as Medication : m);
+    } else {
+      MOCK_DB.MOCK_MEDICATIONS = [{ id: Date.now().toString(), ...payload } as Medication, ...MOCK_DB.MOCK_MEDICATIONS];
+    }
+    try {
+      localStorage.setItem("pharmacy_mock", JSON.stringify(MOCK_DB.MOCK_MEDICATIONS));
+    } catch (e) {}
 
     setIsFormOpen(false);
     setEditingId(null);
@@ -400,8 +482,14 @@ export default function InventoryPage() {
 
   // --- ลบ -----------------------------------------------------------------
   const handleDelete = async (id: string) => {
+    /* --- COMMENTED OUT FOR MOCKUP ---
+    if (!supabase) {
+      setErrorMsg("ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local");
+      return;
+    }
+
     setIsDeleting(true);
-    const { error } = await repositories.pharmacy.deleteMedication(id);
+    const { error } = await supabase.from("medications").update({ is_deleted: true }).eq("id", id);
     setIsDeleting(false);
     setConfirmDeleteId(null);
 
@@ -409,6 +497,50 @@ export default function InventoryPage() {
       setErrorMsg("ลบไม่สำเร็จ: " + error.message);
       return;
     }
+    ----------------------------------- */
+
+    // MOCKUP LOGIC
+    setIsDeleting(true);
+    MOCK_DB.MOCK_MEDICATIONS = MOCK_DB.MOCK_MEDICATIONS.map(m =>
+      m.id === id ? { ...m, is_deleted: true } : m
+    );
+    try {
+      localStorage.setItem("pharmacy_mock", JSON.stringify(MOCK_DB.MOCK_MEDICATIONS));
+    } catch (e) {}
+    setIsDeleting(false);
+    setConfirmDeleteId(null);
+
+    await fetchMedications();
+  };
+
+  // --- กู้คืน -----------------------------------------------------------------
+  const handleRestore = async (id: string) => {
+    /* --- COMMENTED OUT FOR MOCKUP ---
+    if (!supabase) {
+      setErrorMsg("ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local");
+      return;
+    }
+
+    setIsDeleting(true);
+    const { error } = await supabase.from("medications").update({ is_deleted: false }).eq("id", id);
+    setIsDeleting(false);
+
+    if (error) {
+      setErrorMsg("กู้คืนไม่สำเร็จ: " + error.message);
+      return;
+    }
+    ----------------------------------- */
+
+    // MOCKUP LOGIC
+    setIsDeleting(true);
+    MOCK_DB.MOCK_MEDICATIONS = MOCK_DB.MOCK_MEDICATIONS.map(m =>
+      m.id === id ? { ...m, is_deleted: false } : m
+    );
+    try {
+      localStorage.setItem("pharmacy_mock", JSON.stringify(MOCK_DB.MOCK_MEDICATIONS));
+    } catch (e) {}
+    setIsDeleting(false);
+
     await fetchMedications();
   };
 
@@ -639,7 +771,9 @@ export default function InventoryPage() {
                           ? "from-amber-300 to-amber-500"
                           : label === "วิกฤตใกล้หมด"
                             ? "from-rose-400 to-rose-600"
-                            : "from-red-400 to-red-600";
+                            : label === "หมดอายุ"
+                              ? "from-red-400 to-red-600"
+                              : "from-zinc-400 to-zinc-600";
 
                     return (
                       <button
@@ -772,12 +906,21 @@ export default function InventoryPage() {
                               >
                                 แก้ไข
                               </button>
-                              <button
-                                onClick={() => setConfirmDeleteId(item.id)}
-                                className="rounded-full border border-rose-200 px-3 py-1 text-[10px] font-semibold text-rose-600 hover:bg-rose-50 transition"
-                              >
-                                ลบ
-                              </button>
+                              {item.is_deleted ? (
+                                <button
+                                  onClick={() => handleRestore(item.id)}
+                                  className="rounded-full border border-zinc-300 bg-zinc-100 px-3 py-1 text-[10px] font-semibold text-zinc-600 hover:bg-zinc-200 transition"
+                                >
+                                  กู้คืน
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmDeleteId(item.id)}
+                                  className="rounded-full border border-rose-200 px-3 py-1 text-[10px] font-semibold text-rose-600 hover:bg-rose-50 transition"
+                                >
+                                  ลบ
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
