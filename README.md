@@ -1,157 +1,56 @@
-# ระบบคลินิกตรวจสุขภาพและแจ้งเตือนการกินยา (Campus Health Clinic & Medication Reminder System)
+# WU Clinic Booking & Medication System
 
-> **วิชา:** มินิโปรเจกต์รายวิชาเว็บแอปพลิเคชัน (COE67-331) — วิศวกรรมคอมพิวเตอร์ มหาวิทยาลัยวลัยลักษณ์  
-> **กำหนดส่ง / นำเสนอ:** 18 กันยายน 2569
+ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
----
+มินิโปรเจกต์ COE67-331 ระบบคลินิกมหาวิทยาลัยและเตือนกินยา ส่ง 18 กันยายน 2569 package.json ใช้ชื่อ wu-clinic-booking โฟลเดอร์ในเครื่องชื่อ UniClinic-App
 
-## 📌 ภาพรวมโครงการ (Project Overview)
+## เอกสารหลัก
 
-ระบบเว็บแอปพลิเคชันสำหรับบริการคลินิกตรวจสุขภาพภายในมหาวิทยาลัย อำนวยความสะดวกในการนัดหมายแพทย์ล่วงหน้า การจัดการคิวตรวจหน้างาน การบันทึกประวัติการตรวจรักษา (Medical Records) การจัดการคลังยาและการจ่ายยาโดยเภสัชกร ตลอดจนระบบแจ้งเตือนการรับประทานยาส่วนบุคคลสำหรับนักศึกษาและบุคลากรผ่าน In-app Notification และ Email อัตโนมัติ
+เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md) และ [แผนพัฒนา](docs/09_implementation_plan.md) งานรอบนี้ปรับ Markdown เท่านั้น โค้ด/ฐานข้อมูลยังไม่ได้รับรองว่าตรงข้อสรุปทั้งหมด
 
----
+## ขอบเขต
 
-## 🛠️ เทคโนโลยีหลัก (Tech Stack)
+5 บทบาท สมัคร @mail.wu.ac.th, จอง 1–14 วัน, เลื่อนนัดเสนอรอบใหม่รอตอบ 24 ชั่วโมง, แบ่งจ่าย/กันยา/รับค้าง, Staff ตั้งเตือนจากรับจริงแล้ว Patient ยืนยันเวลาและล็อก, อีเมลล่วงหน้า 10 นาทีและเตือนในเว็บตามเวลา, Broadcast โดย Admin และ Dashboard แยกบทบาท
 
-* **Frontend Framework:** [Next.js 16 (App Router)](https://nextjs.org/) + [React 19](https://react.dev/) + [TypeScript 5](https://www.typescriptlang.org/)
-* **Styling & Icons:** [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide React](https://lucide.dev/) + [Recharts](https://recharts.org/)
-* **Backend as a Service (BaaS):** [Supabase](https://supabase.com/) (PostgreSQL 15+, Supabase Auth, Row Level Security, Realtime, Storage)
-* **Email Service:** [Resend API](https://resend.com/) / Supabase Inbucket
-* **Testing:** [Vitest](https://vitest.dev/) + [@testing-library/react](https://testing-library.com/) + jsdom
+| เจ้าของ | งาน | ผู้ตรวจ |
+| --- | --- | --- |
+| ฟีม | สมาชิก โปรไฟล์ สิทธิ์และ session | เฮิร์บ |
+| ช้อป | แผนก แพทย์ ตารางและความจุรอบ | ปาย |
+| ปาย | นัด เลื่อนนัด คิว ผลตรวจและแก้ใบสั่ง | ช้อป |
+| กัญจน์ | คลัง แบ่งจ่าย กันยาและค้างจ่าย | กลอง |
+| กลอง | เจ้าหน้าที่ตั้งเตือน ผู้ป่วยยืนยันเวลา บันทึกมื้อและอีเมล | กัญจน์ |
+| เฮิร์บ | แจ้งเตือน Broadcast และ Dashboard 5 บทบาท | ฟีม |
 
----
+## เริ่มต้นพัฒนา
 
-## 👥 สมาชิกและโมดูลความรับผิดชอบ (Team & Modules)
+ใช้ Node.js ที่เข้ากับ package.json และติดตั้งด้วย npm install จากนั้นสร้าง .env.local ตามการตั้งค่า Supabase ของทีม โดยไม่ commit คีย์
 
-แบ่งการทำงานเป็น 6 โมดูลหลักตามโฟลเดอร์เพื่อรองรับการพัฒนาคู่ขนาน:
-
-| ลำดับ | ผู้รับผิดชอบ | โมดูลหลัก | ขอบเขตความรับผิดชอบ | เส้นทางหลัก (Route / Service) |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | **ฟีม** | **Auth & Profiles** | ระบบสมัครสมาชิก/ล็อกอินด้วย Email & Password ผ่าน Supabase Auth, จัดการสิทธิ์ (RBAC: `patient`, `staff`, `doctor`, `pharmacist`, `admin`), แก้ไขโปรไฟล์และประวัติแพ้ยา | `app/(auth)/`<br>`services/authService.ts` |
-| 2 | **ช้อป** | **Departments & Schedules** | จัดการแผนกคลินิก, ข้อมูลแพทย์ประจำแผนก, สร้างและจัดการรอบเวลาออกตรวจ (Appointment Slots) | `app/(clinic)/departments/`<br>`app/(clinic)/schedules/`<br>`services/scheduleService.ts` |
-| 3 | **ปาย** | **Appointments & Records** | ระบบจองคิวตรวจของผู้ป่วย, จัดการคิวหน้างานของเจ้าหน้าที่/แพทย์, บันทึกผลวินิจฉัยและรายการสั่งยา (Medical Records) | `app/(clinic)/appointments/`<br>`app/(clinic)/records/`<br>`services/appointmentService.ts` |
-| 4 | **กัญจน์** | **Pharmacy & Inventory** | จัดการสต๊อกคลังยา, เภสัชกรกดยืนยันจ่ายยาตัดสต๊อก, บันทึกประวัติการนำเข้า-ออก-เบิกจ่าย (Inventory Logs) | `app/(clinic)/pharmacy/`<br>`services/medicationService.ts` |
-| 5 | **กลอง** | **Reminders & Email Worker** | ผู้ป่วยตั้งเวลาเตือนกินยารายวัน, บันทึกสถานะการกินยา (Taken/Skipped), คำนวณความสม่ำเสมอ (Compliance Rate), ส่งอีเมลเตือนอัตโนมัติ | `app/(patient)/reminders/`<br>`services/reminderService.ts` |
-| 6 | **เฮิร์บ** | **Notifications & Dashboard** | กล่องข้อความแจ้งเตือนภายในเว็บ (In-app Notifications), ประกาศข่าวสาร (Broadcast), แดชบอร์ดสรุปสถิติและตัวชี้วัด (KPIs) สำหรับผู้บริหารและแพทย์ | `app/(patient)/notifications/`<br>`app/(dashboard)/dashboard/`<br>`services/dashboardService.ts` |
-
----
-
-## 📂 โครงสร้างโปรเจกต์ (Project Structure)
-
-```text
-wu-clinic-booking/
-├── docs/                        # เอกสารความต้องการ ระบบ และเกณฑ์ตรวจรับ
-│   ├── 00_reading_guide.md      # คู่มือลำดับการอ่านเอกสาร
-│   ├── 01_project_overview.md   # ภาพรวมและขอบเขตงาน
-│   ├── 02_user_stories.md       # ข้อกำหนดผู้ใช้งาน
-│   ├── 03_database_design_and_er.md # ฐานข้อมูล 11 ตาราง & ER Diagram
-│   ├── 04_system_architecture_and_tech_stack.md # สถาปัตยกรรมระบบ
-│   ├── 05_folder_and_git_workflow.md # โครงสร้างโฟลเดอร์และข้อตกลง Git
-│   ├── 06_development_roadmap.md # แผนการดำเนินงาน 4 ระยะ
-│   ├── 07_foundation_and_scope.md # พื้นฐานและขอบเขตระบบ
-│   ├── 08_system_rules_and_acceptance.md # กติการะบบและ Acceptance Criteria
-│   ├── 09_implementation_plan.md # แผนพัฒนาและรายการตัดสินใจ
-│   ├── 10_team_decisions.md     # ประเด็นหารือร่วมกับทีม
-│   └── SQL.md                   # สคริปต์ SQL อ้างอิง
-├── src/
-│   ├── app/                     # Next.js App Router (Route Groups)
-│   │   ├── (auth)/              # 👤 [ฟีม] login, register, profile
-│   │   ├── (clinic)/            # 🏥 [ช้อป, ปาย, กัญจน์]
-│   │   │   ├── departments/     # แผนกตรวจ
-│   │   │   ├── schedules/       # ตารางแพทย์
-│   │   │   ├── appointments/    # จองคิวตรวจ
-│   │   │   ├── records/         # ประวัติการรักษา
-│   │   │   └── pharmacy/        # คลังยาและประวัติเบิกจ่าย
-│   │   ├── (patient)/           # 💊 [กลอง, เฮิร์บ]
-│   │   │   ├── reminders/       # แจ้งเตือนกินยา
-│   │   │   └── notifications/   # ศูนย์แจ้งเตือนในระบบ
-│   │   ├── (dashboard)/         # 📊 [เฮิร์บ] แดชบอร์ดสถิติ
-│   │   │   └── dashboard/
-│   │   ├── layout.tsx           # Layout กลาง
-│   │   └── page.tsx             # Landing Page
-│   ├── components/              # UI Components แยกตามโดเมน
-│   │   ├── common/              # คอมโพเนนต์ส่วนกลาง (Button, Card, Badge, Modal, etc.)
-│   │   ├── layout/              # Header, Footer
-│   │   ├── auth/                # คอมโพเนนต์ระบบสมาชิก
-│   │   ├── reminders/           # คอมโพเนนต์ระบบเตือนกินยา
-│   │   └── dashboard/           # คอมโพเนนต์กราฟและสถิติ
-│   ├── context/                 # Context Providers (AuthContext)
-│   ├── hooks/                   # Custom React Hooks
-│   ├── lib/                     # Supabase Client & Helper กลาง
-│   ├── services/                # Supabase Service Layer แยกฟังก์ชัน
-│   └── types/                   # TypeScript Interfaces & Database Types
-├── supabase/                    # DDL SQL Migrations, RLS และ Seed Data
-│   └── migrations/
-└── tests/                       # Test Suites (Vitest)
-```
-
----
-
-## 🗄️ โครงสร้างฐานข้อมูล (Database Schema)
-
-ระบบใช้งาน PostgreSQL บน Supabase ทั้งหมด 11 ตาราง พร้อม Row Level Security (RLS):
-
-1. **`profiles`**: ข้อมูลผู้ใช้, รหัสนักศึกษา, สิทธิ์ (`patient`, `staff`, `doctor`, `pharmacist`, `admin`), ข้อมูลแพ้ยา/โรคประจำตัว
-2. **`departments`**: แผนกการรักษา
-3. **`doctors`**: ข้อมูลแพทย์, ความเชี่ยวชาญ, แผนกที่สังกัด
-4. **`appointment_slots`**: รอบเวลาออกตรวจของแพทย์, ความจุคิว, สถานะรอบตรวจ (`available`, `full`, `closed`)
-5. **`appointments`**: ข้อมูลการจองคิวตรวจ, ลำดับคิว, อาการเบื้องต้น, สถานะคิว (`pending`, `confirmed`, `in_progress`, `completed`, `cancelled`, `no_show`, `rejected`)
-6. **`medical_records`**: ผลการตรวจวินิจฉัยของแพทย์, คำแนะนำ, รายการสั่งยา (`prescribed_medications` รูปแบบ JSONB)
-7. **`medications`**: คลังยาและเวชภัณฑ์, สต๊อกคงเหลือ, จุดเตือนยาใกล้หมด (`min_stock`), วันหมดอายุ
-8. **`inventory_logs`**: บันทึกประวัติการนำเข้า, จ่ายยา, ปรับยอดสต๊อกโดยเภสัชกร
-9. **`medication_reminders`**: การตั้งค่ารอบเวลาเตือนกินยาของผู้ป่วย
-10. **`medication_logs`**: ประวัติบันทึกการกินยาแต่ละมื้อ (`pending`, `taken`, `missed`)
-11. **`notifications`**: กล่องข้อความแจ้งเตือนภายในระบบ (`reminder`, `appointment`, `broadcast`, `system`)
-
----
-
-## 🚀 เริ่มต้นใช้งาน (Getting Started)
-
-### 1. ความต้องการของระบบ (Prerequisites)
-* Node.js >= 20.x
-* บัญชีและโปรเจกต์ Supabase
-
-### 2. ติดตั้ง Dependencies
-```bash
-npm install
-```
-
-### 3. ตั้งค่าตัวแปรสภาพแวดล้อม (Environment Variables)
-สร้างไฟล์ `.env.local` ที่ Root Directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 4. ฐานข้อมูล (Database Migrations)
-นำไฟล์ SQL ใน `supabase/migrations/` ไปรันใน Supabase SQL Editor ตามลำดับ:
-1. `01_schema.sql` (สร้างตาราง, Primary Key, Foreign Key และ Indexes)
-2. `02_rls.sql` (กำหนดสิทธิ์การเข้าถึงข้อมูล Row Level Security)
-3. `seed.sql` (ข้อมูลจำลองเริ่มต้น)
+ไฟล์ฐานที่มี: supabase/migrations/01_schema.sql, 02_rls.sql และ supabase/seed.sql ยังไม่ได้ปรับตามกติกาใหม่ อย่ารัน docs/SQL.md เพื่ออัปเกรด หัวหน้าทีมดูแล service_role/รีเซ็ตเดโมและแจ้งทีมก่อนทุกครั้ง
 
-### 5. รันเซิร์ฟเวอร์สำหรับพัฒนา (Development Server)
 ```bash
 npm run dev
 ```
-เปิดใช้งานที่ [http://localhost:3000](http://localhost:3000)
 
-### 6. รันการทดสอบ (Testing)
+เปิด [เว็บพัฒนา](http://localhost:3000) รุ่นใน package.json: Next.js 16.3.0, React 19.2.8, TypeScript 5, Tailwind CSS 4, Supabase และ Vitest
+
+## ตรวจงานเมื่อพัฒนาโค้ด
+
 ```bash
+npm run lint
+npx --no-install tsc --noEmit
 npm run test
+npm run build
 ```
 
----
+ยังไม่มี script ชื่อ typecheck ใน package.json ก่อน main ต้องผ่าน gates และกรณีหลัก; ก่อนนำเสนอ SCN-01–07, อีเมลจริง, Chrome 360px/1280px และ keyboard/loading/empty/error
 
-## 🌿 ข้อตกลงการใช้ Git (Git & Branching Workflow)
+## โครงสร้างและ Git
 
-* **`main`**: โค้ดเสร็จสมบูรณ์ พร้อมส่งมอบและนำเสนอ
-* **`develop`**: กิ่งหลักสำหรับรวมโค้ดที่ผ่านการทดสอบร่วมกัน
-* **Feature Branches**: แตกกิ่งออกจาก `develop` ตามชื่อผู้รับผิดชอบ:
-  * `feat/auth-feem`
-  * `feat/schedule-shop`
-  * `feat/appointment-pai`
-  * `feat/pharmacy-kan`
-  * `feat/reminder-klong`
-  * `feat/dashboard-herb`
-* **Zero-Conflict Rules**: แก้ไขเฉพาะไฟล์ในโฟลเดอร์ของตนเอง, ดึงโค้ดล่าสุดจาก `develop` สม่ำเสมอ, และเปิด Pull Request (PR) เข้าหา `develop` เท่านั้น
+src/app แบ่ง (auth)/(clinic)/(patient)/(dashboard), src/components, services, hooks, lib, types; ฐานข้อมูลใน supabase และเอกสารใน docs ใช้ feature → dev → main ตาม [ข้อตกลง Git](docs/05_folder_and_git_workflow.md) งานนี้ไม่เปลี่ยน branch หรือรวมโค้ด
 
+ER แยกตารางและชื่อ contract เป็นข้อเสนอใน [03](docs/03_database_design_and_er.md) ยังไม่กำหนดว่าระบบใหม่มี 11 หรือ 12 ตารางตายตัว
