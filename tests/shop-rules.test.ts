@@ -3,7 +3,7 @@ import { MOCK_DEPARTMENTS, MOCK_DOCTORS, MOCK_SLOTS } from '@/mocks/scheduleData
 import { deriveSlotStatus, validateDepartmentName, validateSlot } from '@/features/shop/domain/rules';
 
 const validSlot = {
-  doctorId: 'doctor-strange',
+  doctorId: 'profile-stephen-strange',
   slotDate: '2026-09-07',
   startTime: '09:30',
   endTime: '10:00',
@@ -13,13 +13,13 @@ const validSlot = {
 describe('shop schedule domain rules', () => {
   it('accepts adjacent slots but rejects overlapping slots', () => {
     const adjacent = validateSlot(
-      { ...validSlot, slotDate: '2026-08-31', startTime: '09:30', endTime: '10:00' },
+      { ...validSlot, slotDate: '2026-09-07', startTime: '09:30', endTime: '10:00' },
       MOCK_SLOTS,
       MOCK_DOCTORS,
       MOCK_DEPARTMENTS,
     );
     const overlapping = validateSlot(
-      { ...validSlot, slotDate: '2026-08-31', startTime: '09:15', endTime: '09:45' },
+      { ...validSlot, slotDate: '2026-09-07', startTime: '09:15', endTime: '09:45' },
       MOCK_SLOTS,
       MOCK_DOCTORS,
       MOCK_DEPARTMENTS,

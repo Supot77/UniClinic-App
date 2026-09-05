@@ -27,7 +27,7 @@ const inputClass =
 
 const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-const DEMO_TODAY = '2026-09-04';
+const DEMO_TODAY = '2026-09-07';
 
 interface SlotDraft {
   doctorId: string;

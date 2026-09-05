@@ -297,7 +297,7 @@ export default function RemindersPage() {
             {/* Disabled Schedule (Optional) */}
             <div className="bg-zinc-100 rounded-2xl border border-zinc-200 border-dashed p-6 opacity-75">
                <h3 className="text-xs font-bold text-zinc-500 mb-2 uppercase">จัดการตารางยา</h3>
-               <p className="text-xs text-zinc-400 mb-3">กรุณาเพิ่มยาที่หน้า "ประวัติยา"</p>
+               <p className="text-xs text-zinc-400 mb-3">กรุณาเพิ่มยาที่หน้า &ldquo;ประวัติยา&rdquo;</p>
                <button disabled className="w-full py-2 bg-zinc-200 text-zinc-400 rounded-lg text-xs font-medium cursor-not-allowed">
                  เพิ่มยา (ปิดใช้งาน)
                </button>

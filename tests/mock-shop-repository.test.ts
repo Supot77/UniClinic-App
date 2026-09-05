@@ -26,8 +26,8 @@ describe('MockShopRepository', () => {
     const repository = new MockShopRepository();
     const before = repository.snapshot();
     const result = repository.saveSlot({
-      doctorId: 'doctor-strange',
-      slotDate: '2026-08-31',
+      doctorId: 'profile-stephen-strange',
+      slotDate: '2026-09-07',
       startTime: '09:15',
       endTime: '09:45',
       maxCapacity: 1,

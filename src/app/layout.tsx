@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { AuthProvider } from "@/context/AuthContext";
+import { ClinicMockProvider } from "@/features/mock-database/ClinicMockProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,12 +27,14 @@ export default function RootLayout({
     <html lang="th" className={`${inter.variable} h-full scroll-smooth`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col bg-white text-zinc-900 font-sans antialiased">
         <AuthProvider>
-          <Header />
-          {/* Main Content Area */}
-          <main className="flex-1 pt-[96px]" style={{ background: "#f8fafb" }}>
-            {children}
-          </main>
-          <Footer />
+          <ClinicMockProvider>
+            <Header />
+            {/* Main Content Area */}
+            <main className="flex-1 pt-[96px]" style={{ background: "#f8fafb" }}>
+              {children}
+            </main>
+            <Footer />
+          </ClinicMockProvider>
         </AuthProvider>
       </body>
     </html>
