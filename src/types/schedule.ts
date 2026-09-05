@@ -28,6 +28,7 @@ export interface ScheduleDepartment {
   description: string;
   room: string;
   isActive: boolean;
+  hasHistory?: boolean;
   tone: DepartmentTone;
 }
 
@@ -42,6 +43,7 @@ export interface ScheduleDoctor {
   specialty: string;
   departmentId: string;
   availability: DoctorAvailability;
+  hasHistory?: boolean;
 }
 
 export type ScheduleSlotStatus = 'available' | 'full' | 'closed';
@@ -55,6 +57,7 @@ export interface ScheduleSlot {
   maxCapacity: number;
   bookedCount: number;
   status: ScheduleSlotStatus;
+  hasHistory?: boolean;
 }
 
 export interface DoctorAccountOption {

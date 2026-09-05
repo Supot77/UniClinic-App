@@ -16,11 +16,8 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import {
-  MOCK_DEPARTMENTS,
-  MOCK_DOCTOR_ACCOUNT_OPTIONS,
-  MOCK_DOCTORS,
-} from '@/mocks/scheduleData';
+import { MOCK_DOCTOR_ACCOUNT_OPTIONS } from '@/mocks/scheduleData';
+import { useShop } from '@/features/shop/context/ShopProvider';
 import type {
   DepartmentTone,
   DoctorAvailability,
@@ -77,9 +74,8 @@ const emptyDoctorDraft: DoctorDraft = {
 };
 
 export default function DepartmentWorkspace() {
+  const { departments, doctors, saveDepartment: persistDepartment, toggleDepartment: persistDepartmentToggle, saveDoctor: persistDoctor, toggleDoctor: persistDoctorToggle } = useShop();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('departments');
-  const [departments, setDepartments] = useState<ScheduleDepartment[]>(MOCK_DEPARTMENTS);
-  const [doctors, setDoctors] = useState<ScheduleDoctor[]>(MOCK_DOCTORS);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
@@ -137,45 +133,9 @@ export default function DepartmentWorkspace() {
   };
 
   const saveDepartment = () => {
-    if (!departmentDraft.name.trim() || !departmentDraft.code.trim()) {
-      setFormError('กรอกชื่อและรหัสแผนกก่อนบันทึก');
-      return;
-    }
-
-    const duplicateName = departments.some(
-      (department) =>
-        department.id !== editingDepartmentId &&
-        department.name.trim().toLocaleLowerCase('th') === departmentDraft.name.trim().toLocaleLowerCase('th'),
-    );
-    if (duplicateName) {
-      setFormError('ชื่อแผนกนี้มีอยู่แล้ว');
-      return;
-    }
-
-    // INTEGRATION (Shop + DB): replace this state mutation with
-    // scheduleService.createDepartment/updateDepartment after unique-name,
-    // is_active and RLS rules are available in the shared migration.
-    if (editingDepartmentId) {
-      setDepartments((current) =>
-        current.map((department) =>
-          department.id === editingDepartmentId
-            ? { ...department, ...departmentDraft, code: departmentDraft.code.toUpperCase() }
-            : department,
-        ),
-      );
-      setNotice('อัปเดตข้อมูลแผนกใน mock UI แล้ว');
-    } else {
-      setDepartments((current) => [
-        ...current,
-        {
-          id: `mock-department-${Date.now()}`,
-          ...departmentDraft,
-          code: departmentDraft.code.toUpperCase(),
-          isActive: true,
-        },
-      ]);
-      setNotice('เพิ่มแผนกใหม่ใน mock UI แล้ว');
-    }
+    const result = persistDepartment(departmentDraft, editingDepartmentId ?? undefined);
+    if (!result.ok) { setFormError(result.error); return; }
+    setNotice(editingDepartmentId ? 'อัปเดตข้อมูลแผนกใน mock UI แล้ว' : 'เพิ่มแผนกใหม่ใน mock UI แล้ว');
 
     setDepartmentFormOpen(false);
     setEditingDepartmentId(null);
@@ -183,23 +143,13 @@ export default function DepartmentWorkspace() {
   };
 
   const toggleDepartment = (department: ScheduleDepartment) => {
-    const hasDoctors = doctors.some((doctor) => doctor.departmentId === department.id);
-
-    // INTEGRATION (Shop + Feem + Pai): D18 decides hard delete vs archive.
-    // Current mock follows approved demo design: referenced rows are disabled,
-    // never removed, so doctor/slot/appointment history remains readable.
-    if (department.isActive && !hasDoctors) {
-      setDepartments((current) => current.filter((item) => item.id !== department.id));
-      setNotice('ลบแผนกที่ยังไม่มีข้อมูลอ้างอิงจาก mock UI แล้ว');
-      return;
-    }
-
-    setDepartments((current) =>
-      current.map((item) =>
-        item.id === department.id ? { ...item, isActive: !item.isActive } : item,
-      ),
-    );
-    setNotice(department.isActive ? 'ปิดใช้งานแผนกแล้ว ประวัติเดิมยังอยู่' : 'เปิดใช้งานแผนกแล้ว');
+    const impact = doctors.some((doctor) => doctor.departmentId === department.id)
+      ? ' แพทย์และประวัติเดิมจะยังคงเชื่อมกับแผนกนี้'
+      : '';
+    if (!window.confirm(department.isActive ? `ยืนยันการ${impact ? 'ปิดใช้งาน' : 'ลบ'} “${department.name}”?${impact}` : `เปิดใช้งาน “${department.name}” อีกครั้ง?`)) return;
+    const result = persistDepartmentToggle(department.id);
+    if (!result.ok) { setFormError(result.error); return; }
+    setNotice(result.value === 'deleted' ? 'ลบแผนกที่ยังไม่มีข้อมูลอ้างอิงแล้ว' : result.value === 'disabled' ? 'ปิดใช้งานแผนกแล้ว ประวัติเดิมยังอยู่' : 'เปิดใช้งานแผนกแล้ว');
   };
 
   const selectDoctorAccount = (profileId: string) => {
@@ -234,31 +184,9 @@ export default function DepartmentWorkspace() {
   };
 
   const saveDoctor = () => {
-    if (!doctorDraft.profileId || !doctorDraft.departmentId || !doctorDraft.specialty.trim()) {
-      setFormError('เลือกบัญชีแพทย์ แผนก และกรอกความเชี่ยวชาญก่อนบันทึก');
-      return;
-    }
-
-    // INTEGRATION (Feem -> Shop): Feem owns Auth/Profile and role assignment.
-    // Shop receives an existing profile_id with role='doctor', then creates or
-    // updates only doctors.specialty, department_id and is_active.
-    if (editingDoctorId) {
-      setDoctors((current) =>
-        current.map((doctor) =>
-          doctor.id === editingDoctorId ? { ...doctor, ...doctorDraft } : doctor,
-        ),
-      );
-      setNotice('อัปเดตข้อมูลแพทย์ใน mock UI แล้ว');
-    } else {
-      setDoctors((current) => [
-        ...current,
-        {
-          id: `mock-doctor-${Date.now()}`,
-          ...doctorDraft,
-        },
-      ]);
-      setNotice('เพิ่มแพทย์จากบัญชีจำลองแล้ว');
-    }
+    const result = persistDoctor(doctorDraft, editingDoctorId ?? undefined);
+    if (!result.ok) { setFormError(result.error); return; }
+    setNotice(editingDoctorId ? 'อัปเดตข้อมูลแพทย์ใน mock UI แล้ว' : 'เพิ่มแพทย์จากบัญชีจำลองแล้ว');
 
     setDoctorFormOpen(false);
     setEditingDoctorId(null);
@@ -266,16 +194,9 @@ export default function DepartmentWorkspace() {
   };
 
   const toggleDoctor = (doctor: ScheduleDoctor) => {
-    // INTEGRATION (Shop + Pai): disabling a doctor must not delete existing
-    // slots/appointments. Backend should return affected future slots so staff
-    // can close them and Pai/Herb can notify related patients.
-    setDoctors((current) =>
-      current.map((item) =>
-        item.id === doctor.id
-          ? { ...item, availability: item.availability === 'inactive' ? 'active' : 'inactive' }
-          : item,
-      ),
-    );
+    if (!window.confirm(doctor.availability === 'inactive' ? `เปิดใช้งาน ${doctor.fullName} อีกครั้ง?` : `ปิดใช้งาน ${doctor.fullName}? รอบและประวัติเดิมจะยังคงอยู่`)) return;
+    const result = persistDoctorToggle(doctor.id);
+    if (!result.ok) { setFormError(result.error); return; }
     setNotice(doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
   };
 
