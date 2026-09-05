@@ -10,3 +10,59 @@ export interface ScheduleItem {
 }
 
 
+/**
+ * View models for Shop's mock-first UI.
+ *
+ * INTEGRATION: Keep presentation-only fields (code, room, tone, initials)
+ * outside the shared database interfaces. When Supabase is connected,
+ * scheduleService should map Department/Doctor/AppointmentSlot rows into
+ * these shapes so the UI components do not need to know where data came from.
+ */
+
+export type DepartmentTone = 'sky' | 'teal' | 'amber' | 'violet';
+
+export interface ScheduleDepartment {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  room: string;
+  isActive: boolean;
+  hasHistory?: boolean;
+  tone: DepartmentTone;
+}
+
+export type DoctorAvailability = 'active' | 'on_leave' | 'inactive';
+
+export interface ScheduleDoctor {
+  id: string;
+  profileId: string;
+  fullName: string;
+  initials: string;
+  email: string;
+  specialty: string;
+  departmentId: string;
+  availability: DoctorAvailability;
+  hasHistory?: boolean;
+}
+
+export type ScheduleSlotStatus = 'available' | 'full' | 'closed';
+
+export interface ScheduleSlot {
+  id: string;
+  doctorId: string;
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  maxCapacity: number;
+  bookedCount: number;
+  status: ScheduleSlotStatus;
+  hasHistory?: boolean;
+}
+
+export interface DoctorAccountOption {
+  profileId: string;
+  fullName: string;
+  email: string;
+  initials: string;
+}

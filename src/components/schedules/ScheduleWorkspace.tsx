@@ -1,0 +1,284 @@
+'use client';
+
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import {
+  ArrowRight,
+  Ban,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleDot,
+  Clock3,
+  Database,
+  Filter,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Users,
+  X,
+} from 'lucide-react';
+import { MOCK_WEEK_START } from '@/mocks/scheduleData';
+import { useShop } from '@/features/shop/context/ShopProvider';
+import type { ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
+
+const inputClass =
+  'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-100';
+
+const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const DEMO_TODAY = '2026-09-04';
+
+interface SlotDraft {
+  doctorId: string;
+  slotDate: string;
+  startTime: string;
+  endTime: string;
+  maxCapacity: number;
+}
+
+const emptySlotDraft: SlotDraft = {
+  doctorId: '',
+  slotDate: DEMO_TODAY,
+  startTime: '08:30',
+  endTime: '09:00',
+  maxCapacity: 1,
+};
+
+function parseClinicDate(isoDate: string) {
+  return new Date(`${isoDate}T12:00:00`);
+}
+
+function toClinicDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function shiftClinicDate(isoDate: string, days: number) {
+  const date = parseClinicDate(isoDate);
+  date.setDate(date.getDate() + days);
+  return toClinicDate(date);
+}
+
+function formatShortDate(isoDate: string) {
+  const date = parseClinicDate(isoDate);
+  return `${date.getDate()} ${monthNames[date.getMonth()]}`;
+}
+
+function formatWeekRange(start: string) {
+  const end = shiftClinicDate(start, 6);
+  return `${formatShortDate(start)} – ${formatShortDate(end)} ${parseClinicDate(end).getFullYear() + 543}`;
+}
+
+export default function ScheduleWorkspace() {
+  const { departments, doctors, slots, saveSlot: persistSlot, toggleSlot: persistSlotToggle } = useShop();
+  const [weekStart, setWeekStart] = useState(MOCK_WEEK_START);
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [doctorFilter, setDoctorFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ScheduleSlotStatus>('all');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SlotDraft>(emptySlotDraft);
+  const [formError, setFormError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => shiftClinicDate(weekStart, index)),
+    [weekStart],
+  );
+
+  const filteredDoctors = useMemo(
+    () =>
+      doctors.filter(
+        (doctor) => departmentFilter === 'all' || doctor.departmentId === departmentFilter,
+      ),
+    [departmentFilter, doctors],
+  );
+
+  const visibleSlots = useMemo(
+    () =>
+      slots
+        .filter((slot) => weekDays.includes(slot.slotDate))
+        .filter((slot) => {
+          const doctor = doctors.find((item) => item.id === slot.doctorId);
+          const matchesDepartment = departmentFilter === 'all' || doctor?.departmentId === departmentFilter;
+          const matchesDoctor = doctorFilter === 'all' || slot.doctorId === doctorFilter;
+          const matchesStatus = statusFilter === 'all' || slot.status === statusFilter;
+          return matchesDepartment && matchesDoctor && matchesStatus;
+        })
+        .sort((a, b) => `${a.slotDate}${a.startTime}`.localeCompare(`${b.slotDate}${b.startTime}`)),
+    [departmentFilter, doctorFilter, doctors, slots, statusFilter, weekDays],
+  );
+
+  const weekSummary = useMemo(() => {
+    const weekSlots = slots.filter((slot) => weekDays.includes(slot.slotDate));
+    return {
+      total: weekSlots.length,
+      available: weekSlots.filter((slot) => slot.status === 'available').length,
+      booked: weekSlots.reduce((sum, slot) => sum + slot.bookedCount, 0),
+      closed: weekSlots.filter((slot) => slot.status === 'closed').length,
+    };
+  }, [slots, weekDays]);
+
+  const openSlotForm = (slot?: ScheduleSlot, suggestedDate?: string) => {
+    setFormError('');
+    setNotice('');
+    setEditingSlotId(slot?.id ?? null);
+    setDraft(
+      slot
+        ? {
+            doctorId: slot.doctorId,
+            slotDate: slot.slotDate,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            maxCapacity: slot.maxCapacity,
+          }
+        : { ...emptySlotDraft, slotDate: suggestedDate ?? weekDays[0] },
+    );
+    setFormOpen(true);
+  };
+
+  const saveSlot = () => {
+    const currentSlot = slots.find((slot) => slot.id === editingSlotId);
+    const result = persistSlot(draft, editingSlotId ?? undefined);
+    if (!result.ok) { setFormError(result.error); return; }
+    setNotice(currentSlot ? 'อัปเดตรอบตรวจใน mock UI แล้ว' : 'เพิ่มรอบตรวจใน mock UI แล้ว');
+
+    setFormOpen(false);
+    setEditingSlotId(null);
+    setDraft(emptySlotDraft);
+  };
+
+  const toggleClosed = (slot: ScheduleSlot) => {
+    if (!window.confirm(slot.status === 'closed' ? 'เปิดรอบตรวจนี้อีกครั้ง?' : `ปิดรอบตรวจนี้? นัดเดิม ${slot.bookedCount} รายการจะยังคงอยู่`)) return;
+    const result = persistSlotToggle(slot.id);
+    if (!result.ok) { setFormError(result.error); return; }
+    setNotice(slot.status === 'closed' ? 'เปิดรอบตรวจอีกครั้งใน mock UI แล้ว' : 'ปิดรอบตรวจแล้ว นัดเดิมยังคงอยู่');
+  };
+
+  const jumpToDemoWeek = () => {
+    setWeekStart(MOCK_WEEK_START);
+    setNotice('กลับสู่สัปดาห์ข้อมูลจำลองแล้ว');
+  };
+
+  return (
+    <div className="space-y-6">
+      <header className="overflow-hidden rounded-[28px] bg-white shadow-[0_16px_48px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80">
+        <div className="relative grid gap-6 px-6 py-7 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="absolute inset-y-0 left-0 w-2 bg-sky-500" aria-hidden="true" />
+          <div>
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-sky-700">
+              <span className="rounded-full bg-sky-50 px-3 py-1 ring-1 ring-sky-100">WEEKLY OPERATIONS BOARD</span>
+              <span className="text-slate-400">MOCK DATA · ASIA/BANGKOK</span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-[-0.035em] text-slate-950 text-balance sm:text-4xl">ตารางออกตรวจประจำสัปดาห์</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">เห็นกำลังให้บริการของแต่ละวัน ปรับรอบตรวจ และปิดรอบโดยไม่แตะจำนวนจองของระบบนัดหมาย</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              ['รอบทั้งหมด', weekSummary.total, 'text-slate-950'],
+              ['เปิดรับ', weekSummary.available, 'text-emerald-700'],
+              ['จองแล้ว', weekSummary.booked, 'text-sky-700'],
+              ['ปิดรอบ', weekSummary.closed, 'text-rose-700'],
+            ].map(([label, value, color]) => (
+              <div key={String(label)} className="min-w-20 rounded-2xl bg-slate-50 px-3 py-3 text-center ring-1 ring-slate-200/70">
+                <div className={`text-xl font-bold tabular-nums ${color}`}>{value}</div>
+                <div className="mt-1 text-[11px] text-slate-500">{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <section className="rounded-2xl bg-[#0a2540] p-4 text-white shadow-[0_10px_34px_rgba(10,37,64,0.14)]" aria-label="ตัวกรองตารางตรวจ">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center justify-between gap-2 sm:justify-start">
+            <button type="button" onClick={() => setWeekStart((current) => shiftClinicDate(current, -7))} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white/8 hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300" aria-label="สัปดาห์ก่อนหน้า"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+            <div className="min-w-52 text-center"><div className="text-xs text-slate-400">สัปดาห์ที่แสดง</div><div className="mt-0.5 font-bold tabular-nums">{formatWeekRange(weekStart)}</div></div>
+            <button type="button" onClick={() => setWeekStart((current) => shiftClinicDate(current, 7))} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white/8 hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300" aria-label="สัปดาห์ถัดไป"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+            <button type="button" onClick={jumpToDemoWeek} className="hidden min-h-11 items-center gap-2 rounded-xl bg-white/8 px-3 text-xs font-semibold text-slate-200 hover:bg-white/15 sm:flex"><RefreshCw className="h-4 w-4" aria-hidden="true" />สัปดาห์เดโม</button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:flex">
+              <label className="relative"><span className="sr-only">กรองแผนก</span><Filter className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden="true" /><select value={departmentFilter} onChange={(event) => { setDepartmentFilter(event.target.value); setDoctorFilter('all'); }} className="h-11 min-w-52 rounded-xl border border-white/15 bg-white/8 pl-9 pr-3 text-sm text-white outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-400/15"><option className="text-slate-950" value="all">ทุกแผนก</option>{departments.map((department) => <option className="text-slate-950" key={department.id} value={department.id}>{department.name}</option>)}</select></label>
+            <label><span className="sr-only">กรองแพทย์</span><select value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)} className="h-11 min-w-52 rounded-xl border border-white/15 bg-white/8 px-3 text-sm text-white outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-400/15"><option className="text-slate-950" value="all">แพทย์ทุกคน</option>{filteredDoctors.map((doctor) => <option className="text-slate-950" key={doctor.id} value={doctor.id}>{doctor.fullName}</option>)}</select></label>
+            <label><span className="sr-only">กรองสถานะ</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | ScheduleSlotStatus)} className="h-11 min-w-40 rounded-xl border border-white/15 bg-white/8 px-3 text-sm text-white outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-400/15"><option className="text-slate-950" value="all">ทุกสถานะ</option><option className="text-slate-950" value="available">เปิดรับ</option><option className="text-slate-950" value="full">เต็ม</option><option className="text-slate-950" value="closed">ปิดรอบ</option></select></label>
+            <button type="button" onClick={() => openSlotForm()} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 text-sm font-bold text-[#0a2540] shadow-sm hover:bg-sky-300 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"><Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบตรวจ</button>
+          </div>
+        </div>
+      </section>
+
+      <div aria-live="polite">
+        {notice && <div className="flex items-center justify-between gap-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200"><span className="flex items-center gap-2"><Check className="h-4 w-4" aria-hidden="true" />{notice}</span><button type="button" onClick={() => setNotice('')} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-emerald-100" aria-label="ปิดข้อความ"><X className="h-4 w-4" aria-hidden="true" /></button></div>}
+      </div>
+
+      {formOpen && (
+        <section className="rounded-2xl bg-white p-5 shadow-[0_10px_36px_rgba(15,23,42,0.1)] ring-1 ring-sky-200" aria-labelledby="slot-form-title">
+          <div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600">Mock slot editor</p><h2 id="slot-form-title" className="mt-1 text-xl font-bold text-slate-950">{editingSlotId ? 'แก้ไขรอบตรวจ' : 'สร้างรอบตรวจใหม่'}</h2><p className="mt-1 text-sm text-slate-500">Validation ในหน้านี้ช่วยผู้ใช้เท่านั้น ฐานข้อมูลต้องตรวจซ้ำทุกกฎ</p></div><button type="button" onClick={() => setFormOpen(false)} className="min-h-11 min-w-11 rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label="ปิดแบบฟอร์ม"><X className="h-5 w-5" aria-hidden="true" /></button></div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <label className="space-y-1.5 sm:col-span-2"><span className="text-sm font-medium text-slate-700">แพทย์</span><select value={draft.doctorId} onChange={(event) => setDraft((current) => ({ ...current, doctorId: event.target.value }))} className={inputClass}><option value="">เลือกแพทย์</option>{doctors.filter((doctor) => doctor.availability === 'active' && departments.some((department) => department.id === doctor.departmentId && department.isActive)).map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.fullName} · {departments.find((department) => department.id === doctor.departmentId)?.name}</option>)}</select></label>
+            <label className="space-y-1.5"><span className="text-sm font-medium text-slate-700">วันที่</span><input type="date" value={draft.slotDate} onChange={(event) => setDraft((current) => ({ ...current, slotDate: event.target.value }))} className={inputClass} /></label>
+            <label className="space-y-1.5"><span className="text-sm font-medium text-slate-700">เริ่ม</span><input type="time" value={draft.startTime} onChange={(event) => setDraft((current) => ({ ...current, startTime: event.target.value }))} className={inputClass} /></label>
+            <label className="space-y-1.5"><span className="text-sm font-medium text-slate-700">สิ้นสุด</span><input type="time" value={draft.endTime} onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))} className={inputClass} /></label>
+            <label className="space-y-1.5"><span className="text-sm font-medium text-slate-700">ความจุ</span><input type="number" min={1} step={1} value={draft.maxCapacity} onChange={(event) => setDraft((current) => ({ ...current, maxCapacity: Number(event.target.value) }))} className={inputClass} /></label>
+          </div>
+          {editingSlotId && <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200"><Users className="h-4 w-4" aria-hidden="true" />จำนวนจองเป็น read-only และเปลี่ยนผ่าน booking/cancellation RPC ของปายเท่านั้น</div>}
+          {formError && <p className="mt-3 text-sm font-medium text-rose-700" role="alert">{formError}</p>}
+          <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ยกเลิก</button><button type="button" onClick={saveSlot} className="min-h-11 rounded-xl bg-[#0a2540] px-5 text-sm font-semibold text-white hover:bg-[#123e67] active:scale-[0.98]">บันทึกรอบตรวจ</button></div>
+        </section>
+      )}
+
+      <section className="hidden overflow-hidden rounded-2xl bg-white shadow-[0_5px_26px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 lg:block" aria-label="ปฏิทินตารางตรวจรายสัปดาห์">
+        <div className="grid grid-cols-7 divide-x divide-slate-200 border-b border-slate-200 bg-slate-50">
+          {weekDays.map((date) => {
+            const parsed = parseClinicDate(date);
+            const isToday = date === DEMO_TODAY;
+            return <div key={date} className={`px-3 py-4 text-center ${isToday ? 'bg-sky-50' : ''}`}><div className={`text-xs font-semibold ${isToday ? 'text-sky-700' : 'text-slate-500'}`}>{dayNames[parsed.getDay()]}</div><div className={`mx-auto mt-2 flex h-9 w-9 items-center justify-center rounded-full text-base font-bold tabular-nums ${isToday ? 'bg-sky-600 text-white' : 'text-slate-950'}`}>{parsed.getDate()}</div></div>;
+          })}
+        </div>
+        <div className="grid min-h-[460px] grid-cols-7 divide-x divide-slate-200">
+          {weekDays.map((date) => {
+            const daySlots = visibleSlots.filter((slot) => slot.slotDate === date);
+            return <div key={date} className={`min-w-0 space-y-3 p-3 ${date === DEMO_TODAY ? 'bg-sky-50/30' : ''}`}>{daySlots.map((slot) => <SlotCard key={slot.id} slot={slot} doctors={doctors} departments={departments} onEdit={() => openSlotForm(slot)} onToggleClosed={() => toggleClosed(slot)} />)}{daySlots.length === 0 && <button type="button" onClick={() => openSlotForm(undefined, date)} className="flex min-h-28 w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 text-xs text-slate-400 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"><Plus className="mb-2 h-4 w-4" aria-hidden="true" />เพิ่มรอบ</button>}</div>;
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-4 lg:hidden" aria-label="รายการตารางตรวจบนมือถือ">
+        {weekDays.map((date) => {
+          const parsed = parseClinicDate(date);
+          const daySlots = visibleSlots.filter((slot) => slot.slotDate === date);
+          return <article key={date} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200"><div className="mb-3 flex items-center justify-between"><div><div className="text-xs font-semibold text-sky-700">{dayNames[parsed.getDay()]}</div><h2 className="font-bold text-slate-950">{formatShortDate(date)}</h2></div><button type="button" onClick={() => openSlotForm(undefined, date)} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50"><Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบ</button></div><div className="grid gap-3 sm:grid-cols-2">{daySlots.map((slot) => <SlotCard key={slot.id} slot={slot} doctors={doctors} departments={departments} onEdit={() => openSlotForm(slot)} onToggleClosed={() => toggleClosed(slot)} />)}{daySlots.length === 0 && <p className="rounded-xl bg-slate-50 px-4 py-5 text-center text-sm text-slate-400 sm:col-span-2">ยังไม่มีรอบตรวจ</p>}</div></article>;
+        })}
+      </section>
+
+      <aside className="grid gap-4 rounded-2xl bg-slate-900 p-5 text-white lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="flex items-start gap-3"><div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-400/15 text-sky-300"><Database className="h-5 w-5" aria-hidden="true" /></div><div><h2 className="font-bold">จุดเชื่อมต่อหลังบ้าน</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-300">ช้อปดูแลโครงสร้างรอบและการเปิด–ปิด ปายดูแล booking/cancel และ `booked_count` เฮิร์บอ่านข้อมูลไปคำนวณ Dashboard ทุกคำสั่งจริงต้องตรวจ RLS และ constraint ในฐานข้อมูลอีกครั้ง</p></div></div>
+        <Link href="/departments" className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white/8 px-4 text-sm font-semibold hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">จัดการแผนกและแพทย์<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+      </aside>
+    </div>
+  );
+}
+
+function SlotCard({ slot, doctors, departments, onEdit, onToggleClosed }: { slot: ScheduleSlot; doctors: import('@/types/schedule').ScheduleDoctor[]; departments: import('@/types/schedule').ScheduleDepartment[]; onEdit: () => void; onToggleClosed: () => void }) {
+  const doctor = doctors.find((item) => item.id === slot.doctorId);
+  const department = departments.find((item) => item.id === doctor?.departmentId);
+  const statusConfig: Record<ScheduleSlotStatus, { label: string; card: string; pill: string; icon: typeof CircleDot }> = {
+    available: { label: 'เปิดรับ', card: 'border-emerald-200 bg-emerald-50/60', pill: 'bg-emerald-100 text-emerald-800', icon: CircleDot },
+    full: { label: 'เต็ม', card: 'border-sky-200 bg-sky-50/70', pill: 'bg-sky-100 text-sky-800', icon: Users },
+    closed: { label: 'ปิดรอบ', card: 'border-rose-200 bg-rose-50/60', pill: 'bg-rose-100 text-rose-800', icon: Ban },
+  };
+  const config = statusConfig[slot.status];
+  const StatusIcon = config.icon;
+  const occupancy = Math.min(100, Math.round((slot.bookedCount / slot.maxCapacity) * 100));
+
+  return (
+    <article className={`rounded-xl border p-3 ${config.card}`}>
+      <div className="flex items-start justify-between gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${config.pill}`}><StatusIcon className="h-3 w-3" aria-hidden="true" />{config.label}</span><div className="flex"><button type="button" onClick={onEdit} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-white/70" aria-label={`แก้ไขรอบ ${slot.startTime}`}><Pencil className="h-3.5 w-3.5" aria-hidden="true" /></button><button type="button" onClick={onToggleClosed} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-white/70" aria-label={slot.status === 'closed' ? 'เปิดรอบตรวจ' : 'ปิดรอบตรวจ'}>{slot.status === 'closed' ? <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> : <X className="h-3.5 w-3.5" aria-hidden="true" />}</button></div></div>
+      <div className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-950"><Clock3 className="h-4 w-4 text-slate-500" aria-hidden="true" /><span className="tabular-nums">{slot.startTime}–{slot.endTime}</span></div>
+      <div className="mt-3 flex items-center gap-2"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0a2540] text-[10px] font-bold text-white">{doctor?.initials ?? '?'}</div><div className="min-w-0"><div className="truncate text-xs font-bold text-slate-900">{doctor?.fullName ?? 'ไม่พบแพทย์'}</div><div className="truncate text-[10px] text-slate-500">{department?.name ?? 'ไม่พบแผนก'}</div></div></div>
+      <div className="mt-3"><div className="mb-1.5 flex items-center justify-between text-[10px] text-slate-500"><span>จองแล้ว</span><strong className="text-slate-700 tabular-nums">{slot.bookedCount}/{slot.maxCapacity}</strong></div><div className="h-1.5 overflow-hidden rounded-full bg-white/80"><div className={`h-full rounded-full ${slot.status === 'closed' ? 'bg-rose-400' : slot.status === 'full' ? 'bg-sky-500' : 'bg-emerald-500'}`} style={{ width: `${occupancy}%` }} /></div></div>
+    </article>
+  );
+}
