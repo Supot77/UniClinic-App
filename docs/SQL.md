@@ -1,5 +1,11 @@
--- คำแนะนำ: รันสคริปต์นี้ใน Supabase SQL Editor (ไปที่ Database > SQL Editor > New query)
--- รันจากบนลงล่างตามลำดับนี้เลย ลำดับตารางถูกต้องตาม Foreign Key dependency แล้ว
+# SQL ฐานเดิมสำหรับอ้างอิง
+
+ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+
+SQL ด้านล่างเป็นฐานเก่าก่อนข้อสรุปการเลื่อนนัด แบ่งจ่าย กันยาและเตือนใหม่ **ไม่ใช่ migration สำหรับข้อสรุปล่าสุด และไม่ควรคัดลอกไปรันเพื่ออัปเดตฐานปัจจุบัน** ดู [03](03_database_design_and_er.md) และ [09](09_implementation_plan.md) ก่อนออกแบบ migration ภายหลัง
+
+```sql
+-- SQL เดิม เก็บเพื่ออ้างอิงประวัติเท่านั้น
 
 CREATE TABLE public.medications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -150,3 +156,4 @@ CREATE TABLE public.notifications (
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+```
