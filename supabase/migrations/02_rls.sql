@@ -1,7 +1,7 @@
 -- Function to bypass infinite recursion in RLS
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS text
-LANGUAGE sql
+LANGUAGE sql STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $func
