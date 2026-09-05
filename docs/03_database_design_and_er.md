@@ -79,3 +79,52 @@ erDiagram
 ## แผน migration ภายหลัง
 
 สำรวจฐานจริงและข้อมูล JSON เดิม → รับรอง mapping/ER/contracts → เพิ่ม migration ที่แปลงข้อมูลเดิมโดยรักษา ID และประวัติ → เติมสิทธิ์/ธุรกรรม → สร้าง types → ทดสอบทั้งติดตั้งใหม่และอัปเกรดฐานเดิม ไม่แก้ migration ที่ใช้งานไปแล้วโดยไม่มีแผนร่วม ดู [09](09_implementation_plan.md)
+
+## Data Dictionary ของฐานเดิม
+
+ส่วนนี้คืนรายละเอียดโครงสร้าง 11 ตารางที่มีอยู่ใน `supabase/migrations/01_schema.sql` เพื่อให้ทีมอ่าน contract เดิมได้ครบ ไม่ได้ยืนยันว่า field เหล่านี้เพียงพอสำหรับข้อสรุปล่าสุด
+
+### `profiles`
+
+- `id` UUID, PK และ FK ไป `auth.users.id`
+- `student_id` text unique, `full_name` text, `phone`, `emergency_phone`, `address`, `avatar_url`
+- `allergies`, `chronic_diseases` เป็นข้อความเดิม; แบบใหม่ต้องแยกคำตอบ มี/ไม่มี/ไม่ทราบ ออกจากรายละเอียด
+- `role` เป็นหนึ่งใน `patient`, `staff`, `doctor`, `pharmacist`, `admin`; มี `created_at`, `updated_at`
+- ต้องเพิ่มแบบที่รับรองภายหลังสำหรับประเภทผู้ป่วย, รหัสบุคลากร, หน่วยงาน, สถานะบัญชี และกลไกยกเลิกสิทธิ์ session เดิม
+
+### `departments` และ `doctors`
+
+- `departments`: `id`, `name`, `description`, `created_at`, `updated_at`
+- `doctors`: `id` เป็น PK/FK ไป `profiles`, `specialty`, `department_id` ไป `departments`, timestamps
+- ข้อกำหนดล่าสุดให้ปิดใช้งานรายการที่มีประวัติแทนลบ และแพทย์หนึ่งคนสังกัดหนึ่งแผนกในรุ่นแรก
+
+### `appointment_slots` และ `appointments`
+
+- `appointment_slots`: `id`, `doctor_id`, `slot_date`, `start_time`, `end_time`, `max_capacity`, `booked_count`, `status`, timestamps
+- สถานะรอบเดิมคือ `available`, `full`, `closed`; ต้องบังคับ `start_time < end_time`, ความจุเป็นบวก และเวลาไทย
+- `appointments`: `id`, `user_id`, `slot_id`, `queue_number`, `reason`, `status`, timestamps
+- สถานะนัดคือ `pending`, `confirmed`, `in_progress`, `completed`, `cancelled`, `no_show`, `rejected`; ข้อเสนอเลื่อนนัดและการกันรอบใหม่ต้องมีข้อมูลเพิ่ม/ตารางเพิ่มที่ยังรอรับรอง
+
+### `medical_records`
+
+- `id`, `appointment_id`, `patient_id`, `doctor_id`, `diagnosis`, `treatment_notes`, `prescribed_medications`, timestamps
+- `prescribed_medications` เดิมเป็น JSONB ที่เก็บ `medication_id`, ชื่อยา, ขนาด, ความถี่, จำนวนวัน และจำนวนที่สั่ง
+- JSONB เดิมยังใช้เป็นข้อมูลอ้างอิงได้ แต่ต้องไม่ใช้เป็นหลักฐานว่าเก็บจ่ายบางส่วน, การกันยา และประวัติแก้ไขได้ครบ
+
+### `medications` และ `inventory_logs`
+
+- `medications`: `id`, `name`, `type`, `category`, `stock`, `min_stock`, `expiry_date`, `description`, `ingredients`, `is_active`, timestamps
+- `inventory_logs`: `id`, `medication_id`, `pharmacist_id`, `action`, `quantity`, `reason`, `created_at`
+- action เดิมคือ `add`, `dispense`, `adjust`, `damage`; แบบใหม่ต้องเชื่อม log กับรายการจ่ายจริงและไม่ลงการกันยาเป็นการตัดสต๊อก
+
+### `medication_reminders` และ `medication_logs`
+
+- `medication_reminders`: `id`, `user_id`, `medication_id`, `reminder_times`, `start_date`, `end_date`, `status`, timestamps
+- `medication_logs`: `id`, `reminder_id`, `scheduled_datetime`, `actual_datetime`, `status`, timestamps
+- สถานะมื้อคือ `pending`, `taken`, `missed`; แบบใหม่ต้องเพิ่มผู้สร้าง, การยืนยัน/ล็อกเวลา, deadline และประวัติแก้ โดย Staff สร้างจากยาที่จ่ายจริง
+
+### `notifications`
+
+- `id`, `user_id`, `type`, `title`, `message`, `is_read`, `created_at`
+- type เดิมคือ `reminder`, `appointment`, `broadcast`, `system`
+- แบบใหม่ต้องมีตัวระบุกันซ้ำ, แยก Broadcast กลางจากกล่องรายคน, และเก็บผลงานส่งอีเมล/การพักโดยไม่กล่าวอ้างว่าตารางเดิมรองรับครบ

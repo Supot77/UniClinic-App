@@ -19,7 +19,7 @@
 
 ## Git และตรวจงาน
 
-คงแนวทาง feature → dev → main ตามเอกสารฐาน 05; README เดิมใช้ชื่อ develop ไม่ตรงกันจึงแก้คำอธิบายให้ตรง dev ไม่มีการสร้าง เปลี่ยนชื่อ หรือ merge branch ในงานเอกสารนี้
+ใช้แนวทาง feature → develop → main ตามกิ่งจริงใน repository ไม่มีการสร้าง เปลี่ยนชื่อ หรือ merge branch ในงานเอกสารนี้
 
 - ก่อนส่ง PR ดึงงานร่วมและแก้ conflict ตรวจ diff ว่าอยู่ในขอบเขต
 - คู่ตรวจรับผิดชอบตรวจซึ่งกันและกัน: ฟีม↔เฮิร์บ ช้อป↔ปาย กัญจน์↔กลอง
@@ -28,3 +28,30 @@
 - ผู้รวมโค้ดและผู้ดูแลไฟล์กลางรายบุคคลยังต้องระบุ ไม่ถือว่าคู่ตรวจเป็นผู้อนุมัติทุกการเปลี่ยนแปลงโดยอัตโนมัติ
 
 รายละเอียดวันส่งอยู่ใน [06](06_development_roadmap.md) สัญญาส่งต่อใน [09](09_implementation_plan.md)
+
+## โครงสร้างโฟลเดอร์ปัจจุบัน
+
+```text
+wu-clinic-booking/
+├── src/app/                 # route groups: (auth), (clinic), (patient), (dashboard)
+├── src/components/          # common, layout, schedules, reminders, dashboard
+├── src/context/ src/hooks/  # AuthContext และ hooks
+├── src/lib/                 # Supabase client/helper
+├── src/services/            # Auth, Schedule, Appointment, Medication, Reminder, Dashboard
+├── src/types/               # contract TypeScript กลาง
+├── supabase/migrations/     # schema/RLS เดิม; ยังไม่ sync ข้อสรุปล่าสุด
+├── supabase/seed.sql        # seed เดิม
+└── docs/                    # ข้อกำหนด แผน Catalog และ SQL อ้างอิง
+```
+
+ไฟล์กลาง เช่น `globals.css`, layout, `src/types/database.ts`, Supabase client และ migration ต้องแจ้งเจ้าของที่กระทบก่อนแก้ ไม่ใช่พื้นที่ห้ามแตะ แต่ต้องรวมอย่างระวังและมีคู่ตรวจ
+
+## วงจร Git รายวัน
+
+1. เริ่มจาก `develop` ล่าสุด สร้างกิ่ง `feat/<module>-<summary>` ของตน
+2. แก้เฉพาะโมดูลและ contract ที่ตกลง หากต้องแก้ไฟล์กลางให้แจ้งใน PR
+3. ก่อนเปิด PR ดึง `develop` มาแก้ conflict และรัน gate ที่เกี่ยวข้อง
+4. เปิด PR จาก feature ไป `develop`; คู่ตรวจตรวจสิทธิ์, contract และกรณีทดสอบ ไม่รวมเข้า `main` ตรง
+5. ผู้รวมงาน merge หลังผ่าน lint, typecheck, build และกรณีหลัก; เก็บหลักฐาน SCN ก่อนนำเสนอ
+
+ตัวอย่างคำสั่งใช้ได้เมื่อเริ่มพัฒนา: `git switch develop`, `git pull`, `git switch -c feat/<module>-<summary>`, `git status`, `git add`, `git commit`, `git push -u origin <branch>` ห้าม commit key หรือข้อมูลจริง

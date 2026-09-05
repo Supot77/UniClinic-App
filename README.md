@@ -2,7 +2,7 @@
 
 ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
-มินิโปรเจกต์ COE67-331 ระบบคลินิกมหาวิทยาลัยและเตือนกินยา ส่ง 18 กันยายน 2569 package.json ใช้ชื่อ wu-clinic-booking โฟลเดอร์ในเครื่องชื่อ UniClinic-App
+มินิโปรเจกต์ COE67-331 ระบบคลินิกมหาวิทยาลัยและเตือนกินยา ส่ง 18 กันยายน 2569 package.json และโฟลเดอร์โครงการใช้ชื่อ wu-clinic-booking
 
 ## เอกสารหลัก
 
@@ -51,6 +51,6 @@ npm run build
 
 ## โครงสร้างและ Git
 
-src/app แบ่ง (auth)/(clinic)/(patient)/(dashboard), src/components, services, hooks, lib, types; ฐานข้อมูลใน supabase และเอกสารใน docs ใช้ feature → dev → main ตาม [ข้อตกลง Git](docs/05_folder_and_git_workflow.md) งานนี้ไม่เปลี่ยน branch หรือรวมโค้ด
+src/app แบ่ง (auth)/(clinic)/(patient)/(dashboard), src/components, services, hooks, lib, types; ฐานข้อมูลใน supabase และเอกสารใน docs ใช้ feature → develop → main ตาม [ข้อตกลง Git](docs/05_folder_and_git_workflow.md) งานนี้ไม่เปลี่ยน branch หรือรวมโค้ด
 
 ER แยกตารางและชื่อ contract เป็นข้อเสนอใน [03](docs/03_database_design_and_er.md) ยังไม่กำหนดว่าระบบใหม่มี 11 หรือ 12 ตารางตายตัว
