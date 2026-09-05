@@ -891,7 +891,7 @@ export default function InventoryPage() {
                   <input
                     type="number"
                     min={0}
-                    value={draft.stock === 0 ? "" : draft.stock}
+                    value={draft.stock}
                     onChange={(e) => handleNumberInput("stock", e.target.value)}
                     className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-[#1d1d1f] outline-none transition focus:border-[#0066cc] focus:bg-white focus:ring-1 focus:ring-[#0066cc]"
                     placeholder="0"
