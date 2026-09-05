@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={`${inter.variable} h-full scroll-smooth`}>
+    <html lang="th" className={`${inter.variable} h-full scroll-smooth`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col bg-white text-zinc-900 font-sans antialiased">
         <AuthProvider>
           <Header />
