@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useClinicMockDatabase } from "@/features/mock-database/ClinicMockProvider";
 
 type Medication = {
   id: string;
@@ -112,6 +112,7 @@ function normalizeCategoryName(value: string) {
 }
 
 export default function InventoryPage() {
+  const { repositories } = useClinicMockDatabase();
   const [items, setItems] = useState<Medication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -167,24 +168,12 @@ export default function InventoryPage() {
     });
   };
 
-  // --- โหลดข้อมูลจริงจาก Supabase --------------------------------------
+  // Supabase-compatible mock repository: async data/error contract.
   const fetchMedications = useCallback(async () => {
     setIsLoading(true);
     setErrorMsg(null);
 
-    if (!supabase) {
-      setErrorMsg(
-        "ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local ก่อนใช้งานหน้า Inventory"
-      );
-      setItems([]);
-      setIsLoading(false);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("medications")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await repositories.pharmacy.listMedications();
 
     if (error) {
       setErrorMsg("โหลดข้อมูลไม่สำเร็จ: " + error.message);
@@ -193,7 +182,7 @@ export default function InventoryPage() {
       setItems(data as Medication[]);
     }
     setIsLoading(false);
-  }, []);
+  }, [repositories]);
 
   useEffect(() => {
     let isActive = true;
@@ -202,20 +191,7 @@ export default function InventoryPage() {
       setIsLoading(true);
       setErrorMsg(null);
 
-      if (!supabase) {
-        if (!isActive) return;
-        setErrorMsg(
-          "ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local ก่อนใช้งานหน้า Inventory"
-        );
-        setItems([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("medications")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data, error } = await repositories.pharmacy.listMedications();
 
       if (!isActive) return;
 
@@ -234,7 +210,7 @@ export default function InventoryPage() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [repositories]);
 
   const filteredItems = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -408,15 +384,7 @@ export default function InventoryPage() {
       expiry_date: draft.expiry_date || null,
     };
 
-    if (!supabase) {
-      setFormError("ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local");
-      setIsSaving(false);
-      return;
-    }
-
-    const { error } = editingId
-      ? await supabase.from("medications").update(payload).eq("id", editingId)
-      : await supabase.from("medications").insert(payload);
+    const { error } = await repositories.pharmacy.saveMedication(payload, editingId ?? undefined);
 
     setIsSaving(false);
 
@@ -432,13 +400,8 @@ export default function InventoryPage() {
 
   // --- ลบ -----------------------------------------------------------------
   const handleDelete = async (id: string) => {
-    if (!supabase) {
-      setErrorMsg("ยังไม่ได้ตั้งค่า Supabase ให้ครบใน .env.local");
-      return;
-    }
-
     setIsDeleting(true);
-    const { error } = await supabase.from("medications").delete().eq("id", id);
+    const { error } = await repositories.pharmacy.deleteMedication(id);
     setIsDeleting(false);
     setConfirmDeleteId(null);
 

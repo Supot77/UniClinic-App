@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useClinicMockDatabase } from '@/features/mock-database/ClinicMockProvider';
 import {
   Bell,
   CalendarDays,
@@ -9,15 +13,16 @@ import {
 } from 'lucide-react';
 
 const summaryCards: Array<{
+  key: 'todayAppointments' | 'patients' | 'lowStockMedications' | 'unreadNotifications' | 'expiredMedications';
   label: string;
   icon: LucideIcon;
   href: string;
 }> = [
-  { label: 'นัดหมายวันนี้', icon: CalendarDays, href: '/appointments' },
-  { label: 'ผู้ป่วยทั้งหมด', icon: Users, href: '/records' },
-  { label: 'ยาใกล้หมด', icon: Pill, href: '/pharmacy' },
-  { label: 'ยังไม่ได้อ่าน', icon: Bell, href: '/notifications' },
-  { label: 'ยาหมดอายุ', icon: PackageX, href: '/pharmacy' },
+  { key: 'todayAppointments', label: 'นัดหมายวันนี้', icon: CalendarDays, href: '/appointments' },
+  { key: 'patients', label: 'ผู้ป่วยทั้งหมด', icon: Users, href: '/records' },
+  { key: 'lowStockMedications', label: 'ยาใกล้หมด', icon: Pill, href: '/pharmacy' },
+  { key: 'unreadNotifications', label: 'ยังไม่ได้อ่าน', icon: Bell, href: '/notifications' },
+  { key: 'expiredMedications', label: 'ยาหมดอายุ', icon: PackageX, href: '/pharmacy' },
 ];
 
 const appointmentStatuses = ['รอยืนยัน', 'ยืนยันแล้ว', 'กำลังตรวจ', 'เสร็จสิ้น'];
@@ -62,6 +67,14 @@ function WaitingForData({ text }: { text: string }) {
 }
 
 export default function DashboardPage() {
+  const { repositories } = useClinicMockDatabase();
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof repositories.dashboard.getSummary>>['data']>(null);
+  useEffect(() => {
+    let active = true;
+    void repositories.dashboard.getSummary().then((result) => { if (active) setSummary(result.data); });
+    return () => { active = false; };
+  }, [repositories]);
+
   return (
     <main className="space-y-6 pb-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -90,7 +103,7 @@ export default function DashboardPage() {
       <section aria-labelledby="summary-heading">
         <h2 id="summary-heading" className="sr-only">สรุปภาพรวม</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {summaryCards.map(({ label, icon: Icon, href }) => (
+          {summaryCards.map(({ key, label, icon: Icon, href }) => (
             <Link
               key={label}
               href={href}
@@ -100,8 +113,8 @@ export default function DashboardPage() {
                 <p className="text-sm text-slate-500">{label}</p>
                 <Icon className="size-4 text-slate-400" aria-hidden="true" />
               </div>
-              <p className="mt-3 text-2xl font-semibold text-slate-900" aria-label={`${label} รอเชื่อมต่อข้อมูล`}>
-                —
+              <p className="mt-3 text-2xl font-semibold text-slate-900 tabular-nums" aria-label={`${label} ${summary?.[key] ?? 'กำลังโหลด'}`}>
+                {summary?.[key] ?? '…'}
               </p>
             </Link>
           ))}
@@ -118,9 +131,9 @@ export default function DashboardPage() {
             linkLabel="ดูนัดหมาย"
           />
           <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 sm:divide-y-0">
-            {appointmentStatuses.map((status) => (
+            {appointmentStatuses.map((status, index) => (
               <div key={status} className="px-5 py-5">
-                <p className="text-2xl font-semibold text-slate-900">—</p>
+                <p className="text-2xl font-semibold text-slate-900 tabular-nums">{summary ? Object.values(summary.appointmentStatuses)[index] : '…'}</p>
                 <p className="mt-1 text-xs text-slate-500">{status}</p>
               </div>
             ))}

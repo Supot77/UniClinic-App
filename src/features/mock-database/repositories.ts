@@ -1,4 +1,4 @@
-import type { AppointmentStatus, InventoryAction, MedicationReminderStatus } from '@/types/database';
+import type { AppointmentStatus, InventoryAction, Medication, MedicationReminderStatus } from '@/types/database';
 import { ClinicMockDatabase, mockResult } from './engine';
 
 export function createClinicRepositories(database: ClinicMockDatabase) {
@@ -58,8 +58,51 @@ export function createClinicRepositories(database: ClinicMockDatabase) {
       },
     },
     pharmacy: {
-      listMedications: () => database.select('medications'),
+      listMedications: async () => {
+        const result = await database.select('medications');
+        return result.error ? result : mockResult.ok(result.data.filter((item) => item.is_active));
+      },
       listInventoryLogs: () => database.select('inventory_logs'),
+      saveMedication: async (input: Pick<Medication, 'name' | 'type' | 'category' | 'stock' | 'min_stock' | 'expiry_date'>, id?: string) => {
+        if (!input.name.trim() || !input.category.trim() || input.stock < 0 || input.min_stock < 0) {
+          return mockResult.fail<Medication>('ข้อมูลยาไม่ถูกต้อง', '23514');
+        }
+        if (id) return database.updateById('medications', id, { ...input, updated_at: new Date().toISOString() });
+        const revision = database.getRevision();
+        return database.transaction(revision, (draft) => {
+          if (draft.medications.some((item) => item.name.toLowerCase() === input.name.toLowerCase())) {
+            return mockResult.fail<Medication>('ชื่อยานี้มีอยู่แล้ว', '23505');
+          }
+          const medication: Medication = {
+            ...input,
+            id: crypto.randomUUID(),
+            description: null,
+            ingredients: null,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          draft.medications.push(medication);
+          return mockResult.ok(medication);
+        });
+      },
+      deleteMedication: async (id: string) => {
+        const revision = database.getRevision();
+        return database.transaction(revision, (draft) => {
+          const medication = draft.medications.find((item) => item.id === id);
+          if (!medication) return mockResult.fail<'deleted' | 'disabled'>('ไม่พบยา', 'PGRST116');
+          const referenced = draft.inventory_logs.some((item) => item.medication_id === id)
+            || draft.medication_reminders.some((item) => item.medication_id === id)
+            || draft.medical_records.some((record) => record.prescribed_medications?.some((item) => item.medication_id === id));
+          if (referenced) {
+            medication.is_active = false;
+            medication.updated_at = new Date().toISOString();
+            return mockResult.ok<'deleted' | 'disabled'>('disabled');
+          }
+          draft.medications = draft.medications.filter((item) => item.id !== id);
+          return mockResult.ok<'deleted' | 'disabled'>('deleted');
+        });
+      },
       adjustStock: async (medicationId: string, pharmacistId: string, action: InventoryAction, quantity: number, reason: string | null = null) => {
         const revision = database.getRevision();
         return database.transaction(revision, (draft) => {
@@ -102,11 +145,21 @@ export function createClinicRepositories(database: ClinicMockDatabase) {
     dashboard: {
       getSummary: async () => {
         const tables = database.snapshot();
+        const today = '2026-09-05';
+        const todaySlotIds = new Set(tables.appointment_slots.filter((item) => item.slot_date === today).map((item) => item.id));
+        const todayAppointments = tables.appointments.filter((item) => todaySlotIds.has(item.slot_id));
         return mockResult.ok({
-          appointments: tables.appointments.length,
+          todayAppointments: todayAppointments.length,
           patients: tables.profiles.filter((item) => item.role === 'patient').length,
           unreadNotifications: tables.notifications.filter((item) => !item.is_read).length,
           lowStockMedications: tables.medications.filter((item) => item.is_active && item.stock <= item.min_stock).length,
+          expiredMedications: tables.medications.filter((item) => item.expiry_date && item.expiry_date < today).length,
+          appointmentStatuses: {
+            pending: todayAppointments.filter((item) => item.status === 'pending').length,
+            confirmed: todayAppointments.filter((item) => item.status === 'confirmed').length,
+            in_progress: todayAppointments.filter((item) => item.status === 'in_progress').length,
+            completed: todayAppointments.filter((item) => item.status === 'completed').length,
+          },
         });
       },
     },
