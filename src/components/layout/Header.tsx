@@ -1,165 +1,117 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, type ComponentType } from "react";
+import { Bell, CalendarDays, ClipboardClock, Hospital, LayoutDashboard, LogIn, Menu, Package, Stethoscope, UserRound, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
+type NavigationRole = "patient" | "staff" | "doctor" | "pharmacist" | "admin";
+
+interface NavigationItem {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  roles: NavigationRole[];
+}
+
+const navigationItems: NavigationItem[] = [
+  { href: "/schedules", label: "ตารางแพทย์", icon: CalendarDays, roles: ["patient", "staff", "doctor"] },
+  { href: "/appointments", label: "นัดหมาย", icon: ClipboardClock, roles: ["patient", "staff", "doctor"] },
+  { href: "/reminders", label: "เตือนยา", icon: Bell, roles: ["patient", "staff"] },
+  { href: "/pharmacy", label: "คลังยา", icon: Package, roles: ["staff", "doctor", "pharmacist"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["patient", "staff", "doctor", "pharmacist", "admin"] },
+];
 
 export default function Header() {
   const pathname = usePathname();
-  const { user, isAuthenticated, signOut, role } = useAuth();
+  const { user, isAuthenticated, isLoading, signOut, role } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navLinks = [
-    { href: '/login', label: 'สิทธิ์ผู้ใช้งาน (Auth)', icon: '👤', roles: ['student', 'staff', 'admin'] },
-    { href: '/schedules', label: 'ตารางเวรแพทย์', icon: '📅', roles: ['student', 'staff', 'admin'] },
-    { href: '/appointments', label: 'จองคิวตรวจ', icon: '🩺', roles: ['student', 'staff', 'admin'] },
-    { href: '/reminders', label: 'แจ้งเตือนทานยา', icon: '💊', roles: ['student', 'staff', 'admin'] },
-    { href: '/pharmacy', label: 'คลังเวชภัณฑ์', icon: '📦', roles: ['staff', 'admin'] },
-    { href: '/dashboard', label: 'แดชบอร์ดบริหาร', icon: '📊', roles: ['staff', 'admin'] },
-  ];
+  const visibleNavigation = isAuthenticated && role
+    ? navigationItems.filter((item) => item.roles.includes(role as NavigationRole))
+    : navigationItems.filter((item) => item.href === "/schedules");
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <>
-      {/* Global Navigation Bar (Apple-style dark header) */}
-      <nav className="h-11 w-full text-zinc-300 text-xs fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 shadow-sm" style={{ background: '#0a2540' }}>
-        <div className="w-full max-w-[1200px] flex items-center justify-between font-normal tracking-tight">
-          {/* Logo */}
-          <Link href="/" className="text-white font-bold flex items-center gap-2 hover:opacity-90 transition text-sm">
-            <span className="text-base">🏥</span>
-            <span className="tracking-tight">WU Clinic</span>
-          </Link>
+    <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-white/10 bg-[#0a2540] text-white shadow-sm">
+      <nav aria-label="เมนูหลัก" className="mx-auto flex h-full w-full max-w-[1440px] items-center gap-4 px-4 sm:px-6">
+        <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex shrink-0 items-center gap-2 rounded-lg font-bold tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-400 text-[#0a2540]" aria-hidden="true"><Hospital className="h-[18px] w-[18px]" /></span>
+          <span className="text-sm sm:text-base">WU Clinic</span>
+        </Link>
 
-          {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-6 text-[12px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            {navLinks.map((link) => {
-              const active = isActive(link.href);
+        <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex xl:gap-2">
+          {visibleNavigation.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 xl:text-sm ${active ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}>
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
+          {isAuthenticated && role === "patient" && (
+            <Link href="/appointments" className="hidden min-h-10 items-center gap-2 rounded-full bg-sky-400 px-4 text-xs font-bold text-[#0a2540] transition-colors hover:bg-sky-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:flex">
+              <Stethoscope className="h-4 w-4" aria-hidden="true" />จองคิว
+            </Link>
+          )}
+
+          {!isLoading && (isAuthenticated ? (
+            <div className="hidden items-center gap-1 sm:flex">
+              <Link href="/profile" title={user?.full_name ?? "บัญชีผู้ใช้"} className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                <UserRound className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden max-w-28 truncate xl:inline">{user?.full_name ?? "บัญชี"}</span>
+              </Link>
+              <button type="button" onClick={() => void signOut()} className="min-h-10 rounded-lg px-3 text-xs text-slate-400 transition-colors hover:bg-rose-400/10 hover:text-rose-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300">ออกจากระบบ</button>
+            </div>
+          ) : (
+            <Link href="/login" className="hidden min-h-10 items-center gap-2 rounded-full bg-sky-500 px-4 text-xs font-bold text-white transition-colors hover:bg-sky-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:flex">
+              <LogIn className="h-4 w-4" aria-hidden="true" />เข้าสู่ระบบ
+            </Link>
+          ))}
+
+          <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} className="flex h-11 w-11 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 lg:hidden" aria-label={mobileMenuOpen ? "ปิดเมนู" : "เปิดเมนู"} aria-expanded={mobileMenuOpen} aria-controls="mobile-navigation">
+            {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+          </button>
+        </div>
+      </nav>
+
+      {mobileMenuOpen && (
+        <nav id="mobile-navigation" aria-label="เมนูมือถือ" className="absolute inset-x-0 top-16 border-t border-white/10 bg-[#0a2540] px-4 pb-5 pt-3 shadow-2xl lg:hidden">
+          <div className="mx-auto grid max-w-lg gap-1">
+            {visibleNavigation.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`transition flex items-center gap-1.5 py-1 px-2 rounded-md ${
-                    active
-                      ? 'text-white font-semibold bg-white/10'
-                      : 'hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <span className="text-xs">{link.icon}</span>
-                  <span>{link.label}</span>
+                <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} aria-current={active ? "page" : undefined} className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${active ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}>
+                  <Icon className="h-[18px] w-[18px]" aria-hidden="true" /><span>{item.label}</span>
                 </Link>
               );
             })}
-          </div>
 
-          {/* Right Area: Demo Role Switcher & Auth status */}
-          <div className="flex items-center gap-3">
-
-            {isAuthenticated ? (
-              <div className="hidden sm:flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="text-[11px] text-zinc-200 hover:text-white font-medium transition"
-                  title="จัดการโปรไฟล์"
-                >
-                  โปรไฟล์
+            <div className="mt-2 border-t border-white/10 pt-3">
+              {isAuthenticated ? (
+                <div className="flex items-center justify-between gap-3">
+                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl px-3 text-sm text-slate-200 hover:bg-white/10">
+                    <UserRound className="h-[18px] w-[18px] shrink-0" aria-hidden="true" /><span className="truncate">{user?.full_name ?? "บัญชีผู้ใช้"}</span>
+                  </Link>
+                  <button type="button" onClick={() => { void signOut(); setMobileMenuOpen(false); }} className="min-h-11 shrink-0 rounded-xl px-3 text-xs text-rose-200 hover:bg-rose-400/10">ออกจากระบบ</button>
+                </div>
+              ) : (
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-400 px-4 text-sm font-bold text-[#0a2540]">
+                  <LogIn className="h-4 w-4" aria-hidden="true" />เข้าสู่ระบบ
                 </Link>
-                <button
-                  onClick={() => signOut()}
-                  className="text-[10px] text-zinc-400 hover:text-rose-300 transition px-2 py-0.5 rounded border border-zinc-600/40 hover:border-rose-400/40"
-                  title="ออกจากระบบ"
-                >
-                  ออก
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                className="text-[11px] font-semibold text-white hover:opacity-80 transition bg-[#0066cc] px-3 py-1 rounded-full"
-              >
-                เข้าสู่ระบบ
-              </Link>
-            )}
-
-            {/* Mobile Hamburger Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden text-white p-1 rounded-md hover:bg-white/10 transition"
-              aria-label="Toggle menu"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Sub Nav Bar */}
-      <nav className="h-[48px] w-full bg-white/80 backdrop-blur-md border-b fixed top-11 left-0 right-0 z-40 flex items-center justify-center px-4" style={{ borderColor: '#e5e7eb' }}>
-        <div className="w-full max-w-[1200px] flex items-center justify-between">
-          <Link href="/" className="text-sm font-bold tracking-tight hover:opacity-75 transition flex items-center gap-2" style={{ color: '#0a2540' }}>
-            <span>ระบบบริการสุขภาพและนัดหมายแพทย์ มหาวิทยาลัยวลัยลักษณ์</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-4 text-xs text-zinc-500">
-              <Link href="/schedules" className="hover:text-sky-600 transition">ตารางแพทย์ประจำวัน</Link>
-              <Link href="/pharmacy" className="hover:text-sky-600 transition">ตรวจสอบคลังยา</Link>
-              <Link href="/reminders" className="hover:text-sky-600 transition">เตือนทานยา</Link>
+              )}
             </div>
-            <Link
-              href="/appointments"
-              className="text-xs font-semibold px-4 py-1.5 rounded-full transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center gap-1.5"
-              style={{ background: 'linear-gradient(135deg,#0a2540,#0d3b6e)', color: '#fff' }}
-            >
-              <span>🩺</span>
-              <span>จองคิวตรวจทันที</span>
-            </Link>
           </div>
-        </div>
-      </nav>
-
-      {/* Mobile Drawer Menu */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[95px] bg-[#0a2540] text-white border-b border-zinc-700 p-4 z-50 space-y-2 shadow-2xl animate-in slide-in-from-top-2 duration-150">
-          <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 px-2">
-            เมนูระบบคลินิก (Role: {role})
-          </div>
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition ${
-                isActive(link.href) ? 'bg-white/20 text-white font-bold' : 'text-zinc-300 hover:bg-white/10'
-              }`}
-            >
-              <span className="text-base">{link.icon}</span>
-              <span>{link.label}</span>
-            </Link>
-          ))}
-          <div className="pt-3 border-t border-zinc-700/80 flex items-center justify-between px-2">
-            <span className="text-xs text-zinc-400">
-              ผู้ใช้: <strong className="text-white">{user?.full_name}</strong>
-            </span>
-            <button
-              onClick={() => {
-                signOut();
-                setMobileMenuOpen(false);
-              }}
-              className="text-xs text-rose-300 hover:text-rose-200"
-            >
-              ออกจากระบบ
-            </button>
-          </div>
-        </div>
+        </nav>
       )}
-    </>
+    </header>
   );
 }

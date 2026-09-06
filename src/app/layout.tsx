@@ -30,7 +30,7 @@ export default function RootLayout({
           <ClinicMockProvider>
             <Header />
             {/* Main Content Area */}
-            <main className="flex-1 pt-[96px]" style={{ background: "#f8fafb" }}>
+            <main className="flex-1 pt-16" style={{ background: "#f8fafb" }}>
               {children}
             </main>
             <Footer />
