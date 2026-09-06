@@ -1,8 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';   // ← เปลี่ยนจาก '@/lib/supabase'
 import { AuthUser, AuthSession } from '@/types/auth';
+
+const supabase = createClient();
 
 interface AuthContextType extends AuthSession {
   signOut: () => Promise<void>;

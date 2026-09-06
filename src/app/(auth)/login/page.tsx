@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from '@/services/authService';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +19,8 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await signIn(email, password);
-      router.push('/dashboard');
+      const redirect = searchParams.get('redirect');
+      router.push(redirect || '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ ตรวจสอบ email/password อีกครั้ง');
     } finally {
@@ -26,6 +28,7 @@ export default function LoginPage() {
     }
   }
 
+ 
   return (
     <div className="bg-white rounded-2xl shadow-xl p-8 border border-zinc-100">
       <div className="text-center mb-8">
