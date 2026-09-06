@@ -46,8 +46,7 @@ erDiagram
     medication_reminders ||--o{ medication_logs : schedules
     medication_logs ||--o{ medication_log_changes : audits
     medication_logs ||--o{ email_jobs : notifies
-    broadcasts ||--o{ broadcast_recipients : snapshots
-    profiles ||--o{ broadcast_recipients : receives
+    broadcasts ||--o{ notifications : creates
     profiles ||--o{ notifications : owns
 ```
 
@@ -62,7 +61,7 @@ erDiagram
 | prescription_changes | รายการ/เวอร์ชัน ก่อน–หลัง เหตุผล ผู้แก้ เวลา ไม่แก้ทับส่วนที่จ่ายแล้ว |
 | medication_log_changes | มื้อ ก่อน–หลัง actual_time ผู้แก้ เวลา เหตุผล/ชนิดการแก้ |
 | email_jobs | เหตุการณ์/มื้อ ผู้รับ scheduled_at ชนิดปกติ/ซ้ำ/เจ้าหน้าที่ สถานะ attempt ผู้ให้บริการและข้อผิดพลาด |
-| broadcasts / broadcast_recipients | ผู้ส่ง เนื้อหา request key; รายชื่อผู้รับตรึงด้วย broadcast_id + user_id และสถานะกล่องของผู้รับ |
+| broadcasts | ผู้ส่ง เนื้อหา request key; สร้าง notification รายคนด้วย unique (broadcast_id, user_id) |
 
 ข้อมูลพักอีเมลต้องมี pause_until; การส่งโดย Staff ต้องบันทึกผู้ส่ง เหตุผล และข้อจำกัด 1 ครั้งต่อมื้อทั้งระบบ จะเก็บในตารางใดให้รับรองพร้อมแบบสุดท้าย
 
@@ -287,7 +286,7 @@ Data Dictionary (พจนานุกรมข้อมูล) เป็นเ�
 | `message` | รายละเอียดข้อความ | | TEXT | | Yes | ห้ามเป็นค่าว่าง | `นัดหมายของคุณวันที่ 10 ก.ย. ได้รับการยืนยันแล้ว` |
 | `is_read` | สถานะการเปิดอ่าน | | BOOLEAN | | Yes | DEFAULT `false` | `false` |
 | `event_key` | รหัสเหตุการณ์กันส่งข้อความซ้ำ | | TEXT(100) | | | Idempotency event key | `appt-confirmed-ap111111` |
-| `broadcast_recipient_id` | รหัสเชื่อมโยงกรณีเป็นข้อความ Broadcast | FK (broadcast_recipients.id) | UUID | | | ผูกกับประวัติ Broadcast กลาง | `br111111-1111-1111-1111-111111111111` |
+| `broadcast_id` | รหัสประกาศ Broadcast ที่เชื่อมโยง | FK (broadcasts.id) | UUID | | | ผูกกับประกาศส่วนกลาง, `UNIQUE (broadcast_id, user_id)` | `bc111111-1111-1111-1111-111111111111` |
 | `read_at` | วันเวลาที่เปิดอ่าน | | TIMESTAMP WITH TIME ZONE | | | บันทึกเมื่อ `is_read` = true | `2026-09-07T09:00:00+07:00` |
 | `deleted_at` | วันเวลาที่ลบข้อความออกจากกล่อง | | TIMESTAMP WITH TIME ZONE | | | Soft-delete กล่องผู้ใช้ | null |
 | `created_at` | วันเวลาที่สร้างข้อความ | | TIMESTAMP WITH TIME ZONE | | Yes | DEFAULT `now()` | `2026-09-06T08:00:00+07:00` |
@@ -456,17 +455,5 @@ Data Dictionary (พจนานุกรมข้อมูล) เป็นเ�
 | `sent_at` | วันเวลาที่ส่งประกาศ | | TIMESTAMP WITH TIME ZONE | | Yes | DEFAULT `now()` | `2026-09-06T12:00:00+07:00` |
 | `created_at` | วันเวลาที่บันทึกข้อมูล | | TIMESTAMP WITH TIME ZONE | | Yes | DEFAULT `now()` | `2026-09-06T12:00:00+07:00` |
 
-### 21. Broadcast Recipient Entity (`broadcast_recipients`)
-
-สแน็ปช็อตรายชื่อผู้รับแต่ละคนเมื่อส่ง Broadcast เพื่อตรึงรายชื่อและจัดการสถานะการเปิดอ่าน/ลบในกล่องส่วนตัว
-
-| Attribute | Description | Key | Type (size) | Unique | Not Null | Validation | Example |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `id` | รหัสรายการผู้รับประกาศ | PK | UUID | Yes | Yes | `gen_random_uuid()` | `bcr11111-1111-1111-1111-111111111111` |
-| `broadcast_id` | ประกาศที่สังกัด | FK (broadcasts.id) | UUID | | Yes | | `bc111111-1111-1111-1111-111111111111` |
-| `user_id` | ผู้รับประกาศ | FK (profiles.id) | UUID | | Yes | 1 คนต่อ 1 ประกาศ | `u1111111-1111-1111-1111-111111111111` |
-| `read_at` | วันเวลาที่ผู้รับเปิดอ่าน | | TIMESTAMP WITH TIME ZONE | | | บันทึกเมื่อเปิดอ่าน | `2026-09-06T13:00:00+07:00` |
-| `deleted_at` | วันเวลาที่ผู้รับลบออกจากกล่องข้อความตนเอง | | TIMESTAMP WITH TIME ZONE | | | ไม่กระทบประวัติส่วนกลาง | null |
-| `created_at` | วันเวลาที่สร้างรายการ | | TIMESTAMP WITH TIME ZONE | | Yes | DEFAULT `now()` | `2026-09-06T12:00:00+07:00` |
 
 

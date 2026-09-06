@@ -15,7 +15,6 @@ const normalizedTables = [
   'medication_log_changes',
   'email_jobs',
   'broadcasts',
-  'broadcast_recipients',
 ] as const;
 
 describe('normalized transaction migration', () => {

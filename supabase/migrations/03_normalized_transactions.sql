@@ -32,7 +32,7 @@ ALTER TABLE public.medication_logs
 
 ALTER TABLE public.notifications
   ADD COLUMN IF NOT EXISTS event_key text,
-  ADD COLUMN IF NOT EXISTS broadcast_recipient_id uuid,
+  ADD COLUMN IF NOT EXISTS broadcast_id uuid,
   ADD COLUMN IF NOT EXISTS read_at timestamp with time zone,
   ADD COLUMN IF NOT EXISTS deleted_at timestamp with time zone;
 
@@ -243,8 +243,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'medication_reminders_confirmed_by_fkey') THEN
     ALTER TABLE public.medication_reminders ADD CONSTRAINT medication_reminders_confirmed_by_fkey FOREIGN KEY (confirmed_by) REFERENCES public.profiles(id) ON DELETE RESTRICT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'notifications_broadcast_recipient_fkey') THEN
-    ALTER TABLE public.notifications ADD CONSTRAINT notifications_broadcast_recipient_fkey FOREIGN KEY (broadcast_recipient_id) REFERENCES public.broadcast_recipients(id) ON DELETE RESTRICT;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'notifications_broadcast_id_fkey') THEN
+    ALTER TABLE public.notifications ADD CONSTRAINT notifications_broadcast_id_fkey FOREIGN KEY (broadcast_id) REFERENCES public.broadcasts(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'notifications_broadcast_user_unique') THEN
+    ALTER TABLE public.notifications ADD CONSTRAINT notifications_broadcast_user_unique UNIQUE (broadcast_id, user_id);
   END IF;
 END
 $constraints$;
@@ -260,7 +263,7 @@ CREATE INDEX IF NOT EXISTS idx_prescription_items_record ON public.prescription_
 CREATE INDEX IF NOT EXISTS idx_dispensing_items_prescription ON public.dispensing_items (prescription_item_id);
 CREATE INDEX IF NOT EXISTS idx_stock_reservations_active ON public.stock_reservations (medication_id, status);
 CREATE INDEX IF NOT EXISTS idx_email_jobs_due ON public.email_jobs (status, scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_user ON public.broadcast_recipients (user_id, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_broadcast ON public.notifications (broadcast_id, user_id);
 
 ALTER TABLE public.reschedule_proposals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.prescription_items ENABLE ROW LEVEL SECURITY;
