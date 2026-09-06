@@ -174,7 +174,7 @@ export interface Notification {
   message: string;
   is_read: boolean;
   event_key?: string | null;
-  broadcast_recipient_id?: string | null;
+  broadcast_id?: string | null;
   read_at?: string | null;
   deleted_at?: string | null;
   created_at: string;
@@ -301,15 +301,6 @@ export interface Broadcast {
   audience: Record<string, unknown>;
   request_key: string;
   sent_at: string;
-  created_at: string;
-}
-
-export interface BroadcastRecipient {
-  id: string;
-  broadcast_id: string;
-  user_id: string;
-  read_at: string | null;
-  deleted_at: string | null;
   created_at: string;
 }
 
