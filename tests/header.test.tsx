@@ -31,7 +31,7 @@ describe("Header", () => {
     expect(screen.queryByText("ระบบบริการสุขภาพและนัดหมายแพทย์ มหาวิทยาลัยวลัยลักษณ์")).not.toBeInTheDocument();
   });
 
-  it("shows only navigation allowed for an admin", () => {
+  it("keeps every main route reachable while editing in demo mode", () => {
     authState.user = { full_name: "Admin Demo" };
     authState.isAuthenticated = true;
     authState.role = "admin";
@@ -39,8 +39,8 @@ describe("Header", () => {
     render(<Header />);
 
     expect(screen.getByRole("link", { name: /Dashboard/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /คลังยา/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /นัดหมาย/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /คลังยา/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /นัดหมาย/ })).toBeInTheDocument();
   });
 
   it("opens an accessible mobile menu", () => {

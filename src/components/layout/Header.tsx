@@ -28,9 +28,9 @@ export default function Header() {
   const { user, isAuthenticated, isLoading, signOut, role } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const visibleNavigation = isAuthenticated && role
-    ? navigationItems.filter((item) => item.roles.includes(role as NavigationRole))
-    : navigationItems.filter((item) => item.href === "/schedules");
+  // Temporary demo mode: keep every main route reachable while the team edits pages.
+  // `roles` stays on each item for the future permission-aware navigation pass.
+  const visibleNavigation = navigationItems;
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
