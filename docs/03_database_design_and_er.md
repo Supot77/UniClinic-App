@@ -1,10 +1,10 @@
 # 03. แบบข้อมูลและ ER
 
-ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 6 กันยายน 2569 (2026-09-06) — ทีมรับรองแบบแยกตารางแล้ว การมี migration ยังไม่ใช่หลักฐานว่าฐานจริงถูกอัปเกรดหรือผ่านการตรวจรับ
 
 ## สถานะ
 
-ฐานเดิมในเอกสารมี 11 ตารางและรายการยา JSONB ใน medical_records แบบด้านล่างเป็น **ข้อเสนอเชิงแนวคิดเพื่อรองรับข้อสรุปใหม่** ชื่อตาราง/ฟิลด์/สถานะยังต้องรับรองก่อนเขียน migration ไม่ได้อนุมัติแบบแยกตารางจากการอนุมัติกติกาธุรกิจ และยังไม่มีการแก้ SQL จริง
+ทีมรับรองแบบแยกตารางตามเอกสารออกแบบวันที่ 6 กันยายน 2569 แล้ว ฐานเดิม 11 ตารางยังคงอยู่เพื่อ compatibility และเพิ่มตารางธุรกรรมด้วย `supabase/migrations/03_normalized_transactions.sql` โดยไม่ backfill JSONB เพราะฐานปัจจุบันมีแต่ข้อมูลทดลอง
 
 ## ข้อมูลฐานเดิมและส่วนที่ต้องปรับ
 
@@ -22,9 +22,9 @@
 | medication_logs | reminder_id, scheduled_time, actual_time, status | pending/taken/missed; เส้นตายบันทึกและประวัติแก้ ไม่ใช้ skipped แทน missed |
 | notifications | user_id, type, title, message, is_read, created_at | เจ้าของกล่องเท่านั้น; ผูกเหตุการณ์เพื่อกันซ้ำและแยกประวัติ Broadcast กลาง |
 
-ชื่อฟิลด์ในตารางนี้อธิบายหน้าที่ ไม่ใช่ TypeScript contract ที่ตรวจตรงกับโค้ดแล้ว ก่อนพัฒนาต้องเทียบ migration จริงและตรึงชื่อเดียวกัน
+ชื่อ field/status ที่รับรองอยู่ใน migration 03 และ `src/types/database.ts`; ตารางสรุปนี้ใช้อธิบายหน้าที่
 
-## ER ที่เสนอสำหรับข้อมูลธุรกรรมเพิ่ม
+## ER ข้อมูลธุรกรรมที่รับรอง
 
 ```mermaid
 erDiagram
@@ -51,7 +51,7 @@ erDiagram
     profiles ||--o{ notifications : owns
 ```
 
-## Data Dictionary ส่วนที่เสนอเพิ่ม
+## Data Dictionary ส่วนที่รับรองเพิ่ม
 
 | Entity เสนอ | ข้อมูลที่ต้องเก็บ |
 | --- | --- |
@@ -76,9 +76,9 @@ erDiagram
 - แยกผลวินิจฉัยจากข้อมูลจ่ายยาให้ Staff/Pharmacist อ่านเฉพาะช่องที่อนุญาต RLS รายแถวอย่างเดียวไม่จำกัดคอลัมน์ในแถว
 - ข้อมูลเวลาเหตุการณ์ใช้ timestamp ที่ระบุเขตเวลา ส่วนแสดงวัน/เส้นตายใช้ Asia/Bangkok
 
-## แผน migration ภายหลัง
+## แผน migration
 
-สำรวจฐานจริงและข้อมูล JSON เดิม → รับรอง mapping/ER/contracts → เพิ่ม migration ที่แปลงข้อมูลเดิมโดยรักษา ID และประวัติ → เติมสิทธิ์/ธุรกรรม → สร้าง types → ทดสอบทั้งติดตั้งใหม่และอัปเกรดฐานเดิม ไม่แก้ migration ที่ใช้งานไปแล้วโดยไม่มีแผนร่วม ดู [09](09_implementation_plan.md)
+เพิ่ม migration 03 แบบ additive และ types แล้ว โดยไม่แก้ migration เดิม ไม่ backfill JSONB และไม่รันกับฐานจริง ขั้นต่อไปคือตรวจ RLS/views/RPC, ทดสอบติดตั้งใหม่ และให้หัวหน้าทีมรันกับฐานทดลองเมื่ออนุมัติ ดู [09](09_implementation_plan.md)
 
 ## Data Dictionary ของฐานเดิม
 
@@ -103,7 +103,7 @@ erDiagram
 - `appointment_slots`: `id`, `doctor_id`, `slot_date`, `start_time`, `end_time`, `max_capacity`, `booked_count`, `status`, timestamps
 - สถานะรอบเดิมคือ `available`, `full`, `closed`; ต้องบังคับ `start_time < end_time`, ความจุเป็นบวก และเวลาไทย
 - `appointments`: `id`, `user_id`, `slot_id`, `queue_number`, `reason`, `status`, timestamps
-- สถานะนัดคือ `pending`, `confirmed`, `in_progress`, `completed`, `cancelled`, `no_show`, `rejected`; ข้อเสนอเลื่อนนัดและการกันรอบใหม่ต้องมีข้อมูลเพิ่ม/ตารางเพิ่มที่ยังรอรับรอง
+- สถานะนัดคือ `pending`, `confirmed`, `in_progress`, `completed`, `cancelled`, `no_show`, `rejected`; ข้อเสนอเลื่อนนัดและการกันรอบใหม่เก็บใน `reschedule_proposals`
 
 ### `medical_records`
 

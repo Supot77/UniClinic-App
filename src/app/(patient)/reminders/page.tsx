@@ -1,45 +1,53 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   Bell, Check, Clock, AlertCircle, Pause, Pill, 
   Settings, History, XCircle, Activity, 
   ChevronRight, Mail, ShieldCheck, CalendarIcon, PillBottle 
 } from 'lucide-react';
+import { useClinicMockDatabase } from '@/features/mock-database/ClinicMockProvider';
 
-// Mock Data สำหรับทดสอบ
-const medicationData = [
-  { 
-    id: 1, 
-    name: 'Paracetamol (พาราเซตามอล)', 
-    dose: '1 เม็ด หลังกินอาหาร', 
-    time: '08:00', 
-    status: 'taken', 
-    takenAt: '08:05' 
-  },
-  { 
-    id: 2, 
-    name: 'Amoxicillin (ยาปฏิชีวนะ)', 
-    dose: '1 แคปซูล ก่อนอาหาร', 
-    time: '13:00', 
-    status: 'pending' 
-  },
-  { 
-    id: 3, 
-    name: 'Vitamin B (วิตามินรวม)', 
-    dose: '2 เม็ด', 
-    time: '20:00', 
-    status: 'pending', 
-    isLastDose: true 
-  },
-];
+interface MedicationTimelineItem {
+  id: string;
+  name: string;
+  dose: string;
+  time: string;
+  status: 'taken' | 'pending' | 'missed';
+  takenAt?: string;
+  isLastDose?: boolean;
+}
 
 export default function RemindersPage() {
+  const { repositories } = useClinicMockDatabase();
   const [emailPause, setEmailPause] = useState('none');
+  const [medicationData, setMedicationData] = useState<MedicationTimelineItem[]>([]);
 
-  // Data สำหรับหลอดยา (วัฏจักร 7 วัน)
-  const cycleTotal = 7;
-  const cycleCompleted = 5; 
+  useEffect(() => {
+    let active = true;
+    void repositories.reminders.listWithMedication('profile-peter-parker').then(({ data }) => {
+      if (!active || !data) return;
+      const timeline = data.flatMap((reminder) => reminder.reminder_times.map((time, index) => {
+        const log = reminder.logs.find((item) => new Intl.DateTimeFormat('en-GB', {
+          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok',
+        }).format(new Date(item.scheduled_datetime)) === time);
+        return {
+          id: `${reminder.id}-${time}`,
+          name: reminder.medication?.name ?? 'ไม่พบข้อมูลยา',
+          dose: `${reminder.medication?.type ?? 'ยา'} · ${reminder.status === 'paused' ? 'พักการเตือน' : 'ตามรายการที่ได้รับ'}`,
+          time,
+          status: log?.status ?? 'pending',
+          takenAt: log?.actual_datetime ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' }).format(new Date(log.actual_datetime)) : undefined,
+          isLastDose: index === reminder.reminder_times.length - 1,
+        } satisfies MedicationTimelineItem;
+      }));
+      setMedicationData(timeline.sort((a, b) => a.time.localeCompare(b.time)));
+    });
+    return () => { active = false; };
+  }, [repositories]);
+
+  const cycleTotal = Math.max(medicationData.length, 1);
+  const cycleCompleted = useMemo(() => medicationData.filter((item) => item.status === 'taken').length, [medicationData]);
   const cycleRemaining = cycleTotal - cycleCompleted;
   const percentage = (cycleCompleted / cycleTotal) * 100;
 
@@ -297,7 +305,7 @@ export default function RemindersPage() {
             {/* Disabled Schedule (Optional) */}
             <div className="bg-zinc-100 rounded-2xl border border-zinc-200 border-dashed p-6 opacity-75">
                <h3 className="text-xs font-bold text-zinc-500 mb-2 uppercase">จัดการตารางยา</h3>
-               <p className="text-xs text-zinc-400 mb-3">กรุณาเพิ่มยาที่หน้า "ประวัติยา"</p>
+               <p className="text-xs text-zinc-400 mb-3">กรุณาเพิ่มยาที่หน้า &ldquo;ประวัติยา&rdquo;</p>
                <button disabled className="w-full py-2 bg-zinc-200 text-zinc-400 rounded-lg text-xs font-medium cursor-not-allowed">
                  เพิ่มยา (ปิดใช้งาน)
                </button>

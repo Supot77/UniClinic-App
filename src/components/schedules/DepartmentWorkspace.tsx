@@ -16,7 +16,6 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { MOCK_DOCTOR_ACCOUNT_OPTIONS } from '@/mocks/scheduleData';
 import { useShop } from '@/features/shop/context/ShopProvider';
 import type {
   DepartmentTone,
@@ -74,7 +73,7 @@ const emptyDoctorDraft: DoctorDraft = {
 };
 
 export default function DepartmentWorkspace() {
-  const { departments, doctors, saveDepartment: persistDepartment, toggleDepartment: persistDepartmentToggle, saveDoctor: persistDoctor, toggleDoctor: persistDoctorToggle } = useShop();
+  const { departments, doctors, slots, doctorAccounts, saveDepartment: persistDepartment, toggleDepartment: persistDepartmentToggle, saveDoctor: persistDoctor, toggleDoctor: persistDoctorToggle } = useShop();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('departments');
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -153,7 +152,7 @@ export default function DepartmentWorkspace() {
   };
 
   const selectDoctorAccount = (profileId: string) => {
-    const account = MOCK_DOCTOR_ACCOUNT_OPTIONS.find((item) => item.profileId === profileId);
+    const account = doctorAccounts.find((item) => item.profileId === profileId);
     setDoctorDraft((current) => ({
       ...current,
       profileId,
@@ -194,10 +193,13 @@ export default function DepartmentWorkspace() {
   };
 
   const toggleDoctor = (doctor: ScheduleDoctor) => {
-    if (!window.confirm(doctor.availability === 'inactive' ? `เปิดใช้งาน ${doctor.fullName} อีกครั้ง?` : `ปิดใช้งาน ${doctor.fullName}? รอบและประวัติเดิมจะยังคงอยู่`)) return;
+    const hasReferences = Boolean(doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id));
+    const action = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : hasReferences ? 'ปิดใช้งาน' : 'ลบ';
+    const impact = hasReferences ? ' รอบและประวัติเดิมจะยังคงอยู่' : '';
+    if (!window.confirm(`${action} ${doctor.fullName}?${impact}`)) return;
     const result = persistDoctorToggle(doctor.id);
     if (!result.ok) { setFormError(result.error); return; }
-    setNotice(doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
+    setNotice(result.value === 'deleted' ? 'ลบแพทย์ที่ยังไม่มีข้อมูลอ้างอิงแล้ว' : doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
   };
 
   const activeDoctors = doctors.filter((doctor) => doctor.availability === 'active').length;
@@ -383,7 +385,7 @@ export default function DepartmentWorkspace() {
             <button type="button" onClick={() => setDoctorFormOpen(false)} className="min-h-11 min-w-11 rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label="ปิดแบบฟอร์ม"><X className="h-5 w-5" aria-hidden="true" /></button>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="space-y-1.5 md:col-span-2"><span className="text-sm font-medium text-slate-700">บัญชีที่มี role doctor</span><select value={doctorDraft.profileId} disabled={Boolean(editingDoctorId)} onChange={(event) => selectDoctorAccount(event.target.value)} className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-500`}><option value="">เลือกบัญชีแพทย์</option>{editingDoctorId && <option value={doctorDraft.profileId}>{doctorDraft.fullName} · {doctorDraft.email}</option>}{!editingDoctorId && MOCK_DOCTOR_ACCOUNT_OPTIONS.map((account) => <option key={account.profileId} value={account.profileId}>{account.fullName} · {account.email}</option>)}</select></label>
+            <label className="space-y-1.5 md:col-span-2"><span className="text-sm font-medium text-slate-700">บัญชีที่มี role doctor</span><select value={doctorDraft.profileId} disabled={Boolean(editingDoctorId)} onChange={(event) => selectDoctorAccount(event.target.value)} className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-500`}><option value="">เลือกบัญชีแพทย์</option>{editingDoctorId && <option value={doctorDraft.profileId}>{doctorDraft.fullName} · {doctorDraft.email}</option>}{!editingDoctorId && doctorAccounts.filter((account) => !doctors.some((doctor) => doctor.profileId === account.profileId)).map((account) => <option key={account.profileId} value={account.profileId}>{account.fullName} · {account.email}</option>)}</select></label>
             <label className="space-y-1.5"><span className="text-sm font-medium text-slate-700">แผนก</span><select value={doctorDraft.departmentId} onChange={(event) => setDoctorDraft((current) => ({ ...current, departmentId: event.target.value }))} className={inputClass}><option value="">เลือกแผนก</option>{departments.filter((department) => department.isActive).map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></label>
             <label className="space-y-1.5"><span className="text-sm font-medium text-slate-700">สถานะ</span><select value={doctorDraft.availability} onChange={(event) => setDoctorDraft((current) => ({ ...current, availability: event.target.value as DoctorAvailability }))} className={inputClass}><option value="active">พร้อมออกตรวจ</option><option value="on_leave">ลา</option><option value="inactive">ปิดใช้งาน</option></select></label>
             <label className="space-y-1.5 md:col-span-2 xl:col-span-4"><span className="text-sm font-medium text-slate-700">ความเชี่ยวชาญ</span><input value={doctorDraft.specialty} onChange={(event) => setDoctorDraft((current) => ({ ...current, specialty: event.target.value }))} className={inputClass} /></label>
@@ -451,7 +453,7 @@ export default function DepartmentWorkspace() {
                       <div className="text-sm text-slate-700"><span className="mr-2 text-xs font-semibold text-slate-400 lg:hidden">แผนก</span>{department?.name ?? 'ยังไม่กำหนด'}</div>
                       <div className="text-sm text-slate-600"><span className="mr-2 text-xs font-semibold text-slate-400 lg:hidden">เชี่ยวชาญ</span>{doctor.specialty}</div>
                       <div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${status[1]}`}>{status[0]}</span></div>
-                      <div className="flex justify-end gap-1"><button type="button" onClick={() => openDoctorForm(doctor)} className="min-h-11 min-w-11 rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label={`แก้ไข ${doctor.fullName}`}><Pencil className="h-4 w-4" aria-hidden="true" /></button><button type="button" onClick={() => toggleDoctor(doctor)} className={`min-h-11 rounded-xl px-3 text-xs font-semibold ${doctor.availability === 'inactive' ? 'text-emerald-700 hover:bg-emerald-50' : 'text-rose-700 hover:bg-rose-50'}`}>{doctor.availability === 'inactive' ? 'เปิดใช้' : 'ปิดใช้'}</button></div>
+                      <div className="flex justify-end gap-1"><button type="button" onClick={() => openDoctorForm(doctor)} className="min-h-11 min-w-11 rounded-xl p-2 text-slate-500 hover:bg-slate-100" aria-label={`แก้ไข ${doctor.fullName}`}><Pencil className="h-4 w-4" aria-hidden="true" /></button><button type="button" onClick={() => toggleDoctor(doctor)} className={`min-h-11 rounded-xl px-3 text-xs font-semibold ${doctor.availability === 'inactive' ? 'text-emerald-700 hover:bg-emerald-50' : 'text-rose-700 hover:bg-rose-50'}`}>{doctor.availability === 'inactive' ? 'เปิดใช้' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้' : 'ลบ'}</button></div>
                     </article>
                   );
                 })}
