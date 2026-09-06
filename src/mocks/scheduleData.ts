@@ -5,6 +5,8 @@ import type {
   ScheduleDepartment,
   ScheduleDoctor,
   ScheduleSlot,
+  DoctorWeeklySchedule,
+  DoctorLeaveRequest,
 } from '@/types/schedule';
 
 export const MOCK_WEEK_START = '2026-09-07';
@@ -58,3 +60,31 @@ export const MOCK_SLOTS: ScheduleSlot[] = clinicMockTables.appointment_slots.map
   status: slot.status,
   hasHistory: slot.booked_count > 0,
 }));
+
+const weekdays = [1, 2, 3, 4, 5] as const;
+export const MOCK_WEEKLY_SCHEDULES: DoctorWeeklySchedule[] = MOCK_DOCTORS.flatMap((doctor) =>
+  weekdays.flatMap((weekday) => [
+    {
+      id: `weekly-${doctor.id}-${weekday}-am`,
+      doctorId: doctor.id,
+      weekday,
+      startTime: '08:30',
+      endTime: '12:00',
+      slotDurationMinutes: 30,
+      defaultCapacity: 1,
+      isActive: true,
+    },
+    {
+      id: `weekly-${doctor.id}-${weekday}-pm`,
+      doctorId: doctor.id,
+      weekday,
+      startTime: '13:00',
+      endTime: '16:30',
+      slotDurationMinutes: 30,
+      defaultCapacity: 1,
+      isActive: true,
+    },
+  ]),
+);
+
+export const MOCK_LEAVE_REQUESTS: DoctorLeaveRequest[] = [];

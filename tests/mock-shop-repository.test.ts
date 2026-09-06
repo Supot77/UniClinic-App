@@ -35,4 +35,88 @@ describe('MockShopRepository', () => {
     expect(result.ok).toBe(false);
     expect(repository.snapshot()).toEqual(before);
   });
+
+  it('exposes the shared mock account catalog and rejects duplicate doctor bindings', () => {
+    const repository = new MockShopRepository();
+    expect(repository.snapshot().doctorAccounts.length).toBeGreaterThan(0);
+    const before = repository.snapshot();
+    const result = repository.saveDoctor({
+      profileId: before.doctors[0].profileId,
+      fullName: 'แพทย์ซ้ำ',
+      initials: 'ซ้ำ',
+      email: 'duplicate@clinic-demo.test',
+      specialty: 'ทดสอบ',
+      departmentId: before.doctors[0].departmentId,
+      availability: 'active',
+    });
+    expect(result).toMatchObject({ ok: false, field: 'profileId' });
+    expect(repository.snapshot()).toEqual(before);
+  });
+
+  it('rejects edits for unknown IDs without creating records', () => {
+    const repository = new MockShopRepository();
+    const before = repository.snapshot();
+    expect(repository.saveDepartment({ name: 'ใหม่', code: 'NEW', description: '', room: '', tone: 'sky' }, 'missing')).toMatchObject({ ok: false });
+    expect(repository.saveDoctor({
+      profileId: 'profile-gregory-house', fullName: 'Gregory House', initials: 'GH', email: 'gh@test', specialty: 'ทดสอบ', departmentId: 'dept-general', availability: 'active',
+    }, 'missing')).toMatchObject({ ok: false });
+    expect(repository.saveSlot({ doctorId: 'profile-stephen-strange', slotDate: '2026-09-07', startTime: '09:30', endTime: '10:00', maxCapacity: 1 }, 'missing')).toMatchObject({ ok: false });
+    expect(repository.snapshot()).toEqual(before);
+  });
+
+  it('closes a slot without changing its booked count', () => {
+    const repository = new MockShopRepository();
+    const slot = repository.snapshot().slots.find((item) => item.bookedCount > 0);
+    expect(slot).toBeDefined();
+    if (!slot) return;
+    expect(repository.toggleSlot(slot.id)).toMatchObject({ ok: true, value: { status: 'closed', bookedCount: slot.bookedCount } });
+  });
+
+  it('hard deletes a new doctor until a slot references it', () => {
+    const repository = new MockShopRepository();
+    const result = repository.saveDoctor({
+      profileId: 'profile-gregory-house', fullName: 'Gregory House', initials: 'GH', email: 'gh@test', specialty: 'วินิจฉัย', departmentId: 'dept-general', availability: 'active',
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(repository.toggleDoctor(result.value.id)).toEqual({ ok: true, value: 'deleted' });
+    expect(repository.snapshot().doctors.some((doctor) => doctor.id === result.value.id)).toBe(false);
+  });
+
+  it('generates recurring slots and closes only future slots for approved leave', () => {
+    const repository = new MockShopRepository();
+    const generated = repository.generateSlotsForRange('2026-09-07', '2026-09-07', '2026-09-07');
+    expect(generated).toMatchObject({ ok: true });
+    const before = repository.snapshot();
+    const submitted = repository.submitLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-07', endDate: '2026-09-07', reason: 'ลาพักร้อน', requestedBy: 'profile-stephen-strange' });
+    expect(submitted).toMatchObject({ ok: true, value: { status: 'pending' } });
+    if (!submitted.ok) return;
+    expect(repository.snapshot().slots.filter((slot) => slot.doctorId === 'profile-stephen-strange' && slot.slotDate === '2026-09-07' && slot.closedReason === 'doctor_leave')).toHaveLength(0);
+    expect(repository.decideLeave(submitted.value.id, 'approved', 'mock-staff', '2026-09-07')).toMatchObject({ ok: true, value: { status: 'approved' } });
+    const after = repository.snapshot();
+    const affected = after.slots.filter((slot) => slot.doctorId === 'profile-stephen-strange' && slot.slotDate === '2026-09-07');
+    expect(affected.length).toBeGreaterThan(0);
+    expect(affected.every((slot) => slot.status === 'closed' && slot.closedReason === 'doctor_leave')).toBe(true);
+    expect(affected.reduce((sum, slot) => sum + slot.bookedCount, 0)).toBe(before.slots.filter((slot) => slot.doctorId === 'profile-stephen-strange' && slot.slotDate === '2026-09-07').reduce((sum, slot) => sum + slot.bookedCount, 0));
+  });
+
+  it('does not allow overlapping weekly schedules or duplicate leave requests', () => {
+    const repository = new MockShopRepository();
+    const schedule = repository.snapshot().weeklySchedules.find((item) => item.doctorId === 'profile-stephen-strange' && item.weekday === 1);
+    expect(schedule).toBeDefined();
+    if (!schedule) return;
+    const scheduleInput = { doctorId: schedule.doctorId, weekday: schedule.weekday, slotDurationMinutes: schedule.slotDurationMinutes, defaultCapacity: schedule.defaultCapacity, isActive: schedule.isActive, startTime: schedule.startTime, endTime: schedule.endTime };
+    expect(repository.saveWeeklySchedule({ ...scheduleInput, startTime: '09:00', endTime: '10:00' })).toMatchObject({ ok: false });
+    const first = repository.submitLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-14', endDate: '2026-09-15', reason: 'อบรม', requestedBy: 'profile-stephen-strange' });
+    expect(first.ok).toBe(true);
+    expect(repository.submitLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-15', endDate: '2026-09-16', reason: 'ซ้ำ', requestedBy: 'profile-stephen-strange' })).toMatchObject({ ok: false });
+  });
+  it('requires an active doctor and department before saving recurring schedule', () => {
+    const repository = new MockShopRepository();
+    const doctor = repository.snapshot().doctors[0];
+    expect(doctor).toBeDefined();
+    if (!doctor) return;
+    expect(repository.toggleDoctor(doctor.id)).toMatchObject({ ok: true });
+    expect(repository.saveWeeklySchedule({ doctorId: doctor.id, weekday: 1, startTime: '08:30', endTime: '09:00', slotDurationMinutes: 30, defaultCapacity: 1, isActive: true })).toMatchObject({ ok: false, field: 'doctorId' });
+  });
 });

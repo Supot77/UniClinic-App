@@ -20,6 +20,24 @@ export interface SlotInput {
 const success = <T>(value: T): ShopResult<T> => ({ ok: true, value });
 const failure = <T>(error: string, field?: string): ShopResult<T> => ({ ok: false, error, field });
 
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const TIME_PATTERN = /^(\d{2}):(\d{2})$/;
+
+function isValidClinicDate(value: string) {
+  const match = DATE_PATTERN.exec(value);
+  if (!match) return false;
+  const [, year, month, day] = match.map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function isValidClinicTime(value: string) {
+  const match = TIME_PATTERN.exec(value);
+  if (!match) return false;
+  const [, hour, minute] = match.map(Number);
+  return hour <= 23 && minute <= 59;
+}
+
 export function deriveSlotStatus(
   bookedCount: number,
   maxCapacity: number,
@@ -40,6 +58,10 @@ export function validateSlot(
   if (!input.doctorId || !input.slotDate || !input.startTime || !input.endTime) {
     return failure('กรอกแพทย์ วันที่ และเวลาให้ครบ');
   }
+  if (!isValidClinicDate(input.slotDate)) return failure('วันที่ต้องอยู่ในรูปแบบ YYYY-MM-DD', 'slotDate');
+  if (!isValidClinicTime(input.startTime) || !isValidClinicTime(input.endTime)) {
+    return failure('เวลาต้องอยู่ในรูปแบบ HH:mm', 'startTime');
+  }
   const doctor = doctors.find((item) => item.id === input.doctorId);
   const department = doctor && departments.find((item) => item.id === doctor.departmentId);
   if (!doctor || doctor.availability !== 'active' || !department?.isActive) {
@@ -48,7 +70,10 @@ export function validateSlot(
   if (input.startTime >= input.endTime) {
     return failure('เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด', 'startTime');
   }
-  const weekday = new Date(`${input.slotDate}T12:00:00+07:00`).getUTCDay();
+  // Date-only values are interpreted in Asia/Bangkok. Bangkok has no DST,
+  // so UTC calendar arithmetic keeps validation deterministic in every runtime.
+  const [year, month, day] = input.slotDate.split('-').map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   if (weekday === 0 || weekday === 6) {
     return failure('คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์', 'slotDate');
   }
@@ -61,7 +86,10 @@ export function validateSlot(
   if (!Number.isInteger(input.maxCapacity) || input.maxCapacity < 1) {
     return failure('ความจุต้องเป็นจำนวนเต็มมากกว่า 0', 'maxCapacity');
   }
-  if (input.maxCapacity < bookedCount) {
+  if (!Number.isInteger(bookedCount) || bookedCount < 0) {
+    return failure('จำนวนจองต้องเป็นจำนวนเต็มไม่ติดลบ', 'maxCapacity');
+  }
+  if (bookedCount > input.maxCapacity) {
     return failure(`ลดความจุต่ำกว่าจำนวนจองปัจจุบัน ${bookedCount} คนไม่ได้`, 'maxCapacity');
   }
   const overlaps = slots.some(

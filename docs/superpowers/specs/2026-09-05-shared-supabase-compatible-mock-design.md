@@ -10,10 +10,10 @@
 
 ## 2. หลักอ้างอิง
 
-- ใช้ 11 ตารางใน `supabase/migrations/01_schema.sql` และชนิดข้อมูลใน `src/types/database.ts` เป็น persisted contract ปัจจุบัน
+- ตอนเขียน spec นี้ใช้ 11 ตารางใน `supabase/migrations/01_schema.sql`; วันที่ 6 กันยายน 2569 มี normalized contract ใน migration 03 เพิ่มแล้ว แต่ runtime mock ชุดนี้ยังคง shape เดิมเพื่อ compatibility
 - ใช้ข้อสรุปใน `docs/10_team_decisions.md` และเกณฑ์ใน `docs/08_system_rules_and_acceptance.md` เป็นกฎธุรกิจ
 - ใช้ Catalog ใน `docs/superpowers/specs/2026-09-04-clinic-demo-data-design.md` เป็นข้อมูลตั้งต้น
-- ER สำหรับตารางธุรกรรมใหม่ใน `docs/03_database_design_and_er.md` ยังไม่ได้รับรอง จึงห้ามนำชื่อ table/field ที่เสนอไปแสดงเป็น schema จริง
+- ER ตารางธุรกรรมใหม่ได้รับรองภายหลังใน `2026-09-06-normalized-database-schema-design.md`; การขยาย mock ไปใช้ตารางใหม่เป็นงานแยก
 
 ## 3. ขอบเขต
 
@@ -49,7 +49,7 @@
 - ไม่เชื่อม Supabase จริง
 - ไม่แก้ migration, RLS หรือ remote database
 - ไม่สร้าง Auth user จริงหรือส่งอีเมลจริง
-- ไม่รับรองชื่อ table/field จาก ER ที่ยังเป็นข้อเสนอ
+- ไม่ขยาย runtime mock ไปยัง normalized tables ในงานเดิมนี้
 - ไม่จำลอง SQL parser หรือ Supabase query builder ครบทุก operator
 - ไม่ทำ realtime subscription, storage, edge function หรือ network retry จริง
 - refresh browser แล้วข้อมูลกลับสู่ Catalog ตั้งต้น
@@ -160,7 +160,7 @@ command ที่กระทบหลาย row ใช้ transaction function 
 
 ## 11. Provisional workflows
 
-กฎที่ schema 11 ตารางยังเก็บไม่ครบ ได้แก่ ประวัติข้อเสนอเลื่อนนัด การแบ่งจ่าย การกันยา การแก้ใบสั่ง และ broadcast ต้นฉบับ จะไม่ปลอมเป็น persisted table ที่อนุมัติแล้ว
+กฎที่ mock 11 ตารางยังเก็บไม่ครบ ได้แก่ ประวัติข้อเสนอเลื่อนนัด การแบ่งจ่าย การกันยา การแก้ใบสั่ง และ broadcast ต้นฉบับ แม้ persisted schema ใหม่ได้รับรองภายหลังแล้ว
 
 ใน mock phase ให้รองรับผ่าน use-case RPC contract และ derived read model เช่น:
 
@@ -267,8 +267,8 @@ mock session ระบุ `profileId` และ `role` ปัจจุบัน 
 
 - ทุกโมดูลอ่านข้อมูลจาก catalog กลางผ่าน async repository โดยไม่มี inline fixture ในหน้า
 - response และ error shape เหมือน Supabase ในขอบเขตที่ประกาศ
-- persisted rows ตรง 11-table schema ปัจจุบัน
+- persisted rows ของ mock เดิมตรง 11-table compatibility shape
 - mutation ข้ามโมดูลสะท้อนจาก state ชุดเดียวกัน
-- กฎที่ยังไม่รับรองถูกแยกเป็น provisional RPC อย่างชัดเจน
+- กฎที่ยังไม่อยู่ใน mock เดิมถูกแยกเป็น provisional RPC อย่างชัดเจน
 - ไม่มี network request หรือการเขียนไป Supabase จริง
 - refresh แล้วรีเซ็ตข้อมูลและ tests รันซ้ำได้ผลเดิม

@@ -47,6 +47,7 @@ export interface ScheduleDoctor {
 }
 
 export type ScheduleSlotStatus = 'available' | 'full' | 'closed';
+export type ScheduleSlotClosedReason = 'manual' | 'doctor_leave';
 
 export interface ScheduleSlot {
   id: string;
@@ -57,7 +58,33 @@ export interface ScheduleSlot {
   maxCapacity: number;
   bookedCount: number;
   status: ScheduleSlotStatus;
+  closedReason?: ScheduleSlotClosedReason;
   hasHistory?: boolean;
+}
+
+export interface DoctorWeeklySchedule {
+  id: string;
+  doctorId: string;
+  weekday: 1 | 2 | 3 | 4 | 5;
+  startTime: string;
+  endTime: string;
+  slotDurationMinutes: 30 | 60;
+  defaultCapacity: number;
+  isActive: boolean;
+}
+
+export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface DoctorLeaveRequest {
+  id: string;
+  doctorId: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: LeaveRequestStatus;
+  requestedBy: string;
+  decidedBy?: string;
+  decidedAt?: string;
 }
 
 export interface DoctorAccountOption {

@@ -1,12 +1,12 @@
 # WU Clinic Booking & Medication System
 
-ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 6 กันยายน 2569 (2026-09-06) — normalized schema ได้รับรองแล้ว ยังไม่ใช่หลักฐานว่าฐานจริงถูกอัปเกรดหรือผ่านการตรวจรับ
 
 มินิโปรเจกต์ COE67-331 ระบบคลินิกมหาวิทยาลัยและเตือนกินยา ส่ง 18 กันยายน 2569 package.json และโฟลเดอร์โครงการใช้ชื่อ wu-clinic-booking
 
 ## เอกสารหลัก
 
-เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md) และ [แผนพัฒนา](docs/09_implementation_plan.md) งานรอบนี้ปรับ Markdown เท่านั้น โค้ด/ฐานข้อมูลยังไม่ได้รับรองว่าตรงข้อสรุปทั้งหมด
+เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md) และ [แผนพัฒนา](docs/09_implementation_plan.md) Runtime ปัจจุบันยังใช้ mock; migration ใหม่ยังไม่ได้รันกับฐานจริง
 
 ## ขอบเขต
 
@@ -30,7 +30,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-ไฟล์ฐานที่มี: supabase/migrations/01_schema.sql, 02_rls.sql และ supabase/seed.sql ยังไม่ได้ปรับตามกติกาใหม่ อย่ารัน docs/SQL.md เพื่ออัปเกรด หัวหน้าทีมดูแล service_role/รีเซ็ตเดโมและแจ้งทีมก่อนทุกครั้ง
+ไฟล์ฐานที่มี: `01_schema.sql`, `02_rls.sql` และ `03_normalized_transactions.sql` แบบ additive อย่ารัน `docs/SQL.md` เพื่ออัปเกรด และอย่าถือว่า RLS เดิมผ่านข้อสรุปล่าสุด หัวหน้าทีมดูแล service_role/รีเซ็ตเดโมและแจ้งทีมก่อนทุกครั้ง
 
 ```bash
 npm run dev
@@ -53,4 +53,4 @@ npm run build
 
 src/app แบ่ง (auth)/(clinic)/(patient)/(dashboard), src/components, services, hooks, lib, types; ฐานข้อมูลใน supabase และเอกสารใน docs ใช้ feature → develop → main ตาม [ข้อตกลง Git](docs/05_folder_and_git_workflow.md) งานนี้ไม่เปลี่ยน branch หรือรวมโค้ด
 
-ER แยกตารางและชื่อ contract เป็นข้อเสนอใน [03](docs/03_database_design_and_er.md) ยังไม่กำหนดว่าระบบใหม่มี 11 หรือ 12 ตารางตายตัว
+ER แยกตารางและ contract ได้รับรองใน [03](docs/03_database_design_and_er.md) และ [design spec](docs/superpowers/specs/2026-09-06-normalized-database-schema-design.md)

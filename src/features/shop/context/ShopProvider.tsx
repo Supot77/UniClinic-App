@@ -1,23 +1,28 @@
 'use client';
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import { MockShopRepository, type ShopSnapshot } from '../data/mockRepository';
-import type { ScheduleDepartment, ScheduleDoctor } from '@/types/schedule';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createShopRepository } from '../data/repositoryFactory';
+import type { ShopRepository, ShopSnapshot } from '../domain/repository';
+import type { DoctorLeaveRequest, DoctorWeeklySchedule, ScheduleDepartment, ScheduleDoctor } from '@/types/schedule';
 import type { ShopResult, SlotInput } from '../domain/rules';
 
 interface ShopContextValue extends ShopSnapshot {
   saveDepartment(input: Omit<ScheduleDepartment, 'id' | 'isActive'>, id?: string): ShopResult<ScheduleDepartment>;
   toggleDepartment(id: string): ShopResult<'deleted' | 'disabled' | 'enabled'>;
   saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): ShopResult<ScheduleDoctor>;
-  toggleDoctor(id: string): ShopResult<ScheduleDoctor>;
-  saveSlot(input: SlotInput, id?: string): ReturnType<MockShopRepository['saveSlot']>;
-  toggleSlot(id: string): ReturnType<MockShopRepository['toggleSlot']>;
+  toggleDoctor(id: string): ShopResult<ScheduleDoctor | 'deleted'>;
+  saveSlot(input: SlotInput, id?: string): ShopResult<ShopSnapshot['slots'][number]>;
+  toggleSlot(id: string): ShopResult<ShopSnapshot['slots'][number]>;
+  saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): ShopResult<DoctorWeeklySchedule>;
+  submitLeave(input: Omit<DoctorLeaveRequest, 'id' | 'status'>): ShopResult<DoctorLeaveRequest>;
+  decideLeave(id: string, status: 'approved' | 'rejected', decidedBy: string, today: string): ShopResult<DoctorLeaveRequest>;
+  generateSlotsForRange(startDate: string, endDate: string, today: string): ShopResult<number>;
 }
 
 const ShopContext = createContext<ShopContextValue | null>(null);
 
 export function ShopProvider({ children }: { children: ReactNode }) {
-  const [repository] = useState(() => new MockShopRepository());
+  const [repository] = useState<ShopRepository>(() => createShopRepository());
   const [snapshot, setSnapshot] = useState<ShopSnapshot>(() => repository.snapshot());
   const run = useCallback(<T,>(command: () => ShopResult<T>) => {
     const result = command();
@@ -25,7 +30,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     return result;
   }, [repository]);
 
-  const value: ShopContextValue = {
+  const value = useMemo<ShopContextValue>(() => ({
     ...snapshot,
     saveDepartment: (input, id) => run(() => repository.saveDepartment(input, id)),
     toggleDepartment: (id) => run(() => repository.toggleDepartment(id)),
@@ -33,7 +38,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     toggleDoctor: (id) => run(() => repository.toggleDoctor(id)),
     saveSlot: (input, id) => run(() => repository.saveSlot(input, id)),
     toggleSlot: (id) => run(() => repository.toggleSlot(id)),
-  };
+    saveWeeklySchedule: (input, id) => run(() => repository.saveWeeklySchedule(input, id)),
+    submitLeave: (input) => run(() => repository.submitLeave(input)),
+    decideLeave: (id, status, decidedBy, today) => run(() => repository.decideLeave(id, status, decidedBy, today)),
+    generateSlotsForRange: (startDate, endDate, today) => run(() => repository.generateSlotsForRange(startDate, endDate, today)),
+  }), [repository, run, snapshot]);
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 }
 
