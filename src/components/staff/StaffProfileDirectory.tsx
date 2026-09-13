@@ -41,6 +41,67 @@ function summaryCardClass(isSelected: boolean): string {
   return `border-b-2 px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${isSelected ? "border-brand-strong text-brand-strong" : "border-transparent text-brand-ink hover:border-brand-border-soft"}`;
 }
 
+interface ProfileActionsProps {
+  profile: StaffProfileDirectoryItem;
+  roleFilter: ProfileFilter;
+  onEdit: (profile: StaffProfileDirectoryItem) => void;
+  onAction: (action: AccountAction) => void;
+}
+
+function ProfileActions({
+  profile,
+  roleFilter,
+  onEdit,
+  onAction,
+}: ProfileActionsProps) {
+  return (
+    <div className="flex flex-nowrap items-center justify-center gap-2">
+      <button
+        type="button"
+        onClick={() => onEdit(profile)}
+        aria-label="แก้ไขข้อมูลผู้ใช้"
+        title="แก้ไขข้อมูลผู้ใช้"
+        className={`inline-flex size-10 items-center justify-center rounded-lg border bg-transparent transition ${profile.isActive ? "border-brand-border-strong text-brand-strong hover:border-brand-strong hover:bg-brand-soft" : "border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50"}`}
+      >
+        <Pencil className="size-4" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={profile.isActive}
+        aria-label={
+          profile.isActive ? "ระงับการใช้งานบัญชี" : "เปิดใช้งานบัญชี"
+        }
+        onClick={() =>
+          onAction({
+            kind: "toggle",
+            profile,
+            nextActive: !profile.isActive,
+          })
+        }
+        title={profile.isActive ? "ระงับการใช้งานบัญชี" : "เปิดใช้งานบัญชี"}
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${profile.isActive ? "bg-emerald-500" : "bg-slate-300"}`}
+      >
+        <span
+          aria-hidden="true"
+          className={`size-6 rounded-full bg-white shadow-sm transition-transform ${profile.isActive ? "translate-x-5" : "translate-x-0"}`}
+        />
+      </button>
+      {roleFilter === "suspended" && !profile.isActive && (
+        <button
+          type="button"
+          onClick={() => onAction({ kind: "hard-delete", profile })}
+          aria-label="ลบบัญชีถาวร"
+          title="ลบบัญชีถาวร"
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-rose-200 bg-transparent text-rose-600 transition hover:bg-rose-50"
+        >
+          <Trash2 className="size-5" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function StaffProfileDirectory() {
   const [profiles, setProfiles] = useState<StaffProfileDirectoryItem[]>([]);
   const [query, setQuery] = useState("");
@@ -257,14 +318,14 @@ export default function StaffProfileDirectory() {
       </header>
 
       <section
-        className="grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-5"
+        className="grid grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-8 xl:grid-cols-5"
         aria-label="สรุปจำนวนบัญชี"
       >
         <button
           type="button"
           onClick={() => setRoleFilter("all")}
           aria-pressed={roleFilter === "all"}
-          className={summaryCardClass(roleFilter === "all")}
+          className={`${summaryCardClass(roleFilter === "all")} col-span-2 sm:col-span-1`}
         >
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-800">บัญชีทั้งหมด</p>
@@ -318,15 +379,15 @@ export default function StaffProfileDirectory() {
       </section>
 
       <section className="overflow-hidden">
-        <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-brand-ink">รายชื่อบัญชี</h2>
             <p className="mt-1 text-sm text-brand-muted">
               แสดง {filteredProfiles.length} จาก {profiles.length} บัญชี
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <label className="relative block sm:w-64">
+          <div className="flex w-full min-w-0 flex-col gap-2 lg:w-auto lg:flex-row">
+            <label className="relative block w-full lg:w-64">
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-brand-body"
                 aria-hidden="true"
@@ -339,39 +400,47 @@ export default function StaffProfileDirectory() {
                 className="h-11 w-full rounded-lg border border-brand-border-strong bg-transparent py-2.5 pl-9 pr-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
               />
             </label>
-            <label className="sr-only" htmlFor="role-filter">
-              กรองตาม role
-            </label>
-            <select
-              id="role-filter"
-              value={roleFilter}
-              onChange={(event) =>
-                setRoleFilter(event.target.value as ProfileFilter)
-              }
-              className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
-            >
-              <option value="all">บัญชีทั้งหมด</option>
-              <option value="suspended">บัญชีที่ถูกระงับ</option>
-              {roleOrder.map((role) => (
-                <option key={role} value={role}>
-                  {roleLabels[role]}
-                </option>
-              ))}
-            </select>
-            <label className="sr-only" htmlFor="profile-sort">
-              เรียงลำดับบัญชี
-            </label>
-            <select
-              id="profile-sort"
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as ProfileSort)}
-              className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
-            >
-              <option value="name-th">เรียงตาม ก-ฮ</option>
-              <option value="name-en">เรียงตาม A-Z</option>
-              <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
-              <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
-            </select>
+            <div className="grid w-full min-w-0 grid-cols-2 gap-2 lg:contents">
+              <div className="min-w-0">
+                <label className="sr-only" htmlFor="role-filter">
+                  กรองตาม role
+                </label>
+                <select
+                  id="role-filter"
+                  value={roleFilter}
+                  onChange={(event) =>
+                    setRoleFilter(event.target.value as ProfileFilter)
+                  }
+                  className="h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft lg:min-w-[190px] lg:w-auto"
+                >
+                  <option value="all">บัญชีทั้งหมด</option>
+                  <option value="suspended">บัญชีที่ถูกระงับ</option>
+                  {roleOrder.map((role) => (
+                    <option key={role} value={role}>
+                      {roleLabels[role]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-0">
+                <label className="sr-only" htmlFor="profile-sort">
+                  เรียงลำดับบัญชี
+                </label>
+                <select
+                  id="profile-sort"
+                  value={sortBy}
+                  onChange={(event) =>
+                    setSortBy(event.target.value as ProfileSort)
+                  }
+                  className="h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft lg:min-w-[190px] lg:w-auto"
+                >
+                  <option value="name-th">เรียงตาม ก-ฮ</option>
+                  <option value="name-en">เรียงตาม A-Z</option>
+                  <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
+                  <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -396,7 +465,8 @@ export default function StaffProfileDirectory() {
             ไม่พบบัญชีตามเงื่อนไขที่เลือก
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1180px] table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[5%]" />
@@ -463,64 +533,80 @@ export default function StaffProfileDirectory() {
                       </span>
                     </td>
                     <td className="px-5 py-5 text-center">
-                      <div className="flex flex-nowrap items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(profile)}
-                          aria-label="แก้ไขข้อมูลผู้ใช้"
-                          title="แก้ไขข้อมูลผู้ใช้"
-                          className={`inline-flex size-10 items-center justify-center rounded-lg border bg-transparent transition ${profile.isActive ? "border-brand-border-strong text-brand-strong hover:border-brand-strong hover:bg-brand-soft" : "border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50"}`}
-                        >
-                          <Pencil className="size-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={profile.isActive}
-                          aria-label={
-                            profile.isActive
-                              ? "ระงับการใช้งานบัญชี"
-                              : "เปิดใช้งานบัญชี"
-                          }
-                          onClick={() =>
-                            setAccountAction({
-                              kind: "toggle",
-                              profile,
-                              nextActive: !profile.isActive,
-                            })
-                          }
-                          title={
-                            profile.isActive
-                              ? "ระงับการใช้งานบัญชี"
-                              : "เปิดใช้งานบัญชี"
-                          }
-                          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${profile.isActive ? "bg-emerald-500" : "bg-slate-300"}`}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={`size-6 rounded-full bg-white shadow-sm transition-transform ${profile.isActive ? "translate-x-5" : "translate-x-0"}`}
-                          />
-                        </button>
-                        {roleFilter === "suspended" && !profile.isActive && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAccountAction({ kind: "hard-delete", profile })
-                            }
-                            aria-label="ลบบัญชีถาวร"
-                            title="ลบบัญชีถาวร"
-                            className="inline-flex size-10 items-center justify-center rounded-lg border border-rose-200 bg-transparent text-rose-600 transition hover:bg-rose-50"
-                          >
-                            <Trash2 className="size-5" aria-hidden="true" />
-                          </button>
-                        )}
-                      </div>
+                      <ProfileActions
+                        profile={profile}
+                        roleFilter={roleFilter}
+                        onEdit={openEdit}
+                        onAction={(action) => setAccountAction(action)}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+            <div className="divide-y divide-brand-border-soft md:hidden">
+            {filteredProfiles.map((profile, index) => (
+              <article
+                key={profile.id}
+                className={`py-5 ${profile.isActive ? "" : "text-brand-muted"}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="w-6 shrink-0 pt-0.5 text-sm text-brand-muted">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`truncate text-base font-semibold ${profile.isActive ? "text-brand-ink" : "line-through"}`}
+                    >
+                      {displayValue(profile.fullName)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      <span
+                        className={`inline-flex items-center gap-1.5 font-semibold ${profile.isActive ? "text-brand-strong" : "text-brand-muted"}`}
+                      >
+                        <ShieldCheck className="size-3.5" aria-hidden="true" />
+                        {profile.role}
+                      </span>
+                      <span className="text-brand-muted">
+                        · {roleLabels[profile.role]} ·{" "}
+                        {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                  <div className="flex min-w-0 items-center gap-2 text-brand-body">
+                    <Mail
+                      className="size-4 shrink-0 text-brand-muted"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 truncate">
+                      {displayValue(profile.email)}
+                    </span>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2 text-brand-body">
+                    <Phone
+                      className="size-4 shrink-0 text-brand-muted"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 truncate">
+                      {displayValue(profile.phone)}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end border-t border-brand-border-soft pt-3">
+                  <ProfileActions
+                    profile={profile}
+                    roleFilter={roleFilter}
+                    onEdit={openEdit}
+                    onAction={(action) => setAccountAction(action)}
+                  />
+                </div>
+              </article>
+            ))}
+            </div>
+          </>
         )}
       </section>
 
