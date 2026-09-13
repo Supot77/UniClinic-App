@@ -12,14 +12,16 @@ import type {
   DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotInput } from '../domain/rules';
+import type { ShopResult, SlotBatchInput, SlotInput } from '../domain/rules';
 import {
+  buildSlotBatchPlan,
   deriveSlotStatus,
   isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
   validateDoctorLeave,
   validateDoctorLeavePermission,
+  validateSlotPermission,
   validateSlot,
 } from '../domain/rules';
 
@@ -535,14 +537,10 @@ export class DatabaseShopRepository {
   }
 
   async fetchSlots(): Promise<ScheduleSlot[]> {
-    const { data, error } = await this.client
-      .from('appointment_slots')
-      .select('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, booked_count, status, created_at, updated_at, daily_service_offering:daily_service_offerings(service_id)')
-      .order('slot_date', { ascending: true })
-      .order('start_time', { ascending: true });
+    const { data, error } = await this.client.rpc('get_schedule_slots');
 
     if (error || !data) {
-      console.error('Error fetching appointment_slots:', error);
+      console.error('Error fetching schedule slots:', error);
       return [];
     }
 
@@ -550,7 +548,7 @@ export class DatabaseShopRepository {
       id: string;
       doctor_id: string;
       daily_service_offering_id: string;
-      daily_service_offering: { service_id: string } | Array<{ service_id: string }> | null;
+      service_id: string;
       slot_date: string;
       start_time: string;
       end_time: string;
@@ -561,7 +559,7 @@ export class DatabaseShopRepository {
       id: row.id,
       doctorId: row.doctor_id,
       serviceOfferingId: row.daily_service_offering_id,
-      serviceId: Array.isArray(row.daily_service_offering) ? row.daily_service_offering[0]?.service_id ?? '' : row.daily_service_offering?.service_id ?? '',
+      serviceId: row.service_id,
       slotDate: row.slot_date,
       startTime: row.start_time.slice(0, 5),
       endTime: row.end_time.slice(0, 5),
@@ -689,6 +687,51 @@ export class DatabaseShopRepository {
         hasHistory: false,
       },
     };
+  }
+
+  async createSlotBatch(
+    input: SlotBatchInput,
+    existingSlots: ScheduleSlot[],
+    doctors: ScheduleDoctor[],
+    services: ScheduleService[],
+    doctorLeaves: DoctorLeave[] = [],
+    todayDate?: string,
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<number>> {
+    if (!isValidUUID(input.doctorId)) {
+      return { ok: false, error: 'ไอดีแพทย์ไม่ถูกต้อง (ต้องเลือกแพทย์จริงในระบบ)', field: 'doctorId' };
+    }
+
+    const permission = validateSlotPermission(input.doctorId, doctors, actorId, role);
+    if (!permission.ok) return permission;
+
+    const plan = buildSlotBatchPlan(input, existingSlots, doctors, services, todayDate, doctorLeaves);
+    if (!plan.ok) return plan;
+    if (plan.value.slots.length === 0) return { ok: true, value: 0 };
+
+    const { data, error } = await this.client.rpc('create_appointment_slot_batch', {
+      p_doctor_id: input.doctorId,
+      p_service_id: input.serviceId,
+      p_dates: [...new Set(input.dates)].sort(),
+      p_time_blocks: input.timeBlocks.map((block) => ({
+        start_time: block.startTime,
+        end_time: block.endTime,
+        max_capacity: block.maxCapacity,
+      })),
+    });
+
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') {
+        return { ok: false, error: 'ยังไม่พร้อมใช้งาน กรุณาติดตั้ง migration 24_batch_create_slots.sql ใน Supabase ก่อน' };
+      }
+      return { ok: false, error: error.message || 'ไม่สามารถสร้างรอบตรวจหลายวันได้' };
+    }
+
+    const createdCount = typeof data === 'number' ? data : Number(data);
+    return Number.isFinite(createdCount)
+      ? { ok: true, value: createdCount }
+      : { ok: false, error: 'ผลลัพธ์การสร้างรอบตรวจไม่ถูกต้อง' };
   }
 
   async toggleSlot(

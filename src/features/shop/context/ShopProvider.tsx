@@ -24,7 +24,7 @@ import type {
   DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotInput } from '../domain/rules';
+import type { ShopResult, SlotBatchInput, SlotInput } from '../domain/rules';
 
 interface ShopContextValue extends ShopSnapshot {
   isLoading: boolean;
@@ -48,6 +48,12 @@ interface ShopContextValue extends ShopSnapshot {
     id?: string,
     todayDate?: string,
   ): Promise<ShopResult<ScheduleSlot>> | ShopResult<ScheduleSlot>;
+  createSlotBatch(
+    input: SlotBatchInput,
+    todayDate?: string,
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<number>> | ShopResult<number>;
   toggleSlot(
     id: string,
     actorId?: string,
@@ -168,6 +174,19 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       isMounted = false;
     };
   }, [dbRepo]);
+
+  useEffect(() => {
+    if (!dbRepo) return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [dbRepo, refresh]);
 
   const run = useCallback(
     <T,>(command: () => ShopResult<T>) => {
@@ -355,6 +374,40 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
   );
 
+  const handleCreateSlotBatch = useCallback(
+    async (
+      input: SlotBatchInput,
+      todayDate?: string,
+      actorId?: string,
+      role?: UserRole,
+    ): Promise<ShopResult<number>> => {
+      if (dbRepo) {
+        const isDbDoctor = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.doctorId);
+        if (!isDbDoctor) {
+          return { ok: false, error: 'รหัสแพทย์ไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)', field: 'doctorId' };
+        }
+        try {
+          const result = await dbRepo.createSlotBatch(
+            input,
+            snapshot.slots,
+            snapshot.doctors,
+            snapshot.services,
+            snapshot.doctorLeaves,
+            todayDate,
+            actorId,
+            role,
+          );
+          if (result.ok) await refresh();
+          return result;
+        } catch (err) {
+          return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจหลายวัน' };
+        }
+      }
+      return run(() => repository.createSlotBatch(input, todayDate, actorId, role));
+    },
+    [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
+  );
+
   const handleSaveDoctorLeave = useCallback(
     async (
       input: DoctorLeaveInput,
@@ -467,6 +520,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       saveDoctorLeave: handleSaveDoctorLeave,
       deleteDoctorLeave: handleDeleteDoctorLeave,
       saveSlot: handleSaveSlot,
+      createSlotBatch: handleCreateSlotBatch,
       toggleSlot: handleToggleSlot,
       saveWeeklySchedule: (input, id) => run(() => repository.saveWeeklySchedule(input, id)),
       generateSlotsForRange: handleGenerateSlotsForRange,
@@ -486,6 +540,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       handleSaveDoctorLeave,
       handleDeleteDoctorLeave,
       handleSaveSlot,
+      handleCreateSlotBatch,
       handleToggleSlot,
       handleGenerateSlotsForRange,
       run,

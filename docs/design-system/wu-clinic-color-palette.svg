@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1660" viewBox="0 0 1800 1660" role="img" aria-labelledby="title description">
+  <title id="title">WU Clinic Color Palette</title>
+  <desc id="description">Color tokens extracted from src/app/globals.css, including brand, surface, semantic status, and dark settings colors.</desc>
+
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#102f3d" flood-opacity="0.08"/>
+    </filter>
+    <filter id="smallShadow" x="-10%" y="-10%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#102f3d" flood-opacity="0.06"/>
+    </filter>
+    <style>
+      .eyebrow { font: 700 18px Inter, "Segoe UI", sans-serif; letter-spacing: 3px; fill: #087f78; }
+      .title { font: 800 54px Inter, "Segoe UI", sans-serif; letter-spacing: -1.5px; fill: #102f3d; }
+      .subtitle { font: 400 21px Inter, "Segoe UI", sans-serif; fill: #49636b; }
+      .section { font: 800 27px Inter, "Segoe UI", sans-serif; fill: #102f3d; }
+      .section-note { font: 400 17px Inter, "Segoe UI", sans-serif; fill: #7b9093; }
+      .token { font: 800 19px Inter, "Segoe UI", sans-serif; fill: #102f3d; }
+      .hex { font: 700 18px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #087f78; }
+      .role { font: 400 15px Inter, "Segoe UI", sans-serif; fill: #49636b; }
+      .status-token { font: 800 18px Inter, "Segoe UI", sans-serif; fill: #102f3d; }
+      .status-hex { font: 700 16px ui-monospace, SFMono-Regular, Consolas, monospace; }
+      .status-role { font: 400 14px Inter, "Segoe UI", sans-serif; fill: #49636b; }
+      .dark-token { font: 800 18px Inter, "Segoe UI", sans-serif; fill: #f8fafc; }
+      .dark-hex { font: 700 16px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #cbd5e1; }
+      .dark-role { font: 400 14px Inter, "Segoe UI", sans-serif; fill: #94a3b8; }
+      .footer { font: 400 15px Inter, "Segoe UI", sans-serif; fill: #7b9093; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1660" fill="#f5faf8"/>
+  <image href="wu-clinic-palette-bg.png" x="0" y="0" width="1800" height="1660" preserveAspectRatio="xMidYMid slice" opacity="0.26"/>
+  <rect x="58" y="58" width="1684" height="1544" rx="36" fill="#ffffff" fill-opacity="0.78" stroke="#e8efed"/>
+
+  <text x="112" y="126" class="eyebrow">WU CLINIC · DESIGN SYSTEM</text>
+  <text x="112" y="194" class="title">Color Palette</text>
+  <text x="112" y="233" class="subtitle">Shared visual tokens extracted from <tspan font-family="ui-monospace, SFMono-Regular, Consolas, monospace">src/app/globals.css</tspan></text>
+  <rect x="1390" y="112" width="278" height="70" rx="18" fill="#e2f5f1"/>
+  <text x="1420" y="143" class="role" fill="#087f78">PRIMARY MOOD</text>
+  <text x="1420" y="169" class="token" fill="#087f78">Teal · Navy · Mint</text>
+
+  <text x="112" y="301" class="section">Brand &amp; Surface</text>
+  <text x="472" y="301" class="section-note">Primary interface colors, typography, surfaces, and borders</text>
+
+  <!-- Brand and surface cards -->
+  <g filter="url(#smallShadow)">
+    <rect x="112" y="333" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="130" y="351" width="94" height="109" rx="14" fill="#1fa39a"/>
+    <text x="244" y="384" class="token">brand</text><text x="244" y="412" class="hex">#1FA39A</text><text x="244" y="442" class="role">primary actions &amp; links</text>
+
+    <rect x="438" y="333" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="456" y="351" width="94" height="109" rx="14" fill="#087f78"/>
+    <text x="570" y="384" class="token">brand-strong</text><text x="570" y="412" class="hex">#087F78</text><text x="570" y="442" class="role">buttons &amp; focus states</text>
+
+    <rect x="764" y="333" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="782" y="351" width="94" height="109" rx="14" fill="#102f3d"/>
+    <text x="896" y="384" class="token">brand-ink</text><text x="896" y="412" class="hex">#102F3D</text><text x="896" y="442" class="role">headings &amp; dark shell</text>
+
+    <rect x="1090" y="333" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1108" y="351" width="94" height="109" rx="14" fill="#174858"/>
+    <text x="1222" y="384" class="token">brand-hover</text><text x="1222" y="412" class="hex">#174858</text><text x="1222" y="442" class="role">hover &amp; deep accent</text>
+
+    <rect x="1416" y="333" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1434" y="351" width="94" height="109" rx="14" fill="#83d6c6"/>
+    <text x="1548" y="384" class="token">brand-accent</text><text x="1548" y="412" class="hex">#83D6C6</text><text x="1548" y="442" class="role">highlight &amp; icon accent</text>
+
+    <rect x="112" y="496" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="130" y="514" width="94" height="109" rx="14" fill="#eaf5f2"/>
+    <text x="244" y="547" class="token">brand-page</text><text x="244" y="575" class="hex">#EAF5F2</text><text x="244" y="605" class="role">page sections &amp; panels</text>
+
+    <rect x="438" y="496" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="456" y="514" width="94" height="109" rx="14" fill="#e2f5f1"/>
+    <text x="570" y="547" class="token">brand-soft</text><text x="570" y="575" class="hex">#E2F5F1</text><text x="570" y="605" class="role">selected &amp; soft emphasis</text>
+
+    <rect x="764" y="496" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="782" y="514" width="94" height="109" rx="14" fill="#f5faf8"/>
+    <text x="896" y="547" class="token">brand-surface</text><text x="896" y="575" class="hex">#F5FAF8</text><text x="896" y="605" class="role">app background</text>
+
+    <rect x="1090" y="496" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1108" y="514" width="94" height="109" rx="14" fill="#7b9093"/>
+    <text x="1222" y="547" class="token">brand-muted</text><text x="1222" y="575" class="hex">#7B9093</text><text x="1222" y="605" class="role">secondary &amp; helper text</text>
+
+    <rect x="1416" y="496" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1434" y="514" width="94" height="109" rx="14" fill="#49636b"/>
+    <text x="1548" y="547" class="token">brand-body</text><text x="1548" y="575" class="hex">#49636B</text><text x="1548" y="605" class="role">body copy &amp; neutral status</text>
+
+    <rect x="112" y="659" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="130" y="677" width="94" height="109" rx="14" fill="#9bcfc5"/>
+    <text x="244" y="710" class="token">brand-border</text><text x="244" y="738" class="hex">#9BCFC5</text><text x="244" y="768" class="role">interactive borders</text>
+
+    <rect x="438" y="659" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="456" y="677" width="94" height="109" rx="14" fill="#e8efed"/>
+    <text x="570" y="710" class="token">border-soft</text><text x="570" y="738" class="hex">#E8EFED</text><text x="570" y="768" class="role">dividers &amp; quiet outlines</text>
+
+    <rect x="764" y="659" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="782" y="677" width="94" height="109" rx="14" fill="#a9c9c4"/>
+    <text x="896" y="710" class="token">border-strong</text><text x="896" y="738" class="hex">#A9C9C4</text><text x="896" y="768" class="role">input &amp; active borders</text>
+
+    <rect x="1090" y="659" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1108" y="677" width="94" height="109" rx="14" fill="#b6ced0"/>
+    <text x="1222" y="710" class="token">footer-text</text><text x="1222" y="738" class="hex">#B6CED0</text><text x="1222" y="768" class="role">footer copy on navy</text>
+
+    <rect x="1416" y="659" width="304" height="145" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1434" y="677" width="94" height="109" rx="14" fill="#88a7aa"/>
+    <text x="1548" y="710" class="token">footer-muted</text><text x="1548" y="738" class="hex">#88A7AA</text><text x="1548" y="768" class="role">quiet footer metadata</text>
+  </g>
+
+  <text x="112" y="870" class="section">Semantic Status</text>
+  <text x="395" y="870" class="section-note">Use the foreground color for labels/icons and the paired background for badges, alerts, and state surfaces</text>
+
+  <!-- Semantic status cards: foreground + paired background -->
+  <g filter="url(#smallShadow)">
+    <rect x="112" y="902" width="304" height="126" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="130" y="920" width="62" height="90" rx="13" fill="#b42318"/><rect x="198" y="920" width="26" height="90" rx="8" fill="#fff1f0" stroke="#f3d3d0"/>
+    <text x="244" y="948" class="status-token">critical</text><text x="244" y="974" class="status-hex" fill="#b42318">#B42318</text><text x="244" y="998" class="status-role">error, urgent, rejected</text><text x="244" y="1017" class="status-role">bg: #FFF1F0</text>
+
+    <rect x="438" y="902" width="304" height="126" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="456" y="920" width="62" height="90" rx="13" fill="#a16207"/><rect x="524" y="920" width="26" height="90" rx="8" fill="#fff7d6" stroke="#efe2a6"/>
+    <text x="570" y="948" class="status-token">warning</text><text x="570" y="974" class="status-hex" fill="#a16207">#A16207</text><text x="570" y="998" class="status-role">pending, attention</text><text x="570" y="1017" class="status-role">bg: #FFF7D6</text>
+
+    <rect x="764" y="902" width="304" height="126" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="782" y="920" width="62" height="90" rx="13" fill="#15803d"/><rect x="850" y="920" width="26" height="90" rx="8" fill="#dcfce7" stroke="#bdebc8"/>
+    <text x="896" y="948" class="status-token">success</text><text x="896" y="974" class="status-hex" fill="#15803d">#15803D</text><text x="896" y="998" class="status-role">completed, active</text><text x="896" y="1017" class="status-role">bg: #DCFCE7</text>
+
+    <rect x="1090" y="902" width="304" height="126" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1108" y="920" width="62" height="90" rx="13" fill="#087f78"/><rect x="1176" y="920" width="26" height="90" rx="8" fill="#e2f5f1" stroke="#c4e7df"/>
+    <text x="1222" y="948" class="status-token">info</text><text x="1222" y="974" class="status-hex" fill="#087f78">#087F78</text><text x="1222" y="998" class="status-role">confirmed, in progress</text><text x="1222" y="1017" class="status-role">bg: #E2F5F1</text>
+
+    <rect x="1416" y="902" width="304" height="126" rx="20" fill="#ffffff" stroke="#e8efed"/>
+    <rect x="1434" y="920" width="62" height="90" rx="13" fill="#49636b"/><rect x="1502" y="920" width="26" height="90" rx="8" fill="#f1f5f4" stroke="#dbe9e5"/>
+    <text x="1548" y="948" class="status-token">neutral</text><text x="1548" y="974" class="status-hex" fill="#49636b">#49636B</text><text x="1548" y="998" class="status-role">cancelled, inactive</text><text x="1548" y="1017" class="status-role">bg: #F1F5F4</text>
+  </g>
+
+  <text x="112" y="1092" class="section">Dark Settings</text>
+  <text x="352" y="1092" class="section-note">Fallback tokens for <tspan font-family="ui-monospace, SFMono-Regular, Consolas, monospace">html[data-theme="dark"]</tspan></text>
+
+  <g filter="url(#smallShadow)">
+    <rect x="112" y="1124" width="502" height="126" rx="20" fill="#0f172a" stroke="#334155"/>
+    <rect x="130" y="1142" width="62" height="90" rx="13" fill="#0f172a" stroke="#64748b"/><text x="212" y="1168" class="dark-token">page-bg</text><text x="212" y="1194" class="dark-hex">#0F172A</text><text x="212" y="1218" class="dark-role">dark page background</text>
+
+    <rect x="632" y="1124" width="502" height="126" rx="20" fill="#111827" stroke="#334155"/>
+    <rect x="650" y="1142" width="62" height="90" rx="13" fill="#111827" stroke="#64748b"/><text x="732" y="1168" class="dark-token">card</text><text x="732" y="1194" class="dark-hex">#111827</text><text x="732" y="1218" class="dark-role">dark cards &amp; dialogs</text>
+
+    <rect x="1152" y="1124" width="568" height="126" rx="20" fill="#1e293b" stroke="#334155"/>
+    <rect x="1170" y="1142" width="62" height="90" rx="13" fill="#1e293b" stroke="#64748b"/><text x="1252" y="1168" class="dark-token">option</text><text x="1252" y="1194" class="dark-hex">#1E293B</text><text x="1252" y="1218" class="dark-role">dark controls &amp; options</text>
+
+    <rect x="112" y="1270" width="502" height="126" rx="20" fill="#334155" stroke="#475569"/>
+    <rect x="130" y="1288" width="62" height="90" rx="13" fill="#334155" stroke="#94a3b8"/><text x="212" y="1314" class="dark-token">border</text><text x="212" y="1340" class="dark-hex">#334155</text><text x="212" y="1364" class="dark-role">dark dividers &amp; outlines</text>
+
+    <rect x="632" y="1270" width="502" height="126" rx="20" fill="#102f3d" stroke="#334155"/>
+    <rect x="650" y="1288" width="62" height="90" rx="13" fill="#f8fafc"/><text x="732" y="1314" class="dark-token">page-text</text><text x="732" y="1340" class="dark-hex">#F8FAFC</text><text x="732" y="1364" class="dark-role">dark primary text</text>
+
+    <rect x="1152" y="1270" width="568" height="126" rx="20" fill="#102f3d" stroke="#334155"/>
+    <rect x="1170" y="1288" width="62" height="90" rx="13" fill="#94a3b8"/><text x="1252" y="1314" class="dark-token">muted</text><text x="1252" y="1340" class="dark-hex">#94A3B8</text><text x="1252" y="1364" class="dark-role">dark secondary text</text>
+  </g>
+
+  <line x1="112" y1="1470" x2="1688" y2="1470" stroke="#e8efed"/>
+  <text x="112" y="1510" class="footer">Exact source: src/app/globals.css · Duplicate legacy aliases omitted from the reference sheet.</text>
+  <text x="1688" y="1510" text-anchor="end" class="footer">WU CLINIC · 2026</text>
+</svg>

@@ -30,4 +30,14 @@ describe("Supabase Next.js setup", () => {
     expect(example).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
     expect(example).toContain("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   });
+
+  it("defines a role-aware schedule RPC with effective active booking counts", () => {
+    const migration = read("supabase/migrations/25_schedule_slot_booking_counts.sql");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.get_schedule_slots()");
+    expect(migration).toContain("count(appointment.id)::integer");
+    expect(migration).toContain("appointment.status NOT IN ('cancelled', 'rejected', 'no_show')");
+    expect(migration).toContain("auth.uid() IS NULL");
+    expect(migration).toContain("GRANT EXECUTE ON FUNCTION public.get_schedule_slots() TO authenticated, anon");
+    expect(migration).not.toMatch(/service_role|\.env\.local/i);
+  });
 });

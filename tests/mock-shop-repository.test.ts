@@ -116,6 +116,68 @@ describe('MockShopRepository', () => {
     expect(slots.length).toBeGreaterThan(0);
   });
 
+  it('creates concrete slots for selected dates and keeps existing conflicts unchanged', () => {
+    const repository = new MockShopRepository();
+    const before = repository.snapshot();
+    const serviceId = before.services[0].id;
+    const result = repository.createSlotBatch(
+      {
+        doctorId: 'profile-stephen-strange',
+        serviceId,
+        dates: ['2026-09-08', '2026-09-09'],
+        timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 2 }],
+      },
+      '2026-09-07',
+      'profile-stephen-strange',
+      'medical',
+    );
+
+    expect(result).toEqual({ ok: true, value: 2 });
+    const created = repository.snapshot().slots.filter(
+      (slot) => slot.doctorId === 'profile-stephen-strange' && ['2026-09-08', '2026-09-09'].includes(slot.slotDate),
+    );
+    expect(created).toHaveLength(2);
+    expect(created.every((slot) => slot.maxCapacity === 2 && slot.bookedCount === 0)).toBe(true);
+  });
+
+  it('skips doctor leave dates while creating batch slots', () => {
+    const repository = new MockShopRepository();
+    const serviceId = repository.snapshot().services[0].id;
+    expect(repository.saveDoctorLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-15', endDate: '2026-09-15', reason: 'ประชุม' })).toMatchObject({ ok: true });
+
+    const result = repository.createSlotBatch(
+      {
+        doctorId: 'profile-stephen-strange',
+        serviceId,
+        dates: ['2026-09-14', '2026-09-15'],
+        timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 1 }],
+      },
+      '2026-09-07',
+    );
+
+    expect(result).toEqual({ ok: true, value: 1 });
+    expect(repository.snapshot().slots.filter((slot) => slot.doctorId === 'profile-stephen-strange' && slot.slotDate === '2026-09-15' && slot.startTime === '08:30')).toHaveLength(0);
+  });
+
+  it('rejects batch slot changes outside the medical doctor ownership scope', () => {
+    const repository = new MockShopRepository();
+    const before = repository.snapshot();
+    const result = repository.createSlotBatch(
+      {
+        doctorId: 'profile-charles-xavier',
+        serviceId: before.services[0].id,
+        dates: ['2026-09-08'],
+        timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 1 }],
+      },
+      '2026-09-07',
+      'profile-stephen-strange',
+      'medical',
+    );
+
+    expect(result).toMatchObject({ ok: false, field: 'doctorId' });
+    expect(repository.snapshot()).toEqual(before);
+  });
+
   it('does not allow overlapping weekly schedules', () => {
     const repository = new MockShopRepository();
     const schedule = repository.snapshot().weeklySchedules.find((item) => item.doctorId === 'profile-stephen-strange' && item.weekday === 1);

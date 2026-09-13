@@ -195,33 +195,27 @@ describe('DatabaseShopRepository', () => {
   });
 
   it('maps database appointment_slots rows to ScheduleSlot domain models', async () => {
-    const mockFrom = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: 'slot-1',
-                doctor_id: 'doc-1',
-                daily_service_offering_id: 'offering-1',
-                daily_service_offering: { service_id: 'service-1' },
-                slot_date: '2026-09-08',
-                start_time: '09:00:00',
-                end_time: '12:00:00',
-                max_capacity: 10,
-                booked_count: 3,
-                status: 'available',
-                created_at: '2026-09-08T00:00:00Z',
-                updated_at: '2026-09-08T00:00:00Z',
-              },
-            ],
-            error: null,
-          }),
-        }),
-      }),
+    const mockRpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 'slot-1',
+          doctor_id: 'doc-1',
+          daily_service_offering_id: 'offering-1',
+          service_id: 'service-1',
+          slot_date: '2026-09-08',
+          start_time: '09:00:00',
+          end_time: '12:00:00',
+          max_capacity: 10,
+          booked_count: 10,
+          status: 'available',
+          created_at: '2026-09-08T00:00:00Z',
+          updated_at: '2026-09-08T00:00:00Z',
+        },
+      ],
+      error: null,
     });
 
-    const mockClient = { from: mockFrom } as unknown as SupabaseClient;
+    const mockClient = { rpc: mockRpc } as unknown as SupabaseClient;
     const repo = new DatabaseShopRepository(mockClient);
     const slots = await repo.fetchSlots();
 
@@ -235,10 +229,11 @@ describe('DatabaseShopRepository', () => {
       startTime: '09:00',
       endTime: '12:00',
       maxCapacity: 10,
-      bookedCount: 3,
+      bookedCount: 10,
       status: 'available',
       hasHistory: true,
     });
+    expect(mockRpc).toHaveBeenCalledWith('get_schedule_slots');
   });
 
   it('validates slot before inserting into database', async () => {
@@ -336,6 +331,37 @@ describe('DatabaseShopRepository', () => {
       expect(result.value.startTime).toBe('09:00');
     }
     expect(mockFrom).toHaveBeenCalledWith('appointment_slots');
+  });
+
+  it('creates a batch of concrete slots through the batch RPC', async () => {
+    const validDoctorId = 'a0000000-0000-0000-0000-000000000001';
+    const mockRpc = vi.fn().mockResolvedValue({ data: 2, error: null });
+    const mockClient = { rpc: mockRpc } as unknown as SupabaseClient;
+    const repo = new DatabaseShopRepository(mockClient);
+
+    const result = await repo.createSlotBatch(
+      {
+        doctorId: validDoctorId,
+        serviceId: 'b0000000-0000-0000-0000-000000000001',
+        dates: ['2026-09-08', '2026-09-09'],
+        timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 2 }],
+      },
+      [],
+      [{ id: validDoctorId, profileId: validDoctorId, fullName: 'หมอสมชาย', email: '', initials: 'SC', specialty: 'ทั่วไป', departmentId: 'dept-1', availability: 'active' }],
+      [{ id: 'b0000000-0000-0000-0000-000000000001', code: 'GEN', name: 'ตรวจโรคทั่วไป', description: '', isActive: true }],
+      [],
+      '2026-09-07',
+      validDoctorId,
+      'medical',
+    );
+
+    expect(result).toEqual({ ok: true, value: 2 });
+    expect(mockRpc).toHaveBeenCalledWith('create_appointment_slot_batch', {
+      p_doctor_id: validDoctorId,
+      p_service_id: 'b0000000-0000-0000-0000-000000000001',
+      p_dates: ['2026-09-08', '2026-09-09'],
+      p_time_blocks: [{ start_time: '08:30', end_time: '09:00', max_capacity: 2 }],
+    });
   });
 
   it('rejects saving a slot for a past date', async () => {
