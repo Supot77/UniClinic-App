@@ -25,7 +25,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { createClient } from '@/utils/supabase/client';
 import type { Medication } from '@/types/database';
 import PrescriptionsTab, {
-  getLocalDispensedOrders,
   type PrescribedMedItem,
   type PrescriptionOrder,
 } from './PrescriptionsTab';
@@ -266,27 +265,25 @@ interface RawInventoryLog {
         .eq('action', 'dispense');
 
       const dispenseLogs = (logsData || []) as RawInventoryLog[];
-      const localDispensed = getLocalDispensedOrders();
 
       const orders: PrescriptionOrder[] = recordsWithMeds.map((r) => {
         const patientProfile = profilesMap.get(r.patient_id);
         const doctorProfile = profilesMap.get(r.doctor_id);
         const meds: PrescribedMedItem[] = (r.prescribed_medications || []) as PrescribedMedItem[];
 
-        const localRecord = localDispensed[r.id];
         let dispensedCount = 0;
-        let lastDispensedAt: string | null = localRecord?.dispensed_at || null;
-        let pharmacistName: string | null = localRecord?.pharmacist_name || null;
+        let lastDispensedAt: string | null = null;
+        let pharmacistName: string | null = null;
 
         meds.forEach((m) => {
           const key = `dispense:${r.id}:${m.medication_id}`;
           const match = dispenseLogs.find(
             (log) =>
-              log.idempotency_key === key ||
-              (log.reason && log.reason.includes(r.id) && log.medication_id === m.medication_id)
+              (log.idempotency_key === key) ||
+              (log.reason && log.reason.includes(r.id) && (log.medication_id === m.medication_id || log.reason.includes(m.name)))
           );
 
-          const isItemDispensed = Boolean(m.dispensed || match || localRecord);
+          const isItemDispensed = Boolean(m.dispensed || match);
 
           if (isItemDispensed) {
             dispensedCount++;
@@ -306,7 +303,7 @@ interface RawInventoryLog {
           }
         });
 
-        const isFullyDispensed = Boolean(localRecord) || (meds.length > 0 && dispensedCount >= meds.length);
+        const isFullyDispensed = meds.length > 0 && dispensedCount >= meds.length;
 
         return {
           id: r.id,
