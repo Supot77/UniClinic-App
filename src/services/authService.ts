@@ -43,15 +43,36 @@ export type AccountGroup =
   | 'personnel';
 
 export async function signUp(email: string, password: string, fullName: string, studentId?: string, phone?: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedName = fullName.trim();
+  const normalizedStudentId = studentId?.trim() ?? '';
+  const normalizedPhone = phone?.trim() ?? '';
+
+  if (!/^[A-Za-z\u0E00-\u0E7F]+(?:[ -][A-Za-z\u0E00-\u0E7F]+)*$/.test(normalizedName)) {
+    throw new Error('ชื่อ-นามสกุลใช้ได้เฉพาะตัวอักษรไทย อังกฤษ และช่องว่าง');
+  }
+  if (!/^\d{8}$/.test(normalizedStudentId)) {
+    throw new Error('รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก');
+  }
+  if (!/^[^\s@]+@mail\.wu\.ac\.th$/i.test(normalizedEmail)) {
+    throw new Error('กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น');
+  }
+  if (!/^0\d{9}$/.test(normalizedPhone)) {
+    throw new Error('เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลักและขึ้นต้นด้วย 0');
+  }
+  if (password.length < 8) {
+    throw new Error('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+  }
+
+  const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password });
   if (error) throw error;
 
   if (data.user) {
     const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
-      full_name: fullName,
-      student_id: studentId || null,
-      phone: phone || null,
+      full_name: normalizedName,
+      student_id: normalizedStudentId,
+      phone: normalizedPhone,
       role: 'patient' as UserRole,
     });
     if (profileError) throw profileError;
