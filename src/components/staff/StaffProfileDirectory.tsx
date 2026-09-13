@@ -623,7 +623,7 @@ export default function StaffProfileDirectory() {
         >
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div
-              className={`mx-auto flex size-14 items-center justify-center rounded-full ${isRestoringAction ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"}`}
+              className={`mx-auto flex size-14 items-center justify-center rounded-full ${isHardDeleteAction ? "bg-rose-100 text-rose-600" : isRestoringAction ? "bg-emerald-100 text-emerald-600" : "bg-status-warning-bg text-status-warning"}`}
             >
               {isHardDeleteAction ? (
                 <Trash2 className="size-7" aria-hidden="true" />
@@ -675,7 +675,7 @@ export default function StaffProfileDirectory() {
                 type="button"
                 disabled={actionSaving}
                 onClick={() => void confirmAccountAction()}
-                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${isRestoringAction ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${isHardDeleteAction ? "bg-rose-600 hover:bg-rose-700" : isRestoringAction ? "bg-emerald-600 hover:bg-emerald-700" : "bg-status-warning hover:bg-amber-800"}`}
               >
                 {actionSaving && (
                   <RefreshCw
