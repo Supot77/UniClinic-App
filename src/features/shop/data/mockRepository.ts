@@ -8,6 +8,7 @@ import {
   MOCK_WEEKLY_SCHEDULES,
 } from '@/mocks/scheduleData';
 import type {
+  DailyServiceOffering,
   DoctorWeeklySchedule,
   DoctorAvailabilityTemplate,
   ScheduleDepartment,
@@ -23,10 +24,13 @@ import {
   isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
+  buildSlotBatchPlan,
   validateDoctorLeave,
   validateDoctorLeavePermission,
+  validateSlotPermission,
   validateSlot,
   type ShopResult,
+  type SlotBatchInput,
   type SlotInput,
 } from '../domain/rules';
 import type { ShopRepository, ShopSnapshot } from '../domain/repository';
@@ -212,6 +216,66 @@ export class MockShopRepository implements ShopRepository {
       ? this.state.slots.map((item) => item.id === id ? slot : item)
       : [...this.state.slots, slot];
     return { ok: true, value: slot };
+  }
+
+  createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): ShopResult<number> {
+    const permission = validateSlotPermission(input.doctorId, this.state.doctors, actorId, role);
+    if (!permission.ok) return permission;
+
+    const plan = buildSlotBatchPlan(
+      input,
+      this.state.slots,
+      this.state.doctors,
+      this.state.services,
+      todayDate,
+      this.state.doctorLeaves,
+    );
+    if (!plan.ok) return plan;
+    if (plan.value.slots.length === 0) return { ok: true, value: 0 };
+
+    const offerings = new Map<string, DailyServiceOffering>();
+    for (const slot of plan.value.slots) {
+      const key = `${slot.serviceId}:${slot.doctorId}:${slot.slotDate}`;
+      if (!offerings.has(key)) {
+        offerings.set(key, this.state.dailyServiceOfferings.find(
+          (item) => item.serviceId === slot.serviceId && item.doctorId === slot.doctorId && item.offeringDate === slot.slotDate,
+        ) ?? {
+          id: crypto.randomUUID(),
+          serviceId: slot.serviceId,
+          doctorId: slot.doctorId,
+          offeringDate: slot.slotDate,
+          isActive: true,
+          createdBy: 'mock',
+        });
+      }
+    }
+    const newOfferings = [...offerings.values()].filter(
+      (offering) => !this.state.dailyServiceOfferings.some((item) => item.id === offering.id),
+    );
+    const reopenedOfferingIds = new Set(
+      [...offerings.values()]
+        .filter((offering) => !offering.isActive)
+        .map((offering) => offering.id),
+    );
+    const newSlots = plan.value.slots.map((slot) => {
+      const offering = offerings.get(`${slot.serviceId}:${slot.doctorId}:${slot.slotDate}`);
+      return {
+        ...slot,
+        id: crypto.randomUUID(),
+        serviceOfferingId: offering?.id ?? '',
+        bookedCount: 0,
+        status: 'available' as const,
+        hasHistory: false,
+      };
+    });
+    this.state.dailyServiceOfferings = [
+      ...this.state.dailyServiceOfferings.map((offering) =>
+        reopenedOfferingIds.has(offering.id) ? { ...offering, isActive: true } : offering,
+      ),
+      ...newOfferings,
+    ];
+    this.state.slots = [...this.state.slots, ...newSlots];
+    return { ok: true, value: newSlots.length };
   }
 
   toggleSlot(id: string, actorId?: string, role?: UserRole): ShopResult<ScheduleSlot> {

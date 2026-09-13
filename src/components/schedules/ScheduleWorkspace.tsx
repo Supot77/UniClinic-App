@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
+  CalendarRange,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Copy,
   AlertTriangle,
   Loader2,
   Pencil,
@@ -36,13 +38,16 @@ const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
 import {
+  buildSlotBatchPlan,
   deriveSlotStatus,
   countAffectedSlots,
+  getClinicDatesForWeekdays,
   getBangkokCurrentTime,
   getBangkokToday,
   isDoctorOnLeave,
   isSlotExpired,
 } from '@/features/shop/domain/rules';
+import type { SlotBatchInput, SlotBatchTimeBlock } from '@/features/shop/domain/rules';
 
 function getTodayDate(): string {
   return getBangkokToday();
@@ -67,6 +72,75 @@ interface SlotDraft {
   startTime: string;
   endTime: string;
   maxCapacity: number;
+}
+
+type BatchMode = 'range' | 'copy';
+
+interface SlotBatchDraft {
+  doctorId: string;
+  serviceId: string;
+  startDate: string;
+  endDate: string;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+  slotDurationMinutes: 30 | 60;
+  maxCapacity: number;
+  sourceDate: string;
+  targetDate: string;
+}
+
+const weekdayOptions = [
+  { value: 1, label: 'จันทร์', shortLabel: 'จ.' },
+  { value: 2, label: 'อังคาร', shortLabel: 'อ.' },
+  { value: 3, label: 'พุธ', shortLabel: 'พ.' },
+  { value: 4, label: 'พฤหัสบดี', shortLabel: 'พฤ.' },
+  { value: 5, label: 'ศุกร์', shortLabel: 'ศ.' },
+] as const;
+
+function createEmptySlotBatchDraft(doctorId = '', serviceId = ''): SlotBatchDraft {
+  const today = getTodayDate();
+  return {
+    doctorId,
+    serviceId,
+    startDate: today,
+    endDate: shiftClinicDate(today, 6),
+    weekdays: [1, 2, 3, 4, 5],
+    startTime: '08:30',
+    endTime: '12:00',
+    slotDurationMinutes: 30,
+    maxCapacity: 1,
+    sourceDate: '',
+    targetDate: today,
+  };
+}
+
+function getPreviousSlotDates(slots: ScheduleSlot[], doctorId: string, targetDate: string) {
+  return [...new Set(
+    slots
+      .filter((slot) => slot.doctorId === doctorId && slot.slotDate < targetDate)
+      .map((slot) => slot.slotDate),
+  )].sort((a, b) => b.localeCompare(a));
+}
+
+function getBatchTimeBlocks(startTime: string, endTime: string, duration: 30 | 60, maxCapacity: number): SlotBatchTimeBlock[] {
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const [endHour, endMinute] = endTime.split(':').map(Number);
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || !Number.isInteger(maxCapacity) || maxCapacity < 1) return [];
+  const blocks: SlotBatchTimeBlock[] = [];
+  for (let cursor = start; cursor + duration <= end; cursor += duration) {
+    const blockEnd = cursor + duration;
+    blocks.push({
+      startTime: `${String(Math.floor(cursor / 60)).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}`,
+      endTime: `${String(Math.floor(blockEnd / 60)).padStart(2, '0')}:${String(blockEnd % 60).padStart(2, '0')}`,
+      maxCapacity,
+    });
+    if (blockEnd === 12 * 60) cursor = 13 * 60 - duration;
+  }
+  const lastEnd = blocks[blocks.length - 1]?.endTime;
+  return lastEnd === endTime ? blocks : [];
 }
 
 interface DoctorLeaveDraft {
@@ -182,8 +256,10 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     services = [],
     slots,
     doctorLeaves = [],
+    refresh: refreshShop,
     saveService: persistService,
     saveSlot: persistSlot,
+    createSlotBatch: persistSlotBatch,
     toggleSlot: persistSlotToggle,
     saveDoctorLeave: persistDoctorLeave,
     isLoading,
@@ -222,7 +298,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
       hasSetInitialDoctor.current = true;
     }
   }, [role, currentDoctor]);
-  const [statusFilter, setStatusFilter] = useState<'all' | ScheduleSlotStatus>('available');
+  const [statusFilter, setStatusFilter] = useState<'all' | ScheduleSlotStatus>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SlotDraft>(emptySlotDraft);
@@ -236,6 +312,15 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   const [leaveDraft, setLeaveDraft] = useState<DoctorLeaveDraft>(createEmptyDoctorLeaveDraft);
   const [leaveFormError, setLeaveFormError] = useState('');
   const [leaveIsSaving, setLeaveIsSaving] = useState(false);
+  const [batchFormOpen, setBatchFormOpen] = useState(false);
+  const [batchMode, setBatchMode] = useState<BatchMode>('range');
+  const [batchDraft, setBatchDraft] = useState<SlotBatchDraft>(() => createEmptySlotBatchDraft());
+  const [batchFormError, setBatchFormError] = useState('');
+  const [batchIsSaving, setBatchIsSaving] = useState(false);
+
+  useEffect(() => {
+    void refreshShop();
+  }, [refreshShop]);
 
   const [bangkokNow, setBangkokNow] = useState(() => ({
     date: getBangkokToday(),
@@ -298,6 +383,48 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     if (serviceFilter === 'all') return 'all';
     return openServices.some((service) => service.id === serviceFilter) ? serviceFilter : 'all';
   }, [openServices, serviceFilter]);
+
+  const copySourceDates = useMemo(
+    () => getPreviousSlotDates(slots, batchDraft.doctorId, batchDraft.targetDate),
+    [batchDraft.doctorId, batchDraft.targetDate, slots],
+  );
+  const effectiveCopySourceDate = copySourceDates.includes(batchDraft.sourceDate)
+    ? batchDraft.sourceDate
+    : copySourceDates[0] ?? '';
+  const copyTimeBlocks = useMemo<SlotBatchTimeBlock[]>(
+    () => slots
+      .filter((slot) => slot.doctorId === batchDraft.doctorId && slot.slotDate === effectiveCopySourceDate && slot.serviceId === batchDraft.serviceId)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+      .map((slot) => ({ startTime: slot.startTime, endTime: slot.endTime, maxCapacity: slot.maxCapacity })),
+    [batchDraft.doctorId, batchDraft.serviceId, effectiveCopySourceDate, slots],
+  );
+  const batchDates = useMemo(
+    () => batchMode === 'copy'
+      ? (batchDraft.targetDate ? [batchDraft.targetDate] : [])
+      : getClinicDatesForWeekdays(batchDraft.startDate, batchDraft.endDate, batchDraft.weekdays),
+    [batchDraft.endDate, batchDraft.startDate, batchDraft.targetDate, batchDraft.weekdays, batchMode],
+  );
+  const batchTimeBlocks = useMemo<SlotBatchTimeBlock[]>(
+    () => batchMode === 'copy'
+      ? copyTimeBlocks
+      : getBatchTimeBlocks(batchDraft.startTime, batchDraft.endTime, batchDraft.slotDurationMinutes, batchDraft.maxCapacity),
+    [batchDraft.endTime, batchDraft.maxCapacity, batchDraft.slotDurationMinutes, batchDraft.startTime, batchMode, copyTimeBlocks],
+  );
+  const batchInput = useMemo<SlotBatchInput | null>(() => {
+    if (!batchDraft.doctorId || !batchDraft.serviceId || batchDates.length === 0 || batchTimeBlocks.length === 0) return null;
+    return {
+      doctorId: batchDraft.doctorId,
+      serviceId: batchDraft.serviceId,
+      dates: batchDates,
+      timeBlocks: batchTimeBlocks,
+    };
+  }, [batchDates, batchDraft.doctorId, batchDraft.serviceId, batchTimeBlocks]);
+  const batchPreview = useMemo<ReturnType<typeof buildSlotBatchPlan> | null>(
+    () => batchInput
+      ? buildSlotBatchPlan(batchInput, slots, doctors, services, bangkokNow.date, visibleDoctorLeaves)
+      : null,
+    [bangkokNow.date, batchInput, doctors, services, slots, visibleDoctorLeaves],
+  );
 
   const canModifySlot = (slot: ScheduleSlot) => {
     if (role === 'staff_admin') return true;
@@ -472,6 +599,68 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     setFormOpen(true);
   };
 
+  const openBatchForm = (mode: BatchMode) => {
+    if (role === 'patient') return;
+    const defaultDoctorId = role === 'medical' && currentDoctor ? currentDoctor.id : doctorFilter !== 'all' ? doctorFilter : '';
+    const targetDate = weekDays.find((date) => date >= getTodayDate()) ?? getTodayDate();
+    const sourceDates = getPreviousSlotDates(slots, defaultDoctorId, targetDate);
+    const sourceDate = sourceDates[0] ?? '';
+    const sourceSlot = slots.find((slot) => slot.doctorId === defaultDoctorId && slot.slotDate === sourceDate);
+    const serviceId = sourceSlot?.serviceId ?? activeServices[0]?.id ?? '';
+    setFormOpen(false);
+    setLeaveFormOpen(false);
+    setBatchMode(mode);
+    setBatchDraft({
+      ...createEmptySlotBatchDraft(defaultDoctorId, serviceId),
+      startDate: targetDate,
+      endDate: shiftClinicDate(targetDate, 6),
+      sourceDate,
+      targetDate,
+    });
+    setBatchFormError('');
+    setBatchFormOpen(true);
+  };
+
+  const closeBatchForm = () => {
+    setBatchFormOpen(false);
+    setBatchFormError('');
+  };
+
+  const saveBatchSlots = async () => {
+    if (!batchInput) {
+      setBatchFormError('กรอกข้อมูลและเลือกช่วงเวลาที่ต้องการสร้างให้ครบ');
+      return;
+    }
+    if (!batchPreview?.ok) {
+      setBatchFormError(batchPreview?.error ?? 'ตรวจสอบข้อมูลก่อนสร้างรอบตรวจ');
+      return;
+    }
+    if (batchPreview.value.slots.length === 0) {
+      setBatchFormError('ไม่พบช่วงเวลาว่างสำหรับสร้างรอบใหม่');
+      return;
+    }
+    setBatchIsSaving(true);
+    setBatchFormError('');
+    try {
+      const result = await persistSlotBatch(batchInput, bangkokNow.date, actorId, role);
+      if (!result.ok) {
+        setBatchFormError(result.error);
+        return;
+      }
+      const skipped = batchPreview.value.skippedConflictCount;
+      const leaveNote = batchPreview.value.skippedLeaveDates.length > 0
+        ? ` ข้ามวันลา ${batchPreview.value.skippedLeaveDates.length} วัน`
+        : '';
+      const conflictNote = skipped > 0 ? ` ข้ามรอบที่ชนเดิม ${skipped} รอบ` : '';
+      setNotice(`สร้างรอบตรวจ ${result.value} รอบแล้ว${leaveNote}${conflictNote}`);
+      closeBatchForm();
+    } catch (err) {
+      setBatchFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจหลายวัน');
+    } finally {
+      setBatchIsSaving(false);
+    }
+  };
+
   const saveSlot = async () => {
     if (role === 'patient') return;
     if (!editingSlotId && draft.slotDate < getTodayDate()) {
@@ -566,15 +755,16 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   };
 
   useEffect(() => {
-    if (!formOpen && !leaveFormOpen) return;
+    if (!formOpen && !leaveFormOpen && !batchFormOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (leaveFormOpen) closeLeaveForm();
+      else if (batchFormOpen) closeBatchForm();
       else setFormOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [formOpen, leaveFormOpen]);
+  }, [batchFormOpen, formOpen, leaveFormOpen]);
 
   return (
     <div className="schedule-shell flex min-w-0 flex-col gap-6 sm:gap-8">
@@ -584,6 +774,12 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" disabled={isLoading} onClick={() => openSlotForm()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
               <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบตรวจ
+            </button>
+            <button type="button" disabled={isLoading} onClick={() => openBatchForm('range')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-border-strong bg-brand-soft px-4 text-sm font-semibold text-brand-strong hover:bg-brand-soft/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
+              <CalendarRange className="h-4 w-4" aria-hidden="true" />สร้างหลายวัน
+            </button>
+            <button type="button" disabled={isLoading} onClick={() => openBatchForm('copy')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
+              <Copy className="h-4 w-4" aria-hidden="true" />คัดลอกวันก่อน
             </button>
             <button type="button" disabled={isLoading} onClick={openLeaveForm} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 disabled:opacity-50">
               <CalendarDays className="h-4 w-4" aria-hidden="true" />บันทึกวันลาแพทย์
@@ -610,6 +806,167 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
           </div>
         )}
       </div>
+
+      {batchFormOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="batch-slot-form-title"
+          onClick={(event) => { if (event.target === event.currentTarget) closeBatchForm(); }}
+        >
+          <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80 animate-in zoom-in-95 duration-200">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-strong">Batch schedule</p>
+                <h2 id="batch-slot-form-title" className="mt-1 text-xl font-bold text-slate-950">
+                  {batchMode === 'copy' ? 'คัดลอกจากวันทำการล่าสุด' : 'สร้างรอบตรวจหลายวัน'}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  ระบบจะสร้างรอบตรวจจริงเฉพาะเมื่อกดบันทึก และไม่แก้ไขรอบที่มีอยู่แล้ว
+                </p>
+              </div>
+              <button type="button" onClick={closeBatchForm} className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="ปิดแบบฟอร์มสร้างหลายวัน">
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-sm font-medium text-slate-700">แพทย์</span>
+                {role === 'medical' && currentDoctor ? (
+                  <input type="text" disabled value={`${currentDoctor.fullName} (คุณ)`} className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-600`} />
+                ) : (
+                  <select
+                    aria-label="แพทย์สำหรับสร้างรอบหลายวัน"
+                    value={batchDraft.doctorId}
+                    onChange={(event) => setBatchDraft((current) => ({ ...current, doctorId: event.target.value, sourceDate: '' }))}
+                    className={inputClass}
+                  >
+                    <option value="">เลือกแพทย์</option>
+                    {doctors.filter((doctor) => doctor.availability === 'active').map((doctor) => (
+                      <option key={doctor.id} value={doctor.id}>{doctor.fullName}</option>
+                    ))}
+                  </select>
+                )}
+              </label>
+
+              <label className="space-y-1.5 sm:col-span-2">
+                <span className="text-sm font-medium text-slate-700">บริการที่เปิดจอง</span>
+                <select aria-label="บริการสำหรับสร้างรอบหลายวัน" value={batchDraft.serviceId} onChange={(event) => setBatchDraft((current) => ({ ...current, serviceId: event.target.value }))} className={inputClass}>
+                  <option value="">เลือกบริการ</option>
+                  {activeServices.map((service) => <option key={service.id} value={service.id}>{service.code} · {service.name}</option>)}
+                </select>
+              </label>
+
+              {batchMode === 'range' ? (
+                <>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">วันที่เริ่ม</span>
+                    <input type="date" min={getTodayDate()} value={batchDraft.startDate} onChange={(event) => setBatchDraft((current) => ({ ...current, startDate: event.target.value, endDate: current.endDate < event.target.value ? event.target.value : current.endDate }))} className={inputClass} />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</span>
+                    <input type="date" min={batchDraft.startDate || getTodayDate()} value={batchDraft.endDate} onChange={(event) => setBatchDraft((current) => ({ ...current, endDate: event.target.value }))} className={inputClass} />
+                  </label>
+                  <fieldset className="sm:col-span-2">
+                    <legend className="text-sm font-medium text-slate-700">วันที่เปิดตรวจ</legend>
+                    <div className="mt-2 grid grid-cols-5 gap-2">
+                      {weekdayOptions.map((weekday) => {
+                        const checked = batchDraft.weekdays.includes(weekday.value);
+                        return (
+                          <label key={weekday.value} className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-2 text-sm font-semibold transition ${checked ? 'border-brand-strong bg-brand-soft text-brand-strong' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={checked}
+                              onChange={() => setBatchDraft((current) => ({
+                                ...current,
+                                weekdays: checked ? current.weekdays.filter((value) => value !== weekday.value) : [...current.weekdays, weekday.value].sort(),
+                              }))}
+                            />
+                            {weekday.shortLabel}
+                            <span className="sr-only">{weekday.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  <div className="sm:col-span-2">
+                    <span className="text-sm font-medium text-slate-700">ช่วงเวลา</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => setBatchDraft((current) => ({ ...current, startTime: '08:30', endTime: '12:00' }))} className={`${batchDraft.startTime === '08:30' && batchDraft.endTime === '12:00' ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}>ช่วงเช้า 08:30–12:00</button>
+                      <button type="button" onClick={() => setBatchDraft((current) => ({ ...current, startTime: '13:00', endTime: '16:30' }))} className={`${batchDraft.startTime === '13:00' && batchDraft.endTime === '16:30' ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}>ช่วงบ่าย 13:00–16:30</button>
+                    </div>
+                  </div>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">เวลาเริ่ม</span>
+                    <input type="time" value={batchDraft.startTime} onChange={(event) => setBatchDraft((current) => ({ ...current, startTime: event.target.value }))} className={inputClass} />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">เวลาสิ้นสุด</span>
+                    <input type="time" value={batchDraft.endTime} onChange={(event) => setBatchDraft((current) => ({ ...current, endTime: event.target.value }))} className={inputClass} />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">ความยาวแต่ละรอบ</span>
+                    <select value={batchDraft.slotDurationMinutes} onChange={(event) => setBatchDraft((current) => ({ ...current, slotDurationMinutes: Number(event.target.value) as 30 | 60 }))} className={inputClass}>
+                      <option value={30}>30 นาที</option>
+                      <option value={60}>1 ชั่วโมง</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">ความจุต่อรอบ (คน)</span>
+                    <input type="number" min={1} step={1} value={batchDraft.maxCapacity} onChange={(event) => setBatchDraft((current) => ({ ...current, maxCapacity: Number(event.target.value) }))} className={inputClass} />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">วันต้นทาง</span>
+                    <select aria-label="วันต้นทาง" value={effectiveCopySourceDate} onChange={(event) => setBatchDraft((current) => ({ ...current, sourceDate: event.target.value }))} className={inputClass} disabled={!copySourceDates.length}>
+                      {!copySourceDates.length && <option value="">ยังไม่มีวันก่อนหน้า</option>}
+                      {copySourceDates.map((date) => <option key={date} value={date}>{formatShortDate(date)} · {parseClinicDate(date).getUTCFullYear() + 543}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-medium text-slate-700">วันที่ต้องการสร้าง</span>
+                    <input type="date" min={getTodayDate()} value={batchDraft.targetDate} onChange={(event) => setBatchDraft((current) => ({ ...current, targetDate: event.target.value }))} className={inputClass} />
+                  </label>
+                  <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">เวลาที่จะคัดลอก</p>
+                    {copyTimeBlocks.length ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {copyTimeBlocks.map((block) => <span key={`${block.startTime}-${block.endTime}`} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200">{block.startTime}–{block.endTime} · {block.maxCapacity} คน</span>)}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-500">เลือกแพทย์ที่มีรอบตรวจในวันก่อนหน้า</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {batchInput && batchPreview?.ok && (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status" aria-live="polite">
+                <p className="font-semibold">พร้อมสร้าง {batchPreview.value.slots.length} รอบ ใน {batchDates.length - batchPreview.value.skippedLeaveDates.length} วัน</p>
+                {batchPreview.value.skippedLeaveDates.length > 0 && <p className="mt-1 text-xs">ข้ามวันลา {batchPreview.value.skippedLeaveDates.length} วัน</p>}
+                {batchPreview.value.skippedConflictCount > 0 && <p className="mt-1 text-xs">ข้ามรอบที่ชนกับรายการเดิม {batchPreview.value.skippedConflictCount} รอบ</p>}
+              </div>
+            )}
+            {batchInput && batchPreview && !batchPreview.ok && <p className="mt-4 text-sm font-medium text-rose-700" role="alert">{batchPreview.error}</p>}
+            {!batchInput && <p className="mt-4 text-sm text-slate-500" role="status">เลือกแพทย์ บริการ และช่วงเวลาที่ต้องการสร้าง เพื่อดูตัวอย่าง</p>}
+            {batchFormError && <p className="mt-3 text-sm font-medium text-rose-700" role="alert">{batchFormError}</p>}
+
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" onClick={closeBatchForm} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
+              <button type="button" disabled={batchIsSaving || !batchPreview?.ok || batchPreview.value.slots.length === 0} onClick={saveBatchSlots} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white shadow-xs hover:bg-brand-hover disabled:opacity-50">
+                {batchIsSaving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                {batchIsSaving ? 'กำลังสร้าง...' : 'สร้างรอบตรวจ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {leaveFormOpen && (
         <div

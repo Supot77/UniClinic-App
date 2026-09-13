@@ -11,7 +11,7 @@ import type {
   DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotInput } from './rules';
+import type { ShopResult, SlotBatchInput, SlotInput } from './rules';
 
 export interface ShopSnapshot {
   departments: ScheduleDepartment[];
@@ -43,6 +43,7 @@ export interface ShopRepository {
   saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave>;
   deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave>;
   saveSlot(input: SlotInput, id?: string, todayDate?: string): ShopResult<ScheduleSlot>;
+  createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): ShopResult<number>;
   toggleSlot(id: string, actorId?: string, role?: UserRole): ShopResult<ScheduleSlot>;
   saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): ShopResult<DoctorWeeklySchedule>;
   generateSlotsForRange(startDate: string, endDate: string, today: string, serviceId?: string): ShopResult<number>;

@@ -384,6 +384,8 @@ erDiagram
 10. `supabase/migrations/15_pai_rejection_reason.sql`
 11. `supabase/migrations/16_pai_workspace_rejection_reason.sql`
 12. `supabase/migrations/17_allow_public_view_services_and_slots.sql` ตาม policy ที่ทีมอนุมัติ
+13. `supabase/migrations/24_batch_create_slots.sql` สำหรับคำสั่งผู้ใช้สร้าง slot หลายวันแบบ atomic โดยไม่เพิ่มตารางใหม่
+14. `supabase/migrations/25_schedule_slot_booking_counts.sql` สำหรับอ่าน `booked_count` แบบรวม appointment ที่ยัง active ให้ Schedule ตรงกับ PAI โดยไม่แก้ counter เดิม
 
 ไม่ต้องรัน `03_normalized_transactions.sql`, `04_broadcast_notification_type.sql` หรือ `05_simplify_broadcast_recipients.sql` เพราะเป็น migration ของแบบ normalized รุ่นเก่า. ไฟล์สองชุดขึ้นต้นด้วย `13_` จึงต้องตรวจ migration history/target ก่อน push ไม่สรุปจากชื่อไฟล์อย่างเดียว
 
