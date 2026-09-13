@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ScheduleWorkspace, { getNextAvailableTimeSlot } from '@/components/schedules/ScheduleWorkspace';
-import type { ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot } from '@/types/schedule';
+import type { DoctorLeave, ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot } from '@/types/schedule';
 
 const mockDepartments: ScheduleDepartment[] = [
   { id: 'dept-general', name: 'เวชปฏิบัติทั่วไป', description: 'ตรวจโรคทั่วไป', isActive: true },
@@ -95,11 +95,14 @@ const shopState = vi.hoisted(() => ({
   dailyServiceOfferings: [],
   doctors: [] as ScheduleDoctor[],
   slots: [] as ScheduleSlot[],
+  doctorLeaves: [] as DoctorLeave[],
   isLoading: false,
   saveSlot: vi.fn(),
   toggleSlot: vi.fn(),
   saveService: vi.fn(),
   toggleService: vi.fn(),
+  saveDoctorLeave: vi.fn(),
+  deleteDoctorLeave: vi.fn(),
 }));
 
 vi.mock('@/features/shop/context/ShopProvider', () => ({
@@ -114,6 +117,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     shopState.services = [...mockServices];
     shopState.doctors = [...mockDoctors];
     shopState.slots = [...mockSlots];
+    shopState.doctorLeaves = [];
     shopState.isLoading = false;
   });
 
@@ -329,15 +333,17 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(screen.getByText('ไม่พบรอบตรวจตามตัวกรอง ลองเปลี่ยนวันหรือสถานะ')).toBeInTheDocument();
   });
 
-  it('retains the doctor scope and excludes edit actions for another doctor', () => {
+  it('defaults doctor filter to own account for medical role and excludes edit actions for another doctor', () => {
     shopState.slots = [
       { ...mockSlots[0], slotDate: '2026-09-10' },
       { ...mockSlots[0], id: 'other-slot', doctorId: 'doc-3', slotDate: '2026-09-10', startTime: '13:00', endTime: '14:00' },
     ];
     render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
-    expect(screen.getByRole('button', { name: 'ตารางของฉัน' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'ภาพรวมคลินิก' }));
-    expect(screen.getByRole('button', { name: 'ภาพรวมคลินิก' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: 'ตารางของฉัน' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ภาพรวมคลินิก' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('กรองแพทย์')).toHaveValue('doc-1');
+    fireEvent.change(screen.getByLabelText('กรองแพทย์'), { target: { value: 'all' } });
+    expect(screen.getByLabelText('กรองแพทย์')).toHaveValue('all');
     expect(screen.getAllByRole('button', { name: 'แก้ไขรอบ 09:00' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'แก้ไขรอบ 13:00' })).not.toBeInTheDocument();
   });
@@ -371,5 +377,29 @@ describe('ScheduleWorkspace Service Filter', () => {
     // Verify month navigation
     fireEvent.click(screen.getByLabelText('ช่วงถัดไป'));
     expect(screen.getByLabelText('ปฏิทินรายเดือน')).toBeInTheDocument();
+  });
+
+  it('shows leave chips and blocks medical creation on a leave date', () => {
+    shopState.doctorLeaves = [{ id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' }];
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+
+    expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('แพทย์มีวันลา ไม่สามารถเพิ่มรอบใหม่').length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
+    expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
+  });
+
+  it('previews affected slots before saving a leave', async () => {
+    shopState.saveDoctorLeave.mockResolvedValueOnce({ ok: true, value: { id: 'leave-new' } });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกวันลาแพทย์' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับวันลา' }), { target: { value: 'doc-1' } });
+    fireEvent.change(screen.getByLabelText('วันที่เริ่มลา'), { target: { value: '2026-09-08' } });
+    fireEvent.change(screen.getByLabelText('วันที่สิ้นสุด'), { target: { value: '2026-09-08' } });
+
+    expect(screen.getByText('มีรอบตรวจเดิมค้างอยู่ 1 รอบในช่วงวันดังกล่าว')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกวันลา' }));
+    expect(await screen.findByText('บันทึกวันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง')).toBeInTheDocument();
+    expect(shopState.saveDoctorLeave).toHaveBeenCalledWith({ doctorId: 'doc-1', startDate: '2026-09-08', endDate: '2026-09-08', reason: '' }, undefined, 'admin-1', 'staff_admin');
   });
 });

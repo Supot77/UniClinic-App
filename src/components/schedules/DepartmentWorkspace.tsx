@@ -10,6 +10,7 @@ import {
   Power,
   Search,
   Stethoscope,
+  Trash2,
   X,
 } from 'lucide-react';
 import { useShop } from '@/features/shop/context/ShopProvider';
@@ -18,13 +19,28 @@ import type {
   DoctorAvailability,
   ScheduleDepartment,
   ScheduleDoctor,
+  DoctorLeave,
 } from '@/types/schedule';
+import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
 type WorkspaceTab = 'departments' | 'doctors';
+
+const leaveMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+function formatLeaveDate(dateValue: string) {
+  const [year, month, day] = dateValue.split('-').map(Number);
+  return `${day} ${leaveMonthNames[month - 1]} ${year + 543}`;
+}
+
+function formatLeaveRange(leave: DoctorLeave) {
+  return leave.startDate === leave.endDate
+    ? formatLeaveDate(leave.startDate)
+    : `${formatLeaveDate(leave.startDate)}–${formatLeaveDate(leave.endDate)}`;
+}
 
 interface DepartmentDraft {
   name: string;
@@ -61,12 +77,14 @@ export default function DepartmentWorkspace() {
     departments,
     doctors,
     slots,
+    doctorLeaves = [],
     doctorAccounts,
     isLoading,
     saveDepartment: persistDepartment,
     toggleDepartment: persistDepartmentToggle,
     saveDoctor: persistDoctor,
     toggleDoctor: persistDoctorToggle,
+    deleteDoctorLeave: persistDoctorLeaveDelete,
   } = useShop();
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('departments');
@@ -283,6 +301,20 @@ export default function DepartmentWorkspace() {
     setNotice(result.value === 'deleted' ? 'ลบแพทย์แล้ว' : doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
   };
 
+  const cancelDoctorLeave = async (leave: DoctorLeave, doctorName: string) => {
+    setFormError('');
+    setNotice('');
+    if (!window.confirm(`ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange(leave)}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`)) return;
+    setIsSaving(true);
+    const result = await persistDoctorLeaveDelete(leave.id);
+    setIsSaving(false);
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+    setNotice(`ยกเลิกวันลาของ ${doctorName} แล้ว`);
+  };
+
   const changeTab = (tab: WorkspaceTab) => {
     setActiveTab(tab);
     setSearch('');
@@ -431,12 +463,17 @@ export default function DepartmentWorkspace() {
                         </div>
                       ) : (
                         <ul className="space-y-2 text-sm leading-6 text-brand-ink">
-                          {affiliatedDoctors.map((doctor) => (
-                            <li key={doctor.id} className="break-words">
-                              {doctor.fullName}
-                              {doctor.availability !== 'active' && <span className={`ml-2 text-xs ${doctor.availability === 'on_leave' ? 'text-status-warning' : 'text-status-neutral'}`}>{doctor.availability === 'on_leave' ? 'ลาตรวจ' : 'ปิดใช้งาน'}</span>}
-                            </li>
-                          ))}
+                          {affiliatedDoctors.map((doctor) => {
+                            const latestLeave = doctorLeaves.filter((leave) => leave.doctorId === doctor.id).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+                            const onLeaveToday = isDoctorOnLeave(doctorLeaves, doctor.id, getBangkokToday());
+                            return (
+                              <li key={doctor.id} className="break-words">
+                                {doctor.fullName}
+                                {(onLeaveToday || doctor.availability === 'on_leave') && <span className="ml-2 text-xs text-status-warning">ลาตรวจ{latestLeave ? ` (${formatLeaveRange(latestLeave)})` : ''}</span>}
+                                {doctor.availability === 'inactive' && <span className="ml-2 text-xs text-status-neutral">ปิดใช้งาน</span>}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
@@ -474,12 +511,16 @@ export default function DepartmentWorkspace() {
               <div className="divide-y divide-brand-border-soft">
                 {visibleDoctors.map((doctor) => {
                   const department = departments.find((item) => item.id === doctor.departmentId);
+                  const latestLeave = doctorLeaves.filter((leave) => leave.doctorId === doctor.id).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+                  const onLeaveToday = isDoctorOnLeave(doctorLeaves, doctor.id, getBangkokToday());
                   const statusConfig: Record<DoctorAvailability, { label: string; text: string; dot: string }> = {
                     active: { label: 'พร้อมออกตรวจ', text: 'text-status-success', dot: 'bg-status-success' },
                     on_leave: { label: 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' },
                     inactive: { label: 'ปิดใช้งาน', text: 'text-status-neutral', dot: 'bg-status-neutral' },
                   };
-                  const currentStatus = statusConfig[doctor.availability] ?? statusConfig.active;
+                  const currentStatus = onLeaveToday || doctor.availability === 'on_leave'
+                    ? { label: latestLeave ? `ลาตรวจ (${formatLeaveRange(latestLeave)})` : 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' }
+                    : statusConfig[doctor.availability] ?? statusConfig.active;
                   const toggleLabel = doctor.availability === 'inactive' ? 'เปิดใช้' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้' : 'ลบ';
                   return (
                     <article key={doctor.id} className="grid gap-4 py-6 transition-colors hover:bg-brand-surface/60 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_140px] lg:items-center lg:gap-6">
@@ -498,6 +539,11 @@ export default function DepartmentWorkspace() {
                         <button type="button" onClick={() => openDoctorForm(doctor)} className={`${textActionClass} text-brand-strong`} aria-label={`แก้ไข ${doctor.fullName}`}>
                           <Pencil className="h-4 w-4" aria-hidden="true" />แก้ไข
                         </button>
+                        {latestLeave && (
+                          <button type="button" disabled={isSaving} onClick={() => cancelDoctorLeave(latestLeave, doctor.fullName)} className={`${textActionClass} text-violet-800`} aria-label={`ยกเลิกวันลา ${doctor.fullName}`}>
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />ยกเลิกวันลา
+                          </button>
+                        )}
                         <button type="button" disabled={isSaving} onClick={() => toggleDoctor(doctor)} className={`${textActionClass} ${doctor.availability === 'inactive' ? 'text-status-success' : 'text-status-critical'}`} aria-label={`${toggleLabel} ${doctor.fullName}`}>
                           {toggleLabel}
                         </button>

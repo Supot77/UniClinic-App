@@ -50,6 +50,19 @@ export interface DailyServiceOffering {
   createdBy?: string;
 }
 
+export interface DoctorLeaveInput {
+  doctorId: string;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+}
+
+export interface DoctorLeave extends DoctorLeaveInput {
+  id: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
 export type DoctorAvailability = 'active' | 'on_leave' | 'inactive';
 
 export interface ScheduleDoctor {

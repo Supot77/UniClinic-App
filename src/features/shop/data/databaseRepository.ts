@@ -8,13 +8,18 @@ import type {
   ScheduleService,
   ScheduleSlot,
   ScheduleSlotStatus,
+  DoctorLeave,
+  DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
 import type { ShopResult, SlotInput } from '../domain/rules';
 import {
   deriveSlotStatus,
+  isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
+  validateDoctorLeave,
+  validateDoctorLeavePermission,
   validateSlot,
 } from '../domain/rules';
 
@@ -25,6 +30,7 @@ export interface DatabaseShopSnapshot {
   dailyServiceOfferings: DailyServiceOffering[];
   slots: ScheduleSlot[];
   doctorAccounts: DoctorAccountOption[];
+  doctorLeaves: DoctorLeave[];
 }
 
 function isValidUUID(id: string): boolean {
@@ -198,6 +204,116 @@ export class DatabaseShopRepository {
         initials,
       };
     });
+  }
+
+  async fetchDoctorLeaves(): Promise<DoctorLeave[]> {
+    const { data, error } = await this.client
+      .from('doctor_leaves')
+      .select('id, doctor_id, start_date, end_date, reason, created_by, created_at')
+      .order('start_date', { ascending: true });
+
+    if (error || !data) {
+      console.error('Error fetching doctor leaves:', error);
+      return [];
+    }
+
+    return data.map((row: {
+      id: string;
+      doctor_id: string;
+      start_date: string;
+      end_date: string;
+      reason: string | null;
+      created_by: string | null;
+      created_at: string | null;
+    }) => ({
+      id: row.id,
+      doctorId: row.doctor_id,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      reason: row.reason ?? undefined,
+      createdBy: row.created_by ?? undefined,
+      createdAt: row.created_at ?? undefined,
+    }));
+  }
+
+  async saveDoctorLeave(
+    input: DoctorLeaveInput,
+    existingLeaves: DoctorLeave[],
+    doctors: ScheduleDoctor[],
+    id?: string,
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<DoctorLeave>> {
+    if (id && !isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
+    const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role);
+    if (!validation.ok) return validation;
+
+    const payload = {
+      doctor_id: validation.value.doctorId,
+      start_date: validation.value.startDate,
+      end_date: validation.value.endDate,
+      reason: validation.value.reason ?? null,
+      ...(actorId && isValidUUID(actorId) ? { created_by: actorId } : {}),
+    };
+    const query = id
+      ? this.client.from('doctor_leaves').update(payload).eq('id', id)
+      : this.client.from('doctor_leaves').insert(payload);
+    const { data, error } = await query
+      .select('id, doctor_id, start_date, end_date, reason, created_by, created_at')
+      .single();
+
+    if (error || !data) {
+      const message = error?.code === '23P01'
+        ? 'ช่วงวันลาซ้ำซ้อนกับวันลาเดิมของแพทย์'
+        : error?.message || 'ไม่สามารถบันทึกวันลาแพทย์ได้';
+      return { ok: false, error: message };
+    }
+    return {
+      ok: true,
+      value: {
+        id: data.id,
+        doctorId: data.doctor_id,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        reason: data.reason ?? undefined,
+        createdBy: data.created_by ?? undefined,
+        createdAt: data.created_at ?? undefined,
+      },
+    };
+  }
+
+  async deleteDoctorLeave(
+    id: string,
+    existingLeaves: DoctorLeave[],
+    doctors: ScheduleDoctor[],
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<DoctorLeave>> {
+    if (!isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
+    const target = existingLeaves.find((leave) => leave.id === id);
+    if (!target) return { ok: false, error: 'ไม่พบวันลาที่ต้องการยกเลิก' };
+    const permission = validateDoctorLeavePermission(target.doctorId, doctors, actorId, role);
+    if (!permission.ok) return permission;
+
+    const { data, error } = await this.client
+      .from('doctor_leaves')
+      .delete()
+      .eq('id', id)
+      .select('id, doctor_id, start_date, end_date, reason, created_by, created_at')
+      .single();
+    if (error || !data) return { ok: false, error: error?.message || 'ไม่สามารถยกเลิกวันลาแพทย์ได้' };
+    return {
+      ok: true,
+      value: {
+        id: data.id,
+        doctorId: data.doctor_id,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        reason: data.reason ?? undefined,
+        createdBy: data.created_by ?? undefined,
+        createdAt: data.created_at ?? undefined,
+      },
+    };
   }
 
   async saveDepartment(
@@ -464,6 +580,7 @@ export class DatabaseShopRepository {
     services: ScheduleService[],
     id?: string,
     todayDate?: string,
+    doctorLeaves: DoctorLeave[] = [],
   ): Promise<ShopResult<ScheduleSlot>> {
     if (!isValidUUID(input.doctorId)) {
       return {
@@ -476,7 +593,7 @@ export class DatabaseShopRepository {
     const existing = id ? existingSlots.find((item) => item.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
     const bookedCount = existing?.bookedCount ?? 0;
-    const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate);
+    const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate, doctorLeaves);
     if (!valid.ok) return valid;
 
     const nextStatus = deriveSlotStatus(bookedCount, input.maxCapacity, existing?.status, {
@@ -634,6 +751,7 @@ export class DatabaseShopRepository {
     existingSlots: ScheduleSlot[],
     services: ScheduleService[],
     requestedServiceId?: string,
+    doctorLeaves: DoctorLeave[] = [],
   ): Promise<ShopResult<number>> {
     if (!startDate || !endDate || startDate > endDate) {
       return { ok: false, error: 'ช่วงวันที่สร้างรอบไม่ถูกต้อง' };
@@ -683,6 +801,7 @@ export class DatabaseShopRepository {
       const weekday = clinicWeekday(date);
       if (weekday < 1 || weekday > 5) continue;
       for (const schedule of validSchedules.filter((s) => s.weekday === weekday)) {
+        if (isDoctorOnLeave(doctorLeaves, schedule.doctorId, date)) continue;
         for (
           let minutes = toMinutes(schedule.startTime);
           minutes + schedule.slotDurationMinutes <= toMinutes(schedule.endTime);
