@@ -28,7 +28,7 @@ DECLARE
   v_role text;
 BEGIN
   SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid() AND is_active = true;
-  IF v_role NOT IN ('medical', 'staff_admin') THEN
+  IF v_role IS NULL OR v_role NOT IN ('medical', 'staff_admin') THEN
     RAISE EXCEPTION 'ไม่มีสิทธิ์ทำรายการนี้ (เฉพาะแพทย์หรือเจ้าหน้าที่ห้องยาเท่านั้น)';
   END IF;
 
@@ -38,4 +38,5 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.dispense_medical_record_prescriptions(uuid, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.dispense_medical_record_prescriptions(uuid, jsonb) TO authenticated;
