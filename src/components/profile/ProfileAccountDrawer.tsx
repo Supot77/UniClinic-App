@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, FileClock, LogOut, Settings, ShieldCheck, Stethoscope, UserRound, X } from 'lucide-react';
+import { ArrowLeft, FileClock, LogOut, Settings, ShieldCheck, Stethoscope, UserRound, UsersRound, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { UserRole } from '@/types/database';
 import PasswordSecurityCard from '@/components/profile/PasswordSecurityCard';
@@ -25,7 +25,7 @@ const accountItemsByRole: Record<UserRole, AccountMenuItem[]> = {
     { href: '/records', label: 'บันทึกการรักษา', icon: Stethoscope },
     { href: '/appointments', label: 'นัดหมายผู้ป่วย', icon: FileClock },
   ],
-  staff_admin: [{ href: '/appointments', label: 'นัดหมาย', icon: FileClock }],
+  staff_admin: [{ href: '/departments', label: 'จัดการผู้ใช้งาน', icon: UsersRound }],
 };
 
 export default function ProfileAccountDrawer({ open, onClose, onSignOut, role }: ProfileAccountDrawerProps) {

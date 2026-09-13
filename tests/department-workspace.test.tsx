@@ -71,6 +71,18 @@ describe('Department and doctor workspace', () => {
     expect(screen.getByRole('heading', { name: 'ไม่พบแพทย์' })).toBeInTheDocument();
   });
 
+  it('includes a patient management tab in the departments workspace', () => {
+    render(<DepartmentWorkspace />);
+
+    const patientsTab = screen.getByRole('tab', { name: 'ผู้ป่วย' });
+    expect(patientsTab).toHaveAttribute('aria-selected', 'false');
+    fireEvent.click(patientsTab);
+
+    expect(patientsTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'รายชื่อผู้ป่วย' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มแพทย์' })).not.toBeInTheDocument();
+  });
+
   it('saves a department through the existing contract and closes the drawer', async () => {
     shop.saveDepartment.mockResolvedValueOnce({ ok: true, value: { id: 'new' } });
     render(<DepartmentWorkspace />);

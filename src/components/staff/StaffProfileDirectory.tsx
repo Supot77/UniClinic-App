@@ -41,10 +41,14 @@ function summaryCardClass(isSelected: boolean): string {
   return `border-b-2 px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${isSelected ? "border-brand-strong text-brand-strong" : "border-transparent text-brand-ink hover:border-brand-border-soft"}`;
 }
 
-export default function StaffProfileDirectory() {
+interface StaffProfileDirectoryProps {
+  patientOnly?: boolean;
+}
+
+export default function StaffProfileDirectory({ patientOnly = false }: StaffProfileDirectoryProps) {
   const [profiles, setProfiles] = useState<StaffProfileDirectoryItem[]>([]);
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<ProfileFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<ProfileFilter>(patientOnly ? "patient" : "all");
   const [sortBy, setSortBy] = useState<ProfileSort>("name-th");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -232,8 +236,8 @@ export default function StaffProfileDirectory() {
     accountAction?.kind === "toggle" && accountAction.nextActive;
 
   return (
-    <main className="dashboard-shell mx-auto flex max-w-7xl flex-col gap-10 pb-10">
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <main className={`${patientOnly ? "flex" : "dashboard-shell mx-auto flex max-w-7xl"} flex-col gap-10 pb-10`}>
+      {!patientOnly && <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
             บัญชีผู้ใช้งานทั้งหมด
@@ -254,9 +258,9 @@ export default function StaffProfileDirectory() {
           />{" "}
           รีเฟรช
         </button>
-      </header>
+      </header>}
 
-      <section
+      {!patientOnly && <section
         className="grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-5"
         aria-label="สรุปจำนวนบัญชี"
       >
@@ -315,12 +319,12 @@ export default function StaffProfileDirectory() {
             {suspendedCount}
           </p>
         </button>
-      </section>
+      </section>}
 
       <section className="overflow-hidden">
         <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-brand-ink">รายชื่อบัญชี</h2>
+            <h2 className="text-xl font-semibold text-brand-ink">{patientOnly ? "รายชื่อผู้ป่วย" : "รายชื่อบัญชี"}</h2>
             <p className="mt-1 text-sm text-brand-muted">
               แสดง {filteredProfiles.length} จาก {profiles.length} บัญชี
             </p>
@@ -339,7 +343,7 @@ export default function StaffProfileDirectory() {
                 className="h-11 w-full rounded-lg border border-brand-border-strong bg-transparent py-2.5 pl-9 pr-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
               />
             </label>
-            <label className="sr-only" htmlFor="role-filter">
+            {!patientOnly && <><label className="sr-only" htmlFor="role-filter">
               กรองตาม role
             </label>
             <select
@@ -357,7 +361,7 @@ export default function StaffProfileDirectory() {
                   {roleLabels[role]}
                 </option>
               ))}
-            </select>
+            </select></>}
             <label className="sr-only" htmlFor="profile-sort">
               เรียงลำดับบัญชี
             </label>

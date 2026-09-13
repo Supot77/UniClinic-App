@@ -11,6 +11,7 @@ import {
   Search,
   Stethoscope,
   Trash2,
+  UsersRound,
   X,
 } from 'lucide-react';
 import { useShop } from '@/features/shop/context/ShopProvider';
@@ -22,12 +23,13 @@ import type {
   DoctorLeave,
 } from '@/types/schedule';
 import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
+import StaffProfileDirectory from '@/components/staff/StaffProfileDirectory';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
-type WorkspaceTab = 'departments' | 'doctors';
+type WorkspaceTab = 'departments' | 'doctors' | 'patients';
 
 const leaveMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
@@ -323,8 +325,8 @@ export default function DepartmentWorkspace() {
   return (
     <div className="min-w-0 space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-5">
-        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">แผนกและแพทย์</h1>
-        <button
+        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">แผนก แพทย์ และผู้ป่วย</h1>
+        {activeTab !== 'patients' && <button
           type="button"
           disabled={isLoading}
           onClick={() => (activeTab === 'departments' ? openDepartmentForm() : openDoctorForm())}
@@ -332,13 +334,14 @@ export default function DepartmentWorkspace() {
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {activeTab === 'departments' ? 'เพิ่มแผนก' : 'เพิ่มแพทย์'}
-        </button>
+        </button>}
       </header>
 
       <div className="flex items-end gap-1.5 sm:gap-2 border-b-2 border-brand-border-soft pt-3" role="tablist" aria-label="เลือกมุมมองการจัดการ">
         {([
           ['departments', 'แผนก', departments.length, Building2],
           ['doctors', 'แพทย์', doctors.length, Stethoscope],
+          ['patients', 'ผู้ป่วย', null, UsersRound],
         ] as const).map(([tab, label, count, Icon]) => {
           const isActive = activeTab === tab;
           return (
@@ -354,7 +357,13 @@ export default function DepartmentWorkspace() {
               onKeyDown={(event) => {
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                 event.preventDefault();
-                const nextTab = event.key === 'Home' ? 'departments' : event.key === 'End' ? 'doctors' : tab === 'departments' ? 'doctors' : 'departments';
+                const tabs: WorkspaceTab[] = ['departments', 'doctors', 'patients'];
+                const currentIndex = tabs.indexOf(tab);
+                const nextTab = event.key === 'Home'
+                  ? 'departments'
+                  : event.key === 'End'
+                    ? 'patients'
+                    : tabs[(currentIndex + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
                 changeTab(nextTab);
                 document.getElementById(`${nextTab}-tab`)?.focus();
               }}
@@ -366,7 +375,7 @@ export default function DepartmentWorkspace() {
             >
               <Icon className={`h-4 w-4 transition-colors duration-200 ${isActive ? 'text-brand-strong' : 'text-brand-muted group-hover:text-brand-strong'}`} aria-hidden="true" />
               <span>{label}</span>
-              <span
+              {count !== null && <span
                 className={`rounded-full px-2 py-0.5 text-xs tabular-nums transition-all duration-300 ${
                   isActive
                     ? 'bg-brand-soft font-bold text-brand-strong'
@@ -374,13 +383,13 @@ export default function DepartmentWorkspace() {
                 }`}
               >
                 {count}
-              </span>
+              </span>}
             </button>
           );
         })}
       </div>
 
-      <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
+      {activeTab !== 'patients' && <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
         <label className="grid w-full gap-2 text-sm text-brand-body sm:w-80">
           <span>{activeTab === 'departments' ? 'ค้นหาแผนก' : 'ค้นหาแพทย์'}</span>
           <span className="relative">
@@ -406,7 +415,7 @@ export default function DepartmentWorkspace() {
           <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-4 w-4 accent-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong" />
           แสดงที่ปิดใช้
         </label>
-      </section>
+      </section>}
       <Toast message={notice} onDismiss={() => setNotice('')} />
       <div aria-live="polite" className="space-y-3 empty:hidden">
         {formError && !departmentDrawerOpen && !doctorDrawerOpen && (
@@ -554,6 +563,11 @@ export default function DepartmentWorkspace() {
               </div>
             </div>
           )}
+        </section>
+      )}
+      {activeTab === 'patients' && (
+        <section id="patients-panel" role="tabpanel" aria-labelledby="patients-tab" className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
+          <StaffProfileDirectory patientOnly />
         </section>
       )}
       {/* Slide-over Drawer: Department */}
