@@ -162,6 +162,23 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: "ผลการตรวจ" })).not.toBeInTheDocument();
   });
 
+  it("opens password security inside the account drawer", () => {
+    authState.user = { full_name: "Patient Demo" };
+    authState.isAuthenticated = true;
+    authState.role = "patient";
+
+    render(<Header />);
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชี" }));
+    fireEvent.click(screen.getByRole("button", { name: "ความปลอดภัยและรหัสผ่าน" }));
+
+    expect(screen.getByRole("heading", { name: "ความปลอดภัยและรหัสผ่าน" })).toBeInTheDocument();
+    expect(screen.getByLabelText("รหัสผ่านปัจจุบัน")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "ข้อมูลส่วนตัว" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "กลับไปเมนูบัญชี" }));
+    expect(screen.getByRole("link", { name: "ข้อมูลส่วนตัว" })).toBeInTheDocument();
+  });
+
   it("renders a unified profile menu trigger button without a duplicate hamburger on the right", () => {
     authState.user = { full_name: "Doctor Demo" };
     authState.isAuthenticated = true;

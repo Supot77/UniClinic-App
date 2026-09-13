@@ -32,6 +32,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('example@wu.ac.th')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ลืมรหัสผ่าน?' })).toHaveAttribute('href', '/forgot-password');
     expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
   });
 
@@ -90,4 +91,3 @@ describe('LoginPage', () => {
     });
   });
 });
-
