@@ -3,7 +3,13 @@ import { NextResponse } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 
 // path ที่ guest เข้าดูได้โดยไม่ต้อง login
-const PUBLIC_EXACT_PATHS = ["/", "/login", "/register"];
+const PUBLIC_EXACT_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+];
 const PUBLIC_PREFIXES = ["/schedules"];
 
 function isPublicPath(pathname: string): boolean {

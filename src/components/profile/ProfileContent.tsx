@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { getProfile, updateMyPersonalProfile, updateMyHealthProfile } from "@/services/authService";
 import { createClient } from "@/utils/supabase/client";
+import PasswordSecurityCard from "@/components/profile/PasswordSecurityCard";
 import type {Profile,UserRole,} from "@/types/database";
 const supabase = createClient();
 import {
@@ -1240,6 +1241,7 @@ export default function ProfileContent() {
                 )}
               </div>
             )}
+            <PasswordSecurityCard />
           </div>
         </main>
       </div>

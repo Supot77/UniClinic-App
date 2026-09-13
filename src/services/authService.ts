@@ -66,6 +66,47 @@ export async function signIn(email: string, password: string) {
   return data;
 }
 
+export async function requestPasswordReset(email: string, redirectTo: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new Error('กรุณากรอกอีเมล');
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+    redirectTo,
+  });
+
+  if (error) throw error;
+}
+
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user?.email) {
+    throw new Error('กรุณาเข้าสู่ระบบใหม่');
+  }
+
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (verifyError) {
+    throw new Error('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+  }
+
+  await updatePassword(newPassword);
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
@@ -547,4 +588,3 @@ export async function getPatients(): Promise<Profile[]> {
   }
   return data ?? [];
 }
-
