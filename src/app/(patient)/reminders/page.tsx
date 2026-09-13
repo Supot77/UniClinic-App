@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pill,
   X,
@@ -61,11 +61,11 @@ interface MedicationDisplayItem {
   name: string;
   category?: string;
   dosageInstruction: string;
+  mealTiming?: string;
   times: string[];
   rawTimes?: string[];
   startDate?: string;
   endDate?: string | null;
-  stockInfo?: string;
   nextDoseMinutes?: number;
   isActive?: boolean;
 }
@@ -79,15 +79,31 @@ function formatTimeToThai(time: string) {
   return `ก่อนนอน ${time} น.`;
 }
 
+// ฟังก์ชันระบุการใช้ยากับอาหารเริ่มต้น (ก่อนอาหาร / หลังอาหาร / พร้อมอาหาร / ก่อนนอน)
+function getMealTimingForMed(name?: string | null, category?: string | null, description?: string | null): string {
+  const str = `${name || ''} ${category || ''} ${description || ''}`.toLowerCase();
+  if (str.includes('omeprazole') || str.includes('ลดกรด') || str.includes('ก่อนอาหาร')) {
+    return 'ก่อนอาหาร';
+  }
+  if (str.includes('cetirizine') || str.includes('loratadine') || str.includes('ก่อนนอน')) {
+    return 'ก่อนนอน';
+  }
+  if (str.includes('พร้อมอาหาร')) {
+    return 'พร้อมอาหาร';
+  }
+  return 'หลังอาหาร';
+}
+
 // Helper แปลง Reminder Model เป็น UI Item
-function mapReminderToDisplay(reminder: MedicationReminderWithMedication): MedicationDisplayItem {
+function mapReminderToDisplay(reminder: MedicationReminderWithMedication, customTiming?: string): MedicationDisplayItem {
   const times = (reminder.reminder_times || []).map((t) => formatTimeToThai(t));
   const med = reminder.medication;
   const desc = med?.description ? ` (${med.description})` : '';
   const dosage = (med as unknown as { dosage?: string })?.dosage ?? `1 ${med?.type ?? 'เม็ด'}`;
+  const mealTiming = customTiming || getMealTimingForMed(med?.name, med?.category, med?.description);
   const instruction = reminder.status === 'paused'
-    ? `รับทาน ครั้งละ ${dosage} · ยาหยุดชั่วคราว`
-    : `รับทาน ครั้งละ ${dosage} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
+    ? `รับทาน ครั้งละ ${dosage} · ${mealTiming} · ยาหยุดชั่วคราว`
+    : `รับทาน ครั้งละ ${dosage} · ${mealTiming} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
 
   return {
     id: reminder.id,
@@ -95,6 +111,7 @@ function mapReminderToDisplay(reminder: MedicationReminderWithMedication): Medic
     name: med?.name ?? 'ยาไม่ระบุชื่อ',
     category: med?.category ?? 'ยาทั่วไป',
     dosageInstruction: instruction,
+    mealTiming: mealTiming,
     times: times,
     rawTimes: reminder.reminder_times || ['08:00', '18:00'],
     startDate: reminder.start_date,
@@ -210,6 +227,7 @@ export default function RemindersPage() {
   // Modal State: จ่ายยา / เพิ่มยาใหม่
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedMedId, setSelectedMedId] = useState('');
+  const [selectedMealTiming, setSelectedMealTiming] = useState<string>('หลังอาหาร');
   const [selectedTimes, setSelectedTimes] = useState<string[]>(['08:00', '18:00']);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
@@ -217,9 +235,18 @@ export default function RemindersPage() {
   // Modal State: แก้ไขตัวยาที่จ่ายไปแล้ว
   const [editingItem, setEditingItem] = useState<MedicationDisplayItem | null>(null);
   const [editMedId, setEditMedId] = useState('');
+  const [editMealTiming, setEditMealTiming] = useState<string>('หลังอาหาร');
   const [editTimes, setEditTimes] = useState<string[]>([]);
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
+
+  // Overrides สำหรับบันทึกค่าการใช้ยากับอาหาร (ก่อนอาหาร / หลังอาหาร / ฯลฯ) ต่อ Reminder ID
+  const [, setMealTimingOverrides] = useState<Record<string, string>>({});
+  const mealTimingOverridesRef = useRef<Record<string, string>>({});
+  const updateMealTimingOverride = useCallback((id: string, timing: string) => {
+    mealTimingOverridesRef.current = { ...mealTimingOverridesRef.current, [id]: timing };
+    setMealTimingOverrides((prev) => ({ ...prev, [id]: timing }));
+  }, []);
 
   // Modal State: ยืนยันการลบรายการยา
   const [deletingItem, setDeletingItem] = useState<MedicationDisplayItem | null>(null);
@@ -281,6 +308,7 @@ export default function RemindersPage() {
         !q ||
         med.name.toLowerCase().includes(q) ||
         (med.category && med.category.toLowerCase().includes(q)) ||
+        (med.mealTiming && med.mealTiming.toLowerCase().includes(q)) ||
         med.dosageInstruction.toLowerCase().includes(q);
 
       const matchesStatus =
@@ -331,19 +359,24 @@ export default function RemindersPage() {
       }
 
       // 4. แปลงข้อมูลและเติมรายละเอียดตัวยาจาก meds
-      const mappedDb = (dbReminders || []).map(mapReminderToDisplay);
+      const mappedDb = (dbReminders || []).map((item) => {
+        const override = mealTimingOverridesRef.current[item.id];
+        return mapReminderToDisplay(item, override);
+      });
       const mappedMock = (mockReminders as MedicationReminderWithMedication[] || []).map((item) => {
-        const display = mapReminderToDisplay(item);
+        const override = mealTimingOverridesRef.current[item.id];
+        const display = mapReminderToDisplay(item, override);
         if (display.name === 'ยาไม่ระบุชื่อ' && item.medication_id) {
           const found = meds.find((m) => m.id === item.medication_id);
           if (found) {
             display.name = found.name;
             display.category = found.category;
-            display.stockInfo = `เหลือ ${found.stock ?? 30} ${found.type ?? 'เม็ด'}`;
+            const mealTiming = override || getMealTimingForMed(found.name, found.category, found.description);
+            display.mealTiming = mealTiming;
             const dosage = (found as unknown as { dosage?: string })?.dosage ?? `1 ${found?.type ?? 'เม็ด'}`;
             display.dosageInstruction = item.status === 'paused'
-              ? `รับทาน ครั้งละ ${dosage} · ยาหยุดชั่วคราว`
-              : `รับทาน ครั้งละ ${dosage} · วันละ ${(item.reminder_times || []).length} ครั้ง`;
+              ? `รับทาน ครั้งละ ${dosage} · ${mealTiming} · ยาหยุดชั่วคราว`
+              : `รับทาน ครั้งละ ${dosage} · ${mealTiming} · วันละ ${(item.reminder_times || []).length} ครั้ง`;
           }
         }
         return display;
@@ -496,7 +529,8 @@ export default function RemindersPage() {
 
           if (created) {
             savedToSupabase = true;
-            showNotice(`จ่ายยา "${created.medication?.name ?? chosenMed?.name ?? 'ยา'}" ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
+            updateMealTimingOverride(created.id, selectedMealTiming);
+            showNotice(`จ่ายยา "${created.medication?.name ?? chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
           }
         } catch (dbErr: unknown) {
           console.warn('Supabase createReminder error:', dbErr);
@@ -504,7 +538,7 @@ export default function RemindersPage() {
       }
 
       if (!savedToSupabase) {
-        await repositories.reminders.create({
+        const newMock = await repositories.reminders.create({
           patient_id: selectedPatientId,
           medication_id: selectedMedId,
           reminder_times: [...selectedTimes].sort(),
@@ -512,11 +546,15 @@ export default function RemindersPage() {
           end_date: endDate || null,
           status: 'active',
         });
-        showNotice(`จ่ายยา "${chosenMed?.name ?? 'ยา'}" ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
+        if (newMock?.data?.id) {
+          updateMealTimingOverride(newMock.data.id, selectedMealTiming);
+        }
+        showNotice(`จ่ายยา "${chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
       }
 
       setIsAddModalOpen(false);
       setSelectedMedId('');
+      setSelectedMealTiming('หลังอาหาร');
       setSelectedTimes(['08:00', '18:00']);
       setStartDate(new Date().toISOString().split('T')[0]);
       setEndDate('');
@@ -527,6 +565,15 @@ export default function RemindersPage() {
       showError(`เกิดข้อผิดพลาดในการทำรายการ: ${errMsg}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // เปลี่ยนตัวยาที่เลือกในหน้าต่างสั่งจ่ายยา (พร้อมตรวจจับเวลามื้อยาอัตโนมัติ)
+  const handleMedSelectChange = (medId: string) => {
+    setSelectedMedId(medId);
+    const chosen = availableMeds.find((m) => m.id === medId);
+    if (chosen) {
+      setSelectedMealTiming(getMealTimingForMed(chosen.name, chosen.category, chosen.description));
     }
   };
 
@@ -551,9 +598,19 @@ export default function RemindersPage() {
         m.name.toLowerCase().trim().includes(cleanItemName)
     );
     setEditMedId(matched ? matched.id : (item.medicationId || availableMeds[0]?.id || ''));
+    setEditMealTiming(item.mealTiming || getMealTimingForMed(item.name, item.category) || 'หลังอาหาร');
     setEditTimes(item.rawTimes && item.rawTimes.length > 0 ? [...item.rawTimes] : ['08:00', '18:00']);
     setEditStartDate(item.startDate || new Date().toISOString().split('T')[0]);
     setEditEndDate(item.endDate || '');
+  };
+
+  // เปลี่ยนตัวยาในหน้าต่างแก้ไข (พร้อมปรับเวลามื้อยาตามตัวยาใหม่)
+  const handleEditMedSelectChange = (medId: string) => {
+    setEditMedId(medId);
+    const chosen = availableMeds.find((m) => m.id === medId);
+    if (chosen) {
+      setEditMealTiming(getMealTimingForMed(chosen.name, chosen.category, chosen.description));
+    }
   };
 
   const toggleEditTimeSelection = (time: string) => {
@@ -607,8 +664,10 @@ export default function RemindersPage() {
     const dosage = (chosenMed as unknown as { dosage?: string })?.dosage ?? `1 ${chosenMed?.type ?? 'เม็ด'}`;
     const desc = (chosenMed as unknown as { description?: string })?.description ? ` (${(chosenMed as unknown as { description?: string }).description})` : '';
     const newInstruction = !editingItem.isActive
-      ? `รับทาน ครั้งละ ${dosage} · ยาหยุดชั่วคราว`
-      : `รับทาน ครั้งละ ${dosage} · วันละ ${sortedTimes.length} ครั้ง${desc}`;
+      ? `รับทาน ครั้งละ ${dosage} · ${editMealTiming} · ยาหยุดชั่วคราว`
+      : `รับทาน ครั้งละ ${dosage} · ${editMealTiming} · วันละ ${sortedTimes.length} ครั้ง${desc}`;
+
+    updateMealTimingOverride(editingItem.id, editMealTiming);
 
     // อัปเดตใน UI ทันที (Optimistic)
     setMedicationList((prev) =>
@@ -619,12 +678,12 @@ export default function RemindersPage() {
           medicationId: chosenMed.id,
           name: chosenMed.name,
           category: chosenMed.category,
+          mealTiming: editMealTiming,
           dosageInstruction: newInstruction,
           times: formattedTimes,
           rawTimes: sortedTimes,
           startDate: editStartDate,
           endDate: editEndDate || null,
-          stockInfo: `เหลือ ${chosenMed.stock} ${chosenMed.type}`,
         };
       })
     );
@@ -965,6 +1024,19 @@ export default function RemindersPage() {
                             {med.category}
                           </span>
                         )}
+                        {med.mealTiming && (
+                          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                            med.mealTiming === 'ก่อนอาหาร'
+                              ? 'bg-amber-50 text-amber-900 border-amber-300'
+                              : med.mealTiming === 'หลังอาหาร'
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                              : med.mealTiming === 'ก่อนนอน'
+                              ? 'bg-indigo-50 text-indigo-900 border-indigo-300'
+                              : 'bg-cyan-50 text-cyan-900 border-cyan-300'
+                          }`}>
+                            {med.mealTiming}
+                          </span>
+                        )}
                         {!med.isActive && (
                           <span className="text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full">
                             หยุดชั่วคราว
@@ -1075,7 +1147,7 @@ export default function RemindersPage() {
                 <select
                   required
                   value={selectedMedId}
-                  onChange={(e) => setSelectedMedId(e.target.value)}
+                  onChange={(e) => handleMedSelectChange(e.target.value)}
                   className={inputClass}
                 >
                   <option value="">-- กรุณาเลือกยา --</option>
@@ -1090,6 +1162,24 @@ export default function RemindersPage() {
                     <AlertCircle size={12} /> ไม่พบรายการยาในระบบ
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-brand-ink mb-1.5">
+                  การใช้ยากับอาหาร *
+                </label>
+                <select
+                  required
+                  value={selectedMealTiming}
+                  onChange={(e) => setSelectedMealTiming(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="หลังอาหาร">หลังอาหาร (ทันที หรือ 15-30 นาที)</option>
+                  <option value="ก่อนอาหาร">ก่อนอาหาร (30 นาที)</option>
+                  <option value="พร้อมอาหาร">พร้อมอาหาร</option>
+                  <option value="ก่อนนอน">ก่อนนอน</option>
+                  <option value="ไม่ขึ้นกับมื้ออาหาร">ไม่ขึ้นกับมื้ออาหาร</option>
+                </select>
               </div>
 
               <div>
@@ -1215,7 +1305,7 @@ export default function RemindersPage() {
                 <select
                   required
                   value={editMedId}
-                  onChange={(e) => setEditMedId(e.target.value)}
+                  onChange={(e) => handleEditMedSelectChange(e.target.value)}
                   className={inputClass}
                 >
                   <option value="">-- กรุณาเลือกยา --</option>
@@ -1229,6 +1319,24 @@ export default function RemindersPage() {
                       {med.name} ({med.category} · {med.type})
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-brand-ink mb-1.5">
+                  การใช้ยากับอาหาร *
+                </label>
+                <select
+                  required
+                  value={editMealTiming}
+                  onChange={(e) => setEditMealTiming(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="หลังอาหาร">หลังอาหาร (ทันที หรือ 15-30 นาที)</option>
+                  <option value="ก่อนอาหาร">ก่อนอาหาร (30 นาที)</option>
+                  <option value="พร้อมอาหาร">พร้อมอาหาร</option>
+                  <option value="ก่อนนอน">ก่อนนอน</option>
+                  <option value="ไม่ขึ้นกับมื้ออาหาร">ไม่ขึ้นกับมื้ออาหาร</option>
                 </select>
               </div>
 
