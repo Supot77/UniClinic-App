@@ -99,7 +99,6 @@ function mapReminderToDisplay(reminder: MedicationReminderWithMedication): Medic
     rawTimes: reminder.reminder_times || ['08:00', '18:00'],
     startDate: reminder.start_date,
     endDate: reminder.end_date,
-    stockInfo: `เหลือ ${med?.stock ?? 30} ${med?.type ?? 'เม็ด'}`,
     nextDoseMinutes: 20,
     isActive: reminder.status !== 'paused',
   };
@@ -1002,12 +1001,9 @@ export default function RemindersPage() {
                     </div>
                   </div>
 
-                  {/* ขวา: Toggle & Stock & Actions */}
+                  {/* ขวา: Toggle & Actions */}
                   <div className="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-brand-border-soft">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-brand-muted font-medium bg-brand-surface border border-brand-border-soft px-2.5 py-1 rounded-lg">
-                        {med.stockInfo}
-                      </span>
                       <ToggleSwitch active={Boolean(med.isActive)} onToggle={() => handleToggle(med.id)} />
                     </div>
 
@@ -1085,7 +1081,7 @@ export default function RemindersPage() {
                   <option value="">-- กรุณาเลือกยา --</option>
                   {availableMeds.map((med) => (
                     <option key={med.id} value={med.id}>
-                      {med.name} ({med.category} · {med.type} · คงเหลือ {med.stock})
+                      {med.name} ({med.category} · {med.type})
                     </option>
                   ))}
                 </select>
@@ -1230,7 +1226,7 @@ export default function RemindersPage() {
                   )}
                   {availableMeds.map((med) => (
                     <option key={med.id} value={med.id}>
-                      {med.name} ({med.category} · {med.type} · คงเหลือ {med.stock})
+                      {med.name} ({med.category} · {med.type})
                     </option>
                   ))}
                 </select>
