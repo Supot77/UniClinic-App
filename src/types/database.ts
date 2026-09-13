@@ -281,6 +281,17 @@ export interface Notification {
   read_at?: string | null;
   deleted_at?: string | null;
   created_at: string;
+  sender_name?: string | null;
+  sender_role?: UserRole | null;
+}
+
+export interface UnreadNotificationRecipient {
+  notification_id: string;
+  user_id: string;
+  full_name: string;
+  role: UserRole;
+  title: string;
+  created_at: string;
 }
 
 export interface RescheduleProposal {
