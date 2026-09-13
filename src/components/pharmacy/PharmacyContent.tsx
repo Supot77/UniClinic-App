@@ -279,7 +279,7 @@ interface RawInventoryLog {
           const key = `dispense:${r.id}:${m.medication_id}`;
           const match = dispenseLogs.find(
             (log) =>
-              (log.idempotency_key && (log.idempotency_key === key || (m.medication_id && log.idempotency_key.includes(m.medication_id)))) ||
+              (log.idempotency_key === key) ||
               (log.reason && log.reason.includes(r.id) && (log.medication_id === m.medication_id || log.reason.includes(m.name)))
           );
 
