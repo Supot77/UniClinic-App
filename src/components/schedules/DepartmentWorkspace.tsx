@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Building2,
   Loader2,
   Pencil,
   Plus,
   Power,
   Search,
+  Stethoscope,
+  Trash2,
   X,
 } from 'lucide-react';
 import { useShop } from '@/features/shop/context/ShopProvider';
@@ -16,13 +19,28 @@ import type {
   DoctorAvailability,
   ScheduleDepartment,
   ScheduleDoctor,
+  DoctorLeave,
 } from '@/types/schedule';
+import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
 type WorkspaceTab = 'departments' | 'doctors';
+
+const leaveMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+function formatLeaveDate(dateValue: string) {
+  const [year, month, day] = dateValue.split('-').map(Number);
+  return `${day} ${leaveMonthNames[month - 1]} ${year + 543}`;
+}
+
+function formatLeaveRange(leave: DoctorLeave) {
+  return leave.startDate === leave.endDate
+    ? formatLeaveDate(leave.startDate)
+    : `${formatLeaveDate(leave.startDate)}–${formatLeaveDate(leave.endDate)}`;
+}
 
 interface DepartmentDraft {
   name: string;
@@ -59,12 +77,14 @@ export default function DepartmentWorkspace() {
     departments,
     doctors,
     slots,
+    doctorLeaves = [],
     doctorAccounts,
     isLoading,
     saveDepartment: persistDepartment,
     toggleDepartment: persistDepartmentToggle,
     saveDoctor: persistDoctor,
     toggleDoctor: persistDoctorToggle,
+    deleteDoctorLeave: persistDoctorLeaveDelete,
   } = useShop();
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('departments');
@@ -281,6 +301,20 @@ export default function DepartmentWorkspace() {
     setNotice(result.value === 'deleted' ? 'ลบแพทย์แล้ว' : doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
   };
 
+  const cancelDoctorLeave = async (leave: DoctorLeave, doctorName: string) => {
+    setFormError('');
+    setNotice('');
+    if (!window.confirm(`ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange(leave)}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`)) return;
+    setIsSaving(true);
+    const result = await persistDoctorLeaveDelete(leave.id);
+    setIsSaving(false);
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+    setNotice(`ยกเลิกวันลาของ ${doctorName} แล้ว`);
+  };
+
   const changeTab = (tab: WorkspaceTab) => {
     setActiveTab(tab);
     setSearch('');
@@ -301,32 +335,49 @@ export default function DepartmentWorkspace() {
         </button>
       </header>
 
-      <div className="flex gap-6 border-b border-brand-border-soft" role="tablist" aria-label="เลือกมุมมองการจัดการ">
+      <div className="flex items-end gap-1.5 sm:gap-2 border-b-2 border-brand-border-soft pt-3" role="tablist" aria-label="เลือกมุมมองการจัดการ">
         {([
-          ['departments', 'แผนก', departments.length],
-          ['doctors', 'แพทย์', doctors.length],
-        ] as const).map(([tab, label, count]) => (
-          <button
-            key={tab}
-            id={`${tab}-tab`}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab}
-            aria-controls={`${tab}-panel`}
-            tabIndex={activeTab === tab ? 0 : -1}
-            onClick={() => changeTab(tab)}
-            onKeyDown={(event) => {
-              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-              event.preventDefault();
-              const nextTab = event.key === 'Home' ? 'departments' : event.key === 'End' ? 'doctors' : tab === 'departments' ? 'doctors' : 'departments';
-              changeTab(nextTab);
-              document.getElementById(`${nextTab}-tab`)?.focus();
-            }}
-            className={`flex min-h-11 items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${activeTab === tab ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:text-brand-strong'}`}
-          >
-            {label}<span className="text-xs font-normal tabular-nums">{count}</span>
-          </button>
-        ))}
+          ['departments', 'แผนก', departments.length, Building2],
+          ['doctors', 'แพทย์', doctors.length, Stethoscope],
+        ] as const).map(([tab, label, count, Icon]) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              id={`${tab}-tab`}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`${tab}-panel`}
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => changeTab(tab)}
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const nextTab = event.key === 'Home' ? 'departments' : event.key === 'End' ? 'doctors' : tab === 'departments' ? 'doctors' : 'departments';
+                changeTab(nextTab);
+                document.getElementById(`${nextTab}-tab`)?.focus();
+              }}
+              className={`group relative flex min-h-12 items-center gap-2.5 rounded-t-2xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${
+                isActive
+                  ? '-mb-[2px] z-10 border-t-4 border-t-brand border-x-2 border-b-2 border-x-brand-border-soft border-b-white bg-white text-brand-strong shadow-xs'
+                  : 'border-t-2 border-x border-b-0 border-transparent bg-slate-100/80 text-brand-body hover:bg-brand-surface hover:text-brand-strong'
+              }`}
+            >
+              <Icon className={`h-4 w-4 transition-colors duration-200 ${isActive ? 'text-brand-strong' : 'text-brand-muted group-hover:text-brand-strong'}`} aria-hidden="true" />
+              <span>{label}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs tabular-nums transition-all duration-300 ${
+                  isActive
+                    ? 'bg-brand-soft font-bold text-brand-strong'
+                    : 'bg-slate-200/80 font-normal text-brand-muted group-hover:bg-brand-soft/70 group-hover:text-brand-strong'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
@@ -378,7 +429,7 @@ export default function DepartmentWorkspace() {
       </div>
 
       {activeTab === 'departments' && (
-        <section id="departments-panel" role="tabpanel" aria-labelledby="departments-tab" aria-busy={isLoading}>
+        <section id="departments-panel" role="tabpanel" aria-labelledby="departments-tab" aria-busy={isLoading} className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-brand-ink">รายชื่อแผนก</h2>
             <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium tabular-nums text-brand-strong">{visibleDepartments.length} รายการ</span>
@@ -412,12 +463,17 @@ export default function DepartmentWorkspace() {
                         </div>
                       ) : (
                         <ul className="space-y-2 text-sm leading-6 text-brand-ink">
-                          {affiliatedDoctors.map((doctor) => (
-                            <li key={doctor.id} className="break-words">
-                              {doctor.fullName}
-                              {doctor.availability !== 'active' && <span className={`ml-2 text-xs ${doctor.availability === 'on_leave' ? 'text-status-warning' : 'text-status-neutral'}`}>{doctor.availability === 'on_leave' ? 'ลาตรวจ' : 'ปิดใช้งาน'}</span>}
-                            </li>
-                          ))}
+                          {affiliatedDoctors.map((doctor) => {
+                            const latestLeave = doctorLeaves.filter((leave) => leave.doctorId === doctor.id).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+                            const onLeaveToday = isDoctorOnLeave(doctorLeaves, doctor.id, getBangkokToday());
+                            return (
+                              <li key={doctor.id} className="break-words">
+                                {doctor.fullName}
+                                {(onLeaveToday || doctor.availability === 'on_leave') && <span className="ml-2 text-xs text-status-warning">ลาตรวจ{latestLeave ? ` (${formatLeaveRange(latestLeave)})` : ''}</span>}
+                                {doctor.availability === 'inactive' && <span className="ml-2 text-xs text-status-neutral">ปิดใช้งาน</span>}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
@@ -438,7 +494,7 @@ export default function DepartmentWorkspace() {
       )}
 
       {activeTab === 'doctors' && (
-        <section id="doctors-panel" role="tabpanel" aria-labelledby="doctors-tab" aria-busy={isLoading}>
+        <section id="doctors-panel" role="tabpanel" aria-labelledby="doctors-tab" aria-busy={isLoading} className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-brand-ink">รายชื่อแพทย์</h2>
             <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium tabular-nums text-brand-strong">{visibleDoctors.length} คน</span>
@@ -455,12 +511,16 @@ export default function DepartmentWorkspace() {
               <div className="divide-y divide-brand-border-soft">
                 {visibleDoctors.map((doctor) => {
                   const department = departments.find((item) => item.id === doctor.departmentId);
+                  const latestLeave = doctorLeaves.filter((leave) => leave.doctorId === doctor.id).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+                  const onLeaveToday = isDoctorOnLeave(doctorLeaves, doctor.id, getBangkokToday());
                   const statusConfig: Record<DoctorAvailability, { label: string; text: string; dot: string }> = {
                     active: { label: 'พร้อมออกตรวจ', text: 'text-status-success', dot: 'bg-status-success' },
                     on_leave: { label: 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' },
                     inactive: { label: 'ปิดใช้งาน', text: 'text-status-neutral', dot: 'bg-status-neutral' },
                   };
-                  const currentStatus = statusConfig[doctor.availability] ?? statusConfig.active;
+                  const currentStatus = onLeaveToday || doctor.availability === 'on_leave'
+                    ? { label: latestLeave ? `ลาตรวจ (${formatLeaveRange(latestLeave)})` : 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' }
+                    : statusConfig[doctor.availability] ?? statusConfig.active;
                   const toggleLabel = doctor.availability === 'inactive' ? 'เปิดใช้' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้' : 'ลบ';
                   return (
                     <article key={doctor.id} className="grid gap-4 py-6 transition-colors hover:bg-brand-surface/60 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_140px] lg:items-center lg:gap-6">
@@ -479,6 +539,11 @@ export default function DepartmentWorkspace() {
                         <button type="button" onClick={() => openDoctorForm(doctor)} className={`${textActionClass} text-brand-strong`} aria-label={`แก้ไข ${doctor.fullName}`}>
                           <Pencil className="h-4 w-4" aria-hidden="true" />แก้ไข
                         </button>
+                        {latestLeave && (
+                          <button type="button" disabled={isSaving} onClick={() => cancelDoctorLeave(latestLeave, doctor.fullName)} className={`${textActionClass} text-violet-800`} aria-label={`ยกเลิกวันลา ${doctor.fullName}`}>
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />ยกเลิกวันลา
+                          </button>
+                        )}
                         <button type="button" disabled={isSaving} onClick={() => toggleDoctor(doctor)} className={`${textActionClass} ${doctor.availability === 'inactive' ? 'text-status-success' : 'text-status-critical'}`} aria-label={`${toggleLabel} ${doctor.fullName}`}>
                           {toggleLabel}
                         </button>

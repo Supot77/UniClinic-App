@@ -7,6 +7,8 @@ import type {
   ScheduleSlot,
   DoctorWeeklySchedule,
   DoctorAvailabilityTemplate,
+  DoctorLeave,
+  DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
 import type { ShopResult, SlotInput } from './rules';
@@ -19,12 +21,13 @@ export interface ShopSnapshot {
   slots: ScheduleSlot[];
   doctorAccounts: DoctorAccountOption[];
   weeklySchedules: DoctorWeeklySchedule[];
+  doctorLeaves: DoctorLeave[];
   availabilityTemplates?: DoctorAvailabilityTemplate[];
 }
 
 /**
- * Boundary consumed by the UI. The active implementation is mock-first;
- * a database implementation can be added later without changing consumers.
+ * Boundary consumed by the UI. ShopProvider composes the database adapter for
+ * configured runtime sessions and keeps this mock implementation for tests/offline demos.
  */
 export interface ShopRepository {
   snapshot(): ShopSnapshot;
@@ -37,6 +40,8 @@ export interface ShopRepository {
   toggleService(id: string): ShopResult<'deleted' | 'disabled' | 'enabled'>;
   saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): ShopResult<ScheduleDoctor>;
   toggleDoctor(id: string): ShopResult<ScheduleDoctor | 'deleted'>;
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave>;
+  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave>;
   saveSlot(input: SlotInput, id?: string, todayDate?: string): ShopResult<ScheduleSlot>;
   toggleSlot(id: string, actorId?: string, role?: UserRole): ShopResult<ScheduleSlot>;
   saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): ShopResult<DoctorWeeklySchedule>;

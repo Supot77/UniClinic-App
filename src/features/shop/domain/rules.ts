@@ -4,7 +4,10 @@ import type {
   ScheduleService,
   ScheduleSlot,
   ScheduleSlotStatus,
+  DoctorLeave,
+  DoctorLeaveInput,
 } from '@/types/schedule';
+import type { UserRole } from '@/types/database';
 
 export type ShopResult<T> =
   | { ok: true; value: T }
@@ -95,6 +98,7 @@ export function validateSlot(
   editingId?: string,
   bookedCount = 0,
   todayDate?: string,
+  doctorLeaves: DoctorLeave[] = [],
 ): ShopResult<SlotInput> {
   if (!input.doctorId || !input.serviceId || !input.slotDate || !input.startTime || !input.endTime) {
     return failure('กรอกแพทย์ บริการ วันที่ และเวลาให้ครบ');
@@ -129,6 +133,9 @@ export function validateSlot(
       return failure('ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้', 'slotDate');
     }
   }
+  if (!editingId && isDoctorOnLeave(doctorLeaves, input.doctorId, input.slotDate)) {
+    return failure('แพทย์มีวันลาในวันที่เลือก ไม่สามารถสร้างรอบตรวจใหม่ได้', 'slotDate');
+  }
   if (input.startTime < '08:30' || input.endTime > '16:30') {
     return failure('รอบตรวจต้องอยู่ระหว่าง 08:30–16:30 น.', 'startTime');
   }
@@ -156,6 +163,67 @@ export function validateSlot(
   return success(input);
 }
 
+export function isDoctorOnLeave(leaves: DoctorLeave[], doctorId: string, date: string): boolean {
+  return leaves.some((leave) => leave.doctorId === doctorId && leave.startDate <= date && leave.endDate >= date);
+}
+
+export function validateDoctorLeave(
+  input: DoctorLeaveInput,
+  leaves: DoctorLeave[],
+  doctors: ScheduleDoctor[],
+  editingId?: string,
+  actorId?: string,
+  role?: UserRole,
+  todayDate?: string,
+): ShopResult<DoctorLeaveInput> {
+  if (!input.doctorId || !input.startDate || !input.endDate) {
+    return failure('เลือกแพทย์และกรอกช่วงวันลาให้ครบ', 'doctorId');
+  }
+  if (!isValidClinicDate(input.startDate) || !isValidClinicDate(input.endDate)) {
+    return failure('วันที่ลาต้องอยู่ในรูปแบบ YYYY-MM-DD', 'startDate');
+  }
+  if (input.startDate > input.endDate) {
+    return failure('วันเริ่มลาต้องไม่เกินวันสิ้นสุด', 'startDate');
+  }
+  const effectiveToday = todayDate ?? getBangkokToday();
+  if (input.startDate < effectiveToday) {
+    return failure('ไม่สามารถบันทึกวันลาในอดีตได้', 'startDate');
+  }
+  const doctor = doctors.find((item) => item.id === input.doctorId);
+  if (!doctor) return failure('ไม่พบแพทย์ที่ต้องการบันทึกวันลา', 'doctorId');
+  const permission = validateDoctorLeavePermission(input.doctorId, doctors, actorId, role);
+  if (!permission.ok) return permission;
+
+  const overlaps = leaves.some(
+    (leave) =>
+      leave.id !== editingId &&
+      leave.doctorId === input.doctorId &&
+      input.startDate <= leave.endDate &&
+      input.endDate >= leave.startDate,
+  );
+  if (overlaps) return failure('ช่วงวันลาซ้ำซ้อนกับวันลาเดิมของแพทย์', 'startDate');
+
+  return success({
+    ...input,
+    reason: input.reason?.trim() || undefined,
+  });
+}
+
+export function validateDoctorLeavePermission(
+  doctorId: string,
+  doctors: ScheduleDoctor[],
+  actorId?: string,
+  role?: UserRole,
+): ShopResult<true> {
+  if (!role) return success(true);
+  if (role === 'staff_admin') return success(true);
+  const doctor = doctors.find((item) => item.id === doctorId);
+  if (role === 'medical' && actorId && doctor && (doctor.id === actorId || doctor.profileId === actorId)) {
+    return success(true);
+  }
+  return failure('ไม่มีสิทธิ์จัดการวันลาของแพทย์ท่านนี้', 'doctorId');
+}
+
 export function validateDepartmentName(
   name: string,
   code: string | undefined,
@@ -181,7 +249,6 @@ export function countAffectedSlots(
     (slot) =>
       slot.doctorId === doctorId &&
       slot.slotDate >= startDate &&
-      slot.slotDate <= endDate &&
-      slot.status !== 'closed',
+      slot.slotDate <= endDate,
   ).length;
 }

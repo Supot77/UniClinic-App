@@ -17,8 +17,8 @@
 | เจ้าของ | งาน | ผู้ตรวจ |
 | --- | --- | --- |
 | ฟีม | สมาชิก โปรไฟล์ สิทธิ์และ session | เฮิร์บ |
-| ช้อป | แผนก แพทย์ ตารางและ slot | ปาย |
-| ปาย | นัด คิว ผลตรวจ และรายการยา | ช้อป |
+| ช้อป (สุพจน์) | แผนก แพทย์ วันลา ตารางและ slot (ตาม D26) | ปาย |
+| ปาย | นัด คิว ผลตรวจ และรายการยา | ช้อป (สุพจน์) |
 | กัญจน์ | คลังและจ่ายเต็ม | กลอง |
 | กลอง | รายการเตือนแบบ manual | กัญจน์ |
 | เฮิร์บ | Broadcast และ Dashboard | ฟีม |
@@ -49,7 +49,7 @@ npm run test
 npm run build
 ```
 
-ยังไม่มี script ชื่อ typecheck ใน package.json ก่อน main ต้องผ่าน gates และกรณีหลัก; ก่อนนำเสนอตรวจ AC01–AC18 รวม database integration/RLS, Chrome 360px/1280px และ keyboard/loading/empty/error โดยไม่ใช้อีเมลจริง
+ยังไม่มี script ชื่อ typecheck ใน package.json ก่อน main ต้องผ่าน gates และกรณีหลัก; ก่อนนำเสนอตรวจ AC01–AC22 รวม database integration/RLS, Chrome 360px/1280px และ keyboard/loading/empty/error โดยไม่ใช้อีเมลจริง
 
 ## โครงสร้างและ Git
 

@@ -14,12 +14,17 @@ import type {
   ScheduleDoctor,
   ScheduleService,
   ScheduleSlot,
+  DoctorLeave,
+  DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
 import {
   deriveSlotStatus,
+  isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
+  validateDoctorLeave,
+  validateDoctorLeavePermission,
   validateSlot,
   type ShopResult,
   type SlotInput,
@@ -35,6 +40,7 @@ export class MockShopRepository implements ShopRepository {
     slots: structuredClone(MOCK_SLOTS),
     doctorAccounts: structuredClone(MOCK_DOCTOR_ACCOUNT_OPTIONS),
     weeklySchedules: structuredClone(MOCK_WEEKLY_SCHEDULES),
+    doctorLeaves: [],
     availabilityTemplates: [],
   };
 
@@ -134,11 +140,40 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: next };
   }
 
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave> {
+    const existing = id ? this.state.doctorLeaves.find((leave) => leave.id === id) : undefined;
+    if (id && !existing) return { ok: false, error: 'ไม่พบวันลาที่ต้องการแก้ไข' };
+    const validation = validateDoctorLeave(input, this.state.doctorLeaves, this.state.doctors, id, actorId, role);
+    if (!validation.ok) return validation;
+
+    const leave: DoctorLeave = existing
+      ? { ...existing, ...validation.value }
+      : {
+          ...validation.value,
+          id: crypto.randomUUID(),
+          createdBy: actorId,
+          createdAt: new Date().toISOString(),
+        };
+    this.state.doctorLeaves = existing
+      ? this.state.doctorLeaves.map((item) => (item.id === id ? leave : item))
+      : [...this.state.doctorLeaves, leave];
+    return { ok: true, value: structuredClone(leave) };
+  }
+
+  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave> {
+    const leave = this.state.doctorLeaves.find((item) => item.id === id);
+    if (!leave) return { ok: false, error: 'ไม่พบวันลาที่ต้องการยกเลิก' };
+    const permission = validateDoctorLeavePermission(leave.doctorId, this.state.doctors, actorId, role);
+    if (!permission.ok) return permission;
+    this.state.doctorLeaves = this.state.doctorLeaves.filter((item) => item.id !== id);
+    return { ok: true, value: structuredClone(leave) };
+  }
+
   saveSlot(input: SlotInput, id?: string, todayDate?: string): ShopResult<ScheduleSlot> {
     const existing = id ? this.state.slots.find((item) => item.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
     const bookedCount = existing?.bookedCount ?? 0;
-    const valid = validateSlot(input, this.state.slots, this.state.doctors, this.state.services, id, bookedCount, todayDate);
+    const valid = validateSlot(input, this.state.slots, this.state.doctors, this.state.services, id, bookedCount, todayDate, this.state.doctorLeaves);
     if (!valid.ok) return valid;
     const existingOffering = this.state.dailyServiceOfferings.find(
       (offering) => offering.serviceId === input.serviceId && offering.doctorId === input.doctorId && offering.offeringDate === input.slotDate,
@@ -240,6 +275,7 @@ export class MockShopRepository implements ShopRepository {
       const weekday = clinicWeekday(date);
       if (weekday < 1 || weekday > 5) continue;
       for (const schedule of this.state.weeklySchedules.filter((item) => item.isActive && item.weekday === weekday)) {
+        if (isDoctorOnLeave(this.state.doctorLeaves, schedule.doctorId, date)) continue;
         for (let minutes = toMinutes(schedule.startTime); minutes + schedule.slotDurationMinutes <= toMinutes(schedule.endTime); minutes += schedule.slotDurationMinutes) {
           const startTime = fromMinutes(minutes); const endTime = fromMinutes(minutes + schedule.slotDurationMinutes);
           const exists = this.state.slots.some((slot) => slot.doctorId === schedule.doctorId && slot.slotDate === date && slot.startTime === startTime && slot.endTime === endTime);
