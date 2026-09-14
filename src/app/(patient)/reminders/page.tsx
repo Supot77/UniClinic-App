@@ -70,13 +70,19 @@ interface MedicationDisplayItem {
   isActive?: boolean;
 }
 
-// ฟังก์ชันแปลงเวลาเป็นภาษาไทย (เช้า, กลางวัน, เย็น, ก่อนนอน)
-function formatTimeToThai(time: string) {
+// ฟังก์ชันแปลงเวลาเป็นภาษาไทย (เช้า, กลางวัน, เย็น, ก่อนนอน) พร้อมระบุการใช้ยากับอาหาร
+function formatTimeToThai(time: string, mealTiming?: string) {
   const hour = parseInt(time.split(':')[0], 10);
-  if (hour >= 5 && hour < 11) return `เช้า ${time} น.`;
-  if (hour >= 11 && hour < 15) return `กลางวัน ${time} น.`;
-  if (hour >= 15 && hour < 20) return `เย็น ${time} น.`;
-  return `ก่อนนอน ${time} น.`;
+  let prefix = '';
+  if (hour >= 5 && hour < 11) prefix = `เช้า ${time} น.`;
+  else if (hour >= 11 && hour < 15) prefix = `กลางวัน ${time} น.`;
+  else if (hour >= 15 && hour < 20) prefix = `เย็น ${time} น.`;
+  else prefix = `ก่อนนอน ${time} น.`;
+
+  if (mealTiming) {
+    return `${prefix} (${mealTiming})`;
+  }
+  return prefix;
 }
 
 // ฟังก์ชันระบุการใช้ยากับอาหารเริ่มต้น (ก่อนอาหาร / หลังอาหาร / พร้อมอาหาร / ก่อนนอน)
@@ -96,11 +102,11 @@ function getMealTimingForMed(name?: string | null, category?: string | null, des
 
 // Helper แปลง Reminder Model เป็น UI Item
 function mapReminderToDisplay(reminder: MedicationReminderWithMedication, customTiming?: string): MedicationDisplayItem {
-  const times = (reminder.reminder_times || []).map((t) => formatTimeToThai(t));
   const med = reminder.medication;
   const desc = med?.description ? ` (${med.description})` : '';
   const dosage = (med as unknown as { dosage?: string })?.dosage ?? `1 ${med?.type ?? 'เม็ด'}`;
   const mealTiming = customTiming || getMealTimingForMed(med?.name, med?.category, med?.description);
+  const times = (reminder.reminder_times || []).map((t) => formatTimeToThai(t, mealTiming));
   const instruction = reminder.status === 'paused'
     ? `รับทาน ครั้งละ ${dosage} · ${mealTiming} · ยาหยุดชั่วคราว`
     : `รับทาน ครั้งละ ${dosage} · ${mealTiming} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
@@ -373,6 +379,7 @@ export default function RemindersPage() {
             display.category = found.category;
             const mealTiming = override || getMealTimingForMed(found.name, found.category, found.description);
             display.mealTiming = mealTiming;
+            display.times = (item.reminder_times || []).map((t) => formatTimeToThai(t, mealTiming));
             const dosage = (found as unknown as { dosage?: string })?.dosage ?? `1 ${found?.type ?? 'เม็ด'}`;
             display.dosageInstruction = item.status === 'paused'
               ? `รับทาน ครั้งละ ${dosage} · ${mealTiming} · ยาหยุดชั่วคราว`
@@ -660,7 +667,7 @@ export default function RemindersPage() {
 
     setIsSaving(true);
     const sortedTimes = [...editTimes].sort();
-    const formattedTimes = sortedTimes.map(formatTimeToThai);
+    const formattedTimes = sortedTimes.map((t) => formatTimeToThai(t, editMealTiming));
     const dosage = (chosenMed as unknown as { dosage?: string })?.dosage ?? `1 ${chosenMed?.type ?? 'เม็ด'}`;
     const desc = (chosenMed as unknown as { description?: string })?.description ? ` (${(chosenMed as unknown as { description?: string }).description})` : '';
     const newInstruction = !editingItem.isActive
@@ -1153,7 +1160,7 @@ export default function RemindersPage() {
                   <option value="">-- กรุณาเลือกยา --</option>
                   {availableMeds.map((med) => (
                     <option key={med.id} value={med.id}>
-                      {med.name} ({med.category} · {med.type})
+                      {med.name} · {getMealTimingForMed(med.name, med.category, med.description)} ({med.category} · {med.type})
                     </option>
                   ))}
                 </select>
@@ -1311,12 +1318,12 @@ export default function RemindersPage() {
                   <option value="">-- กรุณาเลือกยา --</option>
                   {!availableMeds.some((m) => m.id === editMedId) && editingItem.name && (
                     <option value={editMedId}>
-                      {editingItem.name} ({editingItem.category || 'ยาทั่วไป'})
+                      {editingItem.name} · {editingItem.mealTiming || getMealTimingForMed(editingItem.name, editingItem.category)} ({editingItem.category || 'ยาทั่วไป'})
                     </option>
                   )}
                   {availableMeds.map((med) => (
                     <option key={med.id} value={med.id}>
-                      {med.name} ({med.category} · {med.type})
+                      {med.name} · {getMealTimingForMed(med.name, med.category, med.description)} ({med.category} · {med.type})
                     </option>
                   ))}
                 </select>
