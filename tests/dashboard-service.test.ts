@@ -29,6 +29,8 @@ import {
   deleteStaffProfile,
   getBroadcastHistory,
   getDashboardView,
+  getNotifications,
+  getUnreadNotificationRecipients,
   getStaffProfileDirectory,
   sendBroadcast,
 } from '@/services/dashboardService';
@@ -89,6 +91,28 @@ describe('Supabase Broadcast service', () => {
       },
     }]);
     expect(supabaseMock.rpc).toHaveBeenCalledWith('get_broadcast_history', { p_limit: 20 });
+  });
+
+  it('passes the selected date range to staff notification RPCs', async () => {
+    const dateRange = {
+      startAt: '2026-09-07T17:00:00.000Z',
+      endAt: '2026-09-13T16:59:59.999Z',
+    };
+    supabaseMock.rpc.mockResolvedValue({ data: [], error: null });
+
+    await getBroadcastHistory(100, dateRange);
+    await getUnreadNotificationRecipients(100, dateRange);
+
+    expect(supabaseMock.rpc).toHaveBeenNthCalledWith(1, 'get_broadcast_history', {
+      p_limit: 100,
+      p_start_at: dateRange.startAt,
+      p_end_at: dateRange.endAt,
+    });
+    expect(supabaseMock.rpc).toHaveBeenNthCalledWith(2, 'get_unread_notification_recipients', {
+      p_limit: 100,
+      p_start_at: dateRange.startAt,
+      p_end_at: dateRange.endAt,
+    });
   });
 
   it('surfaces an RPC error without reporting a false success', async () => {
@@ -171,6 +195,18 @@ describe('Supabase dashboard service', () => {
     expect(view.appointmentQueue).toHaveLength(1);
     expect(view.appointmentQueue[0].patientName).toBe('ผู้ป่วยหนึ่ง');
     expect(view.recentNotifications).toHaveLength(1);
+  });
+
+  it('filters a notification inbox by the selected date range', async () => {
+    database.notifications = [
+      { id: 'notification-in-range', user_id: 'patient-1', type: 'system', title: 'วันนี้', message: 'ในช่วงเวลา', read_at: null, deleted_at: null, created_at: '2026-09-08T03:00:00.000Z' },
+      { id: 'notification-out-of-range', user_id: 'patient-1', type: 'system', title: 'เก่า', message: 'นอกช่วงเวลา', read_at: null, deleted_at: null, created_at: '2026-08-01T03:00:00.000Z' },
+    ];
+
+    await expect(getNotifications('patient-1', 100, {
+      startAt: '2026-09-07T17:00:00.000Z',
+      endAt: '2026-09-13T16:59:59.999Z',
+    })).resolves.toEqual([expect.objectContaining({ id: 'notification-in-range', title: 'วันนี้' })]);
   });
 
   it('scopes a doctor dashboard to that doctor slots', async () => {
