@@ -245,9 +245,10 @@ export class DatabaseShopRepository {
     id?: string,
     actorId?: string,
     role?: UserRole,
+    todayDate?: string,
   ): Promise<ShopResult<DoctorLeave>> {
     if (id && !isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
-    const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role);
+    const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role, todayDate);
     if (!validation.ok) return validation;
 
     const payload = {

@@ -143,7 +143,7 @@ describe('MockShopRepository', () => {
   it('skips doctor leave dates while creating batch slots', () => {
     const repository = new MockShopRepository();
     const serviceId = repository.snapshot().services[0].id;
-    expect(repository.saveDoctorLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-15', endDate: '2026-09-15', reason: 'ประชุม' })).toMatchObject({ ok: true });
+    expect(repository.saveDoctorLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-15', endDate: '2026-09-15', reason: 'ประชุม' }, undefined, undefined, undefined, '2026-09-07')).toMatchObject({ ok: true });
 
     const result = repository.createSlotBatch(
       {
