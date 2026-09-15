@@ -385,4 +385,22 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
     expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(1);
   });
+
+  it('closes medication details popup modal when clicking outside (on backdrop)', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Click on Paracetamol row / card to open modal
+    const medText = await screen.findByText('Paracetamol');
+    const medRow = medText.closest('tr');
+    fireEvent.click(medRow!);
+
+    expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+
+    // Click outside on the backdrop
+    const backdrop = screen.getByTestId('medication-details-backdrop');
+    fireEvent.click(backdrop);
+
+    // Modal should be closed
+    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+  });
 });

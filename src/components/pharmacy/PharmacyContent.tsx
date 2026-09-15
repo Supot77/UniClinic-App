@@ -187,6 +187,17 @@ export default function PharmacyContent({
     return () => clearTimeout(timer);
   }, [successToast]);
 
+  useEffect(() => {
+    if (!viewingItem) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setViewingItem(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewingItem]);
+
 interface RawMedicalRecord {
   id: string;
   appointment_id: string;
@@ -1559,8 +1570,15 @@ interface RawInventoryLog {
 
       {/* Medication Details Popup Modal */}
       {viewingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
+        <div
+          data-testid="medication-details-backdrop"
+          onClick={() => setViewingItem(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95"
+          >
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
               <div className="flex items-start gap-3">
