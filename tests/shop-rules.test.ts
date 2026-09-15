@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { MOCK_DEPARTMENTS, MOCK_DOCTORS, MOCK_SERVICES, MOCK_SLOTS } from '@/mocks/scheduleData';
-import { deriveSlotStatus, isSlotExpired, validateDepartmentName, validateSlot } from '@/features/shop/domain/rules';
+import {
+  buildSlotBatchPlan,
+  deriveSlotStatus,
+  getClinicDatesForWeekdays,
+  isSlotExpired,
+  validateDepartmentName,
+  validateSlot,
+} from '@/features/shop/domain/rules';
 
 const validSlot = {
   doctorId: 'profile-stephen-strange',
@@ -148,11 +155,51 @@ describe('shop schedule domain rules', () => {
     expect(validateSlot(validSlot, [], MOCK_DOCTORS, inactiveService, undefined, 0, TEST_TODAY)).toMatchObject({ ok: false, field: 'serviceId' });
   });
 
-  it('closes slot immediately when capacity is full, while preserving closed status', () => {
-    expect(deriveSlotStatus(4, 4)).toBe('closed');
-    expect(deriveSlotStatus(5, 4)).toBe('closed');
+  it('builds selected weekdays and skips leave dates and existing conflicts', () => {
+    expect(getClinicDatesForWeekdays('2026-09-07', '2026-09-13', [1, 3])).toEqual(['2026-09-07', '2026-09-09']);
+
+    const existingSlot = {
+      ...validSlot,
+      id: 'existing-slot',
+      slotDate: '2026-09-08',
+      startTime: '09:00',
+      endTime: '09:30',
+      serviceOfferingId: 'offering-1',
+      bookedCount: 0,
+      status: 'available' as const,
+      hasHistory: false,
+    };
+    const result = buildSlotBatchPlan(
+      {
+        doctorId: validSlot.doctorId,
+        serviceId: validSlot.serviceId,
+        dates: ['2026-09-08', '2026-09-09'],
+        timeBlocks: [{ startTime: '09:00', endTime: '09:30', maxCapacity: 1 }],
+      },
+      [existingSlot],
+      MOCK_DOCTORS,
+      MOCK_SERVICES,
+      TEST_TODAY,
+      [{ id: 'leave-1', doctorId: validSlot.doctorId, startDate: '2026-09-09', endDate: '2026-09-09' }],
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: { slots: [], skippedLeaveDates: ['2026-09-09'], skippedConflictCount: 1 },
+    });
+  });
+
+  it('marks slot full at capacity while preserving manual and expired closed status', () => {
+    expect(deriveSlotStatus(4, 4)).toBe('full');
+    expect(deriveSlotStatus(5, 4)).toBe('full');
     expect(deriveSlotStatus(0, 4)).toBe('available');
     expect(deriveSlotStatus(0, 4, 'closed')).toBe('closed');
+    expect(deriveSlotStatus(4, 4, undefined, {
+      slotDate: '2026-09-07',
+      startTime: '09:00',
+      currentDate: '2026-09-07',
+      currentTime: '10:00',
+    })).toBe('closed');
   });
 
   it('closes slot immediately when past start time or past date', () => {

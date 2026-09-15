@@ -8,13 +8,20 @@ import type {
   ScheduleService,
   ScheduleSlot,
   ScheduleSlotStatus,
+  DoctorLeave,
+  DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotInput } from '../domain/rules';
+import type { ShopResult, SlotBatchInput, SlotInput } from '../domain/rules';
 import {
+  buildSlotBatchPlan,
   deriveSlotStatus,
+  isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
+  validateDoctorLeave,
+  validateDoctorLeavePermission,
+  validateSlotPermission,
   validateSlot,
 } from '../domain/rules';
 
@@ -25,6 +32,7 @@ export interface DatabaseShopSnapshot {
   dailyServiceOfferings: DailyServiceOffering[];
   slots: ScheduleSlot[];
   doctorAccounts: DoctorAccountOption[];
+  doctorLeaves: DoctorLeave[];
 }
 
 function isValidUUID(id: string): boolean {
@@ -198,6 +206,116 @@ export class DatabaseShopRepository {
         initials,
       };
     });
+  }
+
+  async fetchDoctorLeaves(): Promise<DoctorLeave[]> {
+    const { data, error } = await this.client
+      .from('doctor_leaves')
+      .select('id, doctor_id, start_date, end_date, reason, created_by, created_at')
+      .order('start_date', { ascending: true });
+
+    if (error || !data) {
+      console.error('Error fetching doctor leaves:', error);
+      return [];
+    }
+
+    return data.map((row: {
+      id: string;
+      doctor_id: string;
+      start_date: string;
+      end_date: string;
+      reason: string | null;
+      created_by: string | null;
+      created_at: string | null;
+    }) => ({
+      id: row.id,
+      doctorId: row.doctor_id,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      reason: row.reason ?? undefined,
+      createdBy: row.created_by ?? undefined,
+      createdAt: row.created_at ?? undefined,
+    }));
+  }
+
+  async saveDoctorLeave(
+    input: DoctorLeaveInput,
+    existingLeaves: DoctorLeave[],
+    doctors: ScheduleDoctor[],
+    id?: string,
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<DoctorLeave>> {
+    if (id && !isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
+    const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role);
+    if (!validation.ok) return validation;
+
+    const payload = {
+      doctor_id: validation.value.doctorId,
+      start_date: validation.value.startDate,
+      end_date: validation.value.endDate,
+      reason: validation.value.reason ?? null,
+      ...(actorId && isValidUUID(actorId) ? { created_by: actorId } : {}),
+    };
+    const query = id
+      ? this.client.from('doctor_leaves').update(payload).eq('id', id)
+      : this.client.from('doctor_leaves').insert(payload);
+    const { data, error } = await query
+      .select('id, doctor_id, start_date, end_date, reason, created_by, created_at')
+      .single();
+
+    if (error || !data) {
+      const message = error?.code === '23P01'
+        ? 'ช่วงวันลาซ้ำซ้อนกับวันลาเดิมของแพทย์'
+        : error?.message || 'ไม่สามารถบันทึกวันลาแพทย์ได้';
+      return { ok: false, error: message };
+    }
+    return {
+      ok: true,
+      value: {
+        id: data.id,
+        doctorId: data.doctor_id,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        reason: data.reason ?? undefined,
+        createdBy: data.created_by ?? undefined,
+        createdAt: data.created_at ?? undefined,
+      },
+    };
+  }
+
+  async deleteDoctorLeave(
+    id: string,
+    existingLeaves: DoctorLeave[],
+    doctors: ScheduleDoctor[],
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<DoctorLeave>> {
+    if (!isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
+    const target = existingLeaves.find((leave) => leave.id === id);
+    if (!target) return { ok: false, error: 'ไม่พบวันลาที่ต้องการยกเลิก' };
+    const permission = validateDoctorLeavePermission(target.doctorId, doctors, actorId, role);
+    if (!permission.ok) return permission;
+
+    const { data, error } = await this.client
+      .from('doctor_leaves')
+      .delete()
+      .eq('id', id)
+      .select('id, doctor_id, start_date, end_date, reason, created_by, created_at')
+      .single();
+    if (error || !data) return { ok: false, error: error?.message || 'ไม่สามารถยกเลิกวันลาแพทย์ได้' };
+    return {
+      ok: true,
+      value: {
+        id: data.id,
+        doctorId: data.doctor_id,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        reason: data.reason ?? undefined,
+        createdBy: data.created_by ?? undefined,
+        createdAt: data.created_at ?? undefined,
+      },
+    };
   }
 
   async saveDepartment(
@@ -419,14 +537,10 @@ export class DatabaseShopRepository {
   }
 
   async fetchSlots(): Promise<ScheduleSlot[]> {
-    const { data, error } = await this.client
-      .from('appointment_slots')
-      .select('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, booked_count, status, created_at, updated_at, daily_service_offering:daily_service_offerings(service_id)')
-      .order('slot_date', { ascending: true })
-      .order('start_time', { ascending: true });
+    const { data, error } = await this.client.rpc('get_schedule_slots');
 
     if (error || !data) {
-      console.error('Error fetching appointment_slots:', error);
+      console.error('Error fetching schedule slots:', error);
       return [];
     }
 
@@ -434,7 +548,7 @@ export class DatabaseShopRepository {
       id: string;
       doctor_id: string;
       daily_service_offering_id: string;
-      daily_service_offering: { service_id: string } | Array<{ service_id: string }> | null;
+      service_id: string;
       slot_date: string;
       start_time: string;
       end_time: string;
@@ -445,7 +559,7 @@ export class DatabaseShopRepository {
       id: row.id,
       doctorId: row.doctor_id,
       serviceOfferingId: row.daily_service_offering_id,
-      serviceId: Array.isArray(row.daily_service_offering) ? row.daily_service_offering[0]?.service_id ?? '' : row.daily_service_offering?.service_id ?? '',
+      serviceId: row.service_id,
       slotDate: row.slot_date,
       startTime: row.start_time.slice(0, 5),
       endTime: row.end_time.slice(0, 5),
@@ -464,6 +578,7 @@ export class DatabaseShopRepository {
     services: ScheduleService[],
     id?: string,
     todayDate?: string,
+    doctorLeaves: DoctorLeave[] = [],
   ): Promise<ShopResult<ScheduleSlot>> {
     if (!isValidUUID(input.doctorId)) {
       return {
@@ -476,7 +591,7 @@ export class DatabaseShopRepository {
     const existing = id ? existingSlots.find((item) => item.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
     const bookedCount = existing?.bookedCount ?? 0;
-    const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate);
+    const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate, doctorLeaves);
     if (!valid.ok) return valid;
 
     const nextStatus = deriveSlotStatus(bookedCount, input.maxCapacity, existing?.status, {
@@ -574,6 +689,51 @@ export class DatabaseShopRepository {
     };
   }
 
+  async createSlotBatch(
+    input: SlotBatchInput,
+    existingSlots: ScheduleSlot[],
+    doctors: ScheduleDoctor[],
+    services: ScheduleService[],
+    doctorLeaves: DoctorLeave[] = [],
+    todayDate?: string,
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<number>> {
+    if (!isValidUUID(input.doctorId)) {
+      return { ok: false, error: 'ไอดีแพทย์ไม่ถูกต้อง (ต้องเลือกแพทย์จริงในระบบ)', field: 'doctorId' };
+    }
+
+    const permission = validateSlotPermission(input.doctorId, doctors, actorId, role);
+    if (!permission.ok) return permission;
+
+    const plan = buildSlotBatchPlan(input, existingSlots, doctors, services, todayDate, doctorLeaves);
+    if (!plan.ok) return plan;
+    if (plan.value.slots.length === 0) return { ok: true, value: 0 };
+
+    const { data, error } = await this.client.rpc('create_appointment_slot_batch', {
+      p_doctor_id: input.doctorId,
+      p_service_id: input.serviceId,
+      p_dates: [...new Set(input.dates)].sort(),
+      p_time_blocks: input.timeBlocks.map((block) => ({
+        start_time: block.startTime,
+        end_time: block.endTime,
+        max_capacity: block.maxCapacity,
+      })),
+    });
+
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') {
+        return { ok: false, error: 'ยังไม่พร้อมใช้งาน กรุณาติดตั้ง migration 24_batch_create_slots.sql ใน Supabase ก่อน' };
+      }
+      return { ok: false, error: error.message || 'ไม่สามารถสร้างรอบตรวจหลายวันได้' };
+    }
+
+    const createdCount = typeof data === 'number' ? data : Number(data);
+    return Number.isFinite(createdCount)
+      ? { ok: true, value: createdCount }
+      : { ok: false, error: 'ผลลัพธ์การสร้างรอบตรวจไม่ถูกต้อง' };
+  }
+
   async toggleSlot(
     id: string,
     currentSlot: ScheduleSlot,
@@ -634,6 +794,7 @@ export class DatabaseShopRepository {
     existingSlots: ScheduleSlot[],
     services: ScheduleService[],
     requestedServiceId?: string,
+    doctorLeaves: DoctorLeave[] = [],
   ): Promise<ShopResult<number>> {
     if (!startDate || !endDate || startDate > endDate) {
       return { ok: false, error: 'ช่วงวันที่สร้างรอบไม่ถูกต้อง' };
@@ -683,6 +844,7 @@ export class DatabaseShopRepository {
       const weekday = clinicWeekday(date);
       if (weekday < 1 || weekday > 5) continue;
       for (const schedule of validSchedules.filter((s) => s.weekday === weekday)) {
+        if (isDoctorOnLeave(doctorLeaves, schedule.doctorId, date)) continue;
         for (
           let minutes = toMinutes(schedule.startTime);
           minutes + schedule.slotDurationMinutes <= toMinutes(schedule.endTime);

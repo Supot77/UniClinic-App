@@ -1,18 +1,20 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DepartmentWorkspace from '@/components/schedules/DepartmentWorkspace';
-import type { ScheduleDepartment, ScheduleDoctor, ScheduleSlot } from '@/types/schedule';
+import type { DoctorLeave, ScheduleDepartment, ScheduleDoctor, ScheduleSlot } from '@/types/schedule';
 
 const shop = vi.hoisted(() => ({
   departments: [] as ScheduleDepartment[],
   doctors: [] as ScheduleDoctor[],
   slots: [] as ScheduleSlot[],
+  doctorLeaves: [] as DoctorLeave[],
   doctorAccounts: [] as { profileId: string; fullName: string; email: string; initials: string }[],
   isLoading: false,
   saveDepartment: vi.fn(),
   toggleDepartment: vi.fn(),
   saveDoctor: vi.fn(),
   toggleDoctor: vi.fn(),
+  deleteDoctorLeave: vi.fn(),
 }));
 
 vi.mock('@/features/shop/context/ShopProvider', () => ({ useShop: () => shop }));
@@ -22,6 +24,7 @@ describe('Department and doctor workspace', () => {
     vi.clearAllMocks();
     shop.isLoading = false;
     shop.slots = [];
+    shop.doctorLeaves = [];
     shop.departments = [
       { id: 'general', name: 'เวชปฏิบัติทั่วไป', description: 'ตรวจอาการทั่วไป', isActive: true },
       { id: 'physio', name: 'กายภาพบำบัด', description: '', isActive: true },
@@ -156,5 +159,20 @@ describe('Department and doctor workspace', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
     fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้ นพ. สมชาย ใจดี' }));
     expect(shop.toggleDoctor).not.toHaveBeenCalled();
+  });
+
+  it('shows the latest leave range and lets staff cancel it without touching slots', async () => {
+    const leave: DoctorLeave = { id: 'leave-2', doctorId: 'doctor-2', startDate: '2026-09-15', endDate: '2026-09-17', reason: 'ประชุมวิชาการ' };
+    shop.doctorLeaves = [leave];
+    shop.deleteDoctorLeave.mockResolvedValueOnce({ ok: true, value: leave });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<DepartmentWorkspace />);
+    fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
+
+    expect(screen.getByText('ลาตรวจ (15 ก.ย. 2569–17 ก.ย. 2569)')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา พญ. สมใจ ใจดี' }));
+    expect(await screen.findByText('ยกเลิกวันลาของ พญ. สมใจ ใจดี แล้ว')).toBeInTheDocument();
+    expect(shop.deleteDoctorLeave).toHaveBeenCalledWith('leave-2');
+    expect(shop.slots).toEqual([]);
   });
 });

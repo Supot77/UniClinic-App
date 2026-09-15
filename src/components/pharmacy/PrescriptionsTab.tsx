@@ -66,35 +66,6 @@ interface PrescriptionsTabProps {
   onShowToast: (message: string) => void;
 }
 
-export const DISPENSED_STORAGE_KEY = 'uniclinic_dispensed_prescriptions';
-
-export function getLocalDispensedOrders(): Record<
-  string,
-  { dispensed_at: string; pharmacist_name?: string }
-> {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(DISPENSED_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveLocalDispensedOrder(orderId: string, pharmacistName?: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    const current = getLocalDispensedOrders();
-    current[orderId] = {
-      dispensed_at: new Date().toISOString(),
-      pharmacist_name: pharmacistName,
-    };
-    localStorage.setItem(DISPENSED_STORAGE_KEY, JSON.stringify(current));
-  } catch (e) {
-    console.warn('Failed to save to localStorage:', e);
-  }
-}
-
 function formatDisplayDateTime(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -212,56 +183,70 @@ export default function PrescriptionsTab({
         throw new Error('ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่');
       }
 
-      for (const item of dispenseTarget.prescribed_medications) {
-        // Skip medication if it has already been marked as dispensed
-        if (item.dispensed) {
-          continue;
-        }
-
-        const med = medications.find(
-          (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
-        );
-
-        const targetMedId = med ? med.id : item.medication_id;
-        const currentStock = med ? med.stock : 0;
-        const newStock = Math.max(0, currentStock - item.quantity);
-
-        if (med) {
-          const { error: updateError } = await supabase
-            .from('medications')
-            .update({ stock: newStock, updated_at: new Date().toISOString() })
-            .eq('id', targetMedId);
-
-          if (updateError) {
-            const updateMsg = updateError.message || JSON.stringify(updateError);
-            console.error(`Failed to update stock for ${item.name}:`, updateMsg);
-            throw new Error(`ไม่สามารถอัปเดตสต็อกของ ${item.name}: ${updateMsg}`);
+      if (!skipStockDeduction) {
+        for (const item of dispenseTarget.prescribed_medications) {
+          // Skip medication if it has already been marked as dispensed
+          if (item.dispensed) {
+            continue;
           }
-        }
 
-        const reasonText = dispenseReason.trim()
-          ? `${dispenseReason.trim()} (จ่ายยาตามใบสั่งแพทย์: ${dispenseTarget.patient_name} บันทึก #${dispenseTarget.id.slice(0, 8)})`
-          : `จ่ายยาตามใบสั่งแพทย์: ${dispenseTarget.patient_name} (บันทึก #${dispenseTarget.id.slice(0, 8)})`;
-
-        const { error: logError } = await supabase.from('inventory_logs').insert({
-          medication_id: targetMedId,
-          pharmacist_id: effectiveUserId,
-          action: 'dispense',
-          quantity: item.quantity,
-          reason: reasonText,
-          idempotency_key: `dispense:${dispenseTarget.id}:${item.medication_id}`,
-        });
-
-        if (logError) {
-          const logErrMsg =
-            logError.message ||
-            logError.details ||
-            logError.code ||
-            'RLS policy or permission limitation';
-          console.warn(
-            `[PrescriptionsTab] Notice: inventory_logs insert skipped/failed for ${item.name}:`,
-            logErrMsg
+          const med = medications.find(
+            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
           );
+
+          const targetMedId = med ? med.id : item.medication_id;
+          const currentStock = med ? med.stock : 0;
+          const newStock = Math.max(0, currentStock - item.quantity);
+
+          if (med) {
+            const { error: updateError } = await supabase
+              .from('medications')
+              .update({ stock: newStock, updated_at: new Date().toISOString() })
+              .eq('id', targetMedId);
+
+            if (updateError) {
+              const updateMsg = updateError.message || JSON.stringify(updateError);
+              console.error(`Failed to update stock for ${item.name}:`, updateMsg);
+              throw new Error(`ไม่สามารถอัปเดตสต็อกของ ${item.name}: ${updateMsg}`);
+            }
+          }
+
+          const reasonText = dispenseReason.trim()
+            ? `${dispenseReason.trim()} (จ่ายยาตามใบสั่งแพทย์: ${dispenseTarget.patient_name} บันทึก #${dispenseTarget.id.slice(0, 8)})`
+            : `จ่ายยาตามใบสั่งแพทย์: ${dispenseTarget.patient_name} (บันทึก #${dispenseTarget.id.slice(0, 8)})`;
+
+          const { error: logError } = await supabase.from('inventory_logs').insert({
+            medication_id: targetMedId,
+            pharmacist_id: effectiveUserId,
+            action: 'dispense',
+            quantity: item.quantity,
+            reason: reasonText,
+            idempotency_key: `dispense:${dispenseTarget.id}:${item.medication_id || targetMedId}`,
+          });
+
+          if (logError) {
+            const logErrMsg =
+              logError.message ||
+              logError.details ||
+              logError.code ||
+              'RLS policy or permission limitation';
+            const isDuplicate =
+              logError.code === '23505' ||
+              logErrMsg.includes('duplicate key') ||
+              logErrMsg.includes('idx_inventory_logs_idempotency_unique');
+
+            if (isDuplicate) {
+              console.info(
+                `[PrescriptionsTab] Item ${item.name} was already recorded in inventory_logs. Proceeding to update record.`
+              );
+            } else {
+              console.error(
+                `[PrescriptionsTab] Error: inventory_logs insert failed for ${item.name}:`,
+                logErrMsg
+              );
+              throw new Error(`ไม่สามารถบันทึกประวัติการตัดจ่ายยา ${item.name}: ${logErrMsg}`);
+            }
+          }
         }
       }
 
@@ -274,34 +259,48 @@ export default function PrescriptionsTab({
         dispensed_by: item.dispensed_by || effectiveUserId,
       }));
 
-      // NOTE: Attempt update to medical_records (catch if table permission denied on remote)
-      try {
-        const { error: recordError } = await supabase
-          .from('medical_records')
-          .update({
-            prescribed_medications: updatedMeds,
-          })
-          .eq('id', dispenseTarget.id);
+      // Update medical_records table directly in Supabase (with fallback to RPC)
+      let updateError: { message?: string } | null = null;
+      const { error: recordError } = await supabase
+        .from('medical_records')
+        .update({
+          prescribed_medications: updatedMeds,
+        })
+        .eq('id', dispenseTarget.id);
 
-        if (recordError) {
-          console.warn(
-            '[PrescriptionsTab] Notice: medical_records table update skipped/denied:',
-            recordError.message || recordError
-          );
+      if (recordError) {
+        console.warn(
+          '[PrescriptionsTab] Direct update failed, attempting RPC dispense_medical_record_prescriptions:',
+          recordError
+        );
+        const { error: rpcError } = await supabase.rpc('dispense_medical_record_prescriptions', {
+          p_record_id: dispenseTarget.id,
+          p_prescribed_medications: updatedMeds,
+        });
+
+        if (rpcError) {
+          console.error('[PrescriptionsTab] Both direct update and RPC failed:', rpcError);
+          updateError = recordError;
         }
-      } catch (e) {
-        console.warn('[PrescriptionsTab] Medical record update catch:', e);
       }
 
-      // Persist locally so status immediately becomes dispensed even without table permission
-      saveLocalDispensedOrder(dispenseTarget.id, dispenseTarget.doctor_name || 'แพทย์ผู้ตรวจ');
+      if (updateError) {
+        throw new Error(
+          `ไม่สามารถบันทึกสถานะการจ่ายยาในระบบฐานข้อมูลได้: ${updateError.message || JSON.stringify(updateError)}`
+        );
+      }
 
       // Optimistic update to parent state
       onPrescriptionDispensed?.(dispenseTarget.id, updatedMeds);
 
-      onShowToast(`ตัดจ่ายยาสำหรับ ${dispenseTarget.patient_name} และอัปเดตสต็อกเรียบร้อยแล้ว`);
+      onShowToast(
+        skipStockDeduction
+          ? `บันทึกสถานะจ่ายยาสำหรับ ${dispenseTarget.patient_name} เรียบร้อยแล้ว (ไม่หักสต็อกซ้ำ)`
+          : `ตัดจ่ายยาสำหรับ ${dispenseTarget.patient_name} และอัปเดตสต็อกเรียบร้อยแล้ว`
+      );
       setDispenseTarget(null);
       setDispenseReason('');
+      setSkipStockDeduction(false);
 
       await onStockUpdated();
     } catch (err: unknown) {

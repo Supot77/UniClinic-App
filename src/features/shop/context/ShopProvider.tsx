@@ -20,9 +20,11 @@ import type {
   ScheduleDoctor,
   ScheduleService,
   ScheduleSlot,
+  DoctorLeave,
+  DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotInput } from '../domain/rules';
+import type { ShopResult, SlotBatchInput, SlotInput } from '../domain/rules';
 
 interface ShopContextValue extends ShopSnapshot {
   isLoading: boolean;
@@ -39,11 +41,19 @@ interface ShopContextValue extends ShopSnapshot {
   toggleService(id: string): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>>;
   saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): Promise<ShopResult<ScheduleDoctor>>;
   toggleDoctor(id: string): Promise<ShopResult<ScheduleDoctor | 'deleted'>>;
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): Promise<ShopResult<DoctorLeave>>;
+  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): Promise<ShopResult<DoctorLeave>>;
   saveSlot(
     input: SlotInput,
     id?: string,
     todayDate?: string,
   ): Promise<ShopResult<ScheduleSlot>> | ShopResult<ScheduleSlot>;
+  createSlotBatch(
+    input: SlotBatchInput,
+    todayDate?: string,
+    actorId?: string,
+    role?: UserRole,
+  ): Promise<ShopResult<number>> | ShopResult<number>;
   toggleSlot(
     id: string,
     actorId?: string,
@@ -90,6 +100,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         services: [],
         dailyServiceOfferings: [],
         slots: [],
+        doctorLeaves: [],
         weeklySchedules: [],
         doctorAccounts: [],
       };
@@ -101,13 +112,14 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!dbRepo) return;
     try {
-      const [deptList, docList, serviceList, offeringList, accountList, slotList] = await Promise.all([
+      const [deptList, docList, serviceList, offeringList, accountList, slotList, doctorLeaveList] = await Promise.all([
         dbRepo.fetchDepartments(),
         dbRepo.fetchDoctors(),
         dbRepo.fetchServices(),
         dbRepo.fetchDailyServiceOfferings(),
         dbRepo.fetchDoctorAccounts(),
         dbRepo.fetchSlots(),
+        dbRepo.fetchDoctorLeaves(),
       ]);
 
       setSnapshot({
@@ -116,6 +128,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         services: serviceList,
         dailyServiceOfferings: offeringList,
         slots: slotList,
+        doctorLeaves: doctorLeaveList,
         doctorAccounts: accountList,
         weeklySchedules: [],
       });
@@ -129,13 +142,14 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     (async () => {
       if (dbRepo) {
         try {
-          const [deptList, docList, serviceList, offeringList, accountList, slotList] = await Promise.all([
+          const [deptList, docList, serviceList, offeringList, accountList, slotList, doctorLeaveList] = await Promise.all([
             dbRepo.fetchDepartments(),
             dbRepo.fetchDoctors(),
             dbRepo.fetchServices(),
             dbRepo.fetchDailyServiceOfferings(),
             dbRepo.fetchDoctorAccounts(),
             dbRepo.fetchSlots(),
+            dbRepo.fetchDoctorLeaves(),
           ]);
           if (isMounted) {
             setSnapshot({
@@ -144,6 +158,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
               services: serviceList,
               dailyServiceOfferings: offeringList,
               slots: slotList,
+              doctorLeaves: doctorLeaveList,
               doctorAccounts: accountList,
               weeklySchedules: [],
             });
@@ -159,6 +174,19 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       isMounted = false;
     };
   }, [dbRepo]);
+
+  useEffect(() => {
+    if (!dbRepo) return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [dbRepo, refresh]);
 
   const run = useCallback(
     <T,>(command: () => ShopResult<T>) => {
@@ -331,6 +359,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
             snapshot.services,
             id,
             todayDate,
+            snapshot.doctorLeaves,
           );
           if (result.ok) {
             await refresh();
@@ -342,7 +371,82 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       }
       return run(() => repository.saveSlot(input, id, todayDate));
     },
-    [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.services, snapshot.slots],
+    [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
+  );
+
+  const handleCreateSlotBatch = useCallback(
+    async (
+      input: SlotBatchInput,
+      todayDate?: string,
+      actorId?: string,
+      role?: UserRole,
+    ): Promise<ShopResult<number>> => {
+      if (dbRepo) {
+        const isDbDoctor = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.doctorId);
+        if (!isDbDoctor) {
+          return { ok: false, error: 'รหัสแพทย์ไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)', field: 'doctorId' };
+        }
+        try {
+          const result = await dbRepo.createSlotBatch(
+            input,
+            snapshot.slots,
+            snapshot.doctors,
+            snapshot.services,
+            snapshot.doctorLeaves,
+            todayDate,
+            actorId,
+            role,
+          );
+          if (result.ok) await refresh();
+          return result;
+        } catch (err) {
+          return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจหลายวัน' };
+        }
+      }
+      return run(() => repository.createSlotBatch(input, todayDate, actorId, role));
+    },
+    [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
+  );
+
+  const handleSaveDoctorLeave = useCallback(
+    async (
+      input: DoctorLeaveInput,
+      id?: string,
+      actorId?: string,
+      role?: UserRole,
+    ): Promise<ShopResult<DoctorLeave>> => {
+      const isDbId = id ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) : true;
+      if (dbRepo) {
+        if (!isDbId) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
+        try {
+          const result = await dbRepo.saveDoctorLeave(input, snapshot.doctorLeaves, snapshot.doctors, id, actorId, role);
+          if (result.ok) await refresh();
+          return result;
+        } catch (err) {
+          return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกวันลาแพทย์' };
+        }
+      }
+      return run(() => repository.saveDoctorLeave(input, id, actorId, role));
+    },
+    [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.doctors],
+  );
+
+  const handleDeleteDoctorLeave = useCallback(
+    async (id: string, actorId?: string, role?: UserRole): Promise<ShopResult<DoctorLeave>> => {
+      const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      if (dbRepo) {
+        if (!isDbId) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
+        try {
+          const result = await dbRepo.deleteDoctorLeave(id, snapshot.doctorLeaves, snapshot.doctors, actorId, role);
+          if (result.ok) await refresh();
+          return result;
+        } catch (err) {
+          return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการยกเลิกวันลาแพทย์' };
+        }
+      }
+      return run(() => repository.deleteDoctorLeave(id, actorId, role));
+    },
+    [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.doctors],
   );
 
   const handleToggleSlot = useCallback(
@@ -387,6 +491,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
             snapshot.slots,
             snapshot.services,
             serviceId,
+            snapshot.doctorLeaves,
           );
           if (result.ok) {
             await refresh();
@@ -398,7 +503,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       }
       return run(() => repository.generateSlotsForRange(startDate, endDate, today, serviceId));
     },
-    [dbRepo, refresh, repository, run, snapshot.services, snapshot.slots, snapshot.weeklySchedules],
+    [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.services, snapshot.slots, snapshot.weeklySchedules],
   );
 
   const value = useMemo<ShopContextValue>(
@@ -412,7 +517,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       toggleService: handleToggleService,
       saveDoctor: handleSaveDoctor,
       toggleDoctor: handleToggleDoctor,
+      saveDoctorLeave: handleSaveDoctorLeave,
+      deleteDoctorLeave: handleDeleteDoctorLeave,
       saveSlot: handleSaveSlot,
+      createSlotBatch: handleCreateSlotBatch,
       toggleSlot: handleToggleSlot,
       saveWeeklySchedule: (input, id) => run(() => repository.saveWeeklySchedule(input, id)),
       generateSlotsForRange: handleGenerateSlotsForRange,
@@ -429,7 +537,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       handleToggleService,
       handleSaveDoctor,
       handleToggleDoctor,
+      handleSaveDoctorLeave,
+      handleDeleteDoctorLeave,
       handleSaveSlot,
+      handleCreateSlotBatch,
       handleToggleSlot,
       handleGenerateSlotsForRange,
       run,

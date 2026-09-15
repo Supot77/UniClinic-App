@@ -14,6 +14,7 @@ import type {
   Notification,
   NotificationType,
   Profile,
+  UnreadNotificationRecipient,
   UserRole,
 } from '@/types/database';
 import {
@@ -34,6 +35,11 @@ interface SendBroadcastResult {
 interface BroadcastRpcRow {
   recipient_count: number;
   created: boolean;
+}
+
+export interface NotificationDateRange {
+  startAt: string;
+  endAt: string;
 }
 
 interface BroadcastHistoryRpcRow {
@@ -79,16 +85,33 @@ export interface StaffProfileDirectoryItem {
 }
 
 // --- Notifications ---
-export async function getNotifications(userId: string, limit = 20): Promise<Notification[]> {
-  const { data, error } = await supabase
+export async function getNotifications(userId: string, limit = 20, dateRange?: NotificationDateRange): Promise<Notification[]> {
+  let query = supabase
     .from('notifications')
     .select('id, user_id, type, title, message, event_key, broadcast_id, read_at, deleted_at, created_at')
     .eq('user_id', userId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .is('deleted_at', null);
+  if (dateRange) query = query.gte('created_at', dateRange.startAt).lte('created_at', dateRange.endAt);
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
-  return ((data ?? []) as NotificationRow[]).map(toNotification);
+  const notifications = ((data ?? []) as NotificationRow[]).map(toNotification);
+  const broadcastIds = notifications.map((item) => item.broadcast_id).filter((id): id is string => Boolean(id));
+  if (broadcastIds.length === 0) return notifications;
+
+  const { data: senders, error: senderError } = await supabase.rpc('get_notification_senders', {
+    p_notification_ids: notifications.map((item) => item.id),
+  });
+  if (senderError) {
+    // Keep the inbox usable until the sender lookup migration is applied.
+    return notifications;
+  }
+
+  const senderByNotification = new Map(((senders ?? []) as Array<{
+    notification_id: string;
+    sender_name: string | null;
+    sender_role: UserRole | null;
+  }>).map((item) => [item.notification_id, item]));
+  return notifications.map((item) => ({ ...item, ...senderByNotification.get(item.id) }));
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {
@@ -100,6 +123,17 @@ export async function getUnreadCount(userId: string): Promise<number> {
     .is('read_at', null);
   if (error) throw error;
   return count ?? 0;
+}
+
+export async function getUnreadNotificationRecipients(limit = 100, dateRange?: NotificationDateRange): Promise<UnreadNotificationRecipient[]> {
+  const params: { p_limit: number; p_start_at?: string; p_end_at?: string } = { p_limit: limit };
+  if (dateRange) {
+    params.p_start_at = dateRange.startAt;
+    params.p_end_at = dateRange.endAt;
+  }
+  const { data, error } = await supabase.rpc('get_unread_notification_recipients', params);
+  if (error) throw error;
+  return (data ?? []) as UnreadNotificationRecipient[];
 }
 
 export async function markAsRead(notificationId: string): Promise<Notification> {
@@ -149,8 +183,13 @@ export async function sendBroadcast(
   return { recipientCount: row.recipient_count, created: row.created };
 }
 
-export async function getBroadcastHistory(limit = 20): Promise<BroadcastHistoryItem[]> {
-  const { data, error } = await supabase.rpc('get_broadcast_history', { p_limit: limit });
+export async function getBroadcastHistory(limit = 20, dateRange?: NotificationDateRange): Promise<BroadcastHistoryItem[]> {
+  const params: { p_limit: number; p_start_at?: string; p_end_at?: string } = { p_limit: limit };
+  if (dateRange) {
+    params.p_start_at = dateRange.startAt;
+    params.p_end_at = dateRange.endAt;
+  }
+  const { data, error } = await supabase.rpc('get_broadcast_history', params);
   if (error) throw error;
 
   return ((data ?? []) as BroadcastHistoryRpcRow[]).map((row) => ({
@@ -447,7 +486,7 @@ export async function getDashboardView(
     : [];
 
   const copyByRole: Record<UserRole, { title: string; description: string }> = {
-    staff_admin: { title: 'ภาพรวมงานคลินิกของผู้ดูแลระบบ', description: 'ติดตามนัดหมาย คิว แผนก บัญชี และการประกาศของคลินิก' },
+    staff_admin: { title: 'ภาพรวมงานคลินิกของผู้ดูแลระบบ', description: 'ติดตามนัดหมาย คิว แผนก และบัญชีของคลินิก' },
     medical: {
       title: 'ภาพรวมงานแพทย์และเภสัชกรรม',
       description: isDoctorActor ? 'แสดงเฉพาะตารางและคิวของแพทย์ที่เข้าสู่ระบบ พร้อมข้อมูลยา' : 'ติดตามงานจ่ายยาและสถานะคลังยา',

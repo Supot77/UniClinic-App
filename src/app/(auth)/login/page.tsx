@@ -100,11 +100,17 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">
-            Password
-          </label>
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <label htmlFor="login-password" className="block text-sm font-medium text-zinc-700">
+              Password
+            </label>
+            <Link href="/forgot-password" className="text-sm font-medium text-sky-600 hover:underline">
+              ลืมรหัสผ่าน?
+            </Link>
+          </div>
 
           <input
+            id="login-password"
             type="password"
             required
             disabled={isLoading}
