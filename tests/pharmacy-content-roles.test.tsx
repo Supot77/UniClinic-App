@@ -24,6 +24,7 @@ const mockMedications = [
     coverage_type: 'covered' as const,
     type: 'เม็ด',
     category: 'ยาแก้ปวดลดไข้',
+    description: 'ยาบรรเทาอาการปวดศีรษะ เป็นไข้',
     stock: 50,
     min_stock: 20,
     mfg_date: '2026-01-01',
@@ -297,20 +298,19 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     });
   });
 
-  it('displays detailed medication attributes (dosage, brand, manufacturer, mfg date, coverage) in inventory table', async () => {
+  it('displays concise medication attributes (name, dosage, coverage, description) in inventory table without clutter', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
     // Check dosage badges
     expect(await screen.findByText('500mg')).toBeInTheDocument();
     expect(screen.getByText('1000mg')).toBeInTheDocument();
 
-    // Check brand names
-    expect(screen.getByText('Sara')).toBeInTheDocument();
-    expect(screen.getByText('Amoxil')).toBeInTheDocument();
+    // Description is displayed in table
+    expect(screen.getByText(/ยาบรรเทาอาการปวดศีรษะ/)).toBeInTheDocument();
 
-    // Check manufacturer info
-    expect(screen.getByText(/ผลิตโดย: องค์การเภสัชกรรม/)).toBeInTheDocument();
-    expect(screen.getByText(/ผลิตโดย: GlaxoSmithKline/)).toBeInTheDocument();
+    // Brand and manufacturer are NOT shown directly in table row (clean display)
+    expect(screen.queryByText('Sara')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ผลิตโดย: องค์การเภสัชกรรม/)).not.toBeInTheDocument();
 
     // Check coverage badges
     expect(screen.getByText('ยาในสิทธิ์ (เบิกได้)')).toBeInTheDocument();
@@ -358,18 +358,21 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(screen.getByLabelText(/ยานอกบัญชียาหลัก หรือยานำเข้า\/ยาทางเลือกพิเศษ/)).toBeInTheDocument();
   });
 
-  it('opens medication details popup modal when clicking medication name and closes properly', async () => {
+  it('opens medication details popup modal when clicking medication card/row and closes properly', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    // Click on Paracetamol name button
-    const medBtn = await screen.findByRole('button', { name: 'Paracetamol' });
-    fireEvent.click(medBtn);
+    // Click on Paracetamol row / card
+    const medText = await screen.findByText('Paracetamol');
+    const medRow = medText.closest('tr');
+    expect(medRow).not.toBeNull();
+    fireEvent.click(medRow!);
 
-    // Modal should be visible with title and details
+    // Modal should be visible with title and details (brand, manufacturer, dosage, ingredients, stock)
     expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Paracetamol' })).toBeInTheDocument();
-    expect(screen.getAllByText('Sara').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('500mg').length).toBeGreaterThan(0);
+    expect(screen.getByText('Sara')).toBeInTheDocument();
+    expect(screen.getAllByText('500mg').length).toBe(2);
+    expect(screen.getByText('องค์การเภสัชกรรม (GPO)')).toBeInTheDocument();
     expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(2);
     expect(screen.getAllByRole('button', { name: 'แก้ไขข้อมูล' }).length).toBeGreaterThan(1);
     expect(screen.getByRole('button', { name: 'ปิดหน้าต่าง' })).toBeInTheDocument();

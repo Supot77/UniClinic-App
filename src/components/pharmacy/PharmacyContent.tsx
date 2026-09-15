@@ -1004,7 +1004,7 @@ interface RawInventoryLog {
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-700 uppercase tracking-wider">
               <tr>
-                <th scope="col" className="px-5 py-4">ชื่อเวชภัณฑ์ / ขนาดยา / ยี่ห้อ</th>
+                <th scope="col" className="px-5 py-4">ชื่อเวชภัณฑ์ / ขนาดยา</th>
                 <th scope="col" className="px-4 py-4">สิทธิ์การเบิกจ่าย</th>
                 <th scope="col" className="px-4 py-4">รูปแบบ</th>
                 <th scope="col" className="px-4 py-4">หมวดหมู่</th>
@@ -1046,49 +1046,30 @@ interface RawInventoryLog {
                   const isNonCovered = item.coverage_type === 'non_covered';
 
                   return (
-                    <tr key={item.id} className="transition-colors hover:bg-slate-50/60">
+                    <tr
+                      key={item.id}
+                      onClick={() => setViewingItem(item)}
+                      className="transition-colors hover:bg-sky-50/50 cursor-pointer group"
+                      title="คลิกเพื่อดูรายละเอียดเวชภัณฑ์"
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 rounded-xl bg-sky-50 p-2 text-sky-600 shrink-0">
+                          <div className="mt-0.5 rounded-xl bg-sky-50 p-2 text-sky-600 shrink-0 group-hover:bg-sky-100 transition-colors">
                             <Pill className="h-4 w-4" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => setViewingItem(item)}
-                                title="คลิกเพื่อดูรายละเอียดเวชภัณฑ์"
-                                className="font-semibold text-slate-900 leading-snug hover:text-sky-600 hover:underline transition text-left cursor-pointer"
-                              >
+                              <span className="font-semibold text-slate-900 leading-snug group-hover:text-sky-600 transition-colors">
                                 {item.name}
-                              </button>
+                              </span>
                               {item.dosage && (
                                 <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-700/15">
                                   {item.dosage}
                                 </span>
                               )}
                             </div>
-                            {(item.brand_name || item.manufacturer) && (
-                              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">
-                                {item.brand_name && (
-                                  <span className="font-medium text-slate-700">
-                                    ยี่ห้อ: <span className="text-slate-900 font-semibold">{item.brand_name}</span>
-                                  </span>
-                                )}
-                                {item.manufacturer && (
-                                  <span className="text-slate-500">
-                                    ผลิตโดย: {item.manufacturer}
-                                  </span>
-                                )}
-                              </div>
-                            )}
                             {item.description && (
                               <p className="text-xs text-slate-500 line-clamp-1">{item.description}</p>
-                            )}
-                            {item.ingredients && (
-                              <p className="text-[11px] text-slate-400">
-                                ตัวยาสำคัญ: {item.ingredients}
-                              </p>
                             )}
                           </div>
                         </div>
@@ -1185,7 +1166,7 @@ interface RawInventoryLog {
                         )}
                       </td>
 
-                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                      <td className="px-4 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                         {!canManage ? (
                           <div className="flex items-center justify-end">
                             <span
