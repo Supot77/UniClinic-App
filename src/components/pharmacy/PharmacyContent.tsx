@@ -23,7 +23,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { createClient } from '@/utils/supabase/client';
-import type { Medication } from '@/types/database';
+import type { Medication, MedicationCoverageType } from '@/types/database';
 import PrescriptionsTab, {
   type PrescribedMedItem,
   type PrescriptionOrder,
@@ -35,8 +35,13 @@ type StockStatus = 'sufficient' | 'reorder' | 'critical' | 'expired' | 'inactive
 
 interface MedicationDraft {
   name: string;
+  dosage: string;
+  brand_name: string;
   type: string;
   category: string;
+  coverage_type: MedicationCoverageType;
+  manufacturer: string;
+  mfg_date: string;
   stock: number;
   min_stock: number;
   expiry_date: string;
@@ -47,8 +52,13 @@ interface MedicationDraft {
 
 const DEFAULT_DRAFT: MedicationDraft = {
   name: '',
+  dosage: '',
+  brand_name: '',
   type: 'เม็ด',
   category: 'ยาแก้ปวดลดไข้',
+  coverage_type: 'covered',
+  manufacturer: '',
+  mfg_date: '',
   stock: 100,
   min_stock: 30,
   expiry_date: '',
@@ -108,7 +118,7 @@ function getStockStatus(item: Medication): StockStatus {
   return 'sufficient';
 }
 
-function formatDisplayDate(dateStr: string | null): string {
+function formatDisplayDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   const d = new Date(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`);
   if (Number.isNaN(d.getTime())) return '-';
@@ -157,11 +167,13 @@ export default function PharmacyContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [selectedCoverage, setSelectedCoverage] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'stock_asc' | 'stock_desc' | 'expiry'>('name');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Medication | null>(null);
+  const [viewingItem, setViewingItem] = useState<Medication | null>(null);
   const [draft, setDraft] = useState<MedicationDraft>(DEFAULT_DRAFT);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -418,10 +430,23 @@ interface RawInventoryLog {
       .filter((item) => {
         if (q) {
           const matchName = item.name.toLowerCase().includes(q);
+          const matchDosage = item.dosage?.toLowerCase().includes(q) ?? false;
+          const matchBrand = item.brand_name?.toLowerCase().includes(q) ?? false;
+          const matchManufacturer = item.manufacturer?.toLowerCase().includes(q) ?? false;
           const matchCategory = item.category?.toLowerCase().includes(q) ?? false;
           const matchDesc = item.description?.toLowerCase().includes(q) ?? false;
           const matchIngr = item.ingredients?.toLowerCase().includes(q) ?? false;
-          if (!matchName && !matchCategory && !matchDesc && !matchIngr) return false;
+          if (
+            !matchName &&
+            !matchDosage &&
+            !matchBrand &&
+            !matchManufacturer &&
+            !matchCategory &&
+            !matchDesc &&
+            !matchIngr
+          ) {
+            return false;
+          }
         }
 
         if (selectedCategory !== 'all' && item.category !== selectedCategory) {
@@ -430,6 +455,11 @@ interface RawInventoryLog {
 
         if (selectedType !== 'all' && item.type !== selectedType) {
           return false;
+        }
+
+        if (selectedCoverage !== 'all') {
+          const itemCoverage = item.coverage_type || 'covered';
+          if (itemCoverage !== selectedCoverage) return false;
         }
 
         if (statusFilter !== 'all') {
@@ -454,7 +484,7 @@ interface RawInventoryLog {
         }
         return 0;
       });
-  }, [medications, searchQuery, selectedCategory, selectedType, statusFilter, sortBy]);
+  }, [medications, searchQuery, selectedCategory, selectedType, selectedCoverage, statusFilter, sortBy]);
 
   const handleOpenAddModal = () => {
     if (!canManage) return;
@@ -469,8 +499,13 @@ interface RawInventoryLog {
     setEditingItem(item);
     setDraft({
       name: item.name,
+      dosage: item.dosage || '',
+      brand_name: item.brand_name || '',
       type: item.type || 'เม็ด',
       category: item.category || '',
+      coverage_type: item.coverage_type || 'covered',
+      manufacturer: item.manufacturer || '',
+      mfg_date: item.mfg_date || '',
       stock: item.stock ?? 0,
       min_stock: item.min_stock ?? 0,
       expiry_date: item.expiry_date || '',
@@ -504,8 +539,13 @@ interface RawInventoryLog {
     try {
       const payload = {
         name: draft.name.trim(),
+        dosage: draft.dosage?.trim() || null,
+        brand_name: draft.brand_name?.trim() || null,
         type: draft.type.trim(),
         category: draft.category.trim(),
+        coverage_type: draft.coverage_type,
+        manufacturer: draft.manufacturer?.trim() || null,
+        mfg_date: draft.mfg_date || null,
         stock: Number(draft.stock) || 0,
         min_stock: Number(draft.min_stock) || 0,
         expiry_date: draft.expiry_date || null,
@@ -913,6 +953,16 @@ interface RawInventoryLog {
               </option>
             ))}
           </select>
+
+          <select
+            value={selectedCoverage}
+            onChange={(e) => setSelectedCoverage(e.target.value)}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+          >
+            <option value="all">ทุกสิทธิ์การเบิกจ่าย</option>
+            <option value="covered">🟢 ยาในสิทธิ์ (เบิกได้)</option>
+            <option value="non_covered">🟣 ยานอกสิทธิ์ (จ่ายนอก)</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -930,13 +980,14 @@ interface RawInventoryLog {
             </select>
           </div>
 
-          {(searchQuery || selectedCategory !== 'all' || selectedType !== 'all' || statusFilter !== 'all') && (
+          {(searchQuery || selectedCategory !== 'all' || selectedType !== 'all' || selectedCoverage !== 'all' || statusFilter !== 'all') && (
             <button
               type="button"
               onClick={() => {
                 setSearchQuery('');
                 setSelectedCategory('all');
                 setSelectedType('all');
+                setSelectedCoverage('all');
                 setStatusFilter('all');
               }}
               className="h-11 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
@@ -953,26 +1004,27 @@ interface RawInventoryLog {
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-700 uppercase tracking-wider">
               <tr>
-                <th scope="col" className="px-5 py-4">ชื่อเวชภัณฑ์ / ตัวยา</th>
+                <th scope="col" className="px-5 py-4">ชื่อเวชภัณฑ์ / ขนาดยา / ยี่ห้อ</th>
+                <th scope="col" className="px-4 py-4">สิทธิ์การเบิกจ่าย</th>
                 <th scope="col" className="px-4 py-4">รูปแบบ</th>
                 <th scope="col" className="px-4 py-4">หมวดหมู่</th>
                 <th scope="col" className="px-5 py-4">ระดับสต็อกคงเหลือ</th>
-                <th scope="col" className="px-4 py-4">วันหมดอายุ</th>
-                <th scope="col" className="px-4 py-4">สถานะ</th>
+                <th scope="col" className="px-4 py-4">วันผลิต / หมดอายุ</th>
+                <th scope="col" className="px-4 py-4">สถานะสต็อก</th>
                 <th scope="col" className="px-4 py-4 text-right">การจัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
                     <RefreshCw className="mx-auto h-6 w-6 animate-spin text-sky-600 mb-2" />
                     <span>กำลังโหลดข้อมูลจากฐานข้อมูล Supabase...</span>
                   </td>
                 </tr>
               ) : filteredMedications.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
                     <Pill className="mx-auto h-10 w-10 text-slate-300 mb-2" />
                     <p className="text-base font-semibold text-slate-700">ไม่พบรายการเวชภัณฑ์</p>
                     <p className="text-xs text-slate-400 mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองที่เลือกไว้</p>
@@ -991,25 +1043,69 @@ interface RawInventoryLog {
                   if (status === 'reorder') progressColor = 'bg-amber-500';
                   if (status === 'critical') progressColor = 'bg-rose-500';
 
+                  const isNonCovered = item.coverage_type === 'non_covered';
+
                   return (
                     <tr key={item.id} className="transition-colors hover:bg-slate-50/60">
                       <td className="px-5 py-4">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 rounded-xl bg-sky-50 p-2 text-sky-600">
+                          <div className="mt-0.5 rounded-xl bg-sky-50 p-2 text-sky-600 shrink-0">
                             <Pill className="h-4 w-4" />
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 leading-snug">{item.name}</p>
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setViewingItem(item)}
+                                title="คลิกเพื่อดูรายละเอียดเวชภัณฑ์"
+                                className="font-semibold text-slate-900 leading-snug hover:text-sky-600 hover:underline transition text-left cursor-pointer"
+                              >
+                                {item.name}
+                              </button>
+                              {item.dosage && (
+                                <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-700/15">
+                                  {item.dosage}
+                                </span>
+                              )}
+                            </div>
+                            {(item.brand_name || item.manufacturer) && (
+                              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">
+                                {item.brand_name && (
+                                  <span className="font-medium text-slate-700">
+                                    ยี่ห้อ: <span className="text-slate-900 font-semibold">{item.brand_name}</span>
+                                  </span>
+                                )}
+                                {item.manufacturer && (
+                                  <span className="text-slate-500">
+                                    ผลิตโดย: {item.manufacturer}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             {item.description && (
-                              <p className="mt-0.5 text-xs text-slate-500 line-clamp-1">{item.description}</p>
+                              <p className="text-xs text-slate-500 line-clamp-1">{item.description}</p>
                             )}
                             {item.ingredients && (
-                              <p className="text-[11px] text-slate-400 mt-0.5">
-                                ตัวยา: {item.ingredients}
+                              <p className="text-[11px] text-slate-400">
+                                ตัวยาสำคัญ: {item.ingredients}
                               </p>
                             )}
                           </div>
                         </div>
+                      </td>
+
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {isNonCovered ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                            ยานอกสิทธิ์ (จ่ายนอก)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            ยาในสิทธิ์ (เบิกได้)
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -1039,8 +1135,13 @@ interface RawInventoryLog {
 
                       <td className="px-4 py-4 whitespace-nowrap text-xs">
                         <div className="space-y-0.5">
+                          {item.mfg_date && (
+                            <p className="text-slate-500 text-[11px]">
+                              ผลิต: {formatDisplayDate(item.mfg_date)}
+                            </p>
+                          )}
                           <p className={`font-medium ${expired ? 'text-rose-600 font-bold' : 'text-slate-700'}`}>
-                            {formatDisplayDate(item.expiry_date)}
+                            หมดอายุ: {formatDisplayDate(item.expiry_date)}
                           </p>
                           {expired && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-inset ring-rose-600/20">
@@ -1176,8 +1277,8 @@ interface RawInventoryLog {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
                   {editingItem ? 'แก้ไขข้อมูลเวชภัณฑ์' : 'นำเข้าเวชภัณฑ์ใหม่'}
@@ -1195,30 +1296,76 @@ interface RawInventoryLog {
               </button>
             </div>
 
-            <form onSubmit={handleSaveMedication} className="space-y-4">
+            <form onSubmit={handleSaveMedication} className="flex-1 overflow-y-auto p-6 pt-4 space-y-4">
               {formError && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
                   {formError}
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  ชื่อยา / เวชภัณฑ์ *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  placeholder="เช่น Paracetamol 500mg, Amoxicillin"
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                />
+              {/* Row 1: Generic Name & Dosage */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ชื่อยา / ชื่อสามัญ (Generic Name) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={draft.name}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                    placeholder="เช่น Paracetamol, Amoxicillin"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ขนาดยา (Dosage / Strength)
+                  </label>
+                  <input
+                    type="text"
+                    value={draft.dosage}
+                    onChange={(e) => setDraft({ ...draft, dosage: e.target.value })}
+                    placeholder="เช่น 1000mg, 250mg, 500mg"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
               </div>
 
+              {/* Row 2: Brand Name & Manufacturer */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">รูปแบบ (Type)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ยี่ห้อยา / ชื่อทางการค้า (Brand Name)
+                  </label>
+                  <input
+                    type="text"
+                    value={draft.brand_name}
+                    onChange={(e) => setDraft({ ...draft, brand_name: e.target.value })}
+                    placeholder="เช่น Sara, Tylenol, Panadol, Calpol"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    บริษัทที่ผลิต (Manufacturer)
+                  </label>
+                  <input
+                    type="text"
+                    value={draft.manufacturer}
+                    onChange={(e) => setDraft({ ...draft, manufacturer: e.target.value })}
+                    placeholder="เช่น องค์การเภสัชกรรม (GPO), Berlin"
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Form (Dropdown) & Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    รูปแบบยา (Dosage Form) *
+                  </label>
                   <select
                     value={draft.type}
                     onChange={(e) => setDraft({ ...draft, type: e.target.value })}
@@ -1251,6 +1398,67 @@ interface RawInventoryLog {
                 </div>
               </div>
 
+              {/* Row 4: Coverage Status (สิทธิ์การเบิกจ่าย) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  สิทธิ์การเบิกจ่ายเวชภัณฑ์ (Coverage Status) *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <label
+                    className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                      draft.coverage_type === 'covered'
+                        ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500'
+                        : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="coverage_type"
+                      value="covered"
+                      checked={draft.coverage_type === 'covered'}
+                      onChange={() => setDraft({ ...draft, coverage_type: 'covered' })}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        ยาในสิทธิ์ (เบิกได้)
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        ยาตามสิทธิ์การรักษา หรืออยู่ในบัญชียาหลักแห่งชาติ
+                      </p>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                      draft.coverage_type === 'non_covered'
+                        ? 'border-purple-500 bg-purple-50/60 ring-1 ring-purple-500'
+                        : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="coverage_type"
+                      value="non_covered"
+                      checked={draft.coverage_type === 'non_covered'}
+                      onChange={() => setDraft({ ...draft, coverage_type: 'non_covered' })}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
+                        <span className="h-2 w-2 rounded-full bg-purple-500" />
+                        ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        ยานอกบัญชียาหลัก หรือยานำเข้า/ยาทางเลือกพิเศษ
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Row 5: Stock & Min Stock */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -1278,14 +1486,30 @@ interface RawInventoryLog {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">วันหมดอายุ (Expiry Date)</label>
-                <input
-                  type="date"
-                  value={draft.expiry_date}
-                  onChange={(e) => setDraft({ ...draft, expiry_date: e.target.value })}
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                />
+              {/* Row 6: MFG Date & Expiry Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    วันผลิต (Manufacturing Date / MFG)
+                  </label>
+                  <input
+                    type="date"
+                    value={draft.mfg_date}
+                    onChange={(e) => setDraft({ ...draft, mfg_date: e.target.value })}
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    วันหมดอายุ (Expiry Date / EXP)
+                  </label>
+                  <input
+                    type="date"
+                    value={draft.expiry_date}
+                    onChange={(e) => setDraft({ ...draft, expiry_date: e.target.value })}
+                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1300,7 +1524,7 @@ interface RawInventoryLog {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">ตัวยาสำคัญ (Ingredients)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">ตัวยาสำคัญ (Active Ingredients)</label>
                 <input
                   type="text"
                   value={draft.ingredients}
@@ -1348,6 +1572,214 @@ interface RawInventoryLog {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Medication Details Popup Modal */}
+      {viewingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-sky-50 p-2.5 text-sky-600 shrink-0">
+                  <Pill className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold tracking-wider text-sky-600 uppercase block mb-0.5">
+                    รายละเอียดเวชภัณฑ์
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-bold text-slate-900 leading-tight">
+                      {viewingItem.name}
+                    </h2>
+                    {viewingItem.dosage && (
+                      <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 ring-1 ring-inset ring-sky-700/20">
+                        {viewingItem.dosage}
+                      </span>
+                    )}
+                  </div>
+                  {viewingItem.brand_name && (
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      ชื่อทางการค้า / ยี่ห้อ: <span className="font-semibold text-slate-700">{viewingItem.brand_name}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingItem(null)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-4">
+              {/* Coverage Banner */}
+              <div className={`flex items-center justify-between rounded-xl p-3.5 border ${
+                viewingItem.coverage_type === 'non_covered'
+                  ? 'border-purple-200 bg-purple-50/70 text-purple-900'
+                  : 'border-emerald-200 bg-emerald-50/70 text-emerald-900'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${
+                    viewingItem.coverage_type === 'non_covered' ? 'bg-purple-600' : 'bg-emerald-600'
+                  }`} />
+                  <div>
+                    <span className="text-xs font-bold">
+                      {viewingItem.coverage_type === 'non_covered'
+                        ? 'ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)'
+                        : 'ยาในสิทธิ์ (เบิกได้)'}
+                    </span>
+                    <p className="text-[11px] opacity-80 mt-0.5">
+                      {viewingItem.coverage_type === 'non_covered'
+                        ? 'อยู่นอกบัญชียาหลักแห่งชาติ หรือเป็นยานำเข้า/ยาทางเลือกพิเศษ'
+                        : 'ยาตามสิทธิ์การรักษา อยู่ในบัญชียาหลักแห่งชาติ'}
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-[11px] font-semibold rounded-full px-2.5 py-0.5 ${
+                  viewingItem.coverage_type === 'non_covered'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-emerald-100 text-emerald-700'
+                }`}>
+                  {viewingItem.coverage_type === 'non_covered' ? 'Non-covered' : 'In-formulary'}
+                </span>
+              </div>
+
+              {/* Quick Info Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <span className="text-[11px] font-medium text-slate-400">รูปแบบยา</span>
+                  <p className="text-sm font-semibold text-slate-800 mt-0.5">
+                    {viewingItem.type || '-'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <span className="text-[11px] font-medium text-slate-400">หมวดหมู่</span>
+                  <p className="text-sm font-semibold text-slate-800 mt-0.5 line-clamp-1">
+                    {viewingItem.category || '-'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 col-span-2 sm:col-span-1">
+                  <span className="text-[11px] font-medium text-slate-400">สถานะในระบบ</span>
+                  <div className="mt-1">
+                    {viewingItem.is_active ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                        <CheckCircle2 className="h-3 w-3" /> พร้อมใช้งาน
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                        <Ban className="h-3 w-3" /> พักการใช้งาน
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Manufacturer & Dates */}
+              <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2.5">
+                {viewingItem.manufacturer && (
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400">บริษัทที่ผลิต (Manufacturer)</span>
+                    <p className="text-xs font-semibold text-slate-800 mt-0.5">
+                      {viewingItem.manufacturer}
+                    </p>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400">วันผลิต (MFG Date)</span>
+                    <p className="text-xs font-medium text-slate-700 mt-0.5">
+                      {formatDisplayDate(viewingItem.mfg_date)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ (EXP Date)</span>
+                    <p className={`text-xs font-medium mt-0.5 ${
+                      isExpired(viewingItem.expiry_date) ? 'text-rose-600 font-bold' : 'text-slate-700'
+                    }`}>
+                      {formatDisplayDate(viewingItem.expiry_date)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stock Status Bar */}
+              <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-700">ระดับสต็อกคงเหลือ</span>
+                  <span className="text-slate-500">
+                    คงเหลือ <strong className="text-slate-900 text-sm">{viewingItem.stock}</strong> (ขั้นต่ำ {viewingItem.min_stock})
+                  </span>
+                </div>
+                {(() => {
+                  const status = getStockStatus(viewingItem);
+                  const maxDisplay = Math.max(viewingItem.min_stock * 2, viewingItem.stock, 1);
+                  const percent = Math.min(Math.round((viewingItem.stock / maxDisplay) * 100), 100);
+                  let progressColor = 'bg-emerald-500';
+                  if (status === 'reorder') progressColor = 'bg-amber-500';
+                  if (status === 'critical') progressColor = 'bg-rose-500';
+                  return (
+                    <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${progressColor}`} style={{ width: `${percent}%` }} />
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Description & Ingredients */}
+              {viewingItem.description && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <span className="text-[11px] font-medium text-slate-400">คำอธิบาย / ข้อบ่งใช้</span>
+                  <p className="text-xs text-slate-700 mt-1 leading-relaxed whitespace-pre-wrap">
+                    {viewingItem.description}
+                  </p>
+                </div>
+              )}
+
+              {viewingItem.ingredients && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                  <span className="text-[11px] font-medium text-slate-400">ตัวยาสำคัญ (Active Ingredients)</span>
+                  <p className="text-xs text-slate-700 mt-1 font-mono leading-relaxed">
+                    {viewingItem.ingredients}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-slate-100 p-4 px-6 shrink-0 bg-slate-50/50 rounded-b-2xl">
+              <span className="text-[11px] text-slate-400">
+                รหัสเวชภัณฑ์: {viewingItem.id.slice(0, 8)}...
+              </span>
+              <div className="flex items-center gap-2">
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const item = viewingItem;
+                      setViewingItem(null);
+                      handleOpenEditModal(item);
+                    }}
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-50 px-4 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span>แก้ไขข้อมูล</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setViewingItem(null)}
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                >
+                  ปิดหน้าต่าง
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

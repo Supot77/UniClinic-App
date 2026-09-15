@@ -17,21 +17,31 @@ vi.mock('@/hooks/useAuth', () => ({
 const mockMedications = [
   {
     id: 'med-1',
-    name: 'Paracetamol 500mg',
+    name: 'Paracetamol',
+    dosage: '500mg',
+    brand_name: 'Sara',
+    manufacturer: 'องค์การเภสัชกรรม (GPO)',
+    coverage_type: 'covered' as const,
     type: 'เม็ด',
     category: 'ยาแก้ปวดลดไข้',
     stock: 50,
     min_stock: 20,
+    mfg_date: '2026-01-01',
     expiry_date: '2027-12-31',
     is_active: true,
   },
   {
     id: 'med-2',
-    name: 'Amoxicillin 500mg',
+    name: 'Amoxicillin',
+    dosage: '1000mg',
+    brand_name: 'Amoxil',
+    manufacturer: 'GlaxoSmithKline',
+    coverage_type: 'non_covered' as const,
     type: 'แคปซูล',
     category: 'ยาปฏิชีวนะ',
     stock: 10,
     min_stock: 15,
+    mfg_date: '2026-02-01',
     expiry_date: '2027-06-30',
     is_active: true,
   },
@@ -285,5 +295,91 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     await act(async () => {
       fireEvent.click(confirmBtn);
     });
+  });
+
+  it('displays detailed medication attributes (dosage, brand, manufacturer, mfg date, coverage) in inventory table', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Check dosage badges
+    expect(await screen.findByText('500mg')).toBeInTheDocument();
+    expect(screen.getByText('1000mg')).toBeInTheDocument();
+
+    // Check brand names
+    expect(screen.getByText('Sara')).toBeInTheDocument();
+    expect(screen.getByText('Amoxil')).toBeInTheDocument();
+
+    // Check manufacturer info
+    expect(screen.getByText(/ผลิตโดย: องค์การเภสัชกรรม/)).toBeInTheDocument();
+    expect(screen.getByText(/ผลิตโดย: GlaxoSmithKline/)).toBeInTheDocument();
+
+    // Check coverage badges
+    expect(screen.getByText('ยาในสิทธิ์ (เบิกได้)')).toBeInTheDocument();
+    expect(screen.getByText('ยานอกสิทธิ์ (จ่ายนอก)')).toBeInTheDocument();
+  });
+
+  it('filters medications by coverage type (covered vs non_covered)', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Wait for medications to load
+    expect(await screen.findByText('Paracetamol')).toBeInTheDocument();
+    expect(screen.getByText('Amoxicillin')).toBeInTheDocument();
+
+    // Find coverage select dropdown
+    const coverageSelect = screen.getByDisplayValue('ทุกสิทธิ์การเบิกจ่าย');
+    expect(coverageSelect).toBeInTheDocument();
+
+    // Filter by "covered" (ยาในสิทธิ์)
+    fireEvent.change(coverageSelect, { target: { value: 'covered' } });
+    expect(screen.getByText('Paracetamol')).toBeInTheDocument();
+    expect(screen.queryByText('Amoxicillin')).not.toBeInTheDocument();
+
+    // Filter by "non_covered" (ยานอกสิทธิ์)
+    fireEvent.change(coverageSelect, { target: { value: 'non_covered' } });
+    expect(screen.queryByText('Paracetamol')).not.toBeInTheDocument();
+    expect(screen.getByText('Amoxicillin')).toBeInTheDocument();
+  });
+
+  it('opens add medication modal with dosage, brand, form dropdown, coverage options and manufacturer fields', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    const addBtn = await screen.findByText('นำเข้าเวชภัณฑ์ใหม่');
+    fireEvent.click(addBtn);
+
+    // Modal title
+    expect(screen.getByRole('heading', { name: 'นำเข้าเวชภัณฑ์ใหม่' })).toBeInTheDocument();
+
+    // Fields should exist
+    expect(screen.getByPlaceholderText(/เช่น 1000mg, 250mg/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/เช่น Sara, Tylenol/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/เช่น องค์การเภสัชกรรม/)).toBeInTheDocument();
+
+    // Coverage radio options
+    expect(screen.getByLabelText(/ยาตามสิทธิ์การรักษา หรืออยู่ในบัญชียาหลักแห่งชาติ/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/ยานอกบัญชียาหลัก หรือยานำเข้า\/ยาทางเลือกพิเศษ/)).toBeInTheDocument();
+  });
+
+  it('opens medication details popup modal when clicking medication name and closes properly', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Click on Paracetamol name button
+    const medBtn = await screen.findByRole('button', { name: 'Paracetamol' });
+    fireEvent.click(medBtn);
+
+    // Modal should be visible with title and details
+    expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Paracetamol' })).toBeInTheDocument();
+    expect(screen.getAllByText('Sara').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('500mg').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(2);
+    expect(screen.getAllByRole('button', { name: 'แก้ไขข้อมูล' }).length).toBeGreaterThan(1);
+    expect(screen.getByRole('button', { name: 'ปิดหน้าต่าง' })).toBeInTheDocument();
+
+    // Close the modal
+    const closeBtn = screen.getByRole('button', { name: 'ปิดหน้าต่าง' });
+    fireEvent.click(closeBtn);
+
+    // Modal should be closed
+    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+    expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(1);
   });
 });
