@@ -24,6 +24,7 @@ const mockMedications = [
     coverage_type: 'covered' as const,
     type: 'เม็ด',
     category: 'ยาแก้ปวดลดไข้',
+    unit: 'เม็ด',
     description: 'ยาบรรเทาอาการปวดศีรษะ เป็นไข้',
     stock: 50,
     min_stock: 20,
@@ -39,6 +40,7 @@ const mockMedications = [
     manufacturer: 'GlaxoSmithKline',
     coverage_type: 'non_covered' as const,
     type: 'แคปซูล',
+    unit: 'แคปซูล',
     category: 'ยาปฏิชีวนะ',
     stock: 10,
     min_stock: 15,
@@ -402,5 +404,34 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Modal should be closed
     expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+  });
+
+  it('calculates stock from packaging (packages x items) and applies it to stock input', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    const addBtn = await screen.findByText('นำเข้าเวชภัณฑ์ใหม่');
+    fireEvent.click(addBtn);
+
+    // Open packaging calculator
+    const calcToggle = screen.getByRole('button', { name: /เปิดตัวช่วยคำนวณ/i });
+    fireEvent.click(calcToggle);
+
+    // Inputs for packaging
+    const packCountInput = screen.getByPlaceholderText('เช่น 5');
+    const itemsPerPackInput = screen.getByPlaceholderText(/เช่น 100 หรือ 1000/);
+
+    fireEvent.change(packCountInput, { target: { value: '5' } });
+    fireEvent.change(itemsPerPackInput, { target: { value: '100' } });
+
+    // Result should show 500
+    expect(screen.getByText('500 เม็ด')).toBeInTheDocument();
+
+    // Click apply button
+    const applyBtn = screen.getByRole('button', { name: 'ใช้เป็นยอดสต็อกปัจจุบัน' });
+    fireEvent.click(applyBtn);
+
+    // Stock input should now have 500
+    const stockInput = screen.getByDisplayValue('500');
+    expect(stockInput).toBeInTheDocument();
   });
 });

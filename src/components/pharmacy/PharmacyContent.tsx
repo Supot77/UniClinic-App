@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Ban,
+  Calculator,
   CheckCircle2,
   Clock,
   FileText,
@@ -38,6 +39,9 @@ interface MedicationDraft {
   dosage: string;
   brand_name: string;
   type: string;
+  unit: string;
+  pack_unit: string;
+  pack_size: number | '';
   category: string;
   coverage_type: MedicationCoverageType;
   manufacturer: string;
@@ -55,6 +59,9 @@ const DEFAULT_DRAFT: MedicationDraft = {
   dosage: '',
   brand_name: '',
   type: 'เม็ด',
+  unit: 'เม็ด',
+  pack_unit: '',
+  pack_size: '',
   category: 'ยาแก้ปวดลดไข้',
   coverage_type: 'covered',
   manufacturer: '',
@@ -65,6 +72,32 @@ const DEFAULT_DRAFT: MedicationDraft = {
   description: '',
   ingredients: '',
   is_active: true,
+};
+
+const COMMON_UNITS = [
+  'เม็ด',
+  'แคปซูล',
+  'ขวด',
+  'หลอด',
+  'ไวอัล (Vial)',
+  'แอมพูล (Ampoule)',
+  'ซอง',
+  'แผง',
+  'ชิ้น',
+  'มิลลิลิตร (ml)',
+];
+
+const DEFAULT_UNIT_BY_TYPE: Record<string, string> = {
+  'เม็ด': 'เม็ด',
+  'แคปซูล': 'แคปซูล',
+  'ยาน้ำ': 'ขวด',
+  'ผง': 'ซอง',
+  'น้ำ': 'ขวด',
+  'ครีม/เจล': 'หลอด',
+  'ขี้ผึ้ง': 'หลอด',
+  'เม็ดอม': 'เม็ด',
+  'ยาฉีด': 'ไวอัล (Vial)',
+  'เวชภัณฑ์ทั่วไป': 'ชิ้น',
 };
 
 const TYPE_OPTIONS = [
@@ -177,6 +210,44 @@ export default function PharmacyContent({
   const [draft, setDraft] = useState<MedicationDraft>(DEFAULT_DRAFT);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Packaging Calculator state
+  const [showPackCalculator, setShowPackCalculator] = useState(false);
+  const [calcMode, setCalcMode] = useState<'standard' | 'carton'>('standard');
+  const [calcPackCount, setCalcPackCount] = useState<number | ''>('');
+  const [calcPackUnit, setCalcPackUnit] = useState<string>('กล่อง');
+  const [calcItemsPerPack, setCalcItemsPerPack] = useState<number | ''>('');
+  const [calcCartonCount, setCalcCartonCount] = useState<number | ''>('');
+  const [calcBoxesPerCarton, setCalcBoxesPerCarton] = useState<number | ''>('');
+  const [calcItemsPerBox, setCalcItemsPerBox] = useState<number | ''>('');
+
+  const calculatedStockTotal = useMemo(() => {
+    if (calcMode === 'standard') {
+      const pCount = typeof calcPackCount === 'number' ? calcPackCount : 0;
+      const iCount = typeof calcItemsPerPack === 'number' ? calcItemsPerPack : 0;
+      return pCount * iCount;
+    } else {
+      const cCount = typeof calcCartonCount === 'number' ? calcCartonCount : 0;
+      const bCount = typeof calcBoxesPerCarton === 'number' ? calcBoxesPerCarton : 0;
+      const iCount = typeof calcItemsPerBox === 'number' ? calcItemsPerBox : 0;
+      return cCount * bCount * iCount;
+    }
+  }, [calcMode, calcPackCount, calcItemsPerPack, calcCartonCount, calcBoxesPerCarton, calcItemsPerBox]);
+
+  const handleApplyCalculatedStock = (mode: 'replace' | 'add') => {
+    if (calculatedStockTotal <= 0) return;
+    setDraft((prev) => ({
+      ...prev,
+      stock: mode === 'add' ? prev.stock + calculatedStockTotal : calculatedStockTotal,
+      pack_unit: calcMode === 'standard' ? calcPackUnit : 'ลัง',
+      pack_size:
+        calcMode === 'standard'
+          ? (typeof calcItemsPerPack === 'number' ? calcItemsPerPack : '')
+          : (typeof calcBoxesPerCarton === 'number' && typeof calcItemsPerBox === 'number'
+            ? calcBoxesPerCarton * calcItemsPerBox
+            : ''),
+    }));
+  };
 
   const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -501,6 +572,12 @@ interface RawInventoryLog {
     if (!canManage) return;
     setEditingItem(null);
     setDraft(DEFAULT_DRAFT);
+    setShowPackCalculator(false);
+    setCalcPackCount('');
+    setCalcItemsPerPack('');
+    setCalcCartonCount('');
+    setCalcBoxesPerCarton('');
+    setCalcItemsPerBox('');
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -513,6 +590,9 @@ interface RawInventoryLog {
       dosage: item.dosage || '',
       brand_name: item.brand_name || '',
       type: item.type || 'เม็ด',
+      unit: item.unit || DEFAULT_UNIT_BY_TYPE[item.type] || 'เม็ด',
+      pack_unit: item.pack_unit || '',
+      pack_size: item.pack_size ?? '',
       category: item.category || '',
       coverage_type: item.coverage_type || 'covered',
       manufacturer: item.manufacturer || '',
@@ -524,6 +604,12 @@ interface RawInventoryLog {
       ingredients: item.ingredients || '',
       is_active: item.is_active ?? true,
     });
+    setShowPackCalculator(false);
+    setCalcPackCount('');
+    setCalcItemsPerPack('');
+    setCalcCartonCount('');
+    setCalcBoxesPerCarton('');
+    setCalcItemsPerBox('');
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -553,6 +639,9 @@ interface RawInventoryLog {
         dosage: draft.dosage?.trim() || null,
         brand_name: draft.brand_name?.trim() || null,
         type: draft.type.trim(),
+        unit: draft.unit?.trim() || 'เม็ด',
+        pack_unit: draft.pack_unit?.trim() || null,
+        pack_size: draft.pack_size ? Number(draft.pack_size) : null,
         category: draft.category.trim(),
         coverage_type: draft.coverage_type,
         manufacturer: draft.manufacturer?.trim() || null,
@@ -1115,6 +1204,11 @@ interface RawInventoryLog {
                           <div className="flex items-baseline justify-between text-xs">
                             <span className="text-base font-bold text-slate-900">{item.stock}</span>
                             <span className="text-slate-400">ขั้นต่ำ {item.min_stock}</span>
+                            <span className="text-base font-bold text-slate-900">
+                              {item.stock}{' '}
+                              <span className="text-xs font-normal text-slate-500">{item.unit || 'หน่วย'}</span>
+                            </span>
+                            <span className="text-slate-400">ขั้นต่ำ {item.min_stock} {item.unit || 'หน่วย'}</span>
                           </div>
                           <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                             <div
@@ -1352,15 +1446,19 @@ interface RawInventoryLog {
                 </div>
               </div>
 
-              {/* Row 3: Form (Dropdown) & Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Row 3: Form (Dropdown), Dispense Unit & Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     รูปแบบยา (Dosage Form) *
                   </label>
                   <select
                     value={draft.type}
-                    onChange={(e) => setDraft({ ...draft, type: e.target.value })}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      const suggested = DEFAULT_UNIT_BY_TYPE[newType] || draft.unit || 'เม็ด';
+                      setDraft({ ...draft, type: newType, unit: suggested });
+                    }}
                     className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
                   >
                     {TYPE_OPTIONS.map((t) => (
@@ -1369,6 +1467,28 @@ interface RawInventoryLog {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    หน่วยนับตัดจ่าย (Dispense Unit) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      list="unit-suggestions"
+                      value={draft.unit}
+                      onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
+                      placeholder="เช่น เม็ด, แคปซูล, ขวด"
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                    />
+                    <datalist id="unit-suggestions">
+                      {COMMON_UNITS.map((u) => (
+                        <option key={u} value={u} />
+                      ))}
+                    </datalist>
+                  </div>
                 </div>
 
                 <div>
@@ -1450,31 +1570,237 @@ interface RawInventoryLog {
                 </div>
               </div>
 
-              {/* Row 5: Stock & Min Stock */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    สต็อกปัจจุบัน (Stock)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={draft.stock}
-                    onChange={(e) => setDraft({ ...draft, stock: Math.max(0, parseInt(e.target.value) || 0) })}
-                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                  />
+              {/* Row 5: Stock & Min Stock + Packaging Calculator */}
+              <div className="space-y-3">
+                {/* Packaging & Batch Calculator */}
+                <div className="rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg bg-sky-600 p-1.5 text-white shadow-2xs">
+                        <Calculator className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">
+                          ตัวช่วยคำนวณจากบรรจุภัณฑ์ตอนรับเข้า (Packaging Calculator)
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          แปลงจำนวนข้างลัง / กล่อง / กระปุก / แผง เข้าเป็นหน่วยจ่าย ({draft.unit || 'เม็ด'})
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPackCalculator(!showPackCalculator)}
+                      className="rounded-lg border border-sky-300 bg-white px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition shadow-2xs"
+                    >
+                      {showPackCalculator ? 'ซ่อนตัวช่วย' : '📦 เปิดตัวช่วยคำนวณ'}
+                    </button>
+                  </div>
+
+                  {showPackCalculator && (
+                    <div className="pt-2 border-t border-sky-200/60 space-y-3">
+                      {/* Mode Toggle */}
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setCalcMode('standard')}
+                          className={`rounded-lg px-3 py-1.5 font-medium transition ${
+                            calcMode === 'standard'
+                              ? 'bg-sky-600 text-white shadow-2xs font-semibold'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          📦 บรรจุภัณฑ์ทั่วไป (กล่อง / กระปุก / แผง / แกลลอน)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCalcMode('carton')}
+                          className={`rounded-lg px-3 py-1.5 font-medium transition ${
+                            calcMode === 'carton'
+                              ? 'bg-sky-600 text-white shadow-2xs font-semibold'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          🚛 สั่งเป็นลังใหญ่ (ลัง × กล่องย่อย × {draft.unit || 'เม็ด'})
+                        </button>
+                      </div>
+
+                      {calcMode === 'standard' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end bg-white/70 p-3 rounded-xl border border-sky-100">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              จำนวนบรรจุภัณฑ์ที่รับมา
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="เช่น 5"
+                                value={calcPackCount}
+                                onChange={(e) => setCalcPackCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              />
+                              <select
+                                value={calcPackUnit}
+                                onChange={(e) => setCalcPackUnit(e.target.value)}
+                                className="flex-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              >
+                                <option value="กล่อง">กล่อง (Box)</option>
+                                <option value="กระปุก">กระปุก (Jar 1000s)</option>
+                                <option value="แผง">แผง (Strip / Blister)</option>
+                                <option value="แกลลอน">แกลลอน (Gallon)</option>
+                                <option value="แพ็ค">แพ็ค (Pack)</option>
+                                <option value="ลัง">ลัง (Carton)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              บรรจุภัณฑ์ละกี่{draft.unit || 'เม็ด'}?
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="เช่น 100 หรือ 1000"
+                                value={calcItemsPerPack}
+                                onChange={(e) => setCalcItemsPerPack(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              />
+                              <span className="text-xs text-slate-500 shrink-0 font-medium">{draft.unit || 'เม็ด'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end bg-white/70 p-3 rounded-xl border border-sky-100">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              จำนวนลัง
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="เช่น 2"
+                                value={calcCartonCount}
+                                onChange={(e) => setCalcCartonCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              />
+                              <span className="text-xs text-slate-500 shrink-0">ลัง</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              ลังละกี่กล่อง?
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="เช่น 50"
+                                value={calcBoxesPerCarton}
+                                onChange={(e) => setCalcBoxesPerCarton(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              />
+                              <span className="text-xs text-slate-500 shrink-0">กล่อง</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              กล่องละกี่{draft.unit || 'เม็ด'}?
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="เช่น 100"
+                                value={calcItemsPerBox}
+                                onChange={(e) => setCalcItemsPerBox(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              />
+                              <span className="text-xs text-slate-500 shrink-0 font-medium">{draft.unit || 'เม็ด'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Calculation Preview & Apply Button */}
+                      {calculatedStockTotal > 0 && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-100/70 p-3 border border-sky-200">
+                          <div className="text-xs">
+                            <span className="text-slate-600">คำนวณได้: </span>
+                            <strong className="text-sm font-bold text-sky-800">
+                              {calculatedStockTotal.toLocaleString()} {draft.unit || 'เม็ด'}
+                            </strong>
+                            <span className="text-[11px] text-slate-500 ml-1">
+                              ({calcMode === 'standard' ? `${calcPackCount} ${calcPackUnit} × ${calcItemsPerPack}` : `${calcCartonCount} ลัง × ${calcBoxesPerCarton} กล่อง × ${calcItemsPerBox}`})
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {editingItem && (
+                              <button
+                                type="button"
+                                onClick={() => handleApplyCalculatedStock('add')}
+                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-2xs"
+                              >
+                                + บวกเพิ่มสต็อก ({calculatedStockTotal.toLocaleString()})
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleApplyCalculatedStock('replace')}
+                              className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 transition shadow-2xs"
+                            >
+                              ใช้เป็นยอดสต็อกปัจจุบัน
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    สต็อกขั้นต่ำ (Min Stock)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={draft.min_stock}
-                    onChange={(e) => setDraft({ ...draft, min_stock: Math.max(0, parseInt(e.target.value) || 0) })}
-                    className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                  />
+
+                {/* Direct Stock and Min Stock Inputs */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      สต็อกปัจจุบัน (Stock in {draft.unit || 'หน่วย'}) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={draft.stock}
+                        onChange={(e) => setDraft({ ...draft, stock: Math.max(0, parseInt(e.target.value) || 0) })}
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-14 text-sm font-semibold text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
+                        {draft.unit || 'เม็ด'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      สต็อกขั้นต่ำ (Min Stock in {draft.unit || 'หน่วย'}) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={draft.min_stock}
+                        onChange={(e) => setDraft({ ...draft, min_stock: Math.max(0, parseInt(e.target.value) || 0) })}
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-14 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
+                        {draft.unit || 'เม็ด'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1650,11 +1976,17 @@ interface RawInventoryLog {
               </div>
 
               {/* Quick Info Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                   <span className="text-[11px] font-medium text-slate-400">รูปแบบยา</span>
                   <p className="text-sm font-semibold text-slate-800 mt-0.5">
                     {viewingItem.type || '-'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                  <span className="text-[11px] font-medium text-slate-400">หน่วยนับตัดจ่าย</span>
+                  <p className="text-sm font-semibold text-sky-700 mt-0.5">
+                    {viewingItem.unit || 'เม็ด'}
                   </p>
                 </div>
                 <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
@@ -1663,7 +1995,7 @@ interface RawInventoryLog {
                     {viewingItem.category || '-'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 col-span-2 sm:col-span-1">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                   <span className="text-[11px] font-medium text-slate-400">สถานะในระบบ</span>
                   <div className="mt-1">
                     {viewingItem.is_active ? (
@@ -1712,9 +2044,15 @@ interface RawInventoryLog {
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-700">ระดับสต็อกคงเหลือ</span>
                   <span className="text-slate-500">
-                    คงเหลือ <strong className="text-slate-900 text-sm">{viewingItem.stock}</strong> (ขั้นต่ำ {viewingItem.min_stock})
+                    คงเหลือ <strong className="text-slate-900 text-sm">{viewingItem.stock} {viewingItem.unit || 'หน่วย'}</strong>{' '}
+                    (ขั้นต่ำ {viewingItem.min_stock} {viewingItem.unit || 'หน่วย'})
                   </span>
                 </div>
+                {viewingItem.pack_unit && viewingItem.pack_size && (
+                  <p className="text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                    📦 <strong>หน่วยบรรจุตอนซื้อ:</strong> 1 {viewingItem.pack_unit} = {viewingItem.pack_size} {viewingItem.unit || 'หน่วย'}
+                  </p>
+                )}
                 {(() => {
                   const status = getStockStatus(viewingItem);
                   const maxDisplay = Math.max(viewingItem.min_stock * 2, viewingItem.stock, 1);

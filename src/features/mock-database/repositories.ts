@@ -232,6 +232,9 @@ export function createClinicRepositories(
               | 'description'
               | 'ingredients'
               | 'is_active'
+              | 'unit'
+              | 'pack_unit'
+              | 'pack_size'
             >
           >,
         id?: string,
