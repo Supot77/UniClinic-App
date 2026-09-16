@@ -1628,37 +1628,41 @@ interface RawInventoryLog {
                       </div>
 
                       {calcMode === 'standard' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end bg-white/70 p-3 rounded-xl border border-sky-100">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                              จำนวนบรรจุภัณฑ์ที่รับมา
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end bg-white/70 p-3 rounded-xl border border-sky-100">
+                          <div className="min-w-0">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
+                              จำนวนบรรจุภัณฑ์
                             </label>
-                            <div className="flex gap-2">
-                              <input
-                                type="number"
-                                min="1"
-                                placeholder="เช่น 5"
-                                value={calcPackCount}
-                                onChange={(e) => setCalcPackCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                              />
-                              <select
-                                value={calcPackUnit}
-                                onChange={(e) => setCalcPackUnit(e.target.value)}
-                                className="flex-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                              >
-                                <option value="กล่อง">กล่อง (Box)</option>
-                                <option value="กระปุก">กระปุก (Jar 1000s)</option>
-                                <option value="แผง">แผง (Strip / Blister)</option>
-                                <option value="แกลลอน">แกลลอน (Gallon)</option>
-                                <option value="แพ็ค">แพ็ค (Pack)</option>
-                                <option value="ลัง">ลัง (Carton)</option>
-                              </select>
-                            </div>
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="เช่น 5"
+                              value={calcPackCount}
+                              onChange={(e) => setCalcPackCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                            />
                           </div>
 
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          <div className="min-w-0">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
+                              หน่วยบรรจุภัณฑ์
+                            </label>
+                            <select
+                              value={calcPackUnit}
+                              onChange={(e) => setCalcPackUnit(e.target.value)}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                            >
+                              <option value="กล่อง">กล่อง (Box)</option>
+                              <option value="กระปุก">กระปุก (Jar)</option>
+                              <option value="แผง">แผง (Strip)</option>
+                              <option value="แกลลอน">แกลลอน (Gallon)</option>
+                              <option value="แพ็ค">แพ็ค (Pack)</option>
+                              <option value="ลัง">ลัง (Carton)</option>
+                            </select>
+                          </div>
+
+                          <div className="min-w-0">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
                               ขนาดบรรจุต่อ 1 {calcPackUnit}
                             </label>
                             <div className="relative">
@@ -1668,9 +1672,9 @@ interface RawInventoryLog {
                                 placeholder="เช่น 100 หรือ 1000"
                                 value={calcItemsPerPack}
                                 onChange={(e) => setCalcItemsPerPack(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-14 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-12 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
                                 {draft.unit || 'เม็ด'}
                               </span>
                             </div>
