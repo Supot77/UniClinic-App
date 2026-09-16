@@ -84,6 +84,7 @@ const COMMON_UNITS = [
   'ซอง',
   'แผง',
   'ชิ้น',
+  'แผ่น',
   'มิลลิลิตร (ml)',
 ];
 
@@ -92,11 +93,15 @@ const DEFAULT_UNIT_BY_TYPE: Record<string, string> = {
   'แคปซูล': 'แคปซูล',
   'ยาน้ำ': 'ขวด',
   'ผง': 'ซอง',
+  'ยาผง': 'ซอง',
   'น้ำ': 'ขวด',
   'ครีม/เจล': 'หลอด',
   'ขี้ผึ้ง': 'หลอด',
   'เม็ดอม': 'เม็ด',
-  'ยาฉีด': 'ไวอัล (Vial)',
+  'ยาฉีด': 'แอมพูล (Ampoule)',
+  'ยาหยอดตา/หู': 'ขวด',
+  'ยาพ่นสูด': 'ขวด',
+  'แผ่นแปะ': 'แผ่น',
   'เวชภัณฑ์ทั่วไป': 'ชิ้น',
 };
 
@@ -104,12 +109,15 @@ const TYPE_OPTIONS = [
   'เม็ด',
   'แคปซูล',
   'ยาน้ำ',
+  'ยาฉีด',
   'ผง',
   'น้ำ',
   'ครีม/เจล',
   'ขี้ผึ้ง',
   'เม็ดอม',
-  'ยาฉีด',
+  'ยาหยอดตา/หู',
+  'ยาพ่นสูด',
+  'แผ่นแปะ',
   'เวชภัณฑ์ทั่วไป',
 ];
 
@@ -1453,21 +1461,30 @@ interface RawInventoryLog {
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       รูปแบบยา *
                     </label>
-                    <select
-                      value={draft.type}
-                      onChange={(e) => {
-                        const newType = e.target.value;
-                        const suggested = DEFAULT_UNIT_BY_TYPE[newType] || draft.unit || 'เม็ด';
-                        setDraft({ ...draft, type: newType, unit: suggested });
-                      }}
-                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-                    >
-                      {TYPE_OPTIONS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        list="type-suggestions"
+                        value={draft.type}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          const suggested = DEFAULT_UNIT_BY_TYPE[newType];
+                          setDraft({
+                            ...draft,
+                            type: newType,
+                            unit: suggested || draft.unit || 'หน่วย',
+                          });
+                        }}
+                        placeholder="เลือกหรือพิมพ์ เช่น เม็ด, ยาฉีด"
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                      />
+                      <datalist id="type-suggestions">
+                        {TYPE_OPTIONS.map((t) => (
+                          <option key={t} value={t} />
+                        ))}
+                      </datalist>
+                    </div>
                   </div>
 
                   <div>
