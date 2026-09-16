@@ -1593,7 +1593,7 @@ interface RawInventoryLog {
                     <button
                       type="button"
                       onClick={() => setShowPackCalculator(!showPackCalculator)}
-                      className="rounded-lg border border-sky-300 bg-white px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition shadow-2xs"
+                      className="shrink-0 whitespace-nowrap rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition shadow-2xs"
                     >
                       {showPackCalculator ? 'ซ่อนตัวช่วย' : '📦 เปิดตัวช่วยคำนวณ'}
                     </button>
@@ -1612,7 +1612,7 @@ interface RawInventoryLog {
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          📦 บรรจุภัณฑ์ทั่วไป (กล่อง / กระปุก / แผง / แกลลอน)
+                          📦 บรรจุภัณฑ์ทั่วไป (กล่อง / กระปุก / แผง)
                         </button>
                         <button
                           type="button"
@@ -1623,7 +1623,7 @@ interface RawInventoryLog {
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          🚛 สั่งเป็นลังใหญ่ (ลัง × กล่องย่อย × {draft.unit || 'เม็ด'})
+                          🚛 สั่งเป็นลัง (ลัง × กล่อง × หน่วยย่อย)
                         </button>
                       </div>
 
@@ -1639,7 +1639,7 @@ interface RawInventoryLog {
                               placeholder="เช่น 5"
                               value={calcPackCount}
                               onChange={(e) => setCalcPackCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              className="h-[38px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                             />
                           </div>
 
@@ -1650,7 +1650,7 @@ interface RawInventoryLog {
                             <select
                               value={calcPackUnit}
                               onChange={(e) => setCalcPackUnit(e.target.value)}
-                              className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                              className="h-[38px] w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                             >
                               <option value="กล่อง">กล่อง (Box)</option>
                               <option value="กระปุก">กระปุก (Jar)</option>
@@ -1665,71 +1665,83 @@ interface RawInventoryLog {
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
                               ขนาดบรรจุต่อ 1 {calcPackUnit}
                             </label>
-                            <div className="relative">
+                            <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
                                 type="number"
                                 min="1"
                                 placeholder="เช่น 100 หรือ 1000"
                                 value={calcItemsPerPack}
                                 onChange={(e) => setCalcItemsPerPack(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-12 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-xs text-slate-900 outline-none"
                               />
-                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
-                                {draft.unit || 'เม็ด'}
+                              <span
+                                className="shrink-0 bg-slate-50 px-2 py-2 text-xs font-medium text-slate-500 border-l border-slate-100 max-w-[100px] truncate text-center"
+                                title={draft.unit || 'หน่วย'}
+                              >
+                                {draft.unit || 'หน่วย'}
                               </span>
                             </div>
                           </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end bg-white/70 p-3 rounded-xl border border-sky-100">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          <div className="min-w-0">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
                               จำนวนลัง
                             </label>
-                            <div className="relative">
+                            <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
                                 type="number"
                                 min="1"
                                 placeholder="เช่น 2"
                                 value={calcCartonCount}
                                 onChange={(e) => setCalcCartonCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-10 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-xs text-slate-900 outline-none"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">ลัง</span>
+                              <span className="shrink-0 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-500 border-l border-slate-100">
+                                ลัง
+                              </span>
                             </div>
                           </div>
 
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          <div className="min-w-0">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
                               ลังละกี่กล่อง
                             </label>
-                            <div className="relative">
+                            <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
                                 type="number"
                                 min="1"
                                 placeholder="เช่น 50"
                                 value={calcBoxesPerCarton}
                                 onChange={(e) => setCalcBoxesPerCarton(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-12 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-xs text-slate-900 outline-none"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">กล่อง</span>
+                              <span className="shrink-0 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-500 border-l border-slate-100">
+                                กล่อง
+                              </span>
                             </div>
                           </div>
 
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                              กล่องละกี่{draft.unit || 'เม็ด'}
+                          <div className="min-w-0">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
+                              กล่องละกี่{draft.unit || 'หน่วย'}
                             </label>
-                            <div className="relative">
+                            <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
                                 type="number"
                                 min="1"
                                 placeholder="เช่น 100"
                                 value={calcItemsPerBox}
                                 onChange={(e) => setCalcItemsPerBox(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-14 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-xs text-slate-900 outline-none"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">{draft.unit || 'เม็ด'}</span>
+                              <span
+                                className="shrink-0 bg-slate-50 px-2 py-2 text-xs font-medium text-slate-500 border-l border-slate-100 max-w-[100px] truncate text-center"
+                                title={draft.unit || 'หน่วย'}
+                              >
+                                {draft.unit || 'หน่วย'}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1775,37 +1787,43 @@ interface RawInventoryLog {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      สต็อกปัจจุบัน (Stock in {draft.unit || 'หน่วย'}) *
+                      สต็อกปัจจุบัน *
                     </label>
-                    <div className="relative">
+                    <div className="flex min-h-11 items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-4 focus-within:ring-sky-100">
                       <input
                         type="number"
                         min="0"
                         required
                         value={draft.stock}
                         onChange={(e) => setDraft({ ...draft, stock: Math.max(0, parseInt(e.target.value) || 0) })}
-                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-14 text-sm font-semibold text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                        className="min-w-0 flex-1 border-0 bg-transparent px-3.5 text-sm font-semibold text-slate-900 outline-none"
                       />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
-                        {draft.unit || 'เม็ด'}
+                      <span
+                        className="shrink-0 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[120px] truncate"
+                        title={draft.unit || 'หน่วย'}
+                      >
+                        {draft.unit || 'หน่วย'}
                       </span>
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      สต็อกขั้นต่ำ (Min Stock in {draft.unit || 'หน่วย'}) *
+                      สต็อกขั้นต่ำ *
                     </label>
-                    <div className="relative">
+                    <div className="flex min-h-11 items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-4 focus-within:ring-sky-100">
                       <input
                         type="number"
                         min="0"
                         required
                         value={draft.min_stock}
                         onChange={(e) => setDraft({ ...draft, min_stock: Math.max(0, parseInt(e.target.value) || 0) })}
-                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-14 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                        className="min-w-0 flex-1 border-0 bg-transparent px-3.5 text-sm text-slate-900 outline-none"
                       />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">
-                        {draft.unit || 'เม็ด'}
+                      <span
+                        className="shrink-0 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[120px] truncate"
+                        title={draft.unit || 'หน่วย'}
+                      >
+                        {draft.unit || 'หน่วย'}
                       </span>
                     </div>
                   </div>
