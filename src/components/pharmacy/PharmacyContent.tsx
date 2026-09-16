@@ -1363,7 +1363,7 @@ interface RawInventoryLog {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
@@ -1675,7 +1675,7 @@ interface RawInventoryLog {
                                 className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-xs text-slate-900 outline-none"
                               />
                               <span
-                                className="shrink-0 bg-slate-50 px-2 py-2 text-xs font-medium text-slate-500 border-l border-slate-100 max-w-[100px] truncate text-center"
+                                className="shrink-0 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[150px] truncate text-center"
                                 title={draft.unit || 'หน่วย'}
                               >
                                 {draft.unit || 'หน่วย'}
@@ -1737,7 +1737,7 @@ interface RawInventoryLog {
                                 className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-xs text-slate-900 outline-none"
                               />
                               <span
-                                className="shrink-0 bg-slate-50 px-2 py-2 text-xs font-medium text-slate-500 border-l border-slate-100 max-w-[100px] truncate text-center"
+                                className="shrink-0 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[150px] truncate text-center"
                                 title={draft.unit || 'หน่วย'}
                               >
                                 {draft.unit || 'หน่วย'}
@@ -1799,7 +1799,7 @@ interface RawInventoryLog {
                         className="min-w-0 flex-1 border-0 bg-transparent px-3.5 text-sm font-semibold text-slate-900 outline-none"
                       />
                       <span
-                        className="shrink-0 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[120px] truncate"
+                        className="shrink-0 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[180px] truncate"
                         title={draft.unit || 'หน่วย'}
                       >
                         {draft.unit || 'หน่วย'}
@@ -1820,7 +1820,7 @@ interface RawInventoryLog {
                         className="min-w-0 flex-1 border-0 bg-transparent px-3.5 text-sm text-slate-900 outline-none"
                       />
                       <span
-                        className="shrink-0 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[120px] truncate"
+                        className="shrink-0 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 border-l border-slate-100 max-w-[180px] truncate"
                         title={draft.unit || 'หน่วย'}
                       >
                         {draft.unit || 'หน่วย'}
@@ -1929,7 +1929,7 @@ interface RawInventoryLog {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95"
+            className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95"
           >
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
