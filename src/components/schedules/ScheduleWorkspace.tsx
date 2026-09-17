@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -28,6 +29,12 @@ const inputClass =
 
 const filterClass = 'h-11 w-full rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong';
 const textButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-brand-strong hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong';
+
+function ViewportPortal({ children }: { children: ReactNode }) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
+
 const slotStyles: Record<ScheduleSlotStatus, { label: string; marker: string; text: string }> = {
   available: { label: 'เปิดรับ', marker: 'border-l-status-success', text: 'text-status-success' },
   full: { label: 'เต็ม', marker: 'border-l-status-warning', text: 'text-status-warning' },
@@ -808,13 +815,14 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
       </div>
 
       {batchFormOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="batch-slot-form-title"
-          onClick={(event) => { if (event.target === event.currentTarget) closeBatchForm(); }}
-        >
+        <ViewportPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="batch-slot-form-title"
+            onClick={(event) => { if (event.target === event.currentTarget) closeBatchForm(); }}
+          >
           <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80 animate-in zoom-in-95 duration-200">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -965,17 +973,19 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </ViewportPortal>
       )}
 
       {leaveFormOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="leave-form-title"
-          onClick={(event) => { if (event.target === event.currentTarget) closeLeaveForm(); }}
-        >
+        <ViewportPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-form-title"
+            onClick={(event) => { if (event.target === event.currentTarget) closeLeaveForm(); }}
+          >
           <div className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80 animate-in zoom-in-95 duration-200">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -1052,19 +1062,21 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </ViewportPortal>
       )}
 
       {formOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="slot-form-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setFormOpen(false);
-          }}
-        >
+        <ViewportPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="slot-form-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setFormOpen(false);
+            }}
+          >
           <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80 animate-in zoom-in-95 duration-200">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -1244,17 +1256,19 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </ViewportPortal>
       )}
 
       {serviceFormOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="service-form-title"
-          onClick={(event) => { if (event.target === event.currentTarget) setServiceFormOpen(false); }}
-        >
+        <ViewportPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="service-form-title"
+            onClick={(event) => { if (event.target === event.currentTarget) setServiceFormOpen(false); }}
+          >
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -1275,7 +1289,8 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               <button type="button" onClick={saveService} className="min-h-11 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white hover:bg-brand-hover">บันทึกบริการ</button>
             </div>
           </div>
-        </div>
+          </div>
+        </ViewportPortal>
       )}
 
 

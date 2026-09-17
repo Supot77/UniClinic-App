@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import TopProgressBar from "@/components/common/TopProgressBar";
+import BackToTopButton from "@/components/common/BackToTopButton";
 import { AuthProvider } from "@/context/AuthContext";
 import { ClinicMockProvider } from "@/features/mock-database/ClinicMockProvider";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <BackToTopButton />
           </ClinicMockProvider>
         </AuthProvider>
       </body>
