@@ -1952,6 +1952,9 @@ interface RawInventoryLog {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto"
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="รายละเอียดเวชภัณฑ์"
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95"
           >
