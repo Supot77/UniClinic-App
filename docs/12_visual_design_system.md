@@ -28,7 +28,7 @@
 - Hero: อ้างอิง 1521 × 657px; desktop padding 85px 51px; ความสูงขั้นต่ำ 657px เพื่อให้ข้อความขยายได้
 - Footer: อ้างอิง 1521 × 413px; desktop padding 60px 51px; ความสูงขั้นต่ำ 413px
 - Mobile: ความกว้างเต็มจอ padding แนวนอน 20px; ความสูงตามเนื้อหา
-- Font: Inter จาก root layout; อักษรไทยใช้ system fallback เพราะ Inter ไม่มี glyph ไทย
+- Font: Noto Sans Thai จาก root layout; ใช้ family เดียวกันทั้งอักษรไทยและ Latin
 - Hero: 13, 15, 75, 19, 21, 11px; หัวเรื่องย่อขนาดบนมือถือ
 - Header/Footer: 13, 15, 19px; Header คงความสูง 64px ตามพื้นที่ชดเชยของ main
 - Radius: `rounded-full`, `rounded-brand-sm` (9px), `rounded-brand-button` (13px), `rounded-brand-card` (17px), `rounded-brand-hero` (34px)
