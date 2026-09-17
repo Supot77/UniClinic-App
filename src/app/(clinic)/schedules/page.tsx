@@ -34,6 +34,9 @@ async function getScheduleUser(): Promise<{ role: UserRole; actorId: string }> {
 
 export default async function SchedulesPage() {
   const { role, actorId } = await getScheduleUser();
-  return <ScheduleWorkspace role={role} actorId={actorId} />;
+  return (
+    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
+      <ScheduleWorkspace role={role} actorId={actorId} />
+    </div>
+  );
 }
-
