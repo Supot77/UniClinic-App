@@ -1157,6 +1157,13 @@ interface RawInventoryLog {
                     <tr
                       key={item.id}
                       onClick={() => setViewingItem(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setViewingItem(item);
+                        }
+                      }}
+                      tabIndex={0}
                       className="transition-colors hover:bg-sky-50/50 cursor-pointer group"
                       title="คลิกเพื่อดูรายละเอียดเวชภัณฑ์"
                     >
