@@ -1987,6 +1987,7 @@ interface RawInventoryLog {
               </div>
               <button
                 type="button"
+                aria-label="ปิดหน้าต่าง"
                 onClick={() => setViewingItem(null)}
                 className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
               >
