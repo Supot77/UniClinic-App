@@ -715,7 +715,7 @@ export const clinicMockTables: ClinicMockTables = {
       type: 'reminder',
       title: 'ถึงเวลาทานยา',
       message:
-        'Paracetamol 500mg เวลา 20:00 น.',
+        'Paracetamol 500mg (หลังอาหาร) เวลา 20:00 น.',
       is_read: false,
       created_at: UPDATED_AT,
     },
