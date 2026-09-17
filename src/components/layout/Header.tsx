@@ -212,7 +212,7 @@ export default function Header() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpenGroup(null);
       }}
     >
-      <nav aria-label="เมนูหลัก" className="mx-auto flex min-h-16 w-full max-w-[1440px] items-center gap-2 px-4 sm:gap-4 sm:px-6">
+      <nav aria-label="เมนูหลัก" className="flex min-h-16 w-full items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={() => { setMobileMenuOpen((open) => !open); setOpenGroup(null); }}
@@ -347,7 +347,7 @@ export default function Header() {
 
       {isAuthenticated && role && openGroup && (
         <div className="absolute inset-x-0 top-16 hidden border-t border-white/10 bg-brand-ink/98 shadow-2xl backdrop-blur lg:block" onMouseEnter={() => setOpenGroup(openGroup)}>
-          <div className="mx-auto grid max-w-[1440px] grid-cols-3 gap-8 px-6 py-7 xl:px-10">
+          <div className="grid w-full grid-cols-3 gap-8 px-6 py-7 xl:px-10">
             {visibleGroups.filter((group) => group.id === openGroup).map((group) => {
               const GroupIcon = group.icon;
               return (
