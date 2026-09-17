@@ -284,6 +284,7 @@ export function createClinicRepositories(
 
             const medication: Medication = {
               ...input,
+              unit: input.unit ?? 'เม็ด',
               dosage: input.dosage ?? null,
               brand_name: input.brand_name ?? null,
               coverage_type: input.coverage_type ?? 'covered',
