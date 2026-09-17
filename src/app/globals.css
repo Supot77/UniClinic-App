@@ -167,6 +167,37 @@ body {
   overflow-x: hidden;
 }
 
+/* Branded scrolling surfaces. Keep thumb contrast and hit area usable across routes. */
+html,
+body,
+* {
+  scrollbar-color: var(--border-soft) var(--surface-light);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface-light);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid var(--surface-light);
+  border-radius: 999px;
+  background: var(--border-soft);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--surface-light);
+}
+
 /* Tight headline */
 .apple-tight-headline {
   letter-spacing: -0.02em;

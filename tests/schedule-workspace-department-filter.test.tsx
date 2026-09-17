@@ -187,6 +187,16 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(dateInput.getAttribute('min')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  it('mounts slot modal at document body so it is centered on the viewport', () => {
+    const { container } = render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'สร้างรอบตรวจใหม่' });
+    expect(dialog.parentElement).toBe(document.body);
+    expect(container.querySelector('[role="dialog"]')).not.toBeInTheDocument();
+  });
+
   it('previews and submits a multi-day morning schedule for selected weekdays', async () => {
     shopState.slots = [];
     shopState.createSlotBatch.mockResolvedValueOnce({ ok: true, value: 14 });
