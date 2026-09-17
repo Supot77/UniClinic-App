@@ -211,11 +211,21 @@ export interface MedicalRecord {
   updated_at?: string; // Table does not have updated_at column in latest schema
 }
 
+export type MedicationCoverageType = 'covered' | 'non_covered';
+
 export interface Medication {
   id: string;
   name: string;
+  dosage?: string | null; // ขนาดยา เช่น 1000mg, 250mg, 500mg
+  brand_name?: string | null; // ยี่ห้อยา เช่น Sara, Tylenol, Panadol
   type: string; // เม็ด, แคปซูล, น้ำ
+  unit?: string | null; // หน่วยจ่ายย่อยสุด เช่น เม็ด, แคปซูล, ขวด, หลอด, ไวอัล, ซอง
+  pack_unit?: string | null; // หน่วยบรรจุใหญ่ เช่น ลัง, กล่อง, กระปุก, แผง, แกลลอน
+  pack_size?: number | null; // อัตราส่วนบรรจุ (จำนวนหน่วยย่อยต่อแพ็ค)
   category: string;
+  coverage_type?: MedicationCoverageType | null; // 'covered' = ในสิทธิ์ (เบิกได้), 'non_covered' = นอกสิทธิ์ (จ่ายนอก)
+  manufacturer?: string | null; // บริษัทที่ผลิต เช่น องค์การเภสัชกรรม (GPO)
+  mfg_date?: string | null; // วันผลิต (DATE)
   stock: number;
   min_stock: number;
   expiry_date: string | null; // DATE

@@ -51,6 +51,7 @@ describe('MockShopRepository doctor leaves', () => {
       undefined,
       'admin-1',
       'staff_admin',
+      TEST_TODAY,
     );
     expect(leaveResult).toMatchObject({ ok: true, value: { doctorId: doctor.id, reason: 'ไปราชการ' } });
 
@@ -102,7 +103,7 @@ describe('DatabaseShopRepository doctor leaves', () => {
     const doctors = [{ id: doctorId, profileId: doctorId, fullName: 'นพ. สมชาย', email: '', initials: 'สช', specialty: 'ทั่วไป', departmentId: 'dept-1', availability: 'active' as const }];
 
     await expect(repo.fetchDoctorLeaves()).resolves.toEqual([{ id: row.id, doctorId, startDate: row.start_date, endDate: row.end_date, reason: row.reason, createdBy: row.created_by, createdAt: row.created_at }]);
-    const result = await repo.saveDoctorLeave({ doctorId, startDate: row.start_date, endDate: row.end_date, reason: row.reason }, [], doctors, undefined, doctorId, 'medical');
+    const result = await repo.saveDoctorLeave({ doctorId, startDate: row.start_date, endDate: row.end_date, reason: row.reason }, [], doctors, undefined, doctorId, 'medical', TEST_TODAY);
     expect(result).toMatchObject({ ok: true, value: { id: row.id, doctorId, startDate: row.start_date } });
     expect(mockFrom).toHaveBeenCalledWith('doctor_leaves');
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ doctor_id: doctorId, start_date: row.start_date, end_date: row.end_date }));
