@@ -8,7 +8,24 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-use skill caveman
+# การเรียกใช้ Skill อัตโนมัติตามประเภทงาน (Skill Routing & Enforcement)
+
+Agent ต้องเลือกเปิดใช้งานและปฏิบัติตาม Skill ที่สอดคล้องกับประเภทงานดังต่อไปนี้:
+
+1. **โหมดการสื่อสาร (Terse Communication)**:
+   - เรียกใช้ `caveman` ตลอดเวลา: สื่อสารกระชับ ตรงประเด็น ตัดคำฟุ่มเฟือย คงเนื้อหาทางเทคนิคและภาษาของผู้ใช้ครบถ้วน ประหยัด token
+2. **การวางแผนและออกแบบ (Feature Planning & Design)**:
+   - เรียกใช้ `brainstorming` เสมอเมื่อเริ่มคิดฟีเจอร์ใหม่, ออกแบบ logic/workflow, หรือปรับเปลี่ยนพฤติกรรมระบบ ห้ามเขียนโค้ดก่อนได้รับความเห็นชอบจากผู้ใช้ (Hard Gate)
+3. **การพัฒนาหน้าบ้านและส่วนติดต่อผู้ใช้ (Frontend & UI Development)**:
+   - เรียกใช้ `frontend-design` เมื่อสร้างหรือปรับปรุง UI Components, Pages, Layouts ให้ได้มาตรฐาน สวยงาม ไม่ generic รองรับ responsive และตรงตามระบบ WU Clinic
+4. **การสืบสวนและแก้ไขข้อผิดพลาด (Debugging & Troubleshooting)**:
+   - เรียกใช้ `debug-mantra` เมื่อพบข้อผิดพลาด, test fail, บั๊ก หรือ stack trace โดยยึดหลัก 4 ขั้นตอน (Reproduce, Trace fail path, Falsify hypothesis, Cross-reference) ก่อนเสนอวิธีแก้
+5. **การจัดการ Git และ Branch (Git Workflow)**:
+   - เรียกใช้ `sync-develop` ก่อนเริ่มงานบน branch ทุกครั้ง เพื่อ fetch และ sync การเปลี่ยนแปลงล่าสุดจาก `origin/develop` เข้า branch ตนเองอย่างปลอดภัย
+6. **การตรวจทานโค้ด (Code Review & Audit)**:
+   - เรียกใช้ `scrutinize` หรือ `caveman-review` เมื่อต้องตรวจสอบ diff, ตรวจ PR หรือ sanity check โค้ดก่อนส่งมอบ
+7. **การบันทึกสรุปปัญหาหลังแก้ไข (Incident & Bug Resolution)**:
+   - เรียกใช้ `post-mortem` เพื่อบันทึก Root Cause Analysis (RCA) หลังแก้ปัญหาสำคัญเสร็จสิ้น
 
 # มาตรฐานการทำงานของ Agent
 

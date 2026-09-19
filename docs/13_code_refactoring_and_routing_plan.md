@@ -179,6 +179,14 @@
 2. **ปรับปรุง Dynamic Anchor สำหรับ Mock Data**:
    - ปรับวันที่ใน `src/mocks/scheduleData.ts` และ `clinicDatabase.ts` ให้คำนวณสัมพันธ์กับวันปัจจุบัน (เช่น อิงจากวันจันทร์ของสัปดาห์ปัจจุบัน `getCurrentWeekMonday()`) แทนการระบุวันที่ตายตัว เพื่อป้องกันปัญหาเปิดระบบมาแล้วพบตารางว่างเปล่า
 
+#### สถานะหลังแก้ไข 19 กันยายน 2569
+
+- [x] สร้าง `src/constants/dateTime.ts` พร้อม constants ตามข้อกำหนด และ helper สำหรับ Bangkok date, date shifting และ current-week Monday
+- [x] ปรับ `src/components/common/DatePicker.tsx` ให้ใช้ `THAI_MONTHS`, `THAI_MONTHS_SHORT` และ `THAI_WEEKDAYS` จาก constants กลาง
+- [x] ปรับ `src/mocks/scheduleData.ts` และ `src/mocks/clinicDatabase.ts` ให้ schedule mock อิงวันจันทร์ของสัปดาห์ปัจจุบัน โดยคง offset ของ history/current slots
+- [x] เพิ่ม/ปรับ tests สำหรับ constants, dynamic anchor, dashboard และ schedule rules
+- ผลตรวจและข้อจำกัดบันทึกไว้ที่ [14 บันทึกการเปลี่ยนแปลง](14_change_log.md)
+
 ---
 
 ## 3. เทคนิคขั้นสูงสำหรับ Next.js App Router เพื่อลดความซ้ำซ้อน

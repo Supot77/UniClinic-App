@@ -24,6 +24,7 @@ import DatePicker from '@/components/common/DatePicker';
 import { useShop } from '@/features/shop/context/ShopProvider';
 import type { DoctorLeave, ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
+import { CLINIC_TIME_BLOCKS, LEAVE_REASONS, THAI_MONTHS_SHORT, WEEKDAY_NAMES } from '@/constants/dateTime';
 
 const inputClass =
   'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-100';
@@ -41,9 +42,6 @@ const slotStyles: Record<ScheduleSlotStatus, { label: string; marker: string; te
   full: { label: 'เต็ม', marker: 'border-l-status-warning', text: 'text-status-warning' },
   closed: { label: 'ปิดรอบ', marker: 'border-l-status-neutral', text: 'text-status-neutral' },
 };
-
-const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
 import {
   buildSlotBatchPlan,
@@ -202,7 +200,7 @@ function shiftClinicMonth(isoDate: string, deltaMonths: number) {
 
 function formatShortDate(isoDate: string) {
   const date = parseClinicDate(isoDate);
-  return `${date.getUTCDate()} ${monthNames[date.getUTCMonth()]}`;
+  return `${date.getUTCDate()} ${THAI_MONTHS_SHORT[date.getUTCMonth()]}`;
 }
 
 function formatWeekRange(start: string) {
@@ -924,8 +922,19 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   <div className="sm:col-span-2">
                     <span className="text-sm font-medium text-slate-700">ช่วงเวลา</span>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => setBatchDraft((current) => ({ ...current, startTime: '08:30', endTime: '12:00' }))} className={`${batchDraft.startTime === '08:30' && batchDraft.endTime === '12:00' ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}>ช่วงเช้า 08:30–12:00</button>
-                      <button type="button" onClick={() => setBatchDraft((current) => ({ ...current, startTime: '13:00', endTime: '16:30' }))} className={`${batchDraft.startTime === '13:00' && batchDraft.endTime === '16:30' ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}>ช่วงบ่าย 13:00–16:30</button>
+                      {CLINIC_TIME_BLOCKS.map((block) => {
+                        const isSelected = batchDraft.startTime === block.startTime && batchDraft.endTime === block.endTime;
+                        return (
+                          <button
+                            key={block.label}
+                            type="button"
+                            onClick={() => setBatchDraft((current) => ({ ...current, startTime: block.startTime, endTime: block.endTime }))}
+                            className={`${isSelected ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}
+                          >
+                            {block.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <label className="space-y-1.5">
@@ -1057,11 +1066,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                 <span className="text-sm font-medium text-slate-700">เหตุผลการลา <span className="font-normal text-slate-400">(ไม่บังคับ)</span></span>
                 <select aria-label="เหตุผลการลา" value={leaveDraft.reason} onChange={(event) => setLeaveDraft((current) => ({ ...current, reason: event.target.value }))} className={inputClass}>
                   <option value="">เลือกเหตุผล</option>
-                  <option value="ไปราชการ">ไปราชการ</option>
-                  <option value="ลาป่วย">ลาป่วย</option>
-                  <option value="ประชุมวิชาการ">ประชุมวิชาการ</option>
-                  <option value="อบรม">อบรม</option>
-                  <option value="อื่น ๆ">อื่น ๆ</option>
+                  {LEAVE_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
                 </select>
               </label>
             </div>
@@ -1364,7 +1369,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       calendarView === 'day'
                         ? formatShortDate(weekStart)
                         : calendarView === 'month'
-                        ? `${monthNames[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}`
+                        ? `${THAI_MONTHS_SHORT[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}`
                         : formatWeekRange(weekStart)
                     }
                     slotDates={availableSlotDates}
@@ -1498,7 +1503,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       className="cursor-pointer px-3 py-4 text-center hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
                       title={`ดับเบิ้ลคลิกเพื่อดูตารางตรวจวันที่ ${formatShortDate(date)}`}
                     >
-                      <div className={`text-xs font-semibold ${isToday ? 'text-sky-700' : 'text-slate-500'}`}>{dayNames[parsed.getUTCDay()]}</div>
+                      <div className={`text-xs font-semibold ${isToday ? 'text-sky-700' : 'text-slate-500'}`}>{WEEKDAY_NAMES[parsed.getUTCDay()]}</div>
                       <div className={`mx-auto mt-2 flex h-9 w-9 items-center justify-center rounded-full text-base font-bold tabular-nums ${isToday ? 'bg-sky-600 text-white' : 'text-slate-950'}`}>{parsed.getUTCDate()}</div>
                     </button>
                   );
@@ -1562,7 +1567,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   >
                     <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="text-xs font-semibold text-sky-700">{dayNames[parsed.getUTCDay()]}</div>
+                        <div className="text-xs font-semibold text-sky-700">{WEEKDAY_NAMES[parsed.getUTCDay()]}</div>
                         <h2 className="font-bold text-slate-950">{formatShortDate(date)}</h2>
                       </div>
                       <LeaveChips date={date} leaves={visibleDoctorLeaves} doctors={doctors} />
@@ -1724,7 +1729,7 @@ function CalendarBoard({
     return (
       <div aria-label="ปฏิทินรายวัน">
         <div className="border-y border-brand-border-soft bg-brand-surface/60 px-4 py-5">
-          <div className="text-xs font-semibold text-brand-strong">{dayNames[parseClinicDate(date).getUTCDay()]}</div>
+          <div className="text-xs font-semibold text-brand-strong">{WEEKDAY_NAMES[parseClinicDate(date).getUTCDay()]}</div>
           <h2 className="mt-1 text-lg font-bold text-brand-ink">{formatShortDate(date)}</h2>
           <LeaveChips date={date} leaves={doctorLeaves} doctors={doctors} />
         </div>
