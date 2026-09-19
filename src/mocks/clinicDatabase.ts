@@ -13,9 +13,13 @@ import type {
   Profile,
   UserRole,
 } from '@/types/database';
+import { getCurrentWeekMonday, shiftDate } from '@/constants/dateTime';
 
 const CREATED_AT = '2026-09-01T01:30:00.000Z';
 const UPDATED_AT = '2026-09-05T08:00:00.000Z';
+const MOCK_WEEK_START = getCurrentWeekMonday();
+
+const mockSlotDate = (daysFromMonday: number) => shiftDate(MOCK_WEEK_START, daysFromMonday);
 
 function profile(
   id: string,
@@ -245,7 +249,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-history-7d',
       doctor_id: 'profile-stephen-strange',
-      slot_date: '2026-09-05',
+      slot_date: mockSlotDate(-2),
       start_time: '10:00',
       end_time: '10:30',
       max_capacity: 1,
@@ -257,7 +261,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-history-30d',
       doctor_id: 'profile-charles-xavier',
-      slot_date: '2026-08-20',
+      slot_date: mockSlotDate(-18),
       start_time: '13:00',
       end_time: '14:00',
       max_capacity: 1,
@@ -269,7 +273,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-001',
       doctor_id: 'profile-stephen-strange',
-      slot_date: '2026-09-07',
+      slot_date: mockSlotDate(0),
       start_time: '08:30',
       end_time: '09:00',
       max_capacity: 1,
@@ -281,7 +285,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-002',
       doctor_id: 'profile-stephen-strange',
-      slot_date: '2026-09-07',
+      slot_date: mockSlotDate(0),
       start_time: '09:00',
       end_time: '09:30',
       max_capacity: 1,
@@ -293,7 +297,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-003',
       doctor_id: 'profile-charles-xavier',
-      slot_date: '2026-09-07',
+      slot_date: mockSlotDate(0),
       start_time: '13:00',
       end_time: '14:00',
       max_capacity: 1,
@@ -305,7 +309,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-004',
       doctor_id: 'profile-leonard-mccoy',
-      slot_date: '2026-09-08',
+      slot_date: mockSlotDate(1),
       start_time: '09:00',
       end_time: '09:30',
       max_capacity: 4,
@@ -317,7 +321,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-005',
       doctor_id: 'profile-shuri-udaku',
-      slot_date: '2026-09-08',
+      slot_date: mockSlotDate(1),
       start_time: '10:00',
       end_time: '11:00',
       max_capacity: 1,
@@ -329,7 +333,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-006',
       doctor_id: 'profile-meredith-grey',
-      slot_date: '2026-09-09',
+      slot_date: mockSlotDate(2),
       start_time: '13:00',
       end_time: '13:30',
       max_capacity: 1,
@@ -341,7 +345,7 @@ export const clinicMockTables: ClinicMockTables = {
     {
       id: 'slot-007',
       doctor_id: 'profile-bruce-banner',
-      slot_date: '2026-09-10',
+      slot_date: mockSlotDate(3),
       start_time: '13:00',
       end_time: '14:00',
       max_capacity: 1,

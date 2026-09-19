@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ClinicMockDatabase } from '@/features/mock-database/engine';
 import { createClinicRepositories } from '@/features/mock-database/repositories';
 import type { UserRole } from '@/types/database';
+import { MOCK_WEEK_START } from '@/mocks/scheduleData';
+import { shiftDate } from '@/constants/dateTime';
 
 const roles: UserRole[] = ['staff_admin', 'medical', 'patient'];
+const TEST_WEEK_START = MOCK_WEEK_START;
 
 describe('role-based dashboard requirements', () => {
   it('builds a dedicated view for all three dashboard roles', async () => {
@@ -13,7 +16,7 @@ describe('role-based dashboard requirements', () => {
     };
 
     for (const role of roles) {
-      const result = await repositories.dashboard.getView(role, undefined, '2026-09-07');
+      const result = await repositories.dashboard.getView(role, undefined, TEST_WEEK_START);
       expect(result.error).toBeNull();
       expect(result.data?.role).toBe(role);
       expect(result.data?.metrics.map((item) => item.id)).toContain(expectedMetric[role]);
@@ -22,8 +25,8 @@ describe('role-based dashboard requirements', () => {
 
   it('limits medical staff with a doctor profile to their own schedule and queue', async () => {
     const repositories = createClinicRepositories(new ClinicMockDatabase(0));
-    const strange = await repositories.dashboard.getView('medical', 'profile-stephen-strange', '2026-09-07');
-    const xavier = await repositories.dashboard.getView('medical', 'profile-charles-xavier', '2026-09-07');
+    const strange = await repositories.dashboard.getView('medical', 'profile-stephen-strange', TEST_WEEK_START);
+    const xavier = await repositories.dashboard.getView('medical', 'profile-charles-xavier', TEST_WEEK_START);
 
     expect(strange.data?.metrics.find((item) => item.id === 'own-appointments')?.value).toBe(1);
     expect(strange.data?.metrics.find((item) => item.id === 'own-queue')?.value).toBe(1);
@@ -33,7 +36,7 @@ describe('role-based dashboard requirements', () => {
 
   it('keeps the staff dashboard aggregate-only', async () => {
     const repositories = createClinicRepositories(new ClinicMockDatabase(0));
-    const result = await repositories.dashboard.getView('staff_admin', 'profile-leslie-knope', '2026-09-07');
+    const result = await repositories.dashboard.getView('staff_admin', 'profile-leslie-knope', TEST_WEEK_START);
     const serialized = JSON.stringify(result.data);
 
     expect(result.data?.roleCounts).toHaveLength(3);
@@ -49,7 +52,7 @@ describe('role-based dashboard requirements', () => {
 
   it('allows a patient to see only their own appointments', async () => {
     const repositories = createClinicRepositories(new ClinicMockDatabase(0));
-    const result = await repositories.dashboard.getView('patient', 'profile-peter-parker', '2026-09-07');
+    const result = await repositories.dashboard.getView('patient', 'profile-peter-parker', TEST_WEEK_START);
 
     expect(result.error).toBeNull();
     expect(result.data?.appointmentQueue.every((item) => item.patientName === 'Peter Parker')).toBe(true);
@@ -64,14 +67,15 @@ describe('role-based dashboard requirements', () => {
 
   it('calculates today, trailing 7 days, and trailing 30 days as inclusive Bangkok ranges', async () => {
     const repositories = createClinicRepositories(new ClinicMockDatabase(0));
-    const today = await repositories.dashboard.getView('staff_admin', undefined, '2026-09-06', 'today');
-    const sevenDays = await repositories.dashboard.getView('staff_admin', undefined, '2026-09-06', '7d');
-    const thirtyDays = await repositories.dashboard.getView('staff_admin', undefined, '2026-09-06', '30d');
+    const testDate = shiftDate(TEST_WEEK_START, -1);
+    const today = await repositories.dashboard.getView('staff_admin', undefined, testDate, 'today');
+    const sevenDays = await repositories.dashboard.getView('staff_admin', undefined, testDate, '7d');
+    const thirtyDays = await repositories.dashboard.getView('staff_admin', undefined, testDate, '30d');
     const appointmentCount = (result: typeof today) => result.data?.metrics.find((item) => item.id === 'appointments-in-range')?.value;
 
-    expect(today.data).toMatchObject({ startDate: '2026-09-06', date: '2026-09-06', range: 'today' });
-    expect(sevenDays.data).toMatchObject({ startDate: '2026-08-31', date: '2026-09-06', range: '7d' });
-    expect(thirtyDays.data).toMatchObject({ startDate: '2026-08-08', date: '2026-09-06', range: '30d' });
+    expect(today.data).toMatchObject({ startDate: testDate, date: testDate, range: 'today' });
+    expect(sevenDays.data).toMatchObject({ startDate: shiftDate(testDate, -6), date: testDate, range: '7d' });
+    expect(thirtyDays.data).toMatchObject({ startDate: shiftDate(testDate, -29), date: testDate, range: '30d' });
     expect([appointmentCount(today), appointmentCount(sevenDays), appointmentCount(thirtyDays)]).toEqual([0, 1, 2]);
   });
 });
