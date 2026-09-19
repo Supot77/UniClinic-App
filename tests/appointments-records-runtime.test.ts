@@ -56,12 +56,21 @@ describe('Clinic manual contract', () => {
   it('saves and completes atomically, preserves the pharmacy JSON contract and prevents amendments', async () => {
     const repo = createClinicMockRepository(withAppointment());
     const input = { appointmentId, diagnosis: 'ผลทดสอบ', advice: 'คำแนะนำ', complete: true,
+      height_cm: 170, weight_kg: 65.5, blood_pressure: '120/80', pulse_bpm: 72,
       prescriptions: [{ medication_id: medicationId, name: 'ชื่อปลอม', dosage: 'ทดสอบ', frequency: 'ทดสอบ', duration_days: 1, quantity: 2 }] };
     await repo.saveRecord(input);
     const before = await repo.load();
     expect(before.appointments[0].status).toBe('completed');
     expect(before.records[0].prescribed_medications?.[0]).toMatchObject({ name: 'ยาทดสอบ', quantity: 2 });
+    expect(before.records[0]).toMatchObject({ height_cm: 170, weight_kg: 65.5, blood_pressure: '120/80', pulse_bpm: 72 });
     await expect(repo.saveRecord(input)).rejects.toThrow();
+    expect(await repo.load()).toEqual(before);
+  });
+  it('rejects invalid physical-exam values before changing the record state', async () => {
+    const repo = createClinicMockRepository(withAppointment());
+    const before = await repo.load();
+    await expect(repo.saveRecord({ appointmentId, diagnosis: 'ผลทดสอบ', advice: '', complete: true,
+      height_cm: 251, weight_kg: null, blood_pressure: '120-80', pulse_bpm: null, prescriptions: [] })).rejects.toThrow();
     expect(await repo.load()).toEqual(before);
   });
   it('invalid medication does not leave a partial record or completed appointment', async () => {
@@ -122,5 +131,15 @@ describe('Clinic database adapter boundary', () => {
   it('does not fall back to mock when the migration is missing', async () => {
     const c = client(); c.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } });
     await expect(createClinicDatabaseRepository(c.fake, 'patient').load()).rejects.toThrow('ติดตั้ง');
+  });
+  it('sends physical-exam measurements to the database RPC', async () => {
+    const c = client('medical');
+    const repo = createClinicDatabaseRepository(c.fake, 'medical');
+    await repo.saveRecord({ appointmentId, diagnosis: 'ผลทดสอบ', advice: '', complete: false,
+      height_cm: 170, weight_kg: 65.5, blood_pressure: '120/80', pulse_bpm: 72, prescriptions: [] });
+    expect(c.rpc).toHaveBeenCalledWith('pai_save_record', expect.objectContaining({
+      p_appointment_id: appointmentId, p_height_cm: 170, p_weight_kg: 65.5,
+      p_blood_pressure: '120/80', p_pulse_bpm: 72, p_complete: false,
+    }));
   });
 });

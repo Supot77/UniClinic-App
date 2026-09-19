@@ -207,6 +207,10 @@ export interface MedicalRecord {
   diagnosis: string; // NOT NULL CHECK (length >= 1)
   treatment_notes: string; // NOT NULL DEFAULT ''
   prescribed_medications: PrescribedMedication[]; // JSONB array, NOT NULL DEFAULT '[]'
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  blood_pressure?: string | null;
+  pulse_bpm?: number | null;
   created_at: string;
   updated_at?: string; // Table does not have updated_at column in latest schema
 }
