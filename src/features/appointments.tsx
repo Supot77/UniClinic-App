@@ -230,7 +230,7 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
             {role !== 'patient' && <p className="break-words text-sm">เบอร์โทรผู้ป่วย: {a.patient_phone?.trim() || 'ไม่ได้ระบุ'}</p>}
             {a.cancel_requested_at && ['pending','confirmed'].includes(a.status) && <p className="text-sm font-medium text-amber-800">ผู้ป่วยขอยกเลิก · รอเจ้าหน้าที่ดำเนินการ</p>}
             {a.rejection_reason && <p className="break-words rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800"><strong>เหตุผลการปฏิเสธ:</strong> {a.rejection_reason}</p>}
-            <div className="flex flex-wrap items-start gap-2">{allowedActions(role, a, slot, bangkokNow.date, bangkokNow.time).map((action) => action === 'rejected' ? <details key={action} className="group/reject relative w-auto open:mb-56 sm:open:mb-64">
+            <div className="flex flex-wrap items-start gap-2">{allowedActions(role, a, slot, bangkokNow.date, bangkokNow.time).filter((action) => !(role === 'staff_admin' && action === 'cancelled')).map((action) => action === 'rejected' ? <details key={action} className="group/reject relative w-auto open:mb-56 sm:open:mb-64">
               <summary className={`${secondaryButtonClass} flex w-auto list-none cursor-pointer justify-center text-rose-700 marker:hidden`}>{actionLabels[action]}</summary>
               <form className="absolute left-0 top-full z-10 mt-3 w-[min(22rem,calc(100vw-3rem))] min-w-0 space-y-3 rounded-xl border border-rose-100 bg-rose-50/70 p-3 shadow-lg" onSubmit={async (event) => {
                 event.preventDefault();
