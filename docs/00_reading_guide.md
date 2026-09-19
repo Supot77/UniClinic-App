@@ -28,6 +28,7 @@
 | [09 แผนพัฒนา](09_implementation_plan.md) | จุดเชื่อมและสิ่งที่ต้องทำภายหลัง |
 | [10 ข้อสรุปทีม](10_team_decisions.md) | คำตอบที่ตกลงแล้วและประเด็นที่ยังเปิด |
 | [13 แผนลดความซ้ำซ้อนและ Routing](13_code_refactoring_and_routing_plan.md) | แผนขจัดความซ้ำซ้อน Hardcode และ Dynamic Routing |
+| [14 บันทึกการเปลี่ยนแปลง](14_change_log.md) | รายการไฟล์ที่แก้ พฤติกรรมที่เปลี่ยน และผลตรวจจริงหลังส่งมอบ |
 | [Catalog เดโม](superpowers/specs/2026-09-04-clinic-demo-data-design.md) | บัญชีสังเคราะห์ ตารางตรวจและยา |
 | [Process diagram](diagrams/clinic-manual-process.html) | ภาพรวม flow manual ของ 3 role |
 | [Use Case diagram](diagrams/wu_clinic_use_case.html) | use case จาก role contract และ active/legacy code path |

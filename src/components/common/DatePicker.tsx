@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useId } from 'react';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { THAI_MONTHS, THAI_MONTHS_SHORT, THAI_WEEKDAYS } from '@/constants/dateTime';
 
 export interface DatePickerProps {
   mode?: 'single' | 'range';
@@ -24,18 +25,6 @@ export interface DatePickerProps {
   triggerClassName?: string;
   align?: 'left' | 'right';
 }
-
-const THAI_MONTHS = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-];
-
-const THAI_MONTHS_SHORT = [
-  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-];
-
-const WEEKDAY_NAMES = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
 
 function getTodayString(): string {
   const now = new Date();
@@ -306,7 +295,7 @@ export default function DatePicker({
 
           {/* Weekday Labels */}
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-brand-strong mb-1">
-            {WEEKDAY_NAMES.map((w) => (
+            {THAI_WEEKDAYS.map((w) => (
               <span key={w} className="py-1">
                 {w}
               </span>

@@ -1,4 +1,5 @@
 import { clinicMockTables } from './clinicDatabase';
+import { getCurrentWeekMonday } from '@/constants/dateTime';
 import type {
   DailyServiceOffering,
   DepartmentTone,
@@ -10,7 +11,7 @@ import type {
   DoctorWeeklySchedule,
 } from '@/types/schedule';
 
-export const MOCK_WEEK_START = '2026-09-07';
+export const MOCK_WEEK_START = getCurrentWeekMonday();
 
 const departmentPresentation: Record<string, { code: string; room: string; tone: DepartmentTone }> = {
   'dept-general': { code: 'GEN', room: 'อาคารสุขภาพ · ห้อง 101', tone: 'sky' },
