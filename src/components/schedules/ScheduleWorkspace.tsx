@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import ScheduleSkeleton from './ScheduleSkeleton';
 import Toast from '@/components/common/Toast';
+import DatePicker from '@/components/common/DatePicker';
 import { useShop } from '@/features/shop/context/ShopProvider';
 import type { DoctorLeave, ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
@@ -486,6 +487,16 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     [effectiveDepartmentFilter, effectiveServiceFilter, doctorFilter, displayDays, doctors, resolvedSlots, statusFilter],
   );
 
+  const availableSlotDates = useMemo(() => {
+    return [...new Set(resolvedSlots.map((slot) => slot.slotDate))];
+  }, [resolvedSlots]);
+
+  const nearestSlotDate = useMemo(() => {
+    if (!resolvedSlots.length) return null;
+    const dates = [...new Set(resolvedSlots.map((s) => s.slotDate))].sort();
+    return dates.find((d) => d >= weekStart) || dates[dates.length - 1];
+  }, [resolvedSlots, weekStart]);
+
   const draftLeaveOverlap = useMemo(
     () =>
       leaveDraft.doctorId && leaveDraft.startDate && leaveDraft.endDate
@@ -775,27 +786,29 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
   return (
     <div className="schedule-shell flex min-w-0 flex-col gap-6 sm:gap-8">
-      <header className="flex flex-wrap items-center justify-between gap-5">
-        <h1 className="text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">ตารางแพทย์</h1>
-        {role !== 'patient' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={isLoading} onClick={() => openSlotForm()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
-              <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบตรวจ
-            </button>
-            <button type="button" disabled={isLoading} onClick={() => openBatchForm('range')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-border-strong bg-brand-soft px-4 text-sm font-semibold text-brand-strong hover:bg-brand-soft/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
-              <CalendarRange className="h-4 w-4" aria-hidden="true" />สร้างหลายวัน
-            </button>
-            <button type="button" disabled={isLoading} onClick={() => openBatchForm('copy')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
-              <Copy className="h-4 w-4" aria-hidden="true" />คัดลอกวันก่อน
-            </button>
-            <button type="button" disabled={isLoading} onClick={openLeaveForm} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 disabled:opacity-50">
-              <CalendarDays className="h-4 w-4" aria-hidden="true" />บันทึกวันลาแพทย์
-            </button>
-            <button type="button" disabled={isLoading} onClick={() => openServiceForm()} className={`${textButtonClass} disabled:opacity-50`}>
-              <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มบริการ
-            </button>
-          </div>
-        )}
+      <header className="sticky top-16 z-30 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3.5 bg-brand-surface/90 backdrop-blur-md shadow-[0_4px_16px_-4px_rgba(16,47,61,0.06)] transition-shadow">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+          <h1 className="text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">ตารางแพทย์</h1>
+          {role !== 'patient' && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none flex-nowrap">
+              <button type="button" disabled={isLoading} onClick={() => openSlotForm()} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
+                <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบตรวจ
+              </button>
+              <button type="button" disabled={isLoading} onClick={() => openBatchForm('range')} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-brand-border-strong bg-brand-soft px-4 text-sm font-semibold text-brand-strong hover:bg-brand-soft/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
+                <CalendarRange className="h-4 w-4" aria-hidden="true" />สร้างหลายวัน
+              </button>
+              <button type="button" disabled={isLoading} onClick={() => openBatchForm('copy')} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
+                <Copy className="h-4 w-4" aria-hidden="true" />คัดลอกวันก่อน
+              </button>
+              <button type="button" disabled={isLoading} onClick={openLeaveForm} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 disabled:opacity-50">
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />บันทึกวันลาแพทย์
+              </button>
+              <button type="button" disabled={isLoading} onClick={() => openServiceForm()} className={`${textButtonClass} shrink-0 whitespace-nowrap disabled:opacity-50`}>
+                <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มบริการ
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <Toast message={notice} onDismiss={() => setNotice('')} />
@@ -869,14 +882,22 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
               {batchMode === 'range' ? (
                 <>
-                  <label className="space-y-1.5">
-                    <span className="text-sm font-medium text-slate-700">วันที่เริ่ม</span>
-                    <input type="date" min={getTodayDate()} value={batchDraft.startDate} onChange={(event) => setBatchDraft((current) => ({ ...current, startDate: event.target.value, endDate: current.endDate < event.target.value ? event.target.value : current.endDate }))} className={inputClass} />
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</span>
-                    <input type="date" min={batchDraft.startDate || getTodayDate()} value={batchDraft.endDate} onChange={(event) => setBatchDraft((current) => ({ ...current, endDate: event.target.value }))} className={inputClass} />
-                  </label>
+                  <div className="space-y-1.5">
+                    <DatePicker
+                      label="วันที่เริ่ม"
+                      minDate={getTodayDate()}
+                      value={batchDraft.startDate}
+                      onChange={(newDate) => setBatchDraft((current) => ({ ...current, startDate: newDate, endDate: current.endDate < newDate ? newDate : current.endDate }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <DatePicker
+                      label="วันที่สิ้นสุด"
+                      minDate={batchDraft.startDate || getTodayDate()}
+                      value={batchDraft.endDate}
+                      onChange={(newDate) => setBatchDraft((current) => ({ ...current, endDate: newDate }))}
+                    />
+                  </div>
                   <fieldset className="sm:col-span-2">
                     <legend className="text-sm font-medium text-slate-700">วันที่เปิดตรวจ</legend>
                     <div className="mt-2 grid grid-cols-5 gap-2">
@@ -936,10 +957,14 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       {copySourceDates.map((date) => <option key={date} value={date}>{formatShortDate(date)} · {parseClinicDate(date).getUTCFullYear() + 543}</option>)}
                     </select>
                   </label>
-                  <label className="space-y-1.5">
-                    <span className="text-sm font-medium text-slate-700">วันที่ต้องการสร้าง</span>
-                    <input type="date" min={getTodayDate()} value={batchDraft.targetDate} onChange={(event) => setBatchDraft((current) => ({ ...current, targetDate: event.target.value }))} className={inputClass} />
-                  </label>
+                  <div className="space-y-1.5">
+                    <DatePicker
+                      label="วันที่ต้องการสร้าง"
+                      minDate={getTodayDate()}
+                      value={batchDraft.targetDate}
+                      onChange={(newDate) => setBatchDraft((current) => ({ ...current, targetDate: newDate }))}
+                    />
+                  </div>
                   <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">เวลาที่จะคัดลอก</p>
                     {copyTimeBlocks.length ? (
@@ -1012,14 +1037,22 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   </select>
                 )}
               </label>
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">วันที่เริ่มลา</span>
-                <input type="date" min={getTodayDate()} value={leaveDraft.startDate} onChange={(event) => setLeaveDraft((current) => ({ ...current, startDate: event.target.value, endDate: current.endDate < event.target.value ? event.target.value : current.endDate }))} className={inputClass} />
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</span>
-                <input type="date" min={leaveDraft.startDate || getTodayDate()} value={leaveDraft.endDate} onChange={(event) => setLeaveDraft((current) => ({ ...current, endDate: event.target.value }))} className={inputClass} />
-              </label>
+              <div className="space-y-1.5">
+                <DatePicker
+                  label="วันที่เริ่มลา"
+                  minDate={getTodayDate()}
+                  value={leaveDraft.startDate}
+                  onChange={(newDate) => setLeaveDraft((current) => ({ ...current, startDate: newDate, endDate: current.endDate < newDate ? newDate : current.endDate }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <DatePicker
+                  label="วันที่สิ้นสุด"
+                  minDate={leaveDraft.startDate || getTodayDate()}
+                  value={leaveDraft.endDate}
+                  onChange={(newDate) => setLeaveDraft((current) => ({ ...current, endDate: newDate }))}
+                />
+              </div>
               <label className="space-y-1.5 sm:col-span-2">
                 <span className="text-sm font-medium text-slate-700">เหตุผลการลา <span className="font-normal text-slate-400">(ไม่บังคับ)</span></span>
                 <select aria-label="เหตุผลการลา" value={leaveDraft.reason} onChange={(event) => setLeaveDraft((current) => ({ ...current, reason: event.target.value }))} className={inputClass}>
@@ -1156,14 +1189,12 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                 </select>
                 {!activeServices.length && <span className="text-xs text-rose-600">ยังไม่มีบริการที่เปิดใช้งาน กด “เพิ่มบริการ” ก่อนสร้างรอบ</span>}
               </label>
-              <label className="space-y-1.5 sm:col-span-2">
-                <span className="text-sm font-medium text-slate-700">วันที่</span>
-                <input
-                  type="date"
-                  min={editingSlotId ? undefined : getTodayDate()}
+              <div className="space-y-1.5 sm:col-span-2">
+                <DatePicker
+                  label="วันที่"
+                  minDate={editingSlotId ? undefined : getTodayDate()}
                   value={draft.slotDate}
-                  onChange={(event) => {
-                    const newDate = event.target.value;
+                  onChange={(newDate) => {
                     setDraft((current) => {
                       const nextTimes = !editingSlotId && current.doctorId && newDate
                         ? getNextAvailableTimeSlot(slots, current.doctorId, newDate)
@@ -1176,9 +1207,8 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       };
                     });
                   }}
-                  className={inputClass}
                 />
-              </label>
+              </div>
               <label className="space-y-1.5">
                 <span className="text-sm font-medium text-slate-700">เวลาเริ่ม</span>
                 <input
@@ -1318,9 +1348,29 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   >
                     <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                   </button>
-                  <span className="text-sm font-semibold tabular-nums text-brand-ink sm:text-lg" aria-live="polite">
-                    {calendarView === 'day' ? formatShortDate(weekStart) : calendarView === 'month' ? `${monthNames[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}` : formatWeekRange(weekStart)}
-                  </span>
+                  <DatePicker
+                    ariaLabel="เลือกวันที่ตารางตรวจ"
+                    mode="single"
+                    value={weekStart}
+                    onChange={(newDate) => {
+                      if (calendarView === 'week') {
+                        setWeekStart(getCurrentWeekMonday(newDate));
+                      } else {
+                        setWeekStart(newDate);
+                      }
+                      setNotice(`เลือกวันที่ ${formatShortDate(newDate)} แล้ว`);
+                    }}
+                    displayCustomText={
+                      calendarView === 'day'
+                        ? formatShortDate(weekStart)
+                        : calendarView === 'month'
+                        ? `${monthNames[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}`
+                        : formatWeekRange(weekStart)
+                    }
+                    slotDates={availableSlotDates}
+                    triggerClassName="min-h-11 rounded-xl border border-brand-border-strong bg-white px-3.5 py-1.5 text-sm font-semibold tabular-nums text-brand-ink shadow-2xs hover:bg-brand-soft hover:border-brand-strong cursor-pointer"
+                    className="w-auto"
+                  />
                   <button
                     type="button"
                     onClick={() =>
@@ -1384,6 +1434,28 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                 <p className="pb-3 text-sm tabular-nums text-brand-body">{visibleSlots.length} รอบตามตัวกรอง</p>
               </div>
             </div>
+
+            {slots.length > 0 && visibleSlots.length === 0 && (
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-border-strong bg-brand-soft/70 px-4 py-3 text-sm text-brand-strong animate-in fade-in duration-200">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-brand-strong" aria-hidden="true" />
+                  <span>สัปดาห์นี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง</span>
+                </div>
+                {nearestSlotDate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeekStart(getCurrentWeekMonday(nearestSlotDate));
+                      setNotice(`ไปยังสัปดาห์ที่มีรอบตรวจ: ${formatShortDate(getCurrentWeekMonday(nearestSlotDate))}`);
+                    }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-strong px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition"
+                  >
+                    ไปยังสัปดาห์ที่มีรอบตรวจ ({formatShortDate(getCurrentWeekMonday(nearestSlotDate))})
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
         {calendarView !== 'week' ? (
           <CalendarBoard
             view={calendarView}

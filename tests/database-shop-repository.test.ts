@@ -3,6 +3,21 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { DatabaseShopRepository } from '@/features/shop/data/databaseRepository';
 
 describe('DatabaseShopRepository', () => {
+  it('surfaces service catalog errors when requested by the landing page', async () => {
+    const error = new Error('Catalog unavailable');
+    const client = { from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({
+      order: vi.fn().mockResolvedValue({ data: null, error }),
+    }) }) } as unknown as SupabaseClient;
+    await expect(new DatabaseShopRepository(client).fetchServices(true)).rejects.toBe(error);
+  });
+
+  it('distinguishes an empty catalog from a failed request', async () => {
+    const client = { from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }) }) } as unknown as SupabaseClient;
+    await expect(new DatabaseShopRepository(client).fetchServices(true)).resolves.toEqual([]);
+  });
+
   it('maps database department rows to ScheduleDepartment domain models', async () => {
     const mockFrom = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({

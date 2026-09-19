@@ -66,13 +66,14 @@ export class DatabaseShopRepository {
     }));
   }
 
-  async fetchServices(): Promise<ScheduleService[]> {
+  async fetchServices(throwOnError = false): Promise<ScheduleService[]> {
     const { data, error } = await this.client
       .from('services')
       .select('id, code, name, description, is_active, created_at, updated_at')
       .order('name', { ascending: true });
 
     if (error || !data) {
+      if (throwOnError) throw error ?? new Error('Service catalog unavailable');
       console.error('Error fetching services:', error);
       return [];
     }
