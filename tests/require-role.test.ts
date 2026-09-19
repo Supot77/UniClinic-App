@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { requireRole } from '@/lib/requireRole';
+import { getCurrentUserAndRole, requireRole } from '@/lib/requireRole';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 
@@ -92,6 +92,27 @@ describe('requireRole helper', () => {
     expect(result.user).toEqual(user);
     expect(result.role).toBe('medical');
     expect(result.rawRole).toBe('doctor');
+  });
+
+  it('returns guest-safe patient context without redirecting', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null } });
+
+    await expect(getCurrentUserAndRole()).resolves.toEqual({ user: null, role: 'patient', rawRole: null });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('returns canonical role and raw role for an authenticated schedule user', async () => {
+    const user = { id: 'doc-2', email: 'doc2@wu.ac.th' };
+    mockGetUser.mockResolvedValueOnce({ data: { user } });
+    mockFrom.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: { role: 'doctor', is_active: true }, error: null }),
+        }),
+      }),
+    });
+
+    await expect(getCurrentUserAndRole()).resolves.toEqual({ user, role: 'medical', rawRole: 'doctor' });
   });
 });
 

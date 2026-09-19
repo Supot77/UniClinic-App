@@ -8,6 +8,7 @@ import {
   THAI_MONTHS,
   THAI_MONTHS_SHORT,
   THAI_WEEKDAYS,
+  WEEKDAY_NAMES,
 } from '@/constants/dateTime';
 import { clinicMockTables } from '@/mocks/clinicDatabase';
 import { MOCK_WEEK_START } from '@/mocks/scheduleData';
@@ -17,6 +18,7 @@ describe('shared date-time constants', () => {
     expect(THAI_MONTHS).toHaveLength(12);
     expect(THAI_MONTHS_SHORT).toHaveLength(12);
     expect(THAI_WEEKDAYS).toEqual(['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.']);
+    expect(WEEKDAY_NAMES).toEqual(['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']);
     expect(CLINIC_TIME_BLOCKS).toEqual([
       { label: 'ช่วงเช้า 08:30–12:00', startTime: '08:30', endTime: '12:00' },
       { label: 'ช่วงบ่าย 13:00–16:30', startTime: '13:00', endTime: '16:30' },

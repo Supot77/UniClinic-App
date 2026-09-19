@@ -10,6 +10,9 @@ export const THAI_MONTHS_SHORT = [
 
 export const THAI_WEEKDAYS = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'] as const;
 
+// Calendar indexes use Sunday-first order to match Date#getUTCDay().
+export const WEEKDAY_NAMES = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'] as const;
+
 export const CLINIC_TIME_BLOCKS = [
   { label: 'ช่วงเช้า 08:30–12:00', startTime: '08:30', endTime: '12:00' },
   { label: 'ช่วงบ่าย 13:00–16:30', startTime: '13:00', endTime: '16:30' },

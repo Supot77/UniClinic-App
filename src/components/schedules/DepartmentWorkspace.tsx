@@ -22,6 +22,8 @@ import type {
   DoctorLeave,
 } from '@/types/schedule';
 import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
+import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
+import Link from 'next/link';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
@@ -29,11 +31,9 @@ const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-
 
 type WorkspaceTab = 'departments' | 'doctors';
 
-const leaveMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
 function formatLeaveDate(dateValue: string) {
   const [year, month, day] = dateValue.split('-').map(Number);
-  return `${day} ${leaveMonthNames[month - 1]} ${year + 543}`;
+  return `${day} ${THAI_MONTHS_SHORT[month - 1]} ${year + 543}`;
 }
 
 function formatLeaveRange(leave: DoctorLeave) {
@@ -451,6 +451,9 @@ export default function DepartmentWorkspace() {
                         <span className={`h-1.5 w-1.5 rounded-full ${department.isActive ? 'bg-status-success' : 'bg-status-neutral'}`} aria-hidden="true" />
                         {department.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                       </p>
+                      <Link href={`/departments/${department.id}`} className={`${textActionClass} mt-3 text-brand-strong`}>
+                        ดูตารางและบริการ
+                      </Link>
                     </div>
                     <div className="min-w-0">
                       <p className="mb-2 text-sm font-medium text-brand-body">แพทย์ประจำแผนก <span className="tabular-nums">({affiliatedDoctors.length})</span></p>
