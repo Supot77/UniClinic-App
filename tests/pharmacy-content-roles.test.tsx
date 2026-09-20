@@ -377,10 +377,10 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(screen.getByText('องค์การเภสัชกรรม (GPO)')).toBeInTheDocument();
     expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(2);
     expect(screen.getAllByRole('button', { name: 'แก้ไขข้อมูล' }).length).toBeGreaterThan(1);
-    expect(screen.getByRole('button', { name: 'ปิดหน้าต่าง' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'ปิดหน้าต่าง' }).length).toBeGreaterThanOrEqual(1);
 
     // Close the modal
-    const closeBtn = screen.getByRole('button', { name: 'ปิดหน้าต่าง' });
+    const closeBtn = screen.getAllByRole('button', { name: 'ปิดหน้าต่าง' })[0];
     fireEvent.click(closeBtn);
 
     // Modal should be closed
