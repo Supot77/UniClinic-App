@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { bangkokDate, createClinicDatabaseRepository, createClinicMockRepository } from '@/features/clinic-care';
+import { allowedActions, bangkokDate, createClinicDatabaseRepository, createClinicMockRepository } from '@/features/clinic-care';
 import { appointmentId, fixture, medicationId, patientId, slotId, withAppointment } from './clinic-care-fixtures';
 
 describe('Clinic manual contract', () => {
@@ -37,6 +37,24 @@ describe('Clinic manual contract', () => {
     await expect(repo.transition(appointmentId, 'rejected')).rejects.toThrow('เหตุผลการปฏิเสธ');
     await repo.transition(appointmentId, 'rejected', 'รอบบริการถูกยกเลิก');
     expect((await repo.load()).appointments[0]).toMatchObject({ status: 'rejected', rejection_reason: 'รอบบริการถูกยกเลิก' });
+  });
+  it('lets the owning doctor approve or reject a pending appointment, but not another doctor appointment', async () => {
+    const seed = withAppointment('medical'); seed.appointments[0].status = 'pending';
+    expect(allowedActions('medical', seed.appointments[0], seed.slots[0])).toEqual(['confirmed', 'rejected']);
+    const repo = createClinicMockRepository(seed);
+    await repo.transition(appointmentId, 'confirmed');
+    expect((await repo.load()).appointments[0].status).toBe('confirmed');
+
+    const rejectedSeed = withAppointment('medical'); rejectedSeed.appointments[0].status = 'pending';
+    const rejectedRepo = createClinicMockRepository(rejectedSeed);
+    await rejectedRepo.transition(appointmentId, 'rejected', 'แพทย์ติดภารกิจ');
+    expect((await rejectedRepo.load()).appointments[0]).toMatchObject({ status: 'rejected', rejection_reason: 'แพทย์ติดภารกิจ' });
+
+    const otherDoctorSeed = withAppointment('medical'); otherDoctorSeed.appointments[0].status = 'pending'; otherDoctorSeed.slots[0].doctor_id = patientId;
+    const otherDoctorRepo = createClinicMockRepository(otherDoctorSeed);
+    const before = await otherDoctorRepo.load();
+    await expect(otherDoctorRepo.transition(appointmentId, 'confirmed')).rejects.toThrow('ไม่มีสิทธิ์');
+    expect(await otherDoctorRepo.load()).toEqual(before);
   });
   it('staff cancels only one selected appointment and preserves closed slot status', async () => {
     const seed = withAppointment('staff_admin'); seed.appointments[0].status = 'confirmed'; seed.slots[0].status = 'closed';
@@ -127,6 +145,11 @@ describe('Clinic database adapter boundary', () => {
     expect(c.rpc).not.toHaveBeenCalled();
     await repo.book(slotId, ' ทดสอบ ');
     expect(c.rpc).toHaveBeenCalledWith('pai_book_appointment', { p_slot_id: slotId, p_reason: 'ทดสอบ' });
+  });
+  it.each(['medical', 'staff_admin'] as const)('allows %s to send an appointment decision to the RPC', async (role) => {
+    const c = client(role); const repo = createClinicDatabaseRepository(c.fake, role);
+    await repo.transition(appointmentId, 'confirmed');
+    expect(c.rpc).toHaveBeenCalledWith('pai_transition_appointment', { p_appointment_id: appointmentId, p_action: 'confirmed', p_reason: null });
   });
   it('does not fall back to mock when the migration is missing', async () => {
     const c = client(); c.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } });
