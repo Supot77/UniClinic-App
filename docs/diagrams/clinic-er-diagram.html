@@ -113,18 +113,18 @@
     <header>
       <p class="eyebrow">WU CLINIC · ER DATA MODEL</p>
       <h1>แบบข้อมูลและความสัมพันธ์</h1>
-      <p class="dek">แบบ ER จากการ reverse-engineer: active PAI/schedule path แยกจากตาราง legacy และ compatibility ที่ยังอยู่ใน repository</p>
+      <p class="dek">แบบ ER จากการ reverse-engineer: schedule และ current PAI RPC target (`appointments`/`medical_records`) แยกจาก historical initial target ที่ยังไม่ยืนยันในฐาน snapshot</p>
     </header>
 
     <figure>
       <figcaption>
-        <h2>00 · Active runtime: service → slot → PAI</h2>
-        <p>เส้นทางที่ route นัดหมาย/ผลตรวจใช้งาน: `services` → `daily_service_offerings` → `appointment_slots` → `pai_appointments` → `pai_medical_records`</p>
+        <h2>00 · Current runtime target: service → slot → appointments</h2>
+        <p>เส้นทางที่ route นัดหมาย/ผลตรวจใช้งานผ่าน PAI RPC: `services` → `daily_service_offerings` → `appointment_slots` → `appointments` → `medical_records`</p>
       </figcaption>
       <div class="diagram-viewport">
         <svg viewBox="0 0 1040 500" role="img" aria-labelledby="active-title active-desc">
-          <title id="active-title">ER active runtime ของ PAI และ schedule</title>
-          <desc id="active-desc">บริการเปิดให้แพทย์ในแต่ละวัน สร้าง slot ผู้ป่วยจองผ่าน pai appointments และแพทย์บันทึก pai medical records</desc>
+          <title id="active-title">ER current runtime target ของ PAI และ schedule</title>
+          <desc id="active-desc">บริการเปิดให้แพทย์ในแต่ละวัน สร้าง slot ผู้ป่วยจองผ่าน PAI RPC ลง appointments และแพทย์บันทึก medical records</desc>
 
           <g>
             <path class="relation" d="M240 94 H300" />
@@ -180,7 +180,7 @@
             <rect class="entity-box" x="820" y="120" width="200" height="194" rx="6" />
             <rect class="entity-header" x="820" y="120" width="200" height="40" rx="6" />
             <line class="entity-divider" x1="820" y1="160" x2="1020" y2="160" />
-            <text class="entity-tag" x="832" y="136">ACTIVE PAI</text><text class="entity-name" x="832" y="152">pai_appointments</text>
+            <text class="entity-tag" x="832" y="136">CURRENT RPC TARGET</text><text class="entity-name" x="832" y="152">appointments</text>
             <text class="field" x="832" y="180"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
             <text class="field" x="832" y="200"><tspan class="field-key">→ patient_id / slot_id</tspan></text>
             <text class="field" x="832" y="220"><tspan>queue_number</tspan><tspan class="field-ref"> : integer</tspan></text>
@@ -194,7 +194,7 @@
             <rect class="entity-box" x="820" y="348" width="200" height="112" rx="6" />
             <rect class="entity-header" x="820" y="348" width="200" height="40" rx="6" />
             <line class="entity-divider" x1="820" y1="388" x2="1020" y2="388" />
-            <text class="entity-tag" x="832" y="364">ACTIVE PAI</text><text class="entity-name" x="832" y="380">pai_medical_records</text>
+            <text class="entity-tag" x="832" y="364">CURRENT RPC TARGET</text><text class="entity-name" x="832" y="380">medical_records</text>
             <text class="field" x="832" y="408"><tspan class="field-key"># id / appointment_id</tspan></text>
             <text class="field" x="832" y="428"><tspan class="field-key">→ patient_id / doctor_id</tspan></text>
             <text class="field" x="832" y="448"><tspan>diagnosis / meds</tspan><tspan class="field-ref"> : text/jsonb</tspan></text>
@@ -212,7 +212,7 @@
 
           <text class="note" x="300" y="410">doctors / departments เชื่อมกับ daily offering ตาม FK; prescribed_medications เป็น JSONB จึงไม่ใช่ FK ไป medications</text>
           <line class="legend-rule" x1="40" y1="480" x2="1000" y2="480" />
-          <text class="legend legend-accent" x="40" y="494">accent = active PAI table</text>
+          <text class="legend legend-accent" x="40" y="494">accent = current PAI RPC target</text>
           <text class="note" x="240" y="494">ภาพนี้เป็น repository/migration trace; RLS และการ deploy ต้องตรวจบน target จริง</text>
         </svg>
       </div>
@@ -220,13 +220,13 @@
 
     <figure>
       <figcaption>
-        <h2>01 · Legacy/compatibility: นัดหมายและผลตรวจเดิม</h2>
-        <p>ตาราง `appointments` และ `medical_records` ยังอยู่ใน schema/service เก่า แต่ไม่ใช่ active PAI route</p>
+        <h2>01 · Current appointment/record details</h2>
+        <p>รายละเอียดของตาราง `appointments` และ `medical_records` ที่ current PAI RPC ใช้งาน; historical `pai_*` target ไม่พบใน <a href="../Database_check.md">Database_check.md</a> และคงไว้ในเอกสาร ER เพื่อ trace เท่านั้น</p>
       </figcaption>
       <div class="diagram-viewport">
         <svg viewBox="0 0 1040 644" role="img" aria-labelledby="care-title care-desc">
           <title id="care-title">ER นัดหมายและผลตรวจ</title>
-          <desc id="care-desc">มุมมอง legacy/compatibility ของ profiles, doctors, appointment slots, appointments และ medical records; active PAI path อยู่ในภาพ 00</desc>
+          <desc id="care-desc">มุมมองรายละเอียดของ profiles, doctors, appointment slots, appointments และ medical records; current PAI RPC target อยู่ในภาพ 00</desc>
 
           <!-- Relationships first -->
           <g>
@@ -308,7 +308,7 @@
             <text class="entity-tag" x="348" y="268">ENTITY</text>
             <text class="entity-name" x="348" y="284">appointments</text>
             <text class="field" x="348" y="312"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="348" y="332"><tspan class="field-key">→ user_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
+            <text class="field" x="348" y="332"><tspan class="field-key">→ patient_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
             <text class="field" x="348" y="352"><tspan class="field-key">→ slot_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
             <text class="field" x="348" y="372"><tspan>status</tspan><tspan class="field-ref"> : pending → completed</tspan></text>
           </g>

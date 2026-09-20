@@ -2,6 +2,8 @@
 
 ปรับปรุง 20 กันยายน 2569 (2026-09-20) — เพิ่ม interaction แก้ไข/ยกเลิกวันลาจากปฏิทินตาม D28 และผล reverse-engineer ล่าสุด; ยังไม่ใช่หลักฐานว่า migration ถูก deploy หรือระบบผ่านการตรวจรับแล้ว
 
+Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.md); ใช้ตาราง as-built ด้านล่างเพื่ออธิบาย behavior จาก code และไม่ใช้ story target แทนหลักฐาน runtime
+
 ## บทบาทที่ใช้ในทุกโมดูล
 
 - ผู้ป่วย (`patient`)

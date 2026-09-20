@@ -2,9 +2,11 @@
 
 วันที่: 6 กันยายน 2569 (2026-09-06)
 
-สถานะ: design สำหรับ review ก่อน implementation
+สถานะ: historical design สำหรับ review ก่อน implementation; current code trace อยู่ใน [Shop owner view](../../owners/shop-supot/README.md)
 
 > สถานะเพิ่มเติม: superseded เฉพาะข้อกำหนด mock-only โดย D23 ใน `docs/10_team_decisions.md` หากนำ flow ที่ยังอยู่ใน scope มาใช้ ต้องผ่าน Supabase database repository; mock ใช้เฉพาะ tests/offline demo
+
+> **อัปเดต 20 กันยายน 2569:** code ปัจจุบันมี `ConfirmationModal`, department detail route และการแก้/ยกเลิกวันลาจาก calendar แล้ว. ตารางประจำรายสัปดาห์, approval/auto-close และ persistence ตามข้อความด้านล่างยังเป็น design target เว้นแต่ owner trace ระบุหลักฐานไว้
 
 ## 1. เป้าหมาย
 

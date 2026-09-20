@@ -20,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import ScheduleSkeleton from './ScheduleSkeleton';
+import ConfirmationModal, { type ConfirmationModalRequest } from '@/components/common/ConfirmationModal';
 import Toast from '@/components/common/Toast';
 import DatePicker from '@/components/common/DatePicker';
 import { useShop } from '@/features/shop/context/ShopProvider';
@@ -327,6 +328,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   const [leaveFormError, setLeaveFormError] = useState('');
   const [leaveIsSaving, setLeaveIsSaving] = useState(false);
   const [leaveIsDeleting, setLeaveIsDeleting] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationModalRequest | null>(null);
   const [batchFormOpen, setBatchFormOpen] = useState(false);
   const [batchMode, setBatchMode] = useState<BatchMode>('range');
   const [batchDraft, setBatchDraft] = useState<SlotBatchDraft>(() => createEmptySlotBatchDraft());
@@ -583,10 +585,9 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     }
   };
 
-  const cancelDoctorLeave = async () => {
+  const confirmCancelDoctorLeave = async () => {
     if (!editingLeaveId) return;
     const doctorName = doctors.find((doctor) => doctor.id === leaveDraft.doctorId)?.fullName ?? 'แพทย์';
-    if (!window.confirm(`ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange({ id: editingLeaveId, ...leaveDraft })}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`)) return;
 
     setLeaveFormError('');
     setLeaveIsDeleting(true);
@@ -596,6 +597,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
         setLeaveFormError(result.error);
         return;
       }
+      setConfirmation(null);
       closeLeaveForm();
       setNotice(`ยกเลิกวันลาของ ${doctorName} แล้ว`);
     } catch (err) {
@@ -603,6 +605,18 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     } finally {
       setLeaveIsDeleting(false);
     }
+  };
+
+  const cancelDoctorLeave = () => {
+    if (!editingLeaveId) return;
+    const doctorName = doctors.find((doctor) => doctor.id === leaveDraft.doctorId)?.fullName ?? 'แพทย์';
+    setConfirmation({
+      title: 'ยืนยันการยกเลิกวันลา',
+      message: `ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange({ id: editingLeaveId, ...leaveDraft })}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`,
+      confirmLabel: 'ยกเลิกวันลา',
+      tone: 'danger',
+      onConfirm: confirmCancelDoctorLeave,
+    });
   };
 
   const openSlotForm = (slot?: ScheduleSlot, suggestedDate?: string) => {
@@ -778,7 +792,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     setNotice(editingServiceId ? 'อัปเดตบริการแล้ว' : 'เพิ่มบริการแล้ว');
   };
 
-  const toggleClosed = async (slot: ScheduleSlot) => {
+  const confirmToggleClosed = async (slot: ScheduleSlot) => {
     if (role === 'patient' || !canModifySlot(slot)) {
       setFormError('คุณไม่มีสิทธิ์แก้ไขหรือปิดรอบตรวจ');
       return;
@@ -793,7 +807,6 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
         return;
       }
     }
-    if (!window.confirm(slot.status === 'closed' ? 'เปิดรอบตรวจนี้อีกครั้ง?' : `ปิดรอบตรวจนี้? นัดเดิม ${slot.bookedCount} รายการจะยังคงอยู่`)) return;
     try {
       setIsSaving(true);
       setFormError('');
@@ -802,12 +815,37 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
         setFormError(result.error);
         return;
       }
+      setConfirmation(null);
       setNotice(slot.status === 'closed' ? 'เปิดรอบตรวจอีกครั้งเรียบร้อยแล้ว' : 'ปิดรอบตรวจแล้ว นัดเดิมยังคงอยู่');
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการปรับสถานะรอบตรวจ');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const toggleClosed = (slot: ScheduleSlot) => {
+    if (role === 'patient' || !canModifySlot(slot)) {
+      setFormError('คุณไม่มีสิทธิ์แก้ไขหรือปิดรอบตรวจ');
+      return;
+    }
+    if (slot.status === 'closed') {
+      if (isSlotExpired(slot.slotDate, slot.startTime, bangkokNow.date, bangkokNow.time)) {
+        setFormError('ไม่สามารถเปิดรอบตรวจที่เลยเวลาเริ่มแล้ว');
+        return;
+      }
+      if (slot.bookedCount >= slot.maxCapacity) {
+        setFormError('ไม่สามารถเปิดรอบตรวจที่คนเต็มแล้ว');
+        return;
+      }
+    }
+    setConfirmation({
+      title: slot.status === 'closed' ? 'ยืนยันการเปิดรอบตรวจ' : 'ยืนยันการปิดรอบตรวจ',
+      message: slot.status === 'closed' ? 'เปิดรอบตรวจนี้อีกครั้ง?' : `ปิดรอบตรวจนี้? นัดเดิม ${slot.bookedCount} รายการจะยังคงอยู่`,
+      confirmLabel: slot.status === 'closed' ? 'เปิดรอบตรวจ' : 'ปิดรอบตรวจ',
+      tone: slot.status === 'closed' ? 'primary' : 'danger',
+      onConfirm: () => confirmToggleClosed(slot),
+    });
   };
 
   const jumpToToday = () => {
@@ -822,7 +860,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   };
 
   useEffect(() => {
-    if (!formOpen && !leaveFormOpen && !batchFormOpen) return;
+    if (confirmation || (!formOpen && !leaveFormOpen && !batchFormOpen)) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (leaveFormOpen) closeLeaveForm();
@@ -831,7 +869,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [batchFormOpen, formOpen, leaveFormOpen]);
+  }, [batchFormOpen, confirmation, formOpen, leaveFormOpen]);
 
   return (
     <div className="schedule-shell flex min-w-0 flex-col gap-6 sm:gap-8">
@@ -861,6 +899,12 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
       </header>
 
       <Toast message={notice} onDismiss={() => setNotice('')} />
+
+      <ConfirmationModal
+        request={confirmation}
+        onCancel={() => setConfirmation(null)}
+        isBusy={isSaving || leaveIsDeleting}
+      />
 
       <div className="space-y-2 empty:hidden" aria-live="polite">
         {formError && !formOpen && (

@@ -523,15 +523,39 @@ describe('ScheduleWorkspace Service Filter', () => {
     const leave = { id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' };
     shopState.doctorLeaves = [leave];
     shopState.deleteDoctorLeave.mockResolvedValueOnce({ ok: true, value: leave });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
     fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขวันลา นพ. สมชาย ใจดี' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา' }));
 
+    const confirmation = screen.getByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' });
+    expect(confirmation.parentElement?.parentElement).toBe(document.body);
+    expect(shopState.deleteDoctorLeave).not.toHaveBeenCalled();
+    expect(within(confirmation).getByText('ยกเลิกวันลาของ นพ. สมชาย ใจดี ช่วง 10 ก.ย.–12 ก.ย.? รอบตรวจเดิมจะไม่เปลี่ยนแปลง')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'แก้ไขวันลาแพทย์' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' })).getByRole('button', { name: 'ยกเลิกวันลา' }));
+
     expect(await screen.findByText('ยกเลิกวันลาของ นพ. สมชาย ใจดี แล้ว')).toBeInTheDocument();
     expect(shopState.deleteDoctorLeave).toHaveBeenCalledWith('leave-1', 'prof-1', 'medical');
-    expect(confirmSpy).toHaveBeenCalledWith('ยกเลิกวันลาของ นพ. สมชาย ใจดี ช่วง 10 ก.ย.–12 ก.ย.? รอบตรวจเดิมจะไม่เปลี่ยนแปลง');
-    confirmSpy.mockRestore();
+  });
+
+  it('opens a confirmation modal before toggling a slot and leaves state unchanged on cancel', async () => {
+    shopState.slots = [{ ...mockSlots[0], slotDate: '2026-09-10' }];
+    shopState.toggleSlot.mockResolvedValueOnce({ ok: true, value: 'closed' });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'ปิดรอบตรวจ' })[0]);
+    const confirmation = screen.getByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' });
+    expect(shopState.toggleSlot).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'ยกเลิก' }));
+    expect(screen.queryByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' })).not.toBeInTheDocument();
+    expect(shopState.toggleSlot).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'ปิดรอบตรวจ' })[0]);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' })).getByRole('button', { name: 'ปิดรอบตรวจ' }));
+    await waitFor(() => expect(shopState.toggleSlot).toHaveBeenCalledWith('slot-1', 'admin-1', 'staff_admin'));
   });
 });

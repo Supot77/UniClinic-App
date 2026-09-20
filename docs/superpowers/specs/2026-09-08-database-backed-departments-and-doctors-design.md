@@ -3,7 +3,9 @@
 - **Date**: 2026-09-08
 - **Module**: Shop / Scheduling (แผนก แพทย์ ตารางและ slot)
 - **Author**: Antigravity Assistant & Engineering Team
-- **Status**: Approved by User
+- **Status**: Historical design; current implementation/evidence is tracked in [Shop owner view](../../owners/shop-supot/README.md)
+
+> **Current evidence:** department/doctor/service/leave/slot code paths exist, but runtime adapter selection and DB/RLS deployment still require repository and environment evidence. Historical SQL examples using `admin` or `staff` are not current canonical roles; use `patient`, `medical`, and `staff_admin`.
 
 ---
 
