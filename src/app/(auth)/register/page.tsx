@@ -234,7 +234,20 @@ export function validateRegistration(
   return errors;
 }
 
-export default function RegisterPage() {
+interface RegisterPageProps {
+  mode?: 'self-service' | 'staff-walk-in';
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('ไม่สามารถอ่านรูปโปรไฟล์ได้'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function RegisterPage({ mode = 'self-service' }: RegisterPageProps) {
   const router = useRouter();
 
   const [form, setForm] =
@@ -297,10 +310,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await signUp(
-        form.email.trim().toLowerCase(),
-        form.password,
-        {
+      const details = {
           title: form.title as
             | 'นาย'
             | 'นาง'
@@ -320,7 +330,6 @@ export default function RegisterPage() {
           studentId: form.patientType === 'student' ? form.studentId : undefined,
           employeeId: form.patientType === 'employee' ? form.employeeId : undefined,
           phone: form.phone,
-          avatarFile,
 
           allergyStatus:
             form.allergyStatus as
@@ -361,10 +370,29 @@ export default function RegisterPage() {
             form.emergencyContactRelationship.trim(),
 
           emergencyPhone: form.emergencyPhone,
-        },
-      );
+      };
 
-      router.push('/login?registered=true');
+      if (mode === 'staff-walk-in') {
+        const response = await fetch('/api/staff/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.email.trim().toLowerCase(),
+            password: form.password,
+            details,
+            avatarDataUrl: avatarFile ? await fileToDataUrl(avatarFile) : null,
+          }),
+        });
+        const result = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(result.error || 'สร้างบัญชีผู้ป่วยไม่สำเร็จ');
+        router.push('/staff/accounts?created=true');
+      } else {
+        await signUp(form.email.trim().toLowerCase(), form.password, {
+          ...details,
+          avatarFile,
+        });
+        router.push('/login?registered=true');
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -407,16 +435,18 @@ export default function RegisterPage() {
 
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                สมัครสมาชิกผู้ป่วย
+                {mode === 'staff-walk-in' ? 'เพิ่มบัญชีผู้ป่วย' : 'สมัครสมาชิกผู้ป่วย'}
               </h1>
 
               <p className="mt-1 text-sm text-slate-500">
-                สร้างบัญชีสำหรับเข้าใช้งาน WU Clinic
+                {mode === 'staff-walk-in'
+                  ? 'สร้างบัญชีให้นักศึกษาหรือบุคลากรที่เข้ารับบริการ'
+                  : 'สร้างบัญชีสำหรับเข้าใช้งาน WU Clinic'}
               </p>
             </div>
           </div>
 
-          <p className="text-sm text-slate-500">
+          {mode === 'self-service' && <p className="text-sm text-slate-500">
             มีบัญชีแล้ว?{' '}
             <Link
               href="/login"
@@ -424,7 +454,7 @@ export default function RegisterPage() {
             >
               เข้าสู่ระบบ
             </Link>
-          </p>
+          </p>}
         </header>
 
         <form
@@ -1156,8 +1186,8 @@ export default function RegisterPage() {
               )}
 
               {isSubmitting
-                ? 'กำลังสมัครสมาชิก...'
-                : 'สมัครสมาชิก'}
+                ? mode === 'staff-walk-in' ? 'กำลังสร้างบัญชี...' : 'กำลังสมัครสมาชิก...'
+                : mode === 'staff-walk-in' ? 'สร้างบัญชีผู้ป่วย' : 'สมัครสมาชิก'}
             </button>
           </footer>
         </form>

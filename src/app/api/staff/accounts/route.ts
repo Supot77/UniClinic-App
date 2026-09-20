@@ -7,7 +7,9 @@ type Details = {
   lastName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'unspecified';
-  studentId: string;
+  patientType: 'student' | 'employee';
+  studentId?: string;
+  employeeId?: string;
   phone: string;
   allergyStatus: 'yes' | 'no' | 'unknown';
   allergies: string | null;
@@ -26,8 +28,10 @@ function validate(email: string, password: string, details: Details): string | n
   if (!/^[^\s@]+@mail\.wu\.ac\.th$/i.test(email)) return 'กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น';
   if (password.length < 8) return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
   if (!namePattern.test(details.firstName.trim()) || !namePattern.test(details.lastName.trim())) return 'ชื่อและนามสกุลต้องเป็นตัวอักษรไทยหรืออังกฤษ';
-  if (!/^\d{8}$/.test(details.studentId)) return 'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก';
-  if (!/^0\d{9}$/.test(details.phone) || !/^0\d{9}$/.test(details.emergencyPhone)) return 'เบอร์โทรศัพท์ต้องมี 10 หลักและขึ้นต้นด้วย 0';
+  if (details.patientType === 'student' && !/^\d{8}$/.test(details.studentId ?? '')) return 'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก';
+  if (details.patientType === 'employee' && !/^\d{8}$/.test(details.employeeId ?? '')) return 'รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก';
+  if (!/^0[689]\d{8}$/.test(details.phone) || !/^0[689]\d{8}$/.test(details.emergencyPhone)) return 'เบอร์โทรศัพท์ต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
+  if (details.phone === details.emergencyPhone) return 'เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก';
   if (!details.emergencyContactRelationship.trim()) return 'กรุณาระบุความสัมพันธ์ของผู้ติดต่อฉุกเฉิน';
   if (details.allergyStatus === 'yes' && !details.allergies?.trim()) return 'กรุณาระบุรายละเอียดการแพ้ยา';
   if (details.chronicDiseaseStatus === 'yes' && !details.chronicDiseases?.trim()) return 'กรุณาระบุรายละเอียดโรคประจำตัว';
@@ -48,7 +52,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'เฉพาะเจ้าหน้าที่เท่านั้นที่สร้างบัญชีผู้ป่วยได้' }, { status: 403 });
   }
 
-  const body = (await request.json()) as { email?: string; password?: string; details?: Details };
+  const body = (await request.json()) as { email?: string; password?: string; details?: Details; avatarDataUrl?: string | null };
   const email = body.email?.trim().toLowerCase() ?? '';
   const password = body.password ?? '';
   if (!body.details) return Response.json({ error: 'ข้อมูลผู้ป่วยไม่ครบถ้วน' }, { status: 400 });
@@ -82,7 +86,9 @@ export async function POST(request: Request) {
     last_name: d.lastName.trim(),
     date_of_birth: d.dateOfBirth,
     gender: d.gender,
-    student_id: d.studentId,
+    patient_type: d.patientType,
+    student_id: d.patientType === 'student' ? d.studentId : null,
+    employee_id: d.patientType === 'employee' ? d.employeeId : null,
     phone: d.phone,
     allergy_status: d.allergyStatus,
     allergies: d.allergyStatus === 'yes' ? d.allergies?.trim() || null : null,
@@ -99,6 +105,36 @@ export async function POST(request: Request) {
   if (profileError) {
     await admin.auth.admin.deleteUser(created.user.id);
     return Response.json({ error: profileError.message }, { status: 400 });
+  }
+
+  if (body.avatarDataUrl) {
+    const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(body.avatarDataUrl);
+    if (!match) {
+      await admin.auth.admin.deleteUser(created.user.id);
+      return Response.json({ error: 'รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น' }, { status: 400 });
+    }
+    const avatarPath = `${created.user.id}/avatar.png`;
+    const { error: uploadError } = await admin.storage
+      .from('profile-avatars')
+      .upload(avatarPath, Buffer.from(match[1], 'base64'), {
+        contentType: 'image/png',
+        upsert: true,
+      });
+    if (uploadError) {
+      await admin.auth.admin.deleteUser(created.user.id);
+      return Response.json({ error: uploadError.message }, { status: 400 });
+    }
+    const { data: publicUrlData } = admin.storage
+      .from('profile-avatars')
+      .getPublicUrl(avatarPath);
+    const { error: avatarError } = await admin
+      .from('profiles')
+      .update({ avatar_url: publicUrlData.publicUrl })
+      .eq('id', created.user.id);
+    if (avatarError) {
+      await admin.auth.admin.deleteUser(created.user.id);
+      return Response.json({ error: avatarError.message }, { status: 400 });
+    }
   }
   return Response.json({ id: created.user.id }, { status: 201 });
 }
