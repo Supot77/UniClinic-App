@@ -1,7 +1,10 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { signIn } from '@/services/authService';
@@ -12,99 +15,172 @@ function LoginForm() {
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [password, setPassword] =
+    useState('');
 
-  const isLoading = isSubmitting || isRedirecting;
+  const [error, setError] =
+    useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [isRedirecting, setIsRedirecting] =
+    useState(false);
+
+  const isLoading =
+    isSubmitting || isRedirecting;
+
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
     setError(null);
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        normalizedEmail,
+      )
+    ) {
+      setError('กรุณากรอกอีเมลให้ถูกต้อง');
+      return;
+    }
+
+    if (!password) {
+      setError('กรุณากรอกรหัสผ่าน');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      await signIn(email, password);
+      await signIn(
+        normalizedEmail,
+        password,
+      );
+
       setIsSubmitting(false);
       setIsRedirecting(true);
 
-      const redirect = searchParams.get('redirect');
+      const redirect =
+        searchParams.get('redirect');
+
       router.push(redirect || '/profile');
       router.refresh();
     } catch (err) {
       setIsSubmitting(false);
       setIsRedirecting(false);
+
       setError(
         err instanceof Error
           ? err.message
-          : 'เข้าสู่ระบบไม่สำเร็จ ตรวจสอบ email/password อีกครั้ง'
+          : 'เข้าสู่ระบบไม่สำเร็จ ตรวจสอบอีเมลและรหัสผ่านอีกครั้ง',
       );
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-8 border border-zinc-100 relative overflow-hidden">
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-100 bg-white p-8 shadow-xl">
       {isRedirecting && (
         <div
           role="status"
           aria-live="polite"
-          className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-6 text-center z-20 animate-in fade-in duration-200"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-white/95 p-6 text-center backdrop-blur-sm"
         >
           <div className="relative mb-4 flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full border-4 border-sky-100 border-t-sky-500 animate-spin" />
+            <div className="size-12 animate-spin rounded-full border-4 border-sky-100 border-t-sky-500" />
+
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 rounded-full bg-sky-500 animate-ping opacity-75" />
+              <div className="size-3 animate-ping rounded-full bg-sky-500 opacity-75" />
             </div>
           </div>
+
           <h2 className="text-base font-bold text-zinc-900">
             เข้าสู่ระบบสำเร็จ
           </h2>
-          <p className="text-sm text-zinc-500 mt-1 max-w-xs">
-            กำลังนำทางไปยังหน้าโปรไฟล์ กรุณารอสักครู่...
+
+          <p className="mt-1 max-w-xs text-sm text-zinc-500">
+            กำลังนำทางไปยังหน้าโปรไฟล์
+            กรุณารอสักครู่...
           </p>
         </div>
       )}
 
-      <div className="text-center mb-8">
+      <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold text-zinc-900">
           เข้าสู่ระบบ
         </h1>
 
-        <p className="text-zinc-500 mt-2">
+        <p className="mt-2 text-zinc-500">
           ระบบคลินิกสุขภาพมหาวิทยาลัย
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          <p
+            role="alert"
+            className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600"
+          >
             {error}
           </p>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">
-            Email
+          <label
+            htmlFor="login-email"
+            className="mb-1 block text-sm font-medium text-zinc-700"
+          >
+            อีเมล
           </label>
 
           <input
+            id="login-email"
             type="email"
             required
+            autoComplete="email"
             disabled={isLoading}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="example@wu.ac.th"
-            className="w-full px-4 py-3 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition disabled:bg-zinc-50 disabled:text-zinc-400"
+            onChange={(event) =>
+              setEmail(
+                event.target.value.replace(
+                  /\s/g,
+                  '',
+                ),
+              )
+            }
+            placeholder="name@example.com"
+            aria-describedby="login-email-help"
+            className="w-full rounded-xl border border-zinc-200 px-4 py-3 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500 disabled:bg-zinc-50 disabled:text-zinc-400"
           />
+
+          <p
+            id="login-email-help"
+            className="mt-1.5 text-xs text-zinc-500"
+          >
+            ผู้ป่วยใช้อีเมล @mail.wu.ac.th
+            ส่วนบุคลากรใช้อีเมลบัญชีที่ได้รับ
+          </p>
         </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between gap-3">
-            <label htmlFor="login-password" className="block text-sm font-medium text-zinc-700">
+            <label
+              htmlFor="login-password"
+              className="block text-sm font-medium text-zinc-700"
+            >
               Password
             </label>
-            <Link href="/forgot-password" className="text-sm font-medium text-sky-600 hover:underline">
+
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-sky-600 hover:underline"
+            >
               ลืมรหัสผ่าน?
             </Link>
           </div>
@@ -113,32 +189,41 @@ function LoginForm() {
             id="login-password"
             type="password"
             required
+            autoComplete="current-password"
             disabled={isLoading}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) =>
+              setPassword(event.target.value)
+            }
             placeholder="••••••••"
-            className="w-full px-4 py-3 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition disabled:bg-zinc-50 disabled:text-zinc-400"
+            className="w-full rounded-xl border border-zinc-200 px-4 py-3 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500 disabled:bg-zinc-50 disabled:text-zinc-400"
           />
         </div>
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-3 bg-sky-500 text-white font-semibold rounded-xl hover:bg-sky-600 transition disabled:opacity-60 inline-flex items-center justify-center gap-2"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 font-semibold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin text-white" aria-hidden="true" />}
+          {isLoading && (
+            <Loader2
+              className="size-4 animate-spin text-white"
+              aria-hidden="true"
+            />
+          )}
+
           {isRedirecting
             ? 'กำลังนำทางไปหน้าโปรไฟล์...'
             : isSubmitting
-            ? 'กำลังเข้าสู่ระบบ...'
-            : 'เข้าสู่ระบบ'}
+              ? 'กำลังเข้าสู่ระบบ...'
+              : 'เข้าสู่ระบบ'}
         </button>
 
         <p className="text-center text-sm text-zinc-500">
           ยังไม่มีบัญชี?{' '}
           <Link
             href="/register"
-            className="text-sky-500 font-medium hover:underline"
+            className="font-medium text-sky-500 hover:underline"
           >
             สมัครสมาชิก
           </Link>
@@ -150,7 +235,14 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<LoadingSpinner center label="กำลังโหลดหน้าเข้าสู่ระบบ..." />}>
+    <Suspense
+      fallback={
+        <LoadingSpinner
+          center
+          label="กำลังโหลดหน้าเข้าสู่ระบบ..."
+        />
+      }
+    >
       <LoginForm />
     </Suspense>
   );

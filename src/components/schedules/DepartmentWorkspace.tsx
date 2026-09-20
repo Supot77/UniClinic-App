@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertCircle,
   Building2,
@@ -24,7 +25,6 @@ import type {
 } from '@/types/schedule';
 import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
 import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
-import Link from 'next/link';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
@@ -386,7 +386,13 @@ export default function DepartmentWorkspace() {
               onKeyDown={(event) => {
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                 event.preventDefault();
-                const nextTab = event.key === 'Home' ? 'departments' : event.key === 'End' ? 'doctors' : tab === 'departments' ? 'doctors' : 'departments';
+                const tabs: WorkspaceTab[] = ['departments', 'doctors'];
+                const currentIndex = tabs.indexOf(tab);
+                const nextTab = event.key === 'Home'
+                  ? 'departments'
+                  : event.key === 'End'
+                    ? 'doctors'
+                    : tabs[(currentIndex + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
                 changeTab(nextTab);
                 document.getElementById(`${nextTab}-tab`)?.focus();
               }}
@@ -398,7 +404,7 @@ export default function DepartmentWorkspace() {
             >
               <Icon className={`h-4 w-4 transition-colors duration-200 ${isActive ? 'text-brand-strong' : 'text-brand-muted group-hover:text-brand-strong'}`} aria-hidden="true" />
               <span>{label}</span>
-              <span
+              {count !== null && <span
                 className={`rounded-full px-2 py-0.5 text-xs tabular-nums transition-all duration-300 ${
                   isActive
                     ? 'bg-brand-soft font-bold text-brand-strong'
@@ -406,7 +412,7 @@ export default function DepartmentWorkspace() {
                 }`}
               >
                 {count}
-              </span>
+              </span>}
             </button>
           );
         })}

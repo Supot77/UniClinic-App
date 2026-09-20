@@ -5,6 +5,7 @@ import {
   Mail,
   Pencil,
   Phone,
+  Plus,
   RefreshCw,
   RotateCcw,
   Save,
@@ -15,6 +16,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { roleLabels } from "@/features/dashboard/types";
 import {
@@ -47,7 +49,6 @@ interface ProfileActionsProps {
   onEdit: (profile: StaffProfileDirectoryItem) => void;
   onAction: (action: AccountAction) => void;
 }
-
 function ProfileActions({
   profile,
   roleFilter,
@@ -102,10 +103,22 @@ function ProfileActions({
   );
 }
 
-export default function StaffProfileDirectory() {
+function displayValue(value: string | null): string {
+  return value?.trim() || "ไม่ระบุ";
+}
+
+function summaryCardClass(isSelected: boolean): string {
+  return `border-b-2 px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${isSelected ? "border-brand-strong text-brand-strong" : "border-transparent text-brand-ink hover:border-brand-border-soft"}`;
+}
+
+interface StaffProfileDirectoryProps {
+  patientOnly?: boolean;
+}
+
+export default function StaffProfileDirectory({ patientOnly = false }: StaffProfileDirectoryProps) {
   const [profiles, setProfiles] = useState<StaffProfileDirectoryItem[]>([]);
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<ProfileFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<ProfileFilter>(patientOnly ? "patient" : "all");
   const [sortBy, setSortBy] = useState<ProfileSort>("name-th");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -319,8 +332,8 @@ export default function StaffProfileDirectory() {
         </button>
       </header>
 
-      <section
-        className="grid grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-8 xl:grid-cols-5"
+      {!patientOnly && <section
+        className="grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-5"
         aria-label="สรุปจำนวนบัญชี"
       >
         <button
@@ -382,12 +395,12 @@ export default function StaffProfileDirectory() {
             {suspendedCount}
           </p>
         </button>
-      </section>
+      </section>}
 
       <section className="overflow-hidden">
         <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-brand-ink">รายชื่อบัญชี</h2>
+            <h2 className="text-xl font-semibold text-brand-ink">{patientOnly ? "รายชื่อผู้ป่วย" : "รายชื่อบัญชี"}</h2>
             <p className="mt-1 text-sm text-brand-muted">
               แสดง {filteredProfiles.length} จาก {profiles.length} บัญชี
             </p>
@@ -406,47 +419,39 @@ export default function StaffProfileDirectory() {
                 className="h-11 w-full rounded-lg border border-brand-border-strong bg-transparent py-2.5 pl-9 pr-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
               />
             </label>
-            <div className="grid w-full min-w-0 grid-cols-2 gap-2 lg:contents">
-              <div className="min-w-0">
-                <label className="sr-only" htmlFor="role-filter">
-                  กรองตาม role
-                </label>
-                <select
-                  id="role-filter"
-                  value={roleFilter}
-                  onChange={(event) =>
-                    setRoleFilter(event.target.value as ProfileFilter)
-                  }
-                  className="h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft lg:min-w-[190px] lg:w-auto"
-                >
-                  <option value="all">บัญชีทั้งหมด</option>
-                  <option value="suspended">บัญชีที่ถูกระงับ</option>
-                  {roleOrder.map((role) => (
-                    <option key={role} value={role}>
-                      {roleLabels[role]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="min-w-0">
-                <label className="sr-only" htmlFor="profile-sort">
-                  เรียงลำดับบัญชี
-                </label>
-                <select
-                  id="profile-sort"
-                  value={sortBy}
-                  onChange={(event) =>
-                    setSortBy(event.target.value as ProfileSort)
-                  }
-                  className="h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft lg:min-w-[190px] lg:w-auto"
-                >
-                  <option value="name-th">เรียงตาม ก-ฮ</option>
-                  <option value="name-en">เรียงตาม A-Z</option>
-                  <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
-                  <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
-                </select>
-              </div>
-            </div>
+            {!patientOnly && <><label className="sr-only" htmlFor="role-filter">
+              กรองตาม role
+            </label>
+            <select
+              id="role-filter"
+              value={roleFilter}
+              onChange={(event) =>
+                setRoleFilter(event.target.value as ProfileFilter)
+              }
+              className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+            >
+              <option value="all">บัญชีทั้งหมด</option>
+              <option value="suspended">บัญชีที่ถูกระงับ</option>
+              {roleOrder.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabels[role]}
+                </option>
+              ))}
+            </select></>}
+            <label className="sr-only" htmlFor="profile-sort">
+              เรียงลำดับบัญชี
+            </label>
+            <select
+              id="profile-sort"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as ProfileSort)}
+              className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+            >
+              <option value="name-th">เรียงตาม ก-ฮ</option>
+              <option value="name-en">เรียงตาม A-Z</option>
+              <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
+              <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
+            </select>
           </div>
         </div>
 

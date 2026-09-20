@@ -162,6 +162,18 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: "ผลการตรวจ" })).not.toBeInTheDocument();
   });
 
+  it("links staff account management in the drawer to departments", () => {
+    authState.user = { full_name: "Admin Demo" };
+    authState.isAuthenticated = true;
+    authState.role = "staff_admin";
+
+    render(<Header />);
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชี" }));
+
+    expect(screen.getByRole("link", { name: "จัดการผู้ใช้งาน" })).toHaveAttribute("href", "/departments");
+    expect(screen.queryByRole("link", { name: "นัดหมาย" })).not.toBeInTheDocument();
+  });
+
   it("opens password security inside the account drawer", () => {
     authState.user = { full_name: "Patient Demo" };
     authState.isAuthenticated = true;

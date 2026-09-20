@@ -312,7 +312,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
       hasSetInitialDoctor.current = true;
     }
   }, [role, currentDoctor]);
-  const [statusFilter, setStatusFilter] = useState<'all' | ScheduleSlotStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ScheduleSlotStatus>('available');
   const [formOpen, setFormOpen] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SlotDraft>(emptySlotDraft);
@@ -480,20 +480,25 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     [doctors, effectiveDepartmentFilter, effectiveServiceFilter, resolvedSlots],
   );
 
+  const allFilteredSlots = useMemo(
+    () =>
+      resolvedSlots.filter((slot) => {
+        const doctor = doctors.find((item) => item.id === slot.doctorId);
+        const matchesDepartment = effectiveDepartmentFilter === 'all' || doctor?.departmentId === effectiveDepartmentFilter;
+        const matchesService = effectiveServiceFilter === 'all' || slot.serviceId === effectiveServiceFilter;
+        const matchesDoctor = doctorFilter === 'all' || slot.doctorId === doctorFilter;
+        const matchesStatus = statusFilter === 'all' || slot.status === statusFilter;
+        return matchesDepartment && matchesService && matchesDoctor && matchesStatus;
+      }),
+    [doctors, doctorFilter, effectiveDepartmentFilter, effectiveServiceFilter, resolvedSlots, statusFilter],
+  );
+
   const visibleSlots = useMemo(
     () =>
-      resolvedSlots
+      allFilteredSlots
         .filter((slot) => displayDays.includes(slot.slotDate))
-        .filter((slot) => {
-          const doctor = doctors.find((item) => item.id === slot.doctorId);
-          const matchesDepartment = effectiveDepartmentFilter === 'all' || doctor?.departmentId === effectiveDepartmentFilter;
-          const matchesService = effectiveServiceFilter === 'all' || slot.serviceId === effectiveServiceFilter;
-          const matchesDoctor = doctorFilter === 'all' || slot.doctorId === doctorFilter;
-          const matchesStatus = statusFilter === 'all' || slot.status === statusFilter;
-          return matchesDepartment && matchesService && matchesDoctor && matchesStatus;
-        })
         .sort((a, b) => `${a.slotDate}${a.startTime}`.localeCompare(`${b.slotDate}${b.startTime}`)),
-    [effectiveDepartmentFilter, effectiveServiceFilter, doctorFilter, displayDays, doctors, resolvedSlots, statusFilter],
+    [allFilteredSlots, displayDays],
   );
 
   const availableSlotDates = useMemo(() => {
@@ -501,10 +506,15 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   }, [resolvedSlots]);
 
   const nearestSlotDate = useMemo(() => {
-    if (!resolvedSlots.length) return null;
-    const dates = [...new Set(resolvedSlots.map((s) => s.slotDate))].sort();
-    return dates.find((d) => d >= weekStart) || dates[dates.length - 1];
-  }, [resolvedSlots, weekStart]);
+    if (!allFilteredSlots.length) return null;
+    const currentMonday = getCurrentWeekMonday(weekStart);
+    const matchingDates = [...new Set(allFilteredSlots.map((s) => s.slotDate))].sort();
+    const otherWeekDates = matchingDates.filter((d) => getCurrentWeekMonday(d) !== currentMonday);
+    if (!otherWeekDates.length) {
+      return matchingDates.find((d) => d !== weekStart) ?? null;
+    }
+    return otherWeekDates.find((d) => d >= currentMonday) ?? otherWeekDates[otherWeekDates.length - 1] ?? null;
+  }, [allFilteredSlots, weekStart]);
 
   const draftLeaveOverlap = useMemo(
     () =>
@@ -849,8 +859,17 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   };
 
   const jumpToToday = () => {
-    setWeekStart(getCurrentWeekMonday());
-    setNotice('ไปยังสัปดาห์ปัจจุบันแล้ว');
+    const today = getTodayDate();
+    if (calendarView === 'day') {
+      setWeekStart(today);
+      setNotice(`ไปยังวันนี้แล้ว (${formatShortDate(today)})`);
+    } else if (calendarView === 'month') {
+      setWeekStart(today);
+      setNotice('ไปยังเดือนปัจจุบันแล้ว');
+    } else {
+      setWeekStart(getCurrentWeekMonday(today));
+      setNotice('ไปยังสัปดาห์ปัจจุบันแล้ว');
+    }
   };
 
   const handleDrillDownDay = (date: string) => {
@@ -1494,7 +1513,20 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   >
                     <ChevronRight className="h-5 w-5" aria-hidden="true" />
                   </button>
-                  <button type="button" onClick={jumpToToday} className={textButtonClass}>วันนี้</button>
+                  <button
+                    type="button"
+                    onClick={jumpToToday}
+                    className={textButtonClass}
+                    aria-label={
+                      calendarView === 'day'
+                        ? 'ไปยังวันนี้'
+                        : calendarView === 'month'
+                        ? 'ไปยังเดือนปัจจุบัน'
+                        : 'ไปยังสัปดาห์ปัจจุบัน'
+                    }
+                  >
+                    {calendarView === 'day' ? 'วันนี้' : calendarView === 'month' ? 'เดือนนี้' : 'สัปดาห์นี้'}
+                  </button>
                 </div>
                 <label className="flex items-center gap-3 text-sm text-brand-body">
                   <span>มุมมอง</span>
@@ -1546,19 +1578,43 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-border-strong bg-brand-soft/70 px-4 py-3 text-sm text-brand-strong animate-in fade-in duration-200">
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 shrink-0 text-brand-strong" aria-hidden="true" />
-                  <span>สัปดาห์นี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง</span>
+                  <span>
+                    {nearestSlotDate
+                      ? (calendarView === 'day'
+                          ? 'วันนี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง'
+                          : calendarView === 'month'
+                          ? 'เดือนนี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง'
+                          : 'สัปดาห์นี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง')
+                      : 'ไม่พบรอบตรวจที่ตรงตามตัวกรอง'}
+                  </span>
                 </div>
-                {nearestSlotDate && (
+                {nearestSlotDate ? (
                   <button
                     type="button"
                     onClick={() => {
                       setWeekStart(getCurrentWeekMonday(nearestSlotDate));
+                      setCalendarView('week');
                       setNotice(`ไปยังสัปดาห์ที่มีรอบตรวจ: ${formatShortDate(getCurrentWeekMonday(nearestSlotDate))}`);
                     }}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-strong px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-strong px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition cursor-pointer"
                   >
                     ไปยังสัปดาห์ที่มีรอบตรวจ ({formatShortDate(getCurrentWeekMonday(nearestSlotDate))})
                     <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDepartmentFilter('all');
+                      setServiceFilter('all');
+                      setDoctorFilter(role === 'medical' && currentDoctor ? currentDoctor.id : 'all');
+                      setStatusFilter('all');
+                      setNotice('ล้างตัวกรองทั้งหมดแล้ว');
+                    }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-strong px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    ล้างตัวกรอง
                   </button>
                 )}
               </div>
