@@ -12,6 +12,7 @@ import {
   vi,
 } from 'vitest';
 import RegisterPage, {
+  calculateAge,
   validateRegistration,
 } from '@/app/(auth)/register/page';
 import * as authService from '@/services/authService';
@@ -34,7 +35,9 @@ const validForm = {
   lastName: 'ใจดี',
   dateOfBirth: '2004-01-15',
   gender: 'male',
+  patientType: 'student',
   studentId: '67116004',
+  employeeId: '',
   phone: '0812345678',
 
   allergyStatus: 'no',
@@ -65,7 +68,9 @@ describe('registration validation', () => {
       lastName: 'ใจดี456',
       dateOfBirth: '',
       gender: '',
+      patientType: '',
       studentId: '1234ABCD',
+      employeeId: '',
       phone: '08123',
 
       allergyStatus: '',
@@ -91,7 +96,7 @@ describe('registration validation', () => {
         lastName: expect.any(String),
         dateOfBirth: expect.any(String),
         gender: expect.any(String),
-        studentId: expect.any(String),
+        patientType: expect.any(String),
         phone: expect.any(String),
 
         allergyStatus: expect.any(String),
@@ -254,10 +259,10 @@ describe('registration validation', () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(
-        'เบอร์โทรฉุกเฉินต้องมี 10 หลักและขึ้นต้นด้วย 0',
+      screen.getAllByText(
+        'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09',
       ),
-    ).toBeInTheDocument();
+    ).toHaveLength(2);
 
     expect(
       authService.signUp,
@@ -433,7 +438,9 @@ describe('registration validation', () => {
           lastName: 'ใจดี',
           dateOfBirth: '2004-01-15',
           gender: 'male',
+          patientType: 'student',
           studentId: '67116004',
+          employeeId: undefined,
           phone: '0812345678',
 
           allergyStatus: 'no',
@@ -456,5 +463,49 @@ describe('registration validation', () => {
         '/login?registered=true',
       );
     });
+  });
+
+  it('uses an 8-digit employee ID while keeping the patient role', () => {
+    const errors = validateRegistration({
+      ...validForm,
+      patientType: 'employee',
+      studentId: '',
+      employeeId: '12345678',
+    });
+
+    expect(errors.studentId).toBeUndefined();
+    expect(errors.employeeId).toBeUndefined();
+  });
+
+  it('accepts Thai mobile prefixes and rejects duplicate emergency phones', () => {
+    expect(validateRegistration({ ...validForm, phone: '0612345678' }).phone).toBeUndefined();
+    expect(validateRegistration({ ...validForm, phone: '0712345678' }).phone).toContain('06, 08 หรือ 09');
+    expect(validateRegistration({ ...validForm, emergencyPhone: validForm.phone }).emergencyPhone)
+      .toBe('เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก');
+  });
+
+  it('calculates age from date of birth', () => {
+    expect(calculateAge('2004-09-20', new Date(2026, 8, 20))).toBe(22);
+    expect(calculateAge('2004-09-21', new Date(2026, 8, 20))).toBe(21);
+    expect(calculateAge('', new Date(2026, 8, 20))).toBeNull();
+  });
+
+  it('rejects an emergency contact with the same full name as the patient', () => {
+    const errors = validateRegistration({
+      ...validForm,
+      emergencyContactFirstName: validForm.firstName,
+      emergencyContactLastName: validForm.lastName,
+    });
+    expect(errors.emergencyContactFirstName)
+      .toBe('ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย');
+  });
+
+  it('shows password confirmation feedback in real time', () => {
+    render(<RegisterPage />);
+    fireEvent.change(screen.getByLabelText(/^รหัสผ่าน /), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่าน/), { target: { value: 'different123' } });
+    expect(screen.getByText('รหัสผ่านไม่ตรงกัน')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่าน/), { target: { value: 'password123' } });
+    expect(screen.getByText('รหัสผ่านตรงกัน')).toBeInTheDocument();
   });
 });

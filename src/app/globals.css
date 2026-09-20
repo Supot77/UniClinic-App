@@ -335,3 +335,7 @@ html[data-theme="dark"] {
   --settings-border: #334155;
   --settings-muted: #94a3b8;
 }
+
+html[data-font-size="large"] {
+  font-size: 112.5%;
+}

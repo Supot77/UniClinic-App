@@ -103,14 +103,6 @@ function ProfileActions({
   );
 }
 
-function displayValue(value: string | null): string {
-  return value?.trim() || "ไม่ระบุ";
-}
-
-function summaryCardClass(isSelected: boolean): string {
-  return `border-b-2 px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${isSelected ? "border-brand-strong text-brand-strong" : "border-transparent text-brand-ink hover:border-brand-border-soft"}`;
-}
-
 interface StaffProfileDirectoryProps {
   patientOnly?: boolean;
 }

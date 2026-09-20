@@ -18,7 +18,9 @@ type FieldName =
   | 'lastName'
   | 'dateOfBirth'
   | 'gender'
+  | 'patientType'
   | 'studentId'
+  | 'employeeId'
   | 'phone'
   | 'allergyStatus'
   | 'allergies'
@@ -45,7 +47,9 @@ const initialForm: RegistrationForm = {
   lastName: '',
   dateOfBirth: '',
   gender: '',
+  patientType: 'student',
   studentId: '',
+  employeeId: '',
   phone: '',
 
   allergyStatus: '',
@@ -69,6 +73,19 @@ function sanitizePersonName(value: string): string {
     /[^A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E '-]/g,
     '',
   );
+}
+
+export function calculateAge(dateOfBirth: string, today = new Date()): number | null {
+  if (!dateOfBirth) return null;
+  const [year, month, day] = dateOfBirth.split('-').map(Number);
+  if (!year || !month || !day) return null;
+
+  let age = today.getFullYear() - year;
+  const birthdayHasPassed =
+    today.getMonth() + 1 > month ||
+    (today.getMonth() + 1 === month && today.getDate() >= day);
+  if (!birthdayHasPassed) age -= 1;
+  return age >= 0 ? age : null;
 }
 
 export function validateRegistration(
@@ -103,14 +120,22 @@ export function validateRegistration(
     errors.gender = 'กรุณาเลือกเพศ';
   }
 
-  if (!/^\d{8}$/.test(values.studentId)) {
+  if (!['student', 'employee'].includes(values.patientType)) {
+    errors.patientType = 'กรุณาเลือกประเภทผู้ป่วย';
+  }
+
+  if (values.patientType === 'student' && !/^\d{8}$/.test(values.studentId)) {
     errors.studentId =
       'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก';
   }
 
-  if (!/^0\d{9}$/.test(values.phone)) {
+  if (values.patientType === 'employee' && !/^\d{8}$/.test(values.employeeId)) {
+    errors.employeeId = 'รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก';
+  }
+
+  if (!/^0[689]\d{8}$/.test(values.phone)) {
     errors.phone =
-      'เบอร์โทรศัพท์ต้องมี 10 หลักและขึ้นต้นด้วย 0';
+      'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
   }
 
   if (!values.allergyStatus) {
@@ -162,14 +187,22 @@ export function validateRegistration(
       'นามสกุลผู้ติดต่อใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ';
   }
 
+  const patientFullName = `${values.firstName.trim()} ${values.lastName.trim()}`.toLocaleLowerCase();
+  const emergencyFullName = `${values.emergencyContactFirstName.trim()} ${values.emergencyContactLastName.trim()}`.toLocaleLowerCase();
+  if (patientFullName === emergencyFullName) {
+    errors.emergencyContactFirstName = 'ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย';
+  }
+
   if (!values.emergencyContactRelationship.trim()) {
     errors.emergencyContactRelationship =
       'กรุณาระบุความสัมพันธ์';
   }
 
-  if (!/^0\d{9}$/.test(values.emergencyPhone)) {
+  if (!/^0[689]\d{8}$/.test(values.emergencyPhone)) {
     errors.emergencyPhone =
-      'เบอร์โทรฉุกเฉินต้องมี 10 หลักและขึ้นต้นด้วย 0';
+      'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
+  } else if (values.emergencyPhone === values.phone) {
+    errors.emergencyPhone = 'เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก';
   }
 
   if (
@@ -194,7 +227,11 @@ export function validateRegistration(
   return errors;
 }
 
-export default function RegisterPage() {
+interface RegisterPageProps {
+  mode?: 'self-service' | 'staff-walk-in';
+}
+
+export default function RegisterPage({ mode = 'self-service' }: RegisterPageProps) {
   const router = useRouter();
 
   const [form, setForm] =
@@ -211,6 +248,8 @@ export default function RegisterPage() {
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
+
+  const age = calculateAge(form.dateOfBirth);
 
   function updateField(
     field: FieldName,
@@ -254,10 +293,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await signUp(
-        form.email.trim().toLowerCase(),
-        form.password,
-        {
+      const details = {
           title: form.title as
             | 'นาย'
             | 'นาง'
@@ -273,7 +309,9 @@ export default function RegisterPage() {
             | 'female'
             | 'unspecified',
 
-          studentId: form.studentId,
+          patientType: form.patientType as 'student' | 'employee',
+          studentId: form.patientType === 'student' ? form.studentId : undefined,
+          employeeId: form.patientType === 'employee' ? form.employeeId : undefined,
           phone: form.phone,
 
           allergyStatus:
@@ -315,10 +353,25 @@ export default function RegisterPage() {
             form.emergencyContactRelationship.trim(),
 
           emergencyPhone: form.emergencyPhone,
-        },
-      );
+      };
 
-      router.push('/login?registered=true');
+      if (mode === 'staff-walk-in') {
+        const response = await fetch('/api/staff/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.email.trim().toLowerCase(),
+            password: form.password,
+            details,
+          }),
+        });
+        const result = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(result.error || 'สร้างบัญชีผู้ป่วยไม่สำเร็จ');
+        router.push('/staff/accounts?created=true');
+      } else {
+        await signUp(form.email.trim().toLowerCase(), form.password, details);
+        router.push('/login?registered=true');
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -361,16 +414,18 @@ export default function RegisterPage() {
 
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                สมัครสมาชิกผู้ป่วย
+                {mode === 'staff-walk-in' ? 'เพิ่มบัญชีผู้ป่วย' : 'สมัครสมาชิกผู้ป่วย'}
               </h1>
 
               <p className="mt-1 text-sm text-slate-500">
-                สร้างบัญชีสำหรับเข้าใช้งาน WU Clinic
+                {mode === 'staff-walk-in'
+                  ? 'สร้างบัญชีให้นักศึกษาหรือบุคลากรที่เข้ารับบริการ'
+                  : 'สร้างบัญชีสำหรับเข้าใช้งาน WU Clinic'}
               </p>
             </div>
           </div>
 
-          <p className="text-sm text-slate-500">
+          {mode === 'self-service' && <p className="text-sm text-slate-500">
             มีบัญชีแล้ว?{' '}
             <Link
               href="/login"
@@ -378,7 +433,7 @@ export default function RegisterPage() {
             >
               เข้าสู่ระบบ
             </Link>
-          </p>
+          </p>}
         </header>
 
         <form
@@ -485,7 +540,7 @@ export default function RegisterPage() {
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <Field
                 id="date-of-birth"
                 label="วันเดือนปีเกิด"
@@ -509,6 +564,18 @@ export default function RegisterPage() {
                   className={inputClass(
                     'dateOfBirth',
                   )}
+                />
+              </Field>
+
+              <Field id="age" label="อายุ" help="คำนวณอัตโนมัติจากวันเกิด">
+                <input
+                  id="age"
+                  type="text"
+                  value={age === null ? '' : `${age} ปี`}
+                  placeholder="เลือกวันเกิดก่อน"
+                  readOnly
+                  aria-readonly="true"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 outline-none"
                 />
               </Field>
 
@@ -540,28 +607,51 @@ export default function RegisterPage() {
               </Field>
 
               <Field
-                id="student-id"
-                label="รหัสนักศึกษา"
-                error={fieldErrors.studentId}
-                help={`${form.studentId.length}/8 หลัก`}
+                id="patient-type"
+                label="ประเภทผู้ป่วย"
+                error={fieldErrors.patientType}
+              >
+                <select
+                  id="patient-type"
+                  required
+                  value={form.patientType}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    updateField('patientType', value);
+                    updateField('studentId', '');
+                    updateField('employeeId', '');
+                  }}
+                  disabled={isSubmitting}
+                  className={inputClass('patientType')}
+                >
+                  <option value="student">นักศึกษา</option>
+                  <option value="employee">บุคลากร</option>
+                </select>
+              </Field>
+
+              <Field
+                id="patient-id"
+                label={form.patientType === 'student' ? 'รหัสนักศึกษา' : 'รหัสบุคลากร'}
+                error={form.patientType === 'student' ? fieldErrors.studentId : fieldErrors.employeeId}
+                help={`${form.patientType === 'student' ? form.studentId.length : form.employeeId.length}/8 หลัก`}
               >
                 <input
-                  id="student-id"
+                  id="patient-id"
                   type="text"
                   required
                   inputMode="numeric"
                   maxLength={8}
-                  value={form.studentId}
+                  value={form.patientType === 'student' ? form.studentId : form.employeeId}
                   onChange={(event) =>
                     updateNumericField(
-                      'studentId',
+                      form.patientType === 'student' ? 'studentId' : 'employeeId',
                       event.target.value,
                       8,
                     )
                   }
-                  placeholder="67116004"
+                  placeholder={form.patientType === 'student' ? '67116004' : '12345678'}
                   disabled={isSubmitting}
-                  className={inputClass('studentId')}
+                  className={inputClass(form.patientType === 'student' ? 'studentId' : 'employeeId')}
                 />
               </Field>
 
@@ -592,6 +682,7 @@ export default function RegisterPage() {
                 />
               </Field>
             </div>
+
           </FormSection>
 
           {/* ข้อมูลสุขภาพ */}
@@ -1026,6 +1117,11 @@ export default function RegisterPage() {
                     'confirmPassword',
                   )}
                 />
+                {form.confirmPassword && !fieldErrors.confirmPassword && (
+                  <p role="status" className={`mt-2 text-xs font-medium ${form.confirmPassword === form.password ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {form.confirmPassword === form.password ? 'รหัสผ่านตรงกัน' : 'รหัสผ่านไม่ตรงกัน'}
+                  </p>
+                )}
               </Field>
             </div>
           </FormSection>
@@ -1042,7 +1138,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (form.confirmPassword.length > 0 && form.confirmPassword !== form.password)}
               className="inline-flex min-w-52 items-center justify-center gap-2 rounded-xl bg-teal-600 px-8 py-3.5 font-semibold text-white shadow-lg shadow-teal-600/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting && (
@@ -1053,8 +1149,8 @@ export default function RegisterPage() {
               )}
 
               {isSubmitting
-                ? 'กำลังสมัครสมาชิก...'
-                : 'สมัครสมาชิก'}
+                ? mode === 'staff-walk-in' ? 'กำลังสร้างบัญชี...' : 'กำลังสมัครสมาชิก...'
+                : mode === 'staff-walk-in' ? 'สร้างบัญชีผู้ป่วย' : 'สมัครสมาชิก'}
             </button>
           </footer>
         </form>
