@@ -551,7 +551,7 @@ export default function ProfileContent() {
                             <input
                               id="patient-profile-avatar"
                               type="file"
-                              accept="image/png,.png"
+                              accept="image/png,image/jpeg,.png,.jpg,.jpeg"
                               className="sr-only"
                               disabled={uploadingAvatar}
                               onChange={(event) => {
@@ -1097,7 +1097,7 @@ export default function ProfileContent() {
                           <input
                             id="account-profile-avatar"
                             type="file"
-                            accept="image/png,.png"
+                            accept="image/png,image/jpeg,.png,.jpg,.jpeg"
                             className="sr-only"
                             disabled={uploadingAvatar}
                             onChange={(event) => {

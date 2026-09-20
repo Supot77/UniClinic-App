@@ -533,8 +533,8 @@ export async function updateMyPersonalProfile(
 }
 
 export async function updateMyProfileAvatar(file: File): Promise<string> {
-  if (file.type !== 'image/png') {
-    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น');
+  if (!['image/png', 'image/jpeg'].includes(file.type)) {
+    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG, JPG หรือ JPEG');
   }
   if (file.size > 5 * 1024 * 1024) {
     throw new Error('รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB');
