@@ -32,6 +32,10 @@ function validate(email: string, password: string, details: Details): string | n
   if (details.patientType === 'employee' && !/^\d{8}$/.test(details.employeeId ?? '')) return 'รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก';
   if (!/^0[689]\d{8}$/.test(details.phone) || !/^0[689]\d{8}$/.test(details.emergencyPhone)) return 'เบอร์โทรศัพท์ต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
   if (details.phone === details.emergencyPhone) return 'เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก';
+  if (
+    `${details.firstName.trim()} ${details.lastName.trim()}`.toLocaleLowerCase() ===
+    `${details.emergencyContactFirstName.trim()} ${details.emergencyContactLastName.trim()}`.toLocaleLowerCase()
+  ) return 'ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย';
   if (!details.emergencyContactRelationship.trim()) return 'กรุณาระบุความสัมพันธ์ของผู้ติดต่อฉุกเฉิน';
   if (details.allergyStatus === 'yes' && !details.allergies?.trim()) return 'กรุณาระบุรายละเอียดการแพ้ยา';
   if (details.chronicDiseaseStatus === 'yes' && !details.chronicDiseases?.trim()) return 'กรุณาระบุรายละเอียดโรคประจำตัว';

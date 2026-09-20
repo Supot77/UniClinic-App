@@ -12,6 +12,7 @@ import {
   vi,
 } from 'vitest';
 import RegisterPage, {
+  calculateAge,
   validateRegistration,
 } from '@/app/(auth)/register/page';
 import * as authService from '@/services/authService';
@@ -481,6 +482,22 @@ describe('registration validation', () => {
     expect(validateRegistration({ ...validForm, phone: '0712345678' }).phone).toContain('06, 08 หรือ 09');
     expect(validateRegistration({ ...validForm, emergencyPhone: validForm.phone }).emergencyPhone)
       .toBe('เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก');
+  });
+
+  it('calculates age from date of birth', () => {
+    expect(calculateAge('2004-09-20', new Date(2026, 8, 20))).toBe(22);
+    expect(calculateAge('2004-09-21', new Date(2026, 8, 20))).toBe(21);
+    expect(calculateAge('', new Date(2026, 8, 20))).toBeNull();
+  });
+
+  it('rejects an emergency contact with the same full name as the patient', () => {
+    const errors = validateRegistration({
+      ...validForm,
+      emergencyContactFirstName: validForm.firstName,
+      emergencyContactLastName: validForm.lastName,
+    });
+    expect(errors.emergencyContactFirstName)
+      .toBe('ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย');
   });
 
   it('shows password confirmation feedback in real time', () => {

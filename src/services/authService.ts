@@ -228,6 +228,13 @@ export async function signUp(
     );
   }
 
+  if (
+    `${normalizedFirstName} ${normalizedLastName}`.toLocaleLowerCase() ===
+    `${normalizedEmergencyFirstName} ${normalizedEmergencyLastName}`.toLocaleLowerCase()
+  ) {
+    throw new Error('ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย');
+  }
+
   if (!normalizedEmergencyRelationship) {
     throw new Error(
       'กรุณาระบุความสัมพันธ์ของผู้ติดต่อฉุกเฉิน',

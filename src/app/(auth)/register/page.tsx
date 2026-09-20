@@ -75,6 +75,19 @@ function sanitizePersonName(value: string): string {
   );
 }
 
+export function calculateAge(dateOfBirth: string, today = new Date()): number | null {
+  if (!dateOfBirth) return null;
+  const [year, month, day] = dateOfBirth.split('-').map(Number);
+  if (!year || !month || !day) return null;
+
+  let age = today.getFullYear() - year;
+  const birthdayHasPassed =
+    today.getMonth() + 1 > month ||
+    (today.getMonth() + 1 === month && today.getDate() >= day);
+  if (!birthdayHasPassed) age -= 1;
+  return age >= 0 ? age : null;
+}
+
 export function validateRegistration(
   values: RegistrationForm,
 ): FieldErrors {
@@ -174,6 +187,12 @@ export function validateRegistration(
       'นามสกุลผู้ติดต่อใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ';
   }
 
+  const patientFullName = `${values.firstName.trim()} ${values.lastName.trim()}`.toLocaleLowerCase();
+  const emergencyFullName = `${values.emergencyContactFirstName.trim()} ${values.emergencyContactLastName.trim()}`.toLocaleLowerCase();
+  if (patientFullName === emergencyFullName) {
+    errors.emergencyContactFirstName = 'ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย';
+  }
+
   if (!values.emergencyContactRelationship.trim()) {
     errors.emergencyContactRelationship =
       'กรุณาระบุความสัมพันธ์';
@@ -229,6 +248,8 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
+
+  const age = calculateAge(form.dateOfBirth);
 
   function updateField(
     field: FieldName,
@@ -519,7 +540,7 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <Field
                 id="date-of-birth"
                 label="วันเดือนปีเกิด"
@@ -543,6 +564,18 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
                   className={inputClass(
                     'dateOfBirth',
                   )}
+                />
+              </Field>
+
+              <Field id="age" label="อายุ" help="คำนวณอัตโนมัติจากวันเกิด">
+                <input
+                  id="age"
+                  type="text"
+                  value={age === null ? '' : `${age} ปี`}
+                  placeholder="เลือกวันเกิดก่อน"
+                  readOnly
+                  aria-readonly="true"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 outline-none"
                 />
               </Field>
 
