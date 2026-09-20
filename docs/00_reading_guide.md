@@ -1,6 +1,6 @@
 # 00. คู่มืออ่านเอกสาร
 
-ปรับปรุง 9 กันยายน 2569 (2026-09-09) — ข้อกำหนดสำหรับพัฒนาและ as-built trace จาก code path; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 20 กันยายน 2569 (2026-09-20) — ข้อกำหนดสำหรับพัฒนาและ as-built trace จาก code path; code progress เป็นค่าประมาณ ไม่ใช่หลักฐาน deployment หรือการตรวจรับ
 
 ข้อสรุปทีมใน [10](10_team_decisions.md) เป็นหลักสำหรับกติกาที่เปลี่ยนล่าสุด [09](09_implementation_plan.md) เป็นแผนดำเนินงาน [08](08_system_rules_and_acceptance.md) เป็นข้อกำหนดและเกณฑ์ตรวจรับ หากพบเนื้อหาเก่าใน Git history หรือ PDF archive ให้ยึดข้อสรุปล่าสุดที่ทีมตอบรับ ไม่ใช้ข้อเสนอที่ยังไม่อนุมัติแทนข้อยุติ
 
@@ -22,16 +22,18 @@
 | [11 Functional Requirements](11_functional_requirements.md) | FR เป้าหมายและตารางเทียบกับ implementation ที่พบ |
 | [04 สถาปัตยกรรม](04_system_architecture_and_tech_stack.md) | ขอบเขตบริการ สิทธิ์และงานตามเวลา |
 | [05 โฟลเดอร์และ Git](05_folder_and_git_workflow.md) | พื้นที่งานและคู่ตรวจ |
-| [06 Roadmap](06_development_roadmap.md) | แผน 5–18 กันยายน |
+| [06 Roadmap](06_development_roadmap.md) | แผนถึงกำหนดส่ง 25 กันยายน |
 | [07 ขอบเขต](07_foundation_and_scope.md) | งานที่คงไว้ งานที่เปลี่ยน และเรื่องค้าง |
 | [08 กติกาและเกณฑ์](08_system_rules_and_acceptance.md) | กติกาปัจจุบัน AC และ SCN |
 | [09 แผนพัฒนา](09_implementation_plan.md) | จุดเชื่อมและสิ่งที่ต้องทำภายหลัง |
 | [10 ข้อสรุปทีม](10_team_decisions.md) | คำตอบที่ตกลงแล้วและประเด็นที่ยังเปิด |
 | [13 แผนลดความซ้ำซ้อนและ Routing](13_code_refactoring_and_routing_plan.md) | แผนขจัดความซ้ำซ้อน Hardcode และ Dynamic Routing |
+| [14 บันทึกการเปลี่ยนแปลง](14_change_log.md) | รายการไฟล์ที่แก้ พฤติกรรมที่เปลี่ยน และผลตรวจจริงหลังส่งมอบ |
+| [Owner views](owners/README.md) | สรุปขอบเขต as-built หลักฐาน และงานค้างแยกตามผู้รับผิดชอบ |
 | [Catalog เดโม](superpowers/specs/2026-09-04-clinic-demo-data-design.md) | บัญชีสังเคราะห์ ตารางตรวจและยา |
 | [Process diagram](diagrams/clinic-manual-process.html) | ภาพรวม flow manual ของ 3 role |
 | [Use Case diagram](diagrams/wu_clinic_use_case.html) | use case จาก role contract และ active/legacy code path |
-| [ER diagram](diagrams/clinic-er-diagram.html) | แบบข้อมูล active PAI, schedule และ legacy compatibility |
+| [ER diagram](diagrams/clinic-er-diagram.html) | แบบข้อมูล schedule และ current PAI RPC target (`appointments`/`medical_records`) พร้อม historical initial target |
 | [SQL เดิม](SQL.md) | อ้างอิงทางประวัติศาสตร์ ไม่ใช่ migration ตามข้อสรุปใหม่ |
 
 แยกสถานะ ตกลงความต้องการแล้ว / แบบเทคนิคเสนอ / พัฒนาแล้ว / deploy แล้ว / ตรวจรับแล้ว เสมอ เอกสาร 00–11 ต้องใช้ role contract และ scope manual เดียวกัน การอนุญาตให้เชื่อมฐานจริงไม่ใช่หลักฐานว่า migration ถูก deploy หรือ flow ผ่านการตรวจรับ
@@ -49,7 +51,7 @@
 
 คำว่า “ตกลงแล้ว” หมายถึงทีมยืนยันขอบเขตหรือกติกา คำว่า “แผน” หมายถึงงานที่ควรทำต่อ และคำว่า “พัฒนา/ตรวจรับแล้ว” ต้องมีหลักฐานจากโค้ดหรือคำสั่งตรวจจริง เอกสารนี้ไม่เปลี่ยนสถานะของงานเพียงเพราะมีการเขียนรายละเอียดเพิ่ม
 
-ส่วน `as-built` ในเอกสาร 02, 03, 11 เป็นผลจากการอ่าน repository ณ 2026-09-09: PAI นัดหมาย/ผลตรวจเป็น active route, ส่วน pharmacy, reminders, dashboard และบาง schedule operation ยังมี legacy/mock path. ต้องตรวจ migration target, RLS และ flow บนฐานจริงแยกต่างหาก
+ส่วน `as-built` ในเอกสาร 02, 03, 11 และ [owner views](owners/README.md) เป็นผลจากการอ่าน repository ณ 2026-09-20: PAI นัดหมาย/ผลตรวจเป็น active route, Shop มี schedule/department/leave/slot path และ shared confirmation, ส่วน pharmacy, reminders และ dashboard ยังมี path ที่ต้องแยกตาม source และตรวจ integration. ต้องตรวจ migration target, RLS และ flow บนฐานจริงแยกต่างหาก
 
 ## คำศัพท์ที่ต้องใช้ให้ตรงกัน
 

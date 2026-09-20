@@ -19,9 +19,16 @@ export const prescriptionSchema = z.object({
   dosage: z.string().trim().min(1).max(500), frequency: z.string().trim().min(1).max(500),
   duration_days: z.number().int().min(1).max(365), quantity: z.number().int().min(1).max(100000),
 });
+export const physicalExamSchema = z.object({
+  height_cm: z.number().finite().min(30, 'ส่วนสูงต้องอยู่ระหว่าง 30–250 ซม.').max(250, 'ส่วนสูงต้องอยู่ระหว่าง 30–250 ซม.').nullable().default(null),
+  weight_kg: z.number().finite().min(1, 'น้ำหนักต้องอยู่ระหว่าง 1–300 กก.').max(300, 'น้ำหนักต้องอยู่ระหว่าง 1–300 กก.').nullable().default(null),
+  blood_pressure: z.string().trim().regex(/^\d{2,3}\/\d{2,3}$/, 'ความดันโลหิตต้องอยู่ในรูปแบบ systolic/diastolic เช่น 120/80').nullable().default(null),
+  pulse_bpm: z.number().int().min(20, 'ชีพจรต้องอยู่ระหว่าง 20–250 ครั้ง/นาที').max(250, 'ชีพจรต้องอยู่ระหว่าง 20–250 ครั้ง/นาที').nullable().default(null),
+});
 export const recordInputSchema = z.object({
   appointmentId: z.string().uuid(), diagnosis: z.string().trim().min(1, 'กรุณากรอกผลวินิจฉัย').max(5000),
   advice: z.string().trim().max(5000), prescriptions: z.array(prescriptionSchema).max(50), complete: z.boolean(),
+  ...physicalExamSchema.shape,
 }).refine((value) => new Set(value.prescriptions.map((prescription) => prescription.medication_id)).size === value.prescriptions.length, 'รายการยาซ้ำ');
 export type RecordInput = z.infer<typeof recordInputSchema>;
 export const snapshotSchema = z.object({
@@ -42,6 +49,7 @@ export const snapshotSchema = z.object({
     id: z.string().uuid(), appointment_id: z.string().uuid(), patient_id: z.string().uuid(), doctor_id: z.string().uuid(),
     patient: z.string(), doctor: z.string(), diagnosis: z.string().nullable(), treatment_notes: z.string().nullable(),
     prescribed_medications: z.array(prescriptionSchema).nullable(), created_at: z.string(), completed: z.boolean(),
+    ...physicalExamSchema.shape,
   })),
   medications: z.array(z.object({ id: z.string().uuid(), name: z.string(), type: z.string() })),
 });
@@ -113,7 +121,10 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
     const result = await client.rpc(name, args);
     if (result.error) {
       if (result.error.code === 'P0001') throw new Error(result.error.message);
-      if (result.error.code === 'PGRST202' || result.error.code === '42883') throw new Error('ยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลเพื่อติดตั้งส่วนบริการนัดหมาย');
+      if (result.error.code === 'PGRST202' || result.error.code === '42883') throw new Error('ยังไม่ได้ติดตั้ง RPC สำหรับบันทึกผลตรวจ กรุณารัน migration 28_medical_record_vitals.sql ใน Supabase แล้วโหลดหน้าใหม่');
+      if (result.error.code === 'PGRST203') throw new Error('Supabase พบ RPC บันทึกผลตรวจซ้ำหรือไม่ชัดเจน กรุณารัน migration 28_medical_record_vitals.sql และ reload schema');
+      if (result.error.code === '42501') throw new Error('บัญชีนี้ไม่มีสิทธิ์บันทึกผลตรวจ หรือไม่ได้เป็นแพทย์เจ้าของนัด');
+      if (result.error.code === '23505') throw new Error('นัดนี้มีผลตรวจบันทึกแล้ว ไม่สามารถบันทึกซ้ำได้');
       throw new Error('ไม่สามารถทำรายการได้ กรุณาโหลดข้อมูลใหม่ก่อนลองอีกครั้ง');
     }
     return result.data;
@@ -154,7 +165,17 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
       const parsed = recordInputSchema.safeParse(input);
       if (!parsed.success) throw new Error(parsed.error.issues[0].message);
       await actor(['medical']);
-      await rpc('pai_save_record', { p_appointment_id: parsed.data.appointmentId, p_diagnosis: parsed.data.diagnosis, p_advice: parsed.data.advice, p_prescriptions: parsed.data.prescriptions, p_complete: parsed.data.complete });
+      await rpc('pai_save_record', {
+        p_appointment_id: parsed.data.appointmentId,
+        p_diagnosis: parsed.data.diagnosis,
+        p_advice: parsed.data.advice,
+        p_prescriptions: parsed.data.prescriptions,
+        p_height_cm: parsed.data.height_cm,
+        p_weight_kg: parsed.data.weight_kg,
+        p_blood_pressure: parsed.data.blood_pressure,
+        p_pulse_bpm: parsed.data.pulse_bpm,
+        p_complete: parsed.data.complete,
+      });
     },
   };
 }
@@ -218,7 +239,8 @@ export function createClinicMockRepository(seed: ClinicSnapshot, now = new Date(
       });
       state.records.push({ id: id(), appointment_id: appointment.id, patient_id: appointment.user_id, doctor_id: state.actor.id,
         patient: appointment.patient, doctor: 'แพทย์ทดสอบ', diagnosis: parsed.diagnosis, treatment_notes: parsed.advice,
-        prescribed_medications: items, created_at: now.toISOString(), completed: parsed.complete });
+        prescribed_medications: items, created_at: now.toISOString(), completed: parsed.complete,
+        height_cm: parsed.height_cm, weight_kg: parsed.weight_kg, blood_pressure: parsed.blood_pressure, pulse_bpm: parsed.pulse_bpm });
       appointment.has_record = true;
       if (parsed.complete) appointment.status = 'completed';
     },

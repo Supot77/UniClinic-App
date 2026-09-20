@@ -1,6 +1,8 @@
 # 13. แผนการปรับปรุงสถาปัตยกรรม: การลดความซ้ำซ้อน, การจัดการ Hardcode และการนำ Dynamic Routing มาใช้
 
-เอกสารฉบับนี้จัดทำขึ้น ณ วันที่ 19 กันยายน 2569 (2026-09-19) เพื่อเป็นแนวทางทางเทคนิคและแผนดำเนินงานสำหรับสมาชิกในทีมทุกคน ในการขจัดความซ้ำซ้อนของโค้ด (Code Redundancy), แก้ไขจุดที่มีการ Hardcode ข้อมูล, และนำฟีเจอร์ **Dynamic Routing** ของ Next.js App Router มาประยุกต์ใช้เพื่อยกระดับโครงสร้างระบบและประสบการณ์ผู้ใช้งาน (UX) โดยไม่กระทบต่อสัญญาข้อมูล (Contracts) และกฎระเบียบของระบบที่ระบุใน `docs/00_reading_guide.md` ถึง `docs/10_team_decisions.md`
+เอกสารฉบับนี้จัดทำขึ้น ณ วันที่ 20 กันยายน 2569 (2026-09-20) เพื่อเป็นแนวทางทางเทคนิคและบันทึกผล implementation สำหรับสมาชิกในทีมทุกคน ในการขจัดความซ้ำซ้อนของโค้ด (Code Redundancy), แก้ไขจุดที่มีการ Hardcode ข้อมูล, และนำฟีเจอร์ **Dynamic Routing** ของ Next.js App Router มาประยุกต์ใช้เพื่อยกระดับโครงสร้างระบบและประสบการณ์ผู้ใช้งาน (UX) โดยไม่กระทบต่อสัญญาข้อมูล (Contracts) และกฎระเบียบของระบบที่ระบุใน `docs/00_reading_guide.md` ถึง `docs/10_team_decisions.md`
+
+สถานะในเอกสารนี้แยก “ทำแล้วใน code” ออกจาก “แผน target”. การมีชื่อ route ในแผนไม่ใช่หลักฐานว่ามีไฟล์ route แล้ว; ให้ตรวจ [owner as-built traces](owners/README.md) และ source path จริงก่อนส่งต่องาน
 
 ---
 
@@ -67,7 +69,7 @@
 - **ขอบเขตไฟล์**: `src/app/(auth)/`, `src/components/profile/`, `src/lib/requireRole.ts`, `src/components/patients/`, `src/app/(clinic)/patients/`
 
 #### รายละเอียดงานและวิธีแก้ไข:
-1. **สร้างหน้า Dynamic Route ผู้ป่วย `src/app/(clinic)/patients/[patientId]/page.tsx`**:
+1. **Target: สร้างหน้า Dynamic Route ผู้ป่วย `src/app/(clinic)/patients/[patientId]/page.tsx`**:
    - รับ dynamic parameter `const { patientId } = await params;`
    - เรียก service/repository เพื่อดึงข้อมูลประวัติผู้ป่วย, ข้อมูลการแพ้ยา, โรคประจำตัว, และประวัตินัดหมายล่าสุด
    - แสดงผลแบบ Read-only Overview และเพิ่มปุ่มนำทางไปยัง `/patients/[patientId]/edit`
@@ -83,7 +85,7 @@
 - **เจ้าของงาน**: **ช้อป (สุพจน์)** | **คู่ตรวจ**: **ปาย**
 - **ขอบเขตไฟล์**: `src/app/(clinic)/schedules/`, `src/app/(clinic)/departments/`, `src/components/schedules/`, `src/features/shop/`
 
-#### รายละเอียดงานและวิธีแก้ไข:
+#### รายละเอียดงานและวิธีแก้ไข (สถานะ ณ 20 กันยายน 2569):
 1. **ขจัดโค้ดซ้ำซ้อนใน `src/app/(clinic)/schedules/page.tsx`**:
    - ลบฟังก์ชัน `canonicalRole` และ `getScheduleUser` ในไฟล์ทิ้ง
    - เรียกใช้ `requireRole(['patient', 'medical', 'staff_admin'])` หรือ `getCurrentUserAndRole()` จาก `@/lib/requireRole`
@@ -93,6 +95,23 @@
    - นำเข้า `LEAVE_REASONS` มาใช้ render ตัวเลือกเหตุผลการลา
 3. **พิจารณา Dynamic Routing สำหรับแผนก**:
    - สร้าง `src/app/(clinic)/departments/[departmentId]/page.tsx` เพื่อแยกดูตารางเวรและบริการเฉพาะแผนก
+4. **แก้ไขและยกเลิกวันลาจากปฏิทิน**:
+   - เปลี่ยนชิปวันลาในมุมมอง day/week/month ให้ผู้มีสิทธิ์คลิกเปิด Modal แก้ไขข้อมูลเดิมได้
+   - `medical` แก้ไข/ยกเลิกได้เฉพาะวันลาของตนเอง ส่วน `staff_admin` จัดการได้ทุกแพทย์; `patient` ไม่มี action วันลา
+   - เพิ่ม Confirmation สำหรับ `ยกเลิกวันลา` และไม่เปิด/ปิด slot หรือนัดหมายเดิมอัตโนมัติ
+5. **จำกัดการสร้าง slot ตามวันเปิดคลินิก**:
+   - ซ่อนปุ่มเพิ่มรอบในวันเสาร์-อาทิตย์สำหรับมุมมอง day/week/month
+   - ตรวจซ้ำในฟอร์มก่อนบันทึก เพื่อไม่สร้าง slot ใหม่ในวันเสาร์-อาทิตย์จากปุ่มสร้างรอบด้านบน
+
+#### สถานะและหลักฐาน
+
+- รายการ 1–5 มี code path และ tests แล้ว โดยงานข้อ 2.2 ใช้ไฟล์สนับสนุนเพิ่มนอกขอบเขตเดิม ได้แก่ `src/constants/dateTime.ts`, `src/lib/requireRole.ts` และ tests ที่เกี่ยวข้อง
+- หน้า detail แผนกใช้ `/departments/[departmentId]` และ route guard; หน้า Schedule ใช้ helper role กลางและ constants กลาง
+- targeted ScheduleWorkspace tests ผ่าน 25/25, typecheck ผ่าน, lint ผ่าน 0 errors/7 warnings เดิม และ build ผ่าน
+- full test ล่าสุดผ่าน 272/273 tests; failure ที่เหลืออยู่ใน `tests/pharmacy-content-roles.test.tsx:380` เรื่องปุ่ม `ปิดหน้าต่าง` ซ้ำ และอยู่นอก scope นี้
+- ยังไม่มีหลักฐาน database integration/RLS บนฐาน development/staging หรือ browser QA เนื่องจาก environment ไม่มี browser runtime
+- หลังจากนั้น code ล่าสุด `0a3aa2d` เปลี่ยนคำสั่งสำคัญใน schedule/department จาก `window.confirm` เป็น shared `ConfirmationModal` และยังคงกติกาเดิมเรื่อง permission, state เดิมเมื่อ error และไม่เปลี่ยน slot/นัดหมายอัตโนมัติ
+- สถานะโมดูลนี้: **ทำแล้วใน code** สำหรับข้อ 1–5; เหลือ UI polish และหลักฐาน DB/RLS/browser ตาม [shop owner view](owners/shop-supot/README.md)
 
 ---
 
@@ -101,13 +120,13 @@
 - **ขอบเขตไฟล์**: `src/app/(clinic)/appointments/`, `src/app/(clinic)/records/`, `src/features/appointments.tsx`, `src/features/medical-records.tsx`
 
 #### รายละเอียดงานและวิธีแก้ไข:
-1. **ลดความซ้ำซ้อนของ DatePicker ใน `src/features/appointments.tsx`**:
+1. **ทำแล้วบางส่วน: ลดความซ้ำซ้อนของ DatePicker ใน `src/features/appointments.tsx`**:
    - ลบฟังก์ชัน `AppointmentDatePicker` และ array วัน-เดือนในไฟล์ (บรรทัดที่ 42–133)
    - นำเข้าคอมโพเนนต์กลาง `<DatePicker />` จาก `@/components/common/DatePicker` มาใช้งานแทน
-2. **ปรับปรุงเวชระเบียนเป็น Dynamic Route `src/app/(clinic)/records/[recordId]/page.tsx`**:
+2. **Target ยังไม่พบ code: ปรับปรุงเวชระเบียนเป็น Dynamic Route `src/app/(clinic)/records/[recordId]/page.tsx`**:
    - เปลี่ยนจากการส่ง query `?appointment=xxx` เป็น dynamic segment `/records/[recordId]`
    - หน้าจอแสดงผลบันทึกการรักษา, การสั่งยา, และการวินิจฉัยโรค รองรับการแชร์ลิงก์และสั่งพิมพ์ (Print-friendly view)
-3. **เพิ่ม Dynamic Route บัตรคิว `src/app/(clinic)/appointments/[appointmentId]/page.tsx`**:
+3. **Target ยังไม่พบ code: เพิ่ม Dynamic Route บัตรคิว `src/app/(clinic)/appointments/[appointmentId]/page.tsx`**:
    - แสดงบัตรยืนยันนัดหมาย, รหัสคิวตรวจ, สถานะคิวสด (Live Queue Tracker), และ QR Code สแกนเข้าจุดคัดกรอง
 
 ---
@@ -117,10 +136,10 @@
 - **ขอบเขตไฟล์**: `src/app/(clinic)/pharmacy/`, `src/components/pharmacy/`, `src/services/medicationService.ts`
 
 #### รายละเอียดงานและวิธีแก้ไข:
-1. **แยกแท็บหน้าจอด้วย Dynamic Route `src/app/(clinic)/pharmacy/[tab]/page.tsx`**:
+1. **Target ยังไม่พบ code: แยกแท็บหน้าจอด้วย Dynamic Route `src/app/(clinic)/pharmacy/[tab]/page.tsx`**:
    - รองรับ `/pharmacy/inventory` (คลังเวชภัณฑ์) และ `/pharmacy/prescriptions` (ใบสั่งยา)
    - กำหนดให้ `/pharmacy` redirect ไปยัง `/pharmacy/inventory` อัตโนมัติ เพื่อรักษาประวัติการเข้าชม (History) และไม่หลุดแท็บเมื่อรีเฟรช
-2. **สร้างหน้าเจาะลึกตัวยา `src/app/(clinic)/pharmacy/medications/[medicationId]/page.tsx`**:
+2. **Target ยังไม่พบ code: สร้างหน้าเจาะลึกตัวยา `src/app/(clinic)/pharmacy/medications/[medicationId]/page.tsx`**:
    - แสดงข้อมูลจำเพาะ, ข้อบ่งใช้, จุดเตือนสต็อกขั้นต่ำ, ล็อตยา (Batch / Expiry Date), และประวัติการเบิกจ่าย
    - สามารถประยุกต์ใช้ Next.js Intercepting Route `(.)medications/[medicationId]` เพื่อให้เปิดเป็น Modal ได้เมื่อคลิกจากหน้ารายการ แต่แสดงเป็นหน้าเต็มเมื่อเปิดผ่านลิงก์ตรง
 
@@ -129,6 +148,8 @@
 ### 2.5 โมดูล Dashboard และ Broadcast
 - **เจ้าของงาน**: **เฮิร์บ** | **คู่ตรวจ**: **ฟีม**
 - **ขอบเขตไฟล์**: `src/app/(dashboard)/dashboard/`, `src/components/dashboard/`, `src/features/dashboard/`
+
+สถานะปัจจุบัน: มี route `doctor` และ `staff` อยู่จริงคู่กับ canonical `medical` และ `staff_admin`; การลบ/redirect route ซ้ำยังเป็น target ไม่ใช่การเปลี่ยนแปลงที่ยืนยันแล้ว. Dashboard function มี code path แต่ Herb ยังเหลือ UI polish ตาม [owner view](owners/herb/README.md)
 
 #### รายละเอียดงานและวิธีแก้ไข:
 1. **ขจัดโฟลเดอร์ Route ที่ซ้ำซ้อน**:
@@ -178,6 +199,14 @@
    ```
 2. **ปรับปรุง Dynamic Anchor สำหรับ Mock Data**:
    - ปรับวันที่ใน `src/mocks/scheduleData.ts` และ `clinicDatabase.ts` ให้คำนวณสัมพันธ์กับวันปัจจุบัน (เช่น อิงจากวันจันทร์ของสัปดาห์ปัจจุบัน `getCurrentWeekMonday()`) แทนการระบุวันที่ตายตัว เพื่อป้องกันปัญหาเปิดระบบมาแล้วพบตารางว่างเปล่า
+
+#### สถานะหลังแก้ไข 19 กันยายน 2569
+
+- [x] สร้าง `src/constants/dateTime.ts` พร้อม constants ตามข้อกำหนด และ helper สำหรับ Bangkok date, date shifting และ current-week Monday
+- [x] ปรับ `src/components/common/DatePicker.tsx` ให้ใช้ `THAI_MONTHS`, `THAI_MONTHS_SHORT` และ `THAI_WEEKDAYS` จาก constants กลาง
+- [x] ปรับ `src/mocks/scheduleData.ts` และ `src/mocks/clinicDatabase.ts` ให้ schedule mock อิงวันจันทร์ของสัปดาห์ปัจจุบัน โดยคง offset ของ history/current slots
+- [x] เพิ่ม/ปรับ tests สำหรับ constants, dynamic anchor, dashboard และ schedule rules
+- ผลตรวจและข้อจำกัดบันทึกไว้ที่ [14 บันทึกการเปลี่ยนแปลง](14_change_log.md)
 
 ---
 

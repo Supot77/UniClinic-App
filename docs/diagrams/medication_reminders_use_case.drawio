@@ -60,7 +60,7 @@
           <mxGeometry x="940" y="200" width="40" height="75" as="geometry" />
         </mxCell>
 
-        <mxCell id="actor_staff" value="เจ้าหน้าที่/ผู้ดูแลระบบ&#xa;(Staff/Admin)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#f4f4f5;strokeWidth=1.5;fontColor=#f4f4f5;fontSize=12;fontFamily=Helvetica;align=center;" vertex="1" parent="1">
+        <mxCell id="actor_staff" value="เจ้าหน้าที่/แอดมิน&#xa;(staff_admin)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#f4f4f5;strokeWidth=1.5;fontColor=#f4f4f5;fontSize=12;fontFamily=Helvetica;align=center;" vertex="1" parent="1">
           <mxGeometry x="940" y="470" width="40" height="75" as="geometry" />
         </mxCell>
 

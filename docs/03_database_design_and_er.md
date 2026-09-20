@@ -1,14 +1,16 @@
 # 03. แบบข้อมูลและ ER
 
-ปรับปรุง 9 กันยายน 2569 (2026-09-09) — reverse-engineer schema/runtime ให้แยก PAI active path ออกจากตารางนัด/ผลตรวจเดิม และเพิ่ม catalog บริการกับ daily offering โดยคง departments เป็นข้อมูลความถนัดของแพทย์
+ปรับปรุง 20 กันยายน 2569 (2026-09-20) — reverse-engineer schema/runtime ให้แยกชื่อ PAI RPC ออกจากตารางนัด/ผลตรวจที่ RPC รุ่นปัจจุบันใช้งาน และเพิ่ม catalog บริการกับ daily offering โดยคง departments เป็นข้อมูลความถนัดของแพทย์; owner trace อยู่ใน [docs/owners](owners/README.md)
 
 > ไฟล์ schema snapshot จาก Supabase เป็นข้อมูลอ้างอิง ไม่ควรรันตรง ๆ เพราะไม่มีลำดับ Foreign Key ที่รับประกันได้ ให้ใช้ migration ตามลำดับ รวม `supabase/migrations/13_services_and_daily_offerings.sql` สำหรับฐานที่มี schema เดิมแล้ว
+
+> **หลักฐาน environment:** [Database_check.md](Database_check.md) เป็น DB snapshot ที่ผู้ใช้ยืนยันว่าเป็น target ปัจจุบันเดียวกับ runtime. Snapshot พบ `appointments`/`medical_records` และ RPC `pai_*` แต่ไม่พบ `pai_appointments`, `pai_medical_records` และ `broadcast_recipients`; migration ที่เกี่ยวข้องได้รับการยืนยันว่า deploy แล้ว และ `21`/`28` ชี้ RPC ชื่อ PAI ไปยังตาราง canonical ปัจจุบัน. ยังไม่ถือว่า session-based RLS ผ่าน
 
 ## สถานะและขอบเขต
 
 - Runtime หลักใช้ Supabase ผ่าน database repository; mock repository ใช้เฉพาะ automated tests/offline demo ที่ระบุชัด
-- Base schema เดิมมี 11 ตาราง; migration เพิ่ม `services`, `daily_service_offerings`, `pai_appointments`, `pai_medical_records` และ `broadcasts` ตามลำดับของ migration ที่ถูกใช้จริง จึงไม่ควรสรุปจำนวนตารางเดียวโดยไม่ระบุ migration target
-- Active appointment/record runtime ใช้ `pai_appointments` และ `pai_medical_records`; `appointments` และ `medical_records` เดิมยังเป็น compatibility/legacy path ของ service เก่า
+- Base schema เดิมมี 11 ตาราง; migration เพิ่ม `services`, `daily_service_offerings`, `broadcasts` และเคยเสนอ `pai_appointments`/`pai_medical_records` ใน migration รุ่นแรก จึงไม่ควรสรุปจำนวนตารางเดียวโดยไม่ระบุ migration target
+- Active appointment/record runtime ใน code และ migration รุ่นหลังใช้ `appointments` และ `medical_records` ผ่าน RPC ชื่อ `pai_*`; `pai_appointments` และ `pai_medical_records` เป็น target จาก migration รุ่นแรกที่ snapshot นี้ไม่พบ
 - บทบาทใน `profiles.role` เหลือ 3 ค่าเท่านั้น: `patient`, `medical`, `staff_admin`
 - `medical` ครอบคลุมแพทย์และเภสัชกร; `staff_admin` ครอบคลุมเจ้าหน้าที่และแอดมิน
 - ตาราง normalized รุ่นเก่า เช่น `reschedule_proposals`, `prescription_items`, `dispensing_items`, `stock_reservations` และ `email_jobs` ไม่อยู่ใน scope ปัจจุบัน; `broadcasts` ใน migration `03_normalized_transactions.sql` เป็นของเก่า แต่ migration `09_broadcast_rpc.sql` มี Broadcast path แยกที่ต้องตรวจ target จริง
@@ -19,8 +21,8 @@
 | เส้นทาง | ตาราง/ฟังก์ชันหลัก | ข้อสรุปจาก repository |
 | --- | --- | --- |
 | Schedule | `services` → `daily_service_offerings` → `appointment_slots` | `DatabaseShopRepository` รองรับการอ่าน/เขียน; UI ยังมี mock composition บางคำสั่ง |
-| Appointment | `pai_appointments`, `pai_workspace`, `pai_book_appointment`, `pai_transition_appointment` | route `/appointments` ใช้เส้นทางนี้; ไม่เขียน `appointments` เดิม |
-| Medical record | `pai_medical_records`, `pai_save_record` | route `/records` ใช้เส้นทางนี้; หนึ่งผลตรวจต่อนัดด้วย UNIQUE |
+| Appointment | `appointments`, `pai_workspace`, `pai_book_appointment`, `pai_transition_appointment` | route `/appointments` ใช้ RPC ชื่อ PAI แต่ migration รุ่นปัจจุบันชี้ไป `appointments`; ไม่ใช่หลักฐานว่า RPC deploy บน target แล้ว |
+| Medical record | `medical_records`, `pai_save_record` | route `/records` ใช้ RPC ชื่อ PAI ที่ migration `28` ชี้ไป `medical_records`; หนึ่งผลตรวจต่อนัดตาม schema/test ที่พบ |
 | Pharmacy | `medications`, `inventory_logs`, `medicationService`, `/pharmacy` | เส้นทางแยกจาก PAI และมี mock/local-storage fallback; ยังไม่ยืนยัน integration แบบครบวงจร |
 | Reminder/notification | `medication_reminders`, `medication_logs`, `notifications` และ service ที่เกี่ยวข้อง | มี direct Supabase service; reminders/dashboard บางส่วนยัง fallback ไป mock |
 | Broadcast | `broadcasts`/RPC และ `notifications` | มี migration/RPC แยก; ต้องตรวจว่าฐานเป้าหมาย apply แล้ว |
@@ -62,16 +64,16 @@ CREATE POLICY "Staff admin and medical can view profiles"
 | `doctors` | รายละเอียดแพทย์ที่เป็นบัญชี `medical` | ผูกกับ `profiles` และ `departments` |
 | `daily_service_offerings` | บริการของแพทย์ที่เปิดในวันนั้น | unique ต่อ `service_id`, `doctor_id`, `offering_date` |
 | `appointment_slots` | รอบเวลาตรวจของบริการในวันนั้น | ต้องอ้าง `daily_service_offering_id`; status คือ `available`, `full`, `closed` |
-| `pai_appointments` | การนัด active ของผู้ป่วยกับ slotใน PAI runtime | ใช้ RPC; unique active booking ต่อผู้ป่วย/slot; ไม่มี auto-reschedule/auto-no-show |
-| `pai_medical_records` | ผลตรวจ active ของ PAI runtime | ผูกกับ `pai_appointments`; `appointment_id` UNIQUE; รายการยาเป็น JSONB |
-| `appointments` | ตารางนัดเดิมของ service/compatibility path | ไม่ใช่ตารางที่ active PAI route เขียน |
-| `medical_records` | ผลตรวจเดิมและรายการยาแบบ JSONB | ไม่ใช่ตารางที่ active PAI route เขียน |
+| `pai_appointments` | target จาก migration PAI รุ่นแรก | ไม่พบใน `Database_check.md`; ห้ามถือเป็น active table จนกว่าจะยืนยัน migration target |
+| `pai_medical_records` | target จาก migration PAI รุ่นแรก | ไม่พบใน `Database_check.md`; ห้ามถือเป็น active table จนกว่าจะยืนยัน migration target |
+| `appointments` | ตารางนัด canonical ที่ migration `21` ให้ PAI RPC ใช้งาน | active code path ผ่าน RPC; ไม่มี auto-reschedule/auto-no-show |
+| `medical_records` | ตารางผลตรวจ canonical ที่ migration `28` ให้ PAI RPC ใช้งาน | ผูกกับ `appointments`; `appointment_id` unique ตาม migration/test; รายการยาเป็น JSONB |
 | `medications` | Catalog และยอดคลังยา | ยอด stock ใช้ประกอบการจ่ายยา |
 | `inventory_logs` | ประวัติรับเข้า ปรับยอด และจ่ายยา | เก็บผู้ทำรายการและจำนวน |
 | `medication_reminders` | รายการเตือนยาของผู้ป่วย | ไม่มี worker หรือ email อัตโนมัติ |
 | `medication_logs` | ผลการบันทึกกินยาแต่ละรายการ | ผู้ป่วยกดบันทึกเอง ไม่เปลี่ยนตามเวลา |
 | `notifications` | กล่องข้อความรายผู้ใช้ | ผู้รับเป็นเจ้าของข้อมูลของตน |
-| `broadcasts` | ประวัติคำสั่ง Broadcast ของ migration/RPC ปัจจุบัน | ต้องแยกจาก table ชื่อเดียวกันใน normalized migration เก่า และต้องตรวจ target ก่อนใช้งาน |
+| `broadcasts` | ประวัติคำสั่ง Broadcast ของ migration/RPC ปัจจุบัน | recipient ถูกสร้างเป็น `notifications` ที่มี `broadcast_id`; migration `05` ตั้งใจไม่ใช้ `broadcast_recipients`; ผู้ใช้ยืนยันให้ใช้ design นี้ต่อไป |
 
 ข้อมูลตัวอย่างล่าสุดที่ส่งมามี 4 แผนกใน `departments` และ 8 รายการยาใน `medications`; การปรับ schema ไม่ลบหรือเปลี่ยนข้อมูลสองตารางนี้
 
@@ -81,18 +83,16 @@ CREATE POLICY "Staff admin and medical can view profiles"
 erDiagram
     profiles ||--o{ appointments : books
     profiles ||--o{ medical_records : owns
-    profiles ||--o{ pai_appointments : books_active
-    profiles ||--o{ pai_medical_records : owns_active
+    profiles ||--o{ appointments : books_via_pai_rpc
+    profiles ||--o{ medical_records : owns_via_pai_rpc
     profiles ||--o{ notifications : receives
     profiles ||--o| doctors : has_doctor_detail
     departments ||--o{ doctors : groups
     services ||--o{ daily_service_offerings : catalogs
     doctors ||--o{ daily_service_offerings : provides
     daily_service_offerings ||--o{ appointment_slots : opens
-    appointment_slots ||--o{ pai_appointments : holds_active
-    pai_appointments ||--o| pai_medical_records : produces_active
-    appointment_slots ||--o{ appointments : holds_legacy
-    appointments ||--o| medical_records : produces_legacy
+    appointment_slots ||--o{ appointments : holds_current
+    appointments ||--o| medical_records : produces_current
     medications ||--o{ inventory_logs : changes
     medications ||--o{ medication_reminders : supports
     medication_reminders ||--o{ medication_logs : schedules
@@ -193,7 +193,9 @@ erDiagram
 | `created_at` | `timestamptz` | ไม่ได้ | `now()` | — | เวลาสร้าง slot |
 | `updated_at` | `timestamptz` | ไม่ได้ | `now()` | — | เวลาปรับปรุงล่าสุด |
 
-### 4D. `pai_appointments` (active PAI runtime)
+### 4D. `pai_appointments` (historical initial PAI target)
+
+> ตารางนี้มาจาก migration PAI รุ่นแรก (`13_pai_manual_appointments_records.sql`) แต่ไม่พบใน [Database_check.md](Database_check.md). Current PAI RPCs ถูกชี้ไปยัง `appointments` โดย migration `21`; ส่วนนี้คงไว้เพื่อ trace ไม่ใช่การยืนยัน active schema
 
 | ฟิลด์ | Type | NULL | Default | Key / constraint | ความหมาย |
 | --- | --- | --- | --- | --- | --- |
@@ -207,9 +209,11 @@ erDiagram
 | `rejection_reason` | `text` | ได้ | — | CHECK: ถ้ามีต้อง 1–2000 ตัวอักษร | เหตุผลที่ staff ปฏิเสธ |
 | `created_at`, `updated_at` | `timestamptz` | ไม่ได้ | `now()` | — | เวลาสร้าง/แก้ไข |
 
-มี partial unique index ป้องกันการจอง active ซ้ำของผู้ป่วยใน slot เดียว และ RPC จะรวม `booked_count` เดิมกับจำนวน PAI active เพื่อเช็กความจุ โดยไม่อัปเดตแถว slot เดิม
+มี partial unique index ตาม migration รุ่นแรกเพื่อป้องกันการจอง active ซ้ำของผู้ป่วยใน slot เดียว; ไม่ใช้สรุปเป็น current remote schema จากเอกสารนี้
 
-### 4E. `pai_medical_records` (active PAI runtime)
+### 4E. `pai_medical_records` (historical initial PAI target)
+
+> ตารางนี้มาจาก migration PAI รุ่นแรก (`13_pai_manual_appointments_records.sql`) แต่ไม่พบใน [Database_check.md](Database_check.md). Current `pai_save_record` ใน migration `28` ใช้ `medical_records`; ส่วนนี้คงไว้เพื่อ trace ไม่ใช่การยืนยัน active schema
 
 | ฟิลด์ | Type | NULL | Default | Key / constraint | ความหมาย |
 | --- | --- | --- | --- | --- | --- |
@@ -222,14 +226,14 @@ erDiagram
 | `prescribed_medications` | `jsonb` | ไม่ได้ | `[]` | CHECK: JSON array | รายการยาที่สั่ง; RPC ตรวจยา active, จำนวน, วิธีใช้ และรายการซ้ำ |
 | `created_at` | `timestamptz` | ไม่ได้ | `now()` | — | เวลาสร้างผลตรวจ |
 
-`pai_save_record` อนุญาตเฉพาะ `medical` ที่เป็นเจ้าของนัดและนัดอยู่ `in_progress`; ถ้าขอจบตรวจต้องมี record ก่อน ตารางนี้ยังไม่ใช่ dispense/inventory transaction
+กติกาเดียวกันถูกนำไปใช้กับ `medical_records` ผ่าน `pai_save_record` ใน migration `28`; ตารางนี้ยังไม่ใช่ dispense/inventory transaction
 
-### 5. `appointments` (legacy/compatibility path)
+### 5. `appointments` (current PAI RPC target)
 
 | ฟิลด์ | Type | NULL | Default | Key / constraint | ความหมาย |
 | --- | --- | --- | --- | --- | --- |
 | `id` | `uuid` | ไม่ได้ | `gen_random_uuid()` | PK | รหัสนัด |
-| `user_id` | `uuid` | ไม่ได้ | — | FK → `profiles.id` | ผู้ป่วยเจ้าของนัด; domain rule ต้องเป็น `patient` |
+| `patient_id` | `uuid` | ไม่ได้ | — | FK → `profiles.id` | ผู้ป่วยเจ้าของนัด; domain rule ต้องเป็น `patient` |
 | `slot_id` | `uuid` | ไม่ได้ | — | FK → `appointment_slots.id` | slot ที่เลือก |
 | `queue_number` | `integer` | ได้ | — | — | เลขคิวใน slot |
 | `reason` | `text` | ได้ | — | — | เหตุผลหรืออาการ |
@@ -239,7 +243,7 @@ erDiagram
 
 `no_show` คงไว้ตาม schema ล่าสุดเพื่อรองรับข้อมูลเดิม แต่ไม่มี auto-no-show ใน scope manual
 
-### 6. `medical_records` (legacy/compatibility path)
+### 6. `medical_records` (current PAI RPC target)
 
 | ฟิลด์ | Type | NULL | Default | Key / constraint | ความหมาย |
 | --- | --- | --- | --- | --- | --- |
@@ -338,14 +342,14 @@ erDiagram
 
 | ความสัมพันธ์ | กติกา |
 | --- | --- |
-| `profiles` → `pai_appointments` | ผู้ป่วยหนึ่งบัญชีมีนัด active ของตนได้หลายรายการ; อ่านผ่าน PAI policy/RPC |
-| `profiles` → `pai_medical_records` | ผู้ป่วยเห็นผลตรวจ active ของตนเมื่อสถานะนัด `completed` |
+| `profiles` → `appointments` | ผู้ป่วยหนึ่งบัญชีมีนัด active ของตนได้หลายรายการ; อ่าน/เขียนผ่าน PAI RPC ที่ migration ปัจจุบันชี้มายังตารางนี้ |
+| `profiles` → `medical_records` | ผู้ป่วยเห็นผลตรวจของตนเมื่อสถานะนัด `completed`; อ่าน/เขียนผ่าน `pai_save_record` ตาม migration ปัจจุบัน |
 | `profiles` → `notifications` | ข้อความเป็นของผู้รับรายบัญชี |
 | `departments` → `doctors` | แผนกใช้บอกความถนัด/สาขางานของแพทย์ |
 | `services` → `daily_service_offerings` → `appointment_slots` | catalog บริการถูกเปิดให้แพทย์ในวันนั้น แล้วจึงสร้างเวลาจอง |
 | `doctors` → `daily_service_offerings` | แพทย์เป็นผู้ให้บริการในวันนั้น |
-| `appointment_slots` → `pai_appointments` → `pai_medical_records` | active PAI path: slot รองรับการจอง และนัดเป็นต้นทางของผลตรวจ |
-| `appointment_slots` → `appointments` → `medical_records` | legacy/compatibility path; ไม่ใช่ route นัดหมายหลักที่ reverse-engineer พบ |
+| `appointment_slots` → `appointments` → `medical_records` | current PAI RPC target: slot รองรับการจอง และนัดเป็นต้นทางของผลตรวจ |
+| `appointment_slots` → `pai_appointments` → `pai_medical_records` | historical initial migration target; ไม่พบใน DB snapshot |
 | `medications` → `inventory_logs` | ยาหนึ่งรายการมีประวัติคลังหลายรายการ |
 | `medications` → `medication_reminders` → `medication_logs` | ยานำไปสร้างรายการเตือน และผู้ป่วยบันทึกผลแต่ละรายการ |
 
@@ -355,9 +359,9 @@ erDiagram
 
 1. `medical` หรือ `staff_admin` เตรียม catalog บริการ; แผนกใช้จัดกลุ่มความถนัดของแพทย์
 2. `medical` หรือ `staff_admin` เปิด `daily_service_offerings` ของบริการ+แพทย์+วันที่ แล้วสร้าง slot
-3. `patient` เลือกบริการ/วันที่/แพทย์/slot จนเกิด `pai_appointments` ผ่าน `pai_book_appointment`
+3. `patient` เลือกบริการ/วันที่/แพทย์/slot จนเกิด `appointments` ผ่าน RPC ชื่อ `pai_book_appointment`
 4. `staff_admin` หรือ `medical` จัดการสถานะนัดตามสิทธิ์ที่กำหนด
-5. `medical` บันทึก `pai_medical_records` และรายการยาใน JSONB ผ่าน `pai_save_record`
+5. `medical` บันทึก `medical_records` และรายการยาใน JSONB ผ่าน RPC ชื่อ `pai_save_record`
 6. งานเภสัชกรใน role `medical` ตรวจ stock และบันทึก `inventory_logs`
 7. `staff_admin` จัดทำ `medication_reminders`; `patient` บันทึก `medication_logs`
 8. คำสั่ง Broadcast ผ่าน RPC อาจบันทึก `broadcasts` และสร้าง `notifications` ให้ผู้รับ; ต้องตรวจ migration `09_broadcast_rpc.sql` บน target จริง
@@ -387,7 +391,7 @@ erDiagram
 13. `supabase/migrations/24_batch_create_slots.sql` สำหรับคำสั่งผู้ใช้สร้าง slot หลายวันแบบ atomic โดยไม่เพิ่มตารางใหม่
 14. `supabase/migrations/25_schedule_slot_booking_counts.sql` สำหรับอ่าน `booked_count` แบบรวม appointment ที่ยัง active ให้ Schedule ตรงกับ PAI โดยไม่แก้ counter เดิม
 
-ไม่ต้องรัน `03_normalized_transactions.sql`, `04_broadcast_notification_type.sql` หรือ `05_simplify_broadcast_recipients.sql` เพราะเป็น migration ของแบบ normalized รุ่นเก่า. ไฟล์สองชุดขึ้นต้นด้วย `13_` จึงต้องตรวจ migration history/target ก่อน push ไม่สรุปจากชื่อไฟล์อย่างเดียว
+ไม่ใช้ `03_normalized_transactions.sql` เป็นฐานธุรกรรมใหม่ตามข้อสรุปปัจจุบัน. ส่วน `05_simplify_broadcast_recipients.sql` เป็น migration compatibility ที่ยุบ `broadcast_recipients` ลง `notifications`; ผู้ใช้ยืนยันว่า design นี้ถูกใช้กับ target ปัจจุบันแล้ว จึงไม่ควรสร้างตาราง recipient กลับมา. การรัน migration ใดซ้ำต้องยืนยัน target และ backup ตาม workflow ก่อนเสมอ
 
 ### ฐานข้อมูลเดิมที่มีข้อมูล
 

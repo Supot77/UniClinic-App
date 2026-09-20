@@ -1,6 +1,6 @@
 # 11. ตาราง Functional Requirements (FR)
 
-ปรับปรุง 13 กันยายน 2569 (2026-09-13) — เพิ่มวันลาแพทย์แบบ Manual-first ตาม D26 ใน [10](10_team_decisions.md) พร้อม reverse-engineered as-built map; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 20 กันยายน 2569 (2026-09-20) — เพิ่ม interaction แก้ไข/ยกเลิกวันลาจากปฏิทินตาม D28 พร้อม reverse-engineered as-built map; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
 เอกสารนี้ระบุเฉพาะความสามารถที่คงไว้สำหรับมินิโปรเจกต์ รายการ FR ที่ไม่ปรากฏในฉบับนี้ถือว่าอยู่นอก scope ไม่ต้องพัฒนาและไม่ต้องทำเป็นข้อยกเว้นเพิ่มเติม ระบบไม่มีงานเบื้องหลังและไม่เปลี่ยนสถานะเองตามเวลา
 
@@ -26,10 +26,10 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
 
 | กลุ่ม FR | เส้นทาง/ข้อมูลที่พบ | สถานะที่สรุปได้ |
 | --- | --- | --- |
-| `FR-AUTH-*` | `authService`, auth pages, `profiles`, route guards บางหน้า | มี flow Supabase; guard ไม่สม่ำเสมอทุกหน้า ต้องตรวจ session/RLS จริง |
+| `FR-AUTH-*` | `authService`, auth pages, `profiles`, route guards บางหน้า | มี flow Supabase; guard ไม่สม่ำเสมอทุกหน้า ต้องตรวจ session/RLS จริง; `/register` ยังไม่รับ allergy/chronic disease fields ตาม health-profile target |
 | `FR-SCH-*` | `ScheduleWorkspace` → `ShopProvider` → `DatabaseShopRepository` หรือ `MockShopRepository`; `services`, `daily_service_offerings`, `appointment_slots`, `doctor_leaves` | มี service/daily offering, วันลา และ validation; factory กับ weekly schedule ยังมี mock path |
-| `FR-APT-*` | `appointments.tsx` → `clinic-care.tsx` → `pai_*` RPC และ `pai_appointments` | active appointment route; ไม่มี reschedule ในเส้นทางนี้; ไม่มี preview แยกใน runtime |
-| `FR-MED-*` | `medical-records.tsx` → `clinic-care.tsx` → `pai_medical_records` | active record route; บันทึกผลตรวจ/รายการยาก่อนจบตรวจ; ไม่ใช่ตาราง `medical_records` เดิม |
+| `FR-APT-*` | `appointments.tsx` → `clinic-care.tsx` → `pai_*` RPC → `appointments` | active appointment route; ไม่มี reschedule ในเส้นทางนี้; ไม่มี preview แยกใน runtime |
+| `FR-MED-*` | `medical-records.tsx` → `clinic-care.tsx` → `pai_save_record` → `medical_records` | active record route; บันทึกผลตรวจ/รายการยาก่อนจบตรวจ; `pai_*` เป็นชื่อ RPC ไม่ใช่ชื่อตารางปัจจุบัน |
 | `FR-PHA-*` | `/pharmacy`, `medicationService`, old `medications`/`inventory_logs`, mock/local storage | มี UI/service แยก แต่ยังไม่พบการเชื่อม dispense กับ PAI appointment แบบ end-to-end |
 | `FR-REM-*` | `/reminders`, `reminderService`, `medication_reminders`/`medication_logs` | มี CRUD, log และ pause/resume; มี mock fallback และไม่ตรง target D22 บางข้อ |
 | `FR-NOT-*` | `dashboardService`/notifications RPC, BroadcastPanel, mock dashboard repository | Broadcast/notifications ใช้ Supabase service แต่ metric dashboard บางส่วนมาจาก mock |
@@ -73,7 +73,7 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
 | FR-SCH-03 | สร้าง/ปิด slot | แพทย์/เจ้าหน้าที่/แอดมิน | เพิ่ม service และสร้าง slot ทีละรอบ หรือสร้างหลายวันจากช่วงวันที่ วันในสัปดาห์ และช่วงเวลาเมื่อผู้ใช้กดคำสั่ง (จ.–ศ. 08:30–16:30 เว้นพักเที่ยง) | Preview ก่อนบันทึก ตรวจเวลาไม่ทับซ้อนกับรอบเดิม ไม่ใช้วันในอดีต ข้ามวันลา/slot เดิม และไม่มี recurring automation | ช้อป |
 | FR-SCH-04 | ความจุและการแก้ slot | ระบบ/แพทย์/เจ้าหน้าที่ | ตรวจจำนวนจองไม่เกินความจุ และควบคุมการแก้ไข slot ที่มีคนจอง | หาก bookedCount >= maxCapacity ให้แสดง `เต็ม` และไม่รับจองเพิ่ม; หาก bookedCount > 0 ห้ามแก้เวลาตรวจและลดความจุต่ำกว่าจองไม่ได้; สถานะ `ปิดรอบ` ยังใช้สำหรับการปิดด้วยมือหรือรอบที่เลยเวลา | ช้อป/ปาย |
 | FR-SCH-05 | สิทธิ์แพทย์ | แพทย์/เภสัชกร | แพทย์จัดการเฉพาะ slot และบริการของตนเอง | สิทธิ์แพทย์เปลี่ยนหรือแก้ slot ของแพทย์อื่นไม่ได้ | ฟีม/ช้อป |
-| FR-SCH-06 | วันลาแพทย์ | `medical`/`staff_admin` | บันทึกและยกเลิกวันลาแพทย์แบบ manual พร้อมเหตุผลและช่วงวันที่ | ห้ามวันลาในอดีต ช่วงกลับด้าน และช่วงซ้ำซ้อน; แสดง preview slot ที่ได้รับผลกระทบก่อนบันทึก | ช้อป |
+| FR-SCH-06 | วันลาแพทย์ | `medical`/`staff_admin` | บันทึก แก้ไข และยกเลิกวันลาแพทย์แบบ manual จากชิปวันลาในปฏิทิน พร้อมเหตุผลและช่วงวันที่ | ห้ามวันลาในอดีต ช่วงกลับด้าน และช่วงซ้ำซ้อน; edit ต้องแก้รายการเดิม; ยกเลิกต้องยืนยันและลบเฉพาะวันลา; แสดง preview slot ที่ได้รับผลกระทบก่อนบันทึก | ช้อป |
 | FR-SCH-07 | นัดจากวันลา | `medical`/`staff_admin` | แสดงชิปวันลาและกันการสร้าง slot ใหม่ในช่วงวันลา | slot และนัดเดิมไม่ถูกลบ ปิด หรือยกเลิกอัตโนมัติ; เจ้าหน้าที่จัดการด้วยมือ | ช้อป/ปาย |
 | FR-SCH-08 | สิทธิ์วันลา | `medical`/`staff_admin` | `medical` จัดการเฉพาะวันลาของตนเอง; `staff_admin` จัดการได้ทุกแพทย์ | service/repository และ Supabase RLS ปฏิเสธ role อื่นและแพทย์ที่ไม่ใช่เจ้าของ | ฟีม/ช้อป |
 
@@ -131,7 +131,7 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
      - สั่งจ่ายยาและกำหนดรอบเวลาเตือนยาให้ตรงกับแผนการรักษาของผู้ป่วยแต่ละราย
      - ป้องกันความผิดพลาดทางยา (Patient Safety) โดยมีระบบแจ้งเตือนการแพ้ยา (Allergy Warning) เช่น กลุ่ม Penicillin/Amoxicillin ก่อนยืนยันการจ่ายยา
      - ปรับปรุง แก้ไขรอบเวลา หรือยกเลิกรายการยาเมื่อผู้ป่วยหายจากโรคหรือมีการปรับแผนการรักษา
-     - บันทึกและยกเลิกวันลาของตนเองจากตารางตรวจ โดยตรวจสอบรอบตรวจเดิมที่ได้รับผลกระทบก่อนบันทึก
+     - บันทึก แก้ไข และยกเลิกวันลาของตนเองจากตารางตรวจ โดยตรวจสอบรอบตรวจเดิมที่ได้รับผลกระทบก่อนบันทึก และไม่เปลี่ยน slot เดิมอัตโนมัติ
    - **ตัวอย่างผู้ใช้งานจริง**:
      - *นพ.กิตติพงษ์ (แพทย์เวชปฏิบัติทั่วไปประจำคลินิกเวชกรรม ม.วลัยลักษณ์)*: ตรวจรักษานักศึกษาแล้วเข้ามาเลือกชื่อผู้ป่วย สั่งจ่ายยา Amoxicillin พร้อมกำหนดเวลาทาน 4 มื้อ โดยระบบแจ้งเตือนประวัติแพ้ยาของผู้ป่วยทันที ทำให้แพทย์ปรับเปลี่ยนตัวยาได้อย่างปลอดภัย
      - *ภญ.สุดาพร (เภสัชกรประจำห้องยาคลินิก ม.วลัยลักษณ์)*: ตรวจสอบรายการยาที่แพทย์สั่ง ช่วยปรับแก้รอบเวลาทานยาให้เหมาะสมกับการออกฤทธิ์ของยา (เช่น ยาที่ต้องทานก่อนนอน)

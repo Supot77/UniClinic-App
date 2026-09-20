@@ -5038,7 +5038,7 @@
         <path data-edge-from="nextjs" data-edge-to="repo_layer" data-edge-label="Service Calls" data-edge-key="2" data-edge-id="app-to-repo" data-composition-points="390,290;470,290" d="M 390 290 L 470 290" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="repo_layer" data-edge-to="mock_adapter" data-edge-label="Mock Contract" data-edge-key="3" data-edge-id="repo-to-mock" data-composition-points="540,260;540,170" d="M 540 260 L 540 170" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="repo_layer" data-edge-to="supabase_db" data-edge-label="SQL Queries" data-edge-key="4" data-edge-id="repo-to-db" data-composition-points="610,290;690,290" d="M 610 290 L 690 290" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="supabase_db" data-edge-to="email_jobs" data-edge-label="Job Queue" data-edge-key="5" data-edge-id="db-to-email" data-composition-points="760,320;760,410" d="M 760 320 L 760 410" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="supabase_db" data-edge-to="email_jobs" data-edge-label="Excluded / no runtime edge" data-edge-key="5" data-edge-id="db-to-email" data-composition-points="760,320;760,410" d="M 760 320 L 760 410" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
         <!-- Components -->
         <g id="node-users" data-node-id="users" data-node-label="Users &amp; Staff" tabindex="0" role="button" aria-label="Focus Users &amp; Staff, Browser / Mobile, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="Browser / Mobile" data-node-context="Architecture component">
@@ -5104,8 +5104,8 @@
         <text data-detail="fine" x="540" y="162" class="t-database" font-size="7" text-anchor="middle">Active</text>
         </g>
 
-        <g id="node-supabase_db" data-node-id="supabase_db" data-node-label="PostgreSQL DB" tabindex="0" role="button" aria-label="Focus PostgreSQL DB, 20 Tables with RLS, WU Clinic Booking Platform Infrastructure" aria-pressed="false" data-node-kind="database" data-node-sublabel="20 Tables with RLS" data-node-context="WU Clinic Booking Platform Infrastructure">
-          <title>PostgreSQL DB · 20 Tables with RLS · WU Clinic Booking Platform Infrastructure</title>
+        <g id="node-supabase_db" data-node-id="supabase_db" data-node-label="PostgreSQL DB" tabindex="0" role="button" aria-label="Focus PostgreSQL DB, Schema / RLS evidence pending, WU Clinic Booking Platform Infrastructure" aria-pressed="false" data-node-kind="database" data-node-sublabel="Schema / RLS evidence pending" data-node-context="WU Clinic Booking Platform Infrastructure">
+          <title>PostgreSQL DB · Schema / RLS evidence pending · WU Clinic Booking Platform Infrastructure</title>
           <rect x="690" y="260" width="140" height="60" rx="6" class="c-mask"/>
           <rect x="690" y="260" width="140" height="60" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(696 266) scale(0.6875)">
@@ -5113,18 +5113,18 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="760" y="288" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PostgreSQL DB</text>
-        <text data-detail="context" x="760" y="304" class="t-muted" font-size="9" text-anchor="middle">20 Tables with RLS</text>
+        <text data-detail="context" x="760" y="304" class="t-muted" font-size="9" text-anchor="middle">Schema / RLS evidence pending</text>
         </g>
 
-        <g id="node-email_jobs" data-node-id="email_jobs" data-node-label="Email Service" tabindex="0" role="button" aria-label="Focus Email Service, Scheduled Jobs, WU Clinic Booking Platform Infrastructure" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Scheduled Jobs" data-node-context="WU Clinic Booking Platform Infrastructure">
-          <title>Email Service · Scheduled Jobs · WU Clinic Booking Platform Infrastructure</title>
+        <g id="node-email_jobs" data-node-id="email_jobs" data-node-label="Excluded automation" tabindex="0" role="button" aria-label="Focus Excluded automation, No worker / email in scope, WU Clinic Booking Platform Infrastructure" aria-pressed="false" data-node-kind="backend" data-node-sublabel="No worker / email in scope" data-node-context="WU Clinic Booking Platform Infrastructure">
+          <title>Excluded automation · No worker / email in scope · WU Clinic Booking Platform Infrastructure</title>
           <rect x="690" y="410" width="140" height="60" rx="6" class="c-mask"/>
           <rect x="690" y="410" width="140" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(696 416) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="760" y="438" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Email Service</text>
-        <text data-detail="context" x="760" y="454" class="t-muted" font-size="9" text-anchor="middle">Scheduled Jobs</text>
+          <text data-node-label="" data-detail-anchor="" x="760" y="438" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Excluded automation</text>
+        <text data-detail="context" x="760" y="454" class="t-muted" font-size="9" text-anchor="middle">No worker / email in scope</text>
         </g>
 
         <!-- Connection labels -->
@@ -5148,9 +5148,9 @@
           <rect x="618.6" y="270" width="62.8" height="14" rx="3" class="c-mask"/>
           <text x="650" y="280" class="t-muted" font-size="8" text-anchor="middle">SQL Queries</text>
         </g>
-        <g data-detail="context" data-edge-from="supabase_db" data-edge-to="email_jobs" data-edge-label="Job Queue" data-edge-key="5" data-edge-id="db-to-email">
+        <g data-detail="context" data-edge-from="supabase_db" data-edge-to="email_jobs" data-edge-label="Excluded / no runtime edge" data-edge-key="5" data-edge-id="db-to-email">
           <rect x="733.4" y="360" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="760" y="370" class="t-messagebus" font-size="8" text-anchor="middle">Job Queue</text>
+          <text x="760" y="370" class="t-messagebus" font-size="8" text-anchor="middle">Excluded / no runtime edge</text>
         </g>
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->
@@ -5376,7 +5376,7 @@
         </div>
         <ul>
           <li>&bull; Next.js App Router with Tailwind CSS</li>
-          <li>&bull; Responsive UI for Patients, Staff, Doctors and Admin</li>
+          <li>&bull; Role-specific UI for patient, medical and staff_admin</li>
         </ul>
       </div>
 
@@ -5398,7 +5398,7 @@
         </div>
         <ul>
           <li>&bull; 20 normalized transaction tables with Row Level Security</li>
-          <li>&bull; Automated email notifications and reminder jobs</li>
+          <li>&bull; Manual notifications and reminders; no worker/email runtime</li>
         </ul>
       </div>
     </div>

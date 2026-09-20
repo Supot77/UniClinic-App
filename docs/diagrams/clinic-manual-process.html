@@ -114,13 +114,13 @@
     <header>
       <p class="eyebrow">WU CLINIC · MANUAL FLOW</p>
       <h1>เส้นทางรับบริการคลินิก</h1>
-      <p class="dek">ลำดับการทำงานตาม role ปัจจุบัน 3 กลุ่ม พร้อมจุดเชื่อมของ active PAI path และเส้นทาง legacy ที่พบจากการ reverse-engineer</p>
+      <p class="dek">ลำดับการทำงานตาม role ปัจจุบัน 3 กลุ่ม พร้อมจุดเชื่อมของ PAI RPC → `appointments`/`medical_records`, Shop schedule/leave path และเส้นทาง pharmacy/reminder ที่ยังต้องตรวจ integration</p>
     </header>
 
     <div class="diagram-wrap">
       <svg viewBox="0 0 1064 356" role="img" aria-labelledby="diagram-title diagram-desc">
         <title id="diagram-title">เส้นทางรับบริการคลินิกแบบ manual และ as-built</title>
-        <desc id="diagram-desc">ผู้ป่วยสมัครและจองผ่าน PAI เจ้าหน้าที่หรือแอดมินสร้างบริการและ slot แล้วอนุมัตินัด แพทย์บันทึกผลตรวจและรายการยา จากนั้น pharmacy และ reminder เป็นเส้นทางแยกที่ต้องตรวจ integration</desc>
+        <desc id="diagram-desc">ผู้ป่วยสมัครและจองผ่าน PAI เจ้าหน้าที่หรือแอดมินสร้างบริการและ slot แล้วอนุมัตินัด แพทย์บันทึกผลตรวจและรายการยา จากนั้น pharmacy และ reminder เป็นเส้นทางแยกที่ต้องตรวจ integration; ไม่มี worker หรือ email automation</desc>
 
         <defs>
           <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
@@ -252,7 +252,7 @@
           <text x="610" y="135" class="chip-text">MED</text>
           <text x="646" y="150" class="node-title sans svg-text" text-anchor="middle">ตรวจ/บันทึก</text>
           <text x="646" y="164" class="node-sub mono svg-muted" text-anchor="middle">ผลตรวจ + prescribed meds</text>
-          <text x="646" y="176" class="node-tool mono svg-soft" text-anchor="middle">pai_medical_records</text>
+          <text x="646" y="176" class="node-tool mono svg-soft" text-anchor="middle">medical_records via RPC</text>
           <rect x="600" y="178" width="16" height="8" rx="2" fill="var(--muted)" />
           <text x="608" y="184" class="chip-text">DB</text>
           <rect x="680" y="178" width="16" height="8" rx="2" fill="var(--muted)" />

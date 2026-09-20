@@ -8,7 +8,24 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-use skill caveman
+# การเรียกใช้ Skill อัตโนมัติตามประเภทงาน (Skill Routing & Enforcement)
+
+Agent ต้องเลือกเปิดใช้งานและปฏิบัติตาม Skill ที่สอดคล้องกับประเภทงานดังต่อไปนี้:
+
+1. **โหมดการสื่อสาร (Terse Communication)**:
+   - เรียกใช้ `caveman` ตลอดเวลา: สื่อสารกระชับ ตรงประเด็น ตัดคำฟุ่มเฟือย คงเนื้อหาทางเทคนิคและภาษาของผู้ใช้ครบถ้วน ประหยัด token
+2. **การวางแผนและออกแบบ (Feature Planning & Design)**:
+   - เรียกใช้ `brainstorming` เสมอเมื่อเริ่มคิดฟีเจอร์ใหม่, ออกแบบ logic/workflow, หรือปรับเปลี่ยนพฤติกรรมระบบ ห้ามเขียนโค้ดก่อนได้รับความเห็นชอบจากผู้ใช้ (Hard Gate)
+3. **การพัฒนาหน้าบ้านและส่วนติดต่อผู้ใช้ (Frontend & UI Development)**:
+   - เรียกใช้ `frontend-design` เมื่อสร้างหรือปรับปรุง UI Components, Pages, Layouts ให้ได้มาตรฐาน สวยงาม ไม่ generic รองรับ responsive และตรงตามระบบ WU Clinic
+4. **การสืบสวนและแก้ไขข้อผิดพลาด (Debugging & Troubleshooting)**:
+   - เรียกใช้ `debug-mantra` เมื่อพบข้อผิดพลาด, test fail, บั๊ก หรือ stack trace โดยยึดหลัก 4 ขั้นตอน (Reproduce, Trace fail path, Falsify hypothesis, Cross-reference) ก่อนเสนอวิธีแก้
+5. **การจัดการ Git และ Branch (Git Workflow)**:
+   - เรียกใช้ `sync-develop` ก่อนเริ่มงานบน branch ทุกครั้ง เพื่อ fetch และ sync การเปลี่ยนแปลงล่าสุดจาก `origin/develop` เข้า branch ตนเองอย่างปลอดภัย
+6. **การตรวจทานโค้ด (Code Review & Audit)**:
+   - เรียกใช้ `scrutinize` หรือ `caveman-review` เมื่อต้องตรวจสอบ diff, ตรวจ PR หรือ sanity check โค้ดก่อนส่งมอบ
+7. **การบันทึกสรุปปัญหาหลังแก้ไข (Incident & Bug Resolution)**:
+   - เรียกใช้ `post-mortem` เพื่อบันทึก Root Cause Analysis (RCA) หลังแก้ปัญหาสำคัญเสร็จสิ้น
 
 # มาตรฐานการทำงานของ Agent
 
@@ -56,19 +73,29 @@ use skill caveman
 
 ## การทดสอบและ Quality Gates
 
-ทุกงานที่แก้โค้ดต้องผ่านคำสั่งต่อไปนี้จาก root ของ repository:
+ปรับระดับการตรวจรับตามขนาดและความเสี่ยงของการเปลี่ยนแปลง (Risk-Based Quality Gates):
 
-```bash
-npm run lint
-npx --no-install tsc --noEmit
-npm run test
-npm run build
-```
+### 1. งานย่อยและงานปรับแต่งทั่วไป (Minor Changes / Tweaks / UI / Copy)
+- สำหรับงานขนาดเล็ก เช่น ปรับแก้ UI/CSS, สี, ข้อความ, assets หรือแก้บักเฉพาะจุดที่ไม่กระทบ business logic หรือ database schema
+- **ไม่จำเป็นต้องรัน Full Suite ทั้ง 4 คำสั่ง** เพื่อความรวดเร็วและคล่องตัวในการพัฒนา
+- ตรวจสอบเฉพาะเครื่องมือที่เกี่ยวข้องโดยตรง เช่น:
+  - `npx --no-install tsc --noEmit` เพื่อยืนยัน type safety
+  - และ/หรือ รัน test เฉพาะไฟล์ที่เกี่ยวข้อง เช่น `npx vitest run tests/<file>.test.tsx`
 
-- รัน test เฉพาะไฟล์ระหว่างพัฒนาได้ แต่ไม่ใช้แทน full test suite ก่อนส่งมอบ
+### 2. งานใหญ่และการส่งมอบสำคัญ (Major Changes / Pre-PR / Milestones)
+- สำหรับงานเพิ่ม/แก้ business logic สำคัญ, database schema, migration, สัญญา API/Interface กลาง หรือก่อนเปิด PR เพื่อ merge เข้า `develop` หรือ `main`
+- **ต้องผ่าน Full Quality Gates ครบทั้ง 4 คำสั่ง** จาก root ของ repository:
+  ```bash
+  npm run lint
+  npx --no-install tsc --noEmit
+  npm run test
+  npm run build
+  ```
+
+### ข้อปฏิบัติทั่วไป
 - ห้ามกล่าวว่า lint, typecheck, test หรือ build ผ่าน หากไม่ได้รันคำสั่งนั้นจริงในสถานะโค้ดล่าสุด
 - หาก gate ใดรันไม่ได้หรือล้มเหลว ให้รายงานคำสั่ง สาเหตุ และระบุว่าเป็นผลจากการเปลี่ยนแปลงครั้งนี้หรือเป็นปัญหาเดิม ห้ามปิดบังหรือข้ามโดยไม่แจ้ง
-- งานที่แก้ UI ต้องตรวจ flow ที่ได้รับผลกระทบใน Chrome ที่ความกว้าง 360px และ 1280px รวมการใช้งานด้วย keyboard และสถานะ loading, empty และ error บันทึกสิ่งที่ตรวจจริงและข้อจำกัด
+- งานที่แก้ UI ให้ตรวจ flow ที่ได้รับผลกระทบใน Chrome ที่ความกว้าง 360px และ 1280px รวมการใช้งานด้วย keyboard และสถานะ loading, empty และ error บันทึกสิ่งที่ตรวจจริงและข้อจำกัด
 - ก่อนรวม `main` ต้องผ่านกรณีหลักตาม acceptance criteria ที่เกี่ยวข้อง ส่วนก่อนนำเสนอต้องตรวจ SCN-01–07 และอีเมลจริงตามเอกสารเมื่อขอบเขตงานรองรับแล้ว
 
 ## การส่งมอบ

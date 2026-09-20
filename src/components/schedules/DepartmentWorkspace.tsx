@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useShop } from '@/features/shop/context/ShopProvider';
+import ConfirmationModal, { type ConfirmationModalRequest } from '@/components/common/ConfirmationModal';
 import Toast from '@/components/common/Toast';
 import type {
   DoctorAvailability,
@@ -22,6 +23,8 @@ import type {
   DoctorLeave,
 } from '@/types/schedule';
 import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
+import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
+import Link from 'next/link';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
@@ -29,11 +32,9 @@ const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-
 
 type WorkspaceTab = 'departments' | 'doctors';
 
-const leaveMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
 function formatLeaveDate(dateValue: string) {
   const [year, month, day] = dateValue.split('-').map(Number);
-  return `${day} ${leaveMonthNames[month - 1]} ${year + 543}`;
+  return `${day} ${THAI_MONTHS_SHORT[month - 1]} ${year + 543}`;
 }
 
 function formatLeaveRange(leave: DoctorLeave) {
@@ -103,11 +104,12 @@ export default function DepartmentWorkspace() {
   const [formError, setFormError] = useState('');
   const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationModalRequest | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!departmentDrawerOpen && !doctorDrawerOpen) return;
+    if (confirmation || (!departmentDrawerOpen && !doctorDrawerOpen)) return;
     const drawer = drawerRef.current;
     drawer?.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), textarea')?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -133,7 +135,7 @@ export default function DepartmentWorkspace() {
       window.removeEventListener('keydown', handleKeyDown);
       drawerTriggerRef.current?.focus();
     };
-  }, [departmentDrawerOpen, doctorDrawerOpen]);
+  }, [confirmation, departmentDrawerOpen, doctorDrawerOpen]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase('th');
 
@@ -199,14 +201,7 @@ export default function DepartmentWorkspace() {
     closeDepartmentDrawer();
   };
 
-  const toggleDepartment = async (department: ScheduleDepartment) => {
-    setFormError('');
-    setNotice('');
-    const impact = doctors.some((doctor) => doctor.departmentId === department.id)
-      ? ' แพทย์และประวัติเดิมจะยังคงเชื่อมกับแผนกนี้'
-      : '';
-    if (!window.confirm(department.isActive ? `ยืนยันการปิดใช้งานแผนก “${department.name}”?${impact}` : `ยืนยันการเปิดใช้งานแผนก “${department.name}” อีกครั้ง?`)) return;
-
+  const confirmToggleDepartment = async (department: ScheduleDepartment) => {
     setIsSaving(true);
     const result = await persistDepartmentToggle(department.id);
     setIsSaving(false);
@@ -220,7 +215,25 @@ export default function DepartmentWorkspace() {
       setShowInactive(true);
     }
 
+    setConfirmation(null);
     setNotice(result.value === 'deleted' ? 'ลบแผนกแล้ว' : result.value === 'disabled' ? 'ปิดใช้งานแผนกแล้ว' : 'เปิดใช้งานแผนกแล้ว');
+  };
+
+  const toggleDepartment = (department: ScheduleDepartment) => {
+    setFormError('');
+    setNotice('');
+    const impact = doctors.some((doctor) => doctor.departmentId === department.id)
+      ? ' แพทย์และประวัติเดิมจะยังคงเชื่อมกับแผนกนี้'
+      : '';
+    setConfirmation({
+      title: department.isActive ? 'ยืนยันการปิดใช้งานแผนก' : 'ยืนยันการเปิดใช้งานแผนก',
+      message: department.isActive
+        ? `ยืนยันการปิดใช้งานแผนก “${department.name}”?${impact}`
+        : `ยืนยันการเปิดใช้งานแผนก “${department.name}” อีกครั้ง?`,
+      confirmLabel: department.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน',
+      tone: department.isActive ? 'danger' : 'primary',
+      onConfirm: () => confirmToggleDepartment(department),
+    });
   };
 
   const selectDoctorAccount = (profileId: string) => {
@@ -277,14 +290,7 @@ export default function DepartmentWorkspace() {
     closeDoctorDrawer();
   };
 
-  const toggleDoctor = async (doctor: ScheduleDoctor) => {
-    setFormError('');
-    setNotice('');
-    const hasReferences = Boolean(doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id));
-    const action = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-    const impact = hasReferences ? ' รอบและประวัติเดิมจะยังคงอยู่' : '';
-    if (!window.confirm(`${action} ${doctor.fullName}?${impact}`)) return;
-
+  const confirmToggleDoctor = async (doctor: ScheduleDoctor) => {
     setIsSaving(true);
     const result = await persistDoctorToggle(doctor.id);
     setIsSaving(false);
@@ -298,13 +304,26 @@ export default function DepartmentWorkspace() {
       setShowInactive(true);
     }
 
+    setConfirmation(null);
     setNotice(result.value === 'deleted' ? 'ลบแพทย์แล้ว' : doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
   };
 
-  const cancelDoctorLeave = async (leave: DoctorLeave, doctorName: string) => {
+  const toggleDoctor = (doctor: ScheduleDoctor) => {
     setFormError('');
     setNotice('');
-    if (!window.confirm(`ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange(leave)}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`)) return;
+    const hasReferences = Boolean(doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id));
+    const action = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+    const impact = hasReferences ? ' รอบและประวัติเดิมจะยังคงอยู่' : '';
+    setConfirmation({
+      title: `${action}แพทย์`,
+      message: `${action} ${doctor.fullName}?${impact}`,
+      confirmLabel: action,
+      tone: doctor.availability === 'inactive' ? 'primary' : 'danger',
+      onConfirm: () => confirmToggleDoctor(doctor),
+    });
+  };
+
+  const confirmCancelDoctorLeave = async (leave: DoctorLeave, doctorName: string) => {
     setIsSaving(true);
     const result = await persistDoctorLeaveDelete(leave.id);
     setIsSaving(false);
@@ -312,7 +331,20 @@ export default function DepartmentWorkspace() {
       setFormError(result.error);
       return;
     }
+    setConfirmation(null);
     setNotice(`ยกเลิกวันลาของ ${doctorName} แล้ว`);
+  };
+
+  const cancelDoctorLeave = (leave: DoctorLeave, doctorName: string) => {
+    setFormError('');
+    setNotice('');
+    setConfirmation({
+      title: 'ยืนยันการยกเลิกวันลา',
+      message: `ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange(leave)}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`,
+      confirmLabel: 'ยกเลิกวันลา',
+      tone: 'danger',
+      onConfirm: () => confirmCancelDoctorLeave(leave, doctorName),
+    });
   };
 
   const changeTab = (tab: WorkspaceTab) => {
@@ -408,6 +440,11 @@ export default function DepartmentWorkspace() {
         </label>
       </section>
       <Toast message={notice} onDismiss={() => setNotice('')} />
+      <ConfirmationModal
+        request={confirmation}
+        onCancel={() => setConfirmation(null)}
+        isBusy={isSaving}
+      />
       <div aria-live="polite" className="space-y-3 empty:hidden">
         {formError && !departmentDrawerOpen && !doctorDrawerOpen && (
           <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">
@@ -451,6 +488,9 @@ export default function DepartmentWorkspace() {
                         <span className={`h-1.5 w-1.5 rounded-full ${department.isActive ? 'bg-status-success' : 'bg-status-neutral'}`} aria-hidden="true" />
                         {department.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                       </p>
+                      <Link href={`/departments/${department.id}`} className={`${textActionClass} mt-3 text-brand-strong`}>
+                        ดูตารางและบริการ
+                      </Link>
                     </div>
                     <div className="min-w-0">
                       <p className="mb-2 text-sm font-medium text-brand-body">แพทย์ประจำแผนก <span className="tabular-nums">({affiliatedDoctors.length})</span></p>

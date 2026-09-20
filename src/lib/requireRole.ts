@@ -2,10 +2,35 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import type { UserRole } from '@/types/database';
 
-function canonicalRole(role: string): UserRole {
+export function canonicalRole(role: string): UserRole {
   if (role === 'doctor' || role === 'pharmacist' || role === 'medical') return 'medical';
   if (role === 'staff' || role === 'admin' || role === 'staff_admin') return 'staff_admin';
   return 'patient';
+}
+
+export async function getCurrentUserAndRole() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { user: null, role: 'patient' as UserRole, rawRole: null };
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !profile || profile.is_active === false) {
+      return { user, role: 'patient' as UserRole, rawRole: null };
+    }
+
+    return { user, role: canonicalRole(profile.role), rawRole: profile.role as string };
+  } catch {
+    return { user: null, role: 'patient' as UserRole, rawRole: null };
+  }
 }
 
 export async function requireRole(allowedRoles: (UserRole | string)[]) {

@@ -1,18 +1,18 @@
 # WU Clinic Booking & Medication System
 
-ปรับปรุง 7 กันยายน 2569 (2026-09-07) — scope manual ขนาดเล็กตาม D22 ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 20 กันยายน 2569 (2026-09-20) — code progress โดยประมาณ 90%; ยังแยกจากหลักฐาน DB/RLS, deployment และ browser QA
 
-มินิโปรเจกต์ COE67-331 ระบบคลินิกมหาวิทยาลัยและเตือนกินยา ส่ง 18 กันยายน 2569 package.json และโฟลเดอร์โครงการใช้ชื่อ wu-clinic-booking
+มินิโปรเจกต์ COE67-331 ระบบคลินิกมหาวิทยาลัยและเตือนกินยา กำหนดส่ง 25 กันยายน 2569 package.json และโฟลเดอร์โครงการใช้ชื่อ wu-clinic-booking
 
 ## เอกสารหลัก
 
-เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md) และ [แผนพัฒนา](docs/09_implementation_plan.md) เป้าหมาย runtime เป็น database-first ผ่าน Supabase repository; mock ใช้สำหรับ automated tests และ offline demo ที่ระบุชัด
+เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md), [แผนพัฒนา](docs/09_implementation_plan.md), [Owner views](docs/owners/README.md) และ [บันทึกการเปลี่ยนแปลง](docs/14_change_log.md) เป้าหมาย runtime เป็น database-first ผ่าน Supabase repository; mock ใช้สำหรับ automated tests และ offline demo ที่ระบุชัด
 
 ## ขอบเขต
 
 มาตรฐานสีและองค์ประกอบเว็บสำหรับทุกโมดูล: [ธีมกลาง WU Clinic](docs/12_visual_design_system.md) ใช้ `brand-*` จาก `src/app/globals.css`
 
-3 บทบาท: ผู้ป่วยสมัคร @mail.wu.ac.th และบันทึกข้อมูลของตน, แพทย์/เภสัชกรบันทึกผลตรวจและจัดการยา, เจ้าหน้าที่/แอดมินจัดการ slot นัดหมาย บัญชี รายการเตือน และ Broadcast ด้วยมือ แต่ละ role มี entry page/dashboard และ role-specific container เมื่อสิทธิ์หรือข้อมูลต่างกัน ระบบไม่มี automation, worker, email หรือการเปลี่ยนสถานะตามเวลา
+3 บทบาท: ผู้ป่วยสมัคร @mail.wu.ac.th และบันทึกข้อมูลของตน, แพทย์/เภสัชกรบันทึกผลตรวจและจัดการยา, เจ้าหน้าที่/แอดมินจัดการ slot นัดหมาย บัญชี รายการเตือน และ Broadcast ด้วยมือ แต่ละ role มี entry page/dashboard และ role-specific container เมื่อสิทธิ์หรือข้อมูลต่างกัน การมี function ใน code ไม่ถือเป็นหลักฐานว่า deploy, RLS หรือ browser QA ผ่านแล้ว
 
 | เจ้าของ | งาน | ผู้ตรวจ |
 | --- | --- | --- |
@@ -22,6 +22,8 @@
 | กัญจน์ | คลังและจ่ายเต็ม | กลอง |
 | กลอง | รายการเตือนแบบ manual | กัญจน์ |
 | เฮิร์บ | Broadcast และ Dashboard | ฟีม |
+
+สถานะรายโมดูลและหลักฐานล่าสุดอยู่ใน [owner index](docs/owners/README.md) โดยแยก `ทำแล้วใน code`, `ทำบางส่วน/ยังมี mock`, `เป็น target ยังไม่พบ code`, `ยังไม่ยืนยัน DB/RLS`, `ยังไม่ตรวจ browser` และ `นอก scope` ออกจากกัน
 
 ## เริ่มต้นพัฒนา
 

@@ -17,13 +17,16 @@ import {
   RefreshCw,
   Users,
   X,
+  Trash2,
 } from 'lucide-react';
 import ScheduleSkeleton from './ScheduleSkeleton';
+import ConfirmationModal, { type ConfirmationModalRequest } from '@/components/common/ConfirmationModal';
 import Toast from '@/components/common/Toast';
 import DatePicker from '@/components/common/DatePicker';
 import { useShop } from '@/features/shop/context/ShopProvider';
 import type { DoctorLeave, ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
+import { CLINIC_TIME_BLOCKS, LEAVE_REASONS, THAI_MONTHS_SHORT, WEEKDAY_NAMES } from '@/constants/dateTime';
 
 const inputClass =
   'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-100';
@@ -41,9 +44,6 @@ const slotStyles: Record<ScheduleSlotStatus, { label: string; marker: string; te
   full: { label: 'เต็ม', marker: 'border-l-status-warning', text: 'text-status-warning' },
   closed: { label: 'ปิดรอบ', marker: 'border-l-status-neutral', text: 'text-status-neutral' },
 };
-
-const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
 import {
   buildSlotBatchPlan,
@@ -202,7 +202,7 @@ function shiftClinicMonth(isoDate: string, deltaMonths: number) {
 
 function formatShortDate(isoDate: string) {
   const date = parseClinicDate(isoDate);
-  return `${date.getUTCDate()} ${monthNames[date.getUTCMonth()]}`;
+  return `${date.getUTCDate()} ${THAI_MONTHS_SHORT[date.getUTCMonth()]}`;
 }
 
 function formatWeekRange(start: string) {
@@ -224,6 +224,11 @@ function addMinutesToTime(timeStr: string, minutes = 30): string {
   const newH = Math.floor(totalMinutes / 60) % 24;
   const newM = totalMinutes % 60;
   return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+function isClinicWeekday(date: string) {
+  const day = parseClinicDate(date).getUTCDay();
+  return day >= 1 && day <= 5;
 }
 
 export function getNextAvailableTimeSlot(
@@ -270,6 +275,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     createSlotBatch: persistSlotBatch,
     toggleSlot: persistSlotToggle,
     saveDoctorLeave: persistDoctorLeave,
+    deleteDoctorLeave: persistDoctorLeaveDelete,
     isLoading,
   } = useShop();
 
@@ -317,9 +323,12 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   const [serviceDraft, setServiceDraft] = useState({ code: '', name: '', description: '' });
   const [serviceFormError, setServiceFormError] = useState('');
   const [leaveFormOpen, setLeaveFormOpen] = useState(false);
+  const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
   const [leaveDraft, setLeaveDraft] = useState<DoctorLeaveDraft>(createEmptyDoctorLeaveDraft);
   const [leaveFormError, setLeaveFormError] = useState('');
   const [leaveIsSaving, setLeaveIsSaving] = useState(false);
+  const [leaveIsDeleting, setLeaveIsDeleting] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationModalRequest | null>(null);
   const [batchFormOpen, setBatchFormOpen] = useState(false);
   const [batchMode, setBatchMode] = useState<BatchMode>('range');
   const [batchDraft, setBatchDraft] = useState<SlotBatchDraft>(() => createEmptySlotBatchDraft());
@@ -504,10 +513,11 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
             (leave) =>
               leave.doctorId === leaveDraft.doctorId &&
               leaveDraft.startDate <= leave.endDate &&
-              leaveDraft.endDate >= leave.startDate,
+              leaveDraft.endDate >= leave.startDate &&
+              leave.id !== editingLeaveId,
           )
         : undefined,
-    [leaveDraft.doctorId, leaveDraft.endDate, leaveDraft.startDate, visibleDoctorLeaves],
+    [editingLeaveId, leaveDraft.doctorId, leaveDraft.endDate, leaveDraft.startDate, visibleDoctorLeaves],
   );
 
   const affectedLeaveSlots = useMemo(
@@ -530,19 +540,28 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
   const canCreateForDate = (date: string) => !isMedicalLeaveDate(date);
 
-  const openLeaveForm = () => {
+  const openLeaveForm = (leave?: DoctorLeave) => {
     if (role === 'patient') return;
     setLeaveFormError('');
     setFormError('');
-    setLeaveDraft({
-      ...createEmptyDoctorLeaveDraft(),
-      doctorId: role === 'medical' && currentDoctor ? currentDoctor.id : doctorFilter !== 'all' ? doctorFilter : '',
-    });
+    setEditingLeaveId(leave?.id ?? null);
+    setLeaveDraft(leave
+      ? {
+          doctorId: leave.doctorId,
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          reason: leave.reason ?? '',
+        }
+      : {
+          ...createEmptyDoctorLeaveDraft(),
+          doctorId: role === 'medical' && currentDoctor ? currentDoctor.id : doctorFilter !== 'all' ? doctorFilter : '',
+        });
     setLeaveFormOpen(true);
   };
 
   const closeLeaveForm = () => {
     setLeaveFormOpen(false);
+    setEditingLeaveId(null);
     setLeaveDraft(createEmptyDoctorLeaveDraft());
     setLeaveFormError('');
   };
@@ -550,19 +569,54 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   const saveDoctorLeave = async () => {
     setLeaveFormError('');
     setLeaveIsSaving(true);
+    const wasEditing = Boolean(editingLeaveId);
     try {
-      const result = await persistDoctorLeave(leaveDraft, undefined, actorId, role);
+      const result = await persistDoctorLeave(leaveDraft, editingLeaveId ?? undefined, actorId, role);
       if (!result.ok) {
         setLeaveFormError(result.error);
         return;
       }
       closeLeaveForm();
-      setNotice('บันทึกวันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง');
+      setNotice(`${wasEditing ? 'แก้ไข' : 'บันทึก'}วันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง`);
     } catch (err) {
       setLeaveFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกวันลาแพทย์');
     } finally {
       setLeaveIsSaving(false);
     }
+  };
+
+  const confirmCancelDoctorLeave = async () => {
+    if (!editingLeaveId) return;
+    const doctorName = doctors.find((doctor) => doctor.id === leaveDraft.doctorId)?.fullName ?? 'แพทย์';
+
+    setLeaveFormError('');
+    setLeaveIsDeleting(true);
+    try {
+      const result = await persistDoctorLeaveDelete(editingLeaveId, actorId, role);
+      if (!result.ok) {
+        setLeaveFormError(result.error);
+        return;
+      }
+      setConfirmation(null);
+      closeLeaveForm();
+      setNotice(`ยกเลิกวันลาของ ${doctorName} แล้ว`);
+    } catch (err) {
+      setLeaveFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการยกเลิกวันลาแพทย์');
+    } finally {
+      setLeaveIsDeleting(false);
+    }
+  };
+
+  const cancelDoctorLeave = () => {
+    if (!editingLeaveId) return;
+    const doctorName = doctors.find((doctor) => doctor.id === leaveDraft.doctorId)?.fullName ?? 'แพทย์';
+    setConfirmation({
+      title: 'ยืนยันการยกเลิกวันลา',
+      message: `ยกเลิกวันลาของ ${doctorName} ช่วง ${formatLeaveRange({ id: editingLeaveId, ...leaveDraft })}? รอบตรวจเดิมจะไม่เปลี่ยนแปลง`,
+      confirmLabel: 'ยกเลิกวันลา',
+      tone: 'danger',
+      onConfirm: confirmCancelDoctorLeave,
+    });
   };
 
   const openSlotForm = (slot?: ScheduleSlot, suggestedDate?: string) => {
@@ -579,6 +633,11 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     if (!slot && suggestedDate && suggestedDate < getTodayDate()) {
       setNotice('');
       setFormError('ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้');
+      return;
+    }
+    if (!slot && suggestedDate && !isClinicWeekday(suggestedDate)) {
+      setNotice('');
+      setFormError('คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์');
       return;
     }
     setFormError('');
@@ -681,6 +740,10 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
   const saveSlot = async () => {
     if (role === 'patient') return;
+    if (!editingSlotId && !isClinicWeekday(draft.slotDate)) {
+      setFormError('คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์');
+      return;
+    }
     if (!editingSlotId && draft.slotDate < getTodayDate()) {
       setFormError('ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้');
       return;
@@ -729,7 +792,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     setNotice(editingServiceId ? 'อัปเดตบริการแล้ว' : 'เพิ่มบริการแล้ว');
   };
 
-  const toggleClosed = async (slot: ScheduleSlot) => {
+  const confirmToggleClosed = async (slot: ScheduleSlot) => {
     if (role === 'patient' || !canModifySlot(slot)) {
       setFormError('คุณไม่มีสิทธิ์แก้ไขหรือปิดรอบตรวจ');
       return;
@@ -744,7 +807,6 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
         return;
       }
     }
-    if (!window.confirm(slot.status === 'closed' ? 'เปิดรอบตรวจนี้อีกครั้ง?' : `ปิดรอบตรวจนี้? นัดเดิม ${slot.bookedCount} รายการจะยังคงอยู่`)) return;
     try {
       setIsSaving(true);
       setFormError('');
@@ -753,12 +815,37 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
         setFormError(result.error);
         return;
       }
+      setConfirmation(null);
       setNotice(slot.status === 'closed' ? 'เปิดรอบตรวจอีกครั้งเรียบร้อยแล้ว' : 'ปิดรอบตรวจแล้ว นัดเดิมยังคงอยู่');
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการปรับสถานะรอบตรวจ');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const toggleClosed = (slot: ScheduleSlot) => {
+    if (role === 'patient' || !canModifySlot(slot)) {
+      setFormError('คุณไม่มีสิทธิ์แก้ไขหรือปิดรอบตรวจ');
+      return;
+    }
+    if (slot.status === 'closed') {
+      if (isSlotExpired(slot.slotDate, slot.startTime, bangkokNow.date, bangkokNow.time)) {
+        setFormError('ไม่สามารถเปิดรอบตรวจที่เลยเวลาเริ่มแล้ว');
+        return;
+      }
+      if (slot.bookedCount >= slot.maxCapacity) {
+        setFormError('ไม่สามารถเปิดรอบตรวจที่คนเต็มแล้ว');
+        return;
+      }
+    }
+    setConfirmation({
+      title: slot.status === 'closed' ? 'ยืนยันการเปิดรอบตรวจ' : 'ยืนยันการปิดรอบตรวจ',
+      message: slot.status === 'closed' ? 'เปิดรอบตรวจนี้อีกครั้ง?' : `ปิดรอบตรวจนี้? นัดเดิม ${slot.bookedCount} รายการจะยังคงอยู่`,
+      confirmLabel: slot.status === 'closed' ? 'เปิดรอบตรวจ' : 'ปิดรอบตรวจ',
+      tone: slot.status === 'closed' ? 'primary' : 'danger',
+      onConfirm: () => confirmToggleClosed(slot),
+    });
   };
 
   const jumpToToday = () => {
@@ -773,7 +860,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   };
 
   useEffect(() => {
-    if (!formOpen && !leaveFormOpen && !batchFormOpen) return;
+    if (confirmation || (!formOpen && !leaveFormOpen && !batchFormOpen)) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (leaveFormOpen) closeLeaveForm();
@@ -782,7 +869,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [batchFormOpen, formOpen, leaveFormOpen]);
+  }, [batchFormOpen, confirmation, formOpen, leaveFormOpen]);
 
   return (
     <div className="schedule-shell flex min-w-0 flex-col gap-6 sm:gap-8">
@@ -800,7 +887,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               <button type="button" disabled={isLoading} onClick={() => openBatchForm('copy')} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
                 <Copy className="h-4 w-4" aria-hidden="true" />คัดลอกวันก่อน
               </button>
-              <button type="button" disabled={isLoading} onClick={openLeaveForm} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 disabled:opacity-50">
+              <button type="button" disabled={isLoading} onClick={() => openLeaveForm()} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 disabled:opacity-50">
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />บันทึกวันลาแพทย์
               </button>
               <button type="button" disabled={isLoading} onClick={() => openServiceForm()} className={`${textButtonClass} shrink-0 whitespace-nowrap disabled:opacity-50`}>
@@ -812,6 +899,12 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
       </header>
 
       <Toast message={notice} onDismiss={() => setNotice('')} />
+
+      <ConfirmationModal
+        request={confirmation}
+        onCancel={() => setConfirmation(null)}
+        isBusy={isSaving || leaveIsDeleting}
+      />
 
       <div className="space-y-2 empty:hidden" aria-live="polite">
         {formError && !formOpen && (
@@ -924,8 +1017,19 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   <div className="sm:col-span-2">
                     <span className="text-sm font-medium text-slate-700">ช่วงเวลา</span>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => setBatchDraft((current) => ({ ...current, startTime: '08:30', endTime: '12:00' }))} className={`${batchDraft.startTime === '08:30' && batchDraft.endTime === '12:00' ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}>ช่วงเช้า 08:30–12:00</button>
-                      <button type="button" onClick={() => setBatchDraft((current) => ({ ...current, startTime: '13:00', endTime: '16:30' }))} className={`${batchDraft.startTime === '13:00' && batchDraft.endTime === '16:30' ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}>ช่วงบ่าย 13:00–16:30</button>
+                      {CLINIC_TIME_BLOCKS.map((block) => {
+                        const isSelected = batchDraft.startTime === block.startTime && batchDraft.endTime === block.endTime;
+                        return (
+                          <button
+                            key={block.label}
+                            type="button"
+                            onClick={() => setBatchDraft((current) => ({ ...current, startTime: block.startTime, endTime: block.endTime }))}
+                            className={`${isSelected ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}
+                          >
+                            {block.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <label className="space-y-1.5">
@@ -1015,7 +1119,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">Manual leave</p>
-                <h2 id="leave-form-title" className="mt-1 text-xl font-bold text-slate-950">บันทึกวันลาแพทย์</h2>
+                <h2 id="leave-form-title" className="mt-1 text-xl font-bold text-slate-950">{editingLeaveId ? 'แก้ไขวันลาแพทย์' : 'บันทึกวันลาแพทย์'}</h2>
                 <p className="mt-1 text-xs text-slate-500">ระบบจะเก็บรอบตรวจเดิมไว้ และให้เจ้าหน้าที่ประสานผู้ป่วยด้วยตนเอง</p>
               </div>
               <button type="button" onClick={closeLeaveForm} className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="ปิดแบบฟอร์มวันลา">
@@ -1029,7 +1133,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                 {role === 'medical' && currentDoctor ? (
                   <input type="text" disabled value={`${currentDoctor.fullName} (คุณ)`} className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-600`} />
                 ) : (
-                  <select aria-label="แพทย์สำหรับวันลา" value={leaveDraft.doctorId} onChange={(event) => setLeaveDraft((current) => ({ ...current, doctorId: event.target.value }))} className={inputClass}>
+                  <select aria-label="แพทย์สำหรับวันลา" disabled={Boolean(editingLeaveId)} value={leaveDraft.doctorId} onChange={(event) => setLeaveDraft((current) => ({ ...current, doctorId: event.target.value }))} className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600`}>
                     <option value="">เลือกแพทย์</option>
                     {doctors.filter((doctor) => doctor.availability !== 'inactive').map((doctor) => (
                       <option key={doctor.id} value={doctor.id}>{doctor.fullName}</option>
@@ -1057,11 +1161,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                 <span className="text-sm font-medium text-slate-700">เหตุผลการลา <span className="font-normal text-slate-400">(ไม่บังคับ)</span></span>
                 <select aria-label="เหตุผลการลา" value={leaveDraft.reason} onChange={(event) => setLeaveDraft((current) => ({ ...current, reason: event.target.value }))} className={inputClass}>
                   <option value="">เลือกเหตุผล</option>
-                  <option value="ไปราชการ">ไปราชการ</option>
-                  <option value="ลาป่วย">ลาป่วย</option>
-                  <option value="ประชุมวิชาการ">ประชุมวิชาการ</option>
-                  <option value="อบรม">อบรม</option>
-                  <option value="อื่น ๆ">อื่น ๆ</option>
+                  {LEAVE_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
                 </select>
               </label>
             </div>
@@ -1088,10 +1188,17 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
             {leaveFormError && <p className="mt-3 text-sm font-medium text-rose-700" role="alert">{leaveFormError}</p>}
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
-              <button type="button" onClick={closeLeaveForm} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
-              <button type="button" disabled={leaveIsSaving || Boolean(draftLeaveOverlap)} onClick={saveDoctorLeave} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-800 px-5 text-sm font-semibold text-white shadow-xs hover:bg-violet-900 disabled:opacity-50">
+              {editingLeaveId && (
+                <button type="button" disabled={leaveIsSaving || leaveIsDeleting} onClick={cancelDoctorLeave} className="mr-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                  {leaveIsDeleting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                  {!leaveIsDeleting && <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                  {leaveIsDeleting ? 'กำลังยกเลิก...' : 'ยกเลิกวันลา'}
+                </button>
+              )}
+              <button type="button" onClick={closeLeaveForm} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ปิด</button>
+              <button type="button" disabled={leaveIsSaving || leaveIsDeleting || Boolean(draftLeaveOverlap)} onClick={saveDoctorLeave} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-800 px-5 text-sm font-semibold text-white shadow-xs hover:bg-violet-900 disabled:opacity-50">
                 {leaveIsSaving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                {leaveIsSaving ? 'กำลังบันทึก...' : 'บันทึกวันลา'}
+                {leaveIsSaving ? 'กำลังบันทึก...' : editingLeaveId ? 'บันทึกการแก้ไข' : 'บันทึกวันลา'}
               </button>
             </div>
           </div>
@@ -1364,7 +1471,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       calendarView === 'day'
                         ? formatShortDate(weekStart)
                         : calendarView === 'month'
-                        ? `${monthNames[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}`
+                        ? `${THAI_MONTHS_SHORT[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}`
                         : formatWeekRange(weekStart)
                     }
                     slotDates={availableSlotDates}
@@ -1474,6 +1581,8 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
             onEdit={openSlotForm}
             onToggle={toggleClosed}
             onSelectDay={handleDrillDownDay}
+            canModifyLeave={role !== 'patient'}
+            onEditLeave={openLeaveForm}
           />
         ) : (
           <>
@@ -1498,7 +1607,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       className="cursor-pointer px-3 py-4 text-center hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
                       title={`ดับเบิ้ลคลิกเพื่อดูตารางตรวจวันที่ ${formatShortDate(date)}`}
                     >
-                      <div className={`text-xs font-semibold ${isToday ? 'text-sky-700' : 'text-slate-500'}`}>{dayNames[parsed.getUTCDay()]}</div>
+                      <div className={`text-xs font-semibold ${isToday ? 'text-sky-700' : 'text-slate-500'}`}>{WEEKDAY_NAMES[parsed.getUTCDay()]}</div>
                       <div className={`mx-auto mt-2 flex h-9 w-9 items-center justify-center rounded-full text-base font-bold tabular-nums ${isToday ? 'bg-sky-600 text-white' : 'text-slate-950'}`}>{parsed.getUTCDate()}</div>
                     </button>
                   );
@@ -1514,7 +1623,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                       className="flex min-w-0 flex-col gap-7 px-3 py-6"
                       title={`ดับเบิ้ลคลิกเพื่อดูตารางตรวจวันที่ ${formatShortDate(date)}`}
                     >
-                      <LeaveChips date={date} leaves={visibleDoctorLeaves} doctors={doctors} />
+                      <LeaveChips date={date} leaves={visibleDoctorLeaves} doctors={doctors} canModify={role !== 'patient'} onEdit={openLeaveForm} />
                       {daySlots.map((slot) => (
                         <SlotCard
                           key={slot.id}
@@ -1532,10 +1641,10 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                           <div className="py-8 text-center text-sm text-brand-body">
                             ไม่พบรอบตรวจ
                           </div>
-                        ) : !canCreateForDate(date) ? (
-                          <LeaveBlockedNotice />
+                        ) : !canCreateForDate(date) || !isClinicWeekday(date) ? (
+                          <LeaveBlockedNotice date={date} />
                         ) : (
-                          <button type="button" onClick={() => openSlotForm(undefined, date)} className={textButtonClass}>
+                          <button type="button" onClick={() => openSlotForm(undefined, date)} aria-label={`เพิ่มรอบตรวจวันที่ ${formatShortDate(date)}`} className={textButtonClass}>
                             <Plus className="mb-2 h-4 w-4" aria-hidden="true" />เพิ่มรอบ
                           </button>
                         )
@@ -1562,19 +1671,19 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                   >
                     <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="text-xs font-semibold text-sky-700">{dayNames[parsed.getUTCDay()]}</div>
+                        <div className="text-xs font-semibold text-sky-700">{WEEKDAY_NAMES[parsed.getUTCDay()]}</div>
                         <h2 className="font-bold text-slate-950">{formatShortDate(date)}</h2>
                       </div>
-                      <LeaveChips date={date} leaves={visibleDoctorLeaves} doctors={doctors} />
+                      <LeaveChips date={date} leaves={visibleDoctorLeaves} doctors={doctors} canModify={role !== 'patient'} onEdit={openLeaveForm} />
                       <button type="button" onClick={() => handleDrillDownDay(date)} aria-label={`ดูรายวัน ${formatShortDate(date)}`} className={textButtonClass}>
                         ดูรายวัน <ArrowRight className="h-4 w-4" aria-hidden="true" />
                       </button>
-                      {role !== 'patient' && date >= getTodayDate() && canCreateForDate(date) && (
-                        <button type="button" onClick={() => openSlotForm(undefined, date)} className="flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50">
+                      {role !== 'patient' && date >= getTodayDate() && canCreateForDate(date) && isClinicWeekday(date) && (
+                        <button type="button" onClick={() => openSlotForm(undefined, date)} aria-label={`เพิ่มรอบตรวจวันที่ ${formatShortDate(date)}`} className="flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50">
                           <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบ
                         </button>
                       )}
-                      {role !== 'patient' && date >= getTodayDate() && !canCreateForDate(date) && <LeaveBlockedNotice />}
+                      {role !== 'patient' && date >= getTodayDate() && (!canCreateForDate(date) || !isClinicWeekday(date)) && <LeaveBlockedNotice date={date} />}
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2">
                       {daySlots.map((slot) => (
@@ -1658,10 +1767,14 @@ function LeaveChips({
   date,
   leaves,
   doctors,
+  canModify = false,
+  onEdit,
 }: {
   date: string;
   leaves: DoctorLeave[];
   doctors: import('@/types/schedule').ScheduleDoctor[];
+  canModify?: boolean;
+  onEdit?: (leave: DoctorLeave) => void;
 }) {
   const matchingLeaves = leaves.filter((leave) => leave.startDate <= date && leave.endDate >= date);
   if (matchingLeaves.length === 0) return null;
@@ -1669,10 +1782,29 @@ function LeaveChips({
     <div className="mb-3 space-y-1.5" aria-label={`วันลาแพทย์วันที่ ${formatShortDate(date)}`}>
       {matchingLeaves.map((leave) => {
         const doctor = doctors.find((item) => item.id === leave.doctorId);
-        return (
-          <div key={leave.id} className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs leading-5 text-violet-900">
+        const content = (
+          <>
             <span className="font-semibold">ลาตรวจ: {doctor?.fullName ?? 'ไม่พบแพทย์'}</span>
             <span className="block text-violet-700">{formatLeaveRange(leave)}{leave.reason ? ` · ${leave.reason}` : ''}</span>
+          </>
+        );
+        return canModify && onEdit ? (
+          <button
+            key={leave.id}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(leave);
+            }}
+            className="block w-full rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2 text-left text-xs leading-5 text-violet-900 hover:border-violet-300 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700"
+            aria-label={`แก้ไขวันลา ${doctor?.fullName ?? 'ไม่พบแพทย์'}`}
+            title="คลิกเพื่อแก้ไขหรือยกเลิกวันลา"
+          >
+            {content}
+          </button>
+        ) : (
+          <div key={leave.id} className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs leading-5 text-violet-900">
+            {content}
           </div>
         );
       })}
@@ -1680,7 +1812,10 @@ function LeaveChips({
   );
 }
 
-function LeaveBlockedNotice() {
+function LeaveBlockedNotice({ date }: { date: string }) {
+  if (!isClinicWeekday(date)) {
+    return <p className="flex items-center gap-2 py-4 text-center text-xs font-medium text-violet-800"><CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />วันนี้เป็นวันหยุดของคลินิก ไม่สามารถเพิ่มรอบใหม่</p>;
+  }
   return <p className="flex items-center gap-2 py-4 text-center text-xs font-medium text-violet-800"><CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />แพทย์มีวันลา ไม่สามารถเพิ่มรอบใหม่</p>;
 }
 
@@ -1697,10 +1832,12 @@ function CalendarBoard({
   doctorLeaves = [],
   canCreateForDate = () => true,
   canBook = false,
+  canModifyLeave = false,
   onCreate,
   onEdit,
   onToggle,
   onSelectDay,
+  onEditLeave,
 }: {
   view: CalendarView;
   days: string[];
@@ -1714,19 +1851,21 @@ function CalendarBoard({
   doctorLeaves?: DoctorLeave[];
   canCreateForDate?: (date: string) => boolean;
   canBook?: boolean;
+  canModifyLeave?: boolean;
   onCreate: (slot?: ScheduleSlot, suggestedDate?: string) => void;
   onEdit: (slot?: ScheduleSlot, suggestedDate?: string) => void;
   onToggle: (slot: ScheduleSlot) => void;
   onSelectDay?: (date: string) => void;
+  onEditLeave?: (leave: DoctorLeave) => void;
 }) {
   if (view === 'day') {
     const date = days[0];
     return (
       <div aria-label="ปฏิทินรายวัน">
         <div className="border-y border-brand-border-soft bg-brand-surface/60 px-4 py-5">
-          <div className="text-xs font-semibold text-brand-strong">{dayNames[parseClinicDate(date).getUTCDay()]}</div>
+          <div className="text-xs font-semibold text-brand-strong">{WEEKDAY_NAMES[parseClinicDate(date).getUTCDay()]}</div>
           <h2 className="mt-1 text-lg font-bold text-brand-ink">{formatShortDate(date)}</h2>
-          <LeaveChips date={date} leaves={doctorLeaves} doctors={doctors} />
+          <LeaveChips date={date} leaves={doctorLeaves} doctors={doctors} canModify={canModifyLeave} onEdit={onEditLeave} />
         </div>
         <div className="divide-y divide-brand-border-soft">
           {slots.filter((slot) => slot.slotDate === date).map((slot) => (
@@ -1754,12 +1893,12 @@ function CalendarBoard({
             </div>
           ))}
           {slots.filter((slot) => slot.slotDate === date).length === 0 && (
-            canCreate && date >= getTodayDate() && canCreateForDate(date) ? (
+            canCreate && date >= getTodayDate() && canCreateForDate(date) && isClinicWeekday(date) ? (
               <button type="button" onClick={() => onCreate(undefined, date)} className={`${textButtonClass} my-8`}>
                 <Plus className="mr-2 h-4 w-4" aria-hidden="true" />เพิ่มรอบตรวจวันนี้
               </button>
-            ) : canCreate && date >= getTodayDate() && !canCreateForDate(date) ? (
-              <LeaveBlockedNotice />
+            ) : canCreate && date >= getTodayDate() && (!canCreateForDate(date) || !isClinicWeekday(date)) ? (
+              <LeaveBlockedNotice date={date} />
             ) : (
               <div className="py-10 text-sm text-brand-body">
                 ไม่พบรอบตรวจตามตัวกรอง ลองเปลี่ยนวันหรือสถานะ
@@ -1816,7 +1955,7 @@ function CalendarBoard({
                     {parseClinicDate(date).getUTCDate()}
                   </button>
                 </div>
-                <LeaveChips date={date} leaves={doctorLeaves} doctors={doctors} />
+                <LeaveChips date={date} leaves={doctorLeaves} doctors={doctors} canModify={canModifyLeave} onEdit={onEditLeave} />
                 <div className={`space-y-2 ${!isCurrentMonth ? 'opacity-60' : ''}`}>
                   {daySlots.map((slot) => (
                     <div
@@ -1834,7 +1973,7 @@ function CalendarBoard({
                     </div>
                   ))}
                 </div>
-                {canCreate && date >= getTodayDate() && canCreateForDate(date) && (
+                {canCreate && date >= getTodayDate() && canCreateForDate(date) && isClinicWeekday(date) && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1843,6 +1982,7 @@ function CalendarBoard({
                     }}
                     className="mt-2 flex min-h-11 w-full items-center justify-center gap-1 text-xs text-brand-strong hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand-strong"
                     title="เพิ่มรอบตรวจ"
+                    aria-label={`เพิ่มรอบตรวจวันที่ ${formatShortDate(date)}`}
                   >
                     <Plus className="h-3 w-3" aria-hidden="true" />เพิ่มรอบ
                   </button>
