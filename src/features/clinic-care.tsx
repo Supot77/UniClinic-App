@@ -72,6 +72,7 @@ export function allowedActions(
 ): ClinicAction[] {
   if (role === 'patient') return ['pending', 'confirmed'].includes(appointment.status) && !appointment.cancel_requested_at ? ['request_cancel'] : [];
   if (role === 'medical') {
+    if (appointment.status === 'pending') return ['confirmed', 'rejected'];
     if (appointment.status === 'confirmed') {
       if (slot && !isSlotArrived(slot.slot_date, slot.start_time, currentDate, currentTime)) return [];
       return ['in_progress'];
@@ -157,7 +158,7 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
       z.string().uuid().parse(appointmentId);
       z.enum(['confirmed', 'rejected', 'in_progress', 'completed', 'cancelled', 'request_cancel']).parse(action);
       const parsedReason = action === 'rejected' ? z.string().trim().min(1, 'กรุณาระบุเหตุผลการปฏิเสธ').max(2000).parse(reason) : null;
-      const roles: ClinicRole[] = action === 'request_cancel' ? ['patient'] : ['in_progress', 'completed'].includes(action) ? ['medical', 'staff_admin'] : ['staff_admin'];
+      const roles: ClinicRole[] = action === 'request_cancel' ? ['patient'] : ['confirmed', 'rejected', 'in_progress', 'completed'].includes(action) ? ['medical', 'staff_admin'] : ['staff_admin'];
       await actor(roles);
       await rpc('pai_transition_appointment', { p_appointment_id: appointmentId, p_action: action, p_reason: parsedReason });
     },
