@@ -737,8 +737,8 @@ export default function RemindersPage() {
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-brand-surface py-8 sm:py-10 px-4 sm:px-6 lg:px-8 font-sans text-brand-body selection:bg-brand-soft selection:text-brand-ink">
-      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
+    <div className="w-full min-h-[calc(100vh-4rem)] bg-brand-surface py-6 sm:py-8 px-4 sm:px-6 lg:px-8 xl:px-12 font-sans text-brand-body selection:bg-brand-soft selection:text-brand-ink">
+      <div className="w-full max-w-[1720px] mx-auto space-y-6 sm:space-y-8">
         {/* Header Title & Primary Action */}
         <header className="flex flex-wrap items-center justify-between gap-5">
           <div>
@@ -918,7 +918,7 @@ export default function RemindersPage() {
           </div>
 
           {/* Search Input on the Right */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-80 md:w-96">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-muted" aria-hidden="true" />
             <input
               value={searchQuery}
@@ -944,8 +944,8 @@ export default function RemindersPage() {
         {/* Data Stream (Tab Panel) */}
         <section id="reminders-panel" role="tabpanel" aria-labelledby={`${filterStatus}-tab`} aria-busy={isLoading}>
           {isLoading ? (
-            <div className="space-y-3.5 sm:space-y-4">
-              {[1, 2, 3].map((idx) => (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
+              {[1, 2, 3, 4].map((idx) => (
                 <div key={idx} className="rounded-xl border border-brand-border-soft bg-white p-5 animate-pulse flex items-center justify-between">
                   <div className="flex gap-4 items-center">
                     <div className="w-11 h-11 bg-brand-soft rounded-xl"></div>
@@ -1005,11 +1005,11 @@ export default function RemindersPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-3.5 sm:space-y-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
               {filteredMedications.map((med) => (
                 <article
                   key={med.id}
-                  className={`rounded-xl border bg-white p-4 sm:p-5 shadow-2xs transition-all duration-150 hover:shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 ${
+                  className={`rounded-xl border bg-white p-4 sm:p-5 shadow-2xs transition-all duration-150 hover:shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 ${
                     med.isActive
                       ? 'border-brand-border-soft hover:border-brand-border-strong'
                       : 'border-brand-border-soft/70 bg-slate-50/60 opacity-80 hover:opacity-100'
@@ -1081,7 +1081,7 @@ export default function RemindersPage() {
                   </div>
 
                   {/* ขวา: Toggle & Actions */}
-                  <div className="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-brand-border-soft">
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-brand-border-soft shrink-0">
                     <div className="flex items-center gap-3">
                       <ToggleSwitch active={Boolean(med.isActive)} onToggle={() => handleToggle(med.id)} />
                     </div>
