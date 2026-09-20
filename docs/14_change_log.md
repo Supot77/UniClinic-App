@@ -122,3 +122,10 @@
 - **พบ:** ตาราง `appointments`/`medical_records` และ health profile columns มีอยู่, RLS เปิดในตารางหลักที่ snapshot ตรวจ, RPC PAI/Broadcast มีอยู่
 - **ประเด็นต้องแก้/ยืนยัน:** ไม่พบ `pai_appointments`, `pai_medical_records`; query orphan/status ของ PAI ล้มเหลว; policy บางรายการยังอ้าง legacy roles; migration `21`/`28` ใน repository ชี้ current PAI RPC ไปยัง `appointments`/`medical_records`; ไม่พบ `broadcast_recipients` ซึ่งสอดคล้องกับ migration `05` ที่ตั้งใจยุบ recipient ลง notifications และผู้ใช้ยืนยันให้ใช้ design นี้ต่อไป
 - **สถานะ:** ผู้ใช้ยืนยันว่า snapshot เป็น target ปัจจุบันเดียวกับ runtime และ migration ที่เกี่ยวข้อง deploy แล้ว; ยังคงไม่เปลี่ยนเป็น `RLS ผ่าน` เพราะยังไม่มี session-based verification. Role เก่าจะคงไว้ชั่วคราวจน reset ฐานทดสอบ
+
+## Owner confirmation: โมดูลรายการเตือน — 20 กันยายน 2569
+
+- **ผู้รับผิดชอบ:** กลอง
+- **คำยืนยัน:** CRUD, medication log และ status actions ของ reminder ครบตาม scope ที่ต้องการ
+- **ขอบเขตที่ไม่เปลี่ยน:** worker, email และ automation ไม่อยู่ใน scope; ไม่อ้างว่า DB/RLS หรือ browser QA ผ่านจากคำยืนยันนี้
+- **เอกสารอ้างอิง:** [Klong owner view](owners/klong/README.md)
