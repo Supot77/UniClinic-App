@@ -55,7 +55,6 @@ export interface PatientRegistrationDetails {
   studentId?: string;
   employeeId?: string;
   phone: string;
-  avatarFile?: File | null;
 
   allergyStatus?: 'yes' | 'no' | 'unknown';
   allergies?: string | null;
@@ -245,10 +244,6 @@ export async function signUp(
     throw new Error('เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก');
   }
 
-  if (details.avatarFile && details.avatarFile.type !== 'image/png') {
-    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น');
-  }
-
   if (
     !['yes', 'no', 'unknown'].includes(
       allergyStatus,
@@ -358,28 +353,6 @@ export async function signUp(
       throw profileError;
     }
 
-    if (details.avatarFile) {
-      const avatarPath = `${data.user.id}/avatar.png`;
-      const { error: uploadError } = await supabase.storage
-        .from('profile-avatars')
-        .upload(avatarPath, details.avatarFile, {
-          contentType: 'image/png',
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from('profile-avatars')
-        .getPublicUrl(avatarPath);
-
-      const { error: avatarError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrlData.publicUrl })
-        .eq('id', data.user.id);
-
-      if (avatarError) throw avatarError;
-    }
   }
 
   return data;
@@ -550,6 +523,50 @@ export async function updateMyPersonalProfile(
   }
 
   return data;
+}
+
+export async function updateMyProfileAvatar(file: File): Promise<string> {
+  if (file.type !== 'image/png') {
+    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB');
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) {
+    bitmap.close();
+    throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
+  }
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/png'),
+  );
+  if (!blob) throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
+
+  const userId = await getCurrentUserId();
+  const avatarPath = `${userId}/avatar.png`;
+  const { error: uploadError } = await supabase.storage
+    .from('profile-avatars')
+    .upload(avatarPath, blob, { contentType: 'image/png', upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data: publicUrlData } = supabase.storage
+    .from('profile-avatars')
+    .getPublicUrl(avatarPath);
+  const avatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (profileError) throw profileError;
+  return avatarUrl;
 }
 
 export async function updateMyHealthProfile(

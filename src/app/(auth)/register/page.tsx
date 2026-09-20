@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  ImagePlus,
   UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -74,31 +73,6 @@ function sanitizePersonName(value: string): string {
     /[^A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E '-]/g,
     '',
   );
-}
-
-async function resizePng(file: File): Promise<File> {
-  if (file.type !== 'image/png') {
-    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น');
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error('รูปโปรไฟล์ต้นฉบับต้องมีขนาดไม่เกิน 5 MB');
-  }
-
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/png'),
-  );
-  if (!blob) throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
-  return new File([blob], 'avatar.png', { type: 'image/png' });
 }
 
 export function validateRegistration(
@@ -238,15 +212,6 @@ interface RegisterPageProps {
   mode?: 'self-service' | 'staff-walk-in';
 }
 
-async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('ไม่สามารถอ่านรูปโปรไฟล์ได้'));
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function RegisterPage({ mode = 'self-service' }: RegisterPageProps) {
   const router = useRouter();
 
@@ -264,9 +229,6 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
-
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   function updateField(
     field: FieldName,
@@ -380,17 +342,13 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
             email: form.email.trim().toLowerCase(),
             password: form.password,
             details,
-            avatarDataUrl: avatarFile ? await fileToDataUrl(avatarFile) : null,
           }),
         });
         const result = (await response.json()) as { error?: string };
         if (!response.ok) throw new Error(result.error || 'สร้างบัญชีผู้ป่วยไม่สำเร็จ');
         router.push('/staff/accounts?created=true');
       } else {
-        await signUp(form.email.trim().toLowerCase(), form.password, {
-          ...details,
-          avatarFile,
-        });
+        await signUp(form.email.trim().toLowerCase(), form.password, details);
         router.push('/login?registered=true');
       }
     } catch (err) {
@@ -692,34 +650,6 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
               </Field>
             </div>
 
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-              <label htmlFor="profile-avatar" className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
-                <ImagePlus className="size-5 text-teal-600" aria-hidden="true" />
-                รูปโปรไฟล์ (ไม่บังคับ)
-              </label>
-              <input
-                id="profile-avatar"
-                type="file"
-                accept="image/png,.png"
-                disabled={isSubmitting}
-                className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:font-semibold file:text-teal-700"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  setAvatarError(null);
-                  setAvatarFile(null);
-                  if (!file) return;
-                  try {
-                    setAvatarFile(await resizePng(file));
-                  } catch (uploadError) {
-                    setAvatarError(uploadError instanceof Error ? uploadError.message : 'รูปโปรไฟล์ไม่ถูกต้อง');
-                    event.target.value = '';
-                  }
-                }}
-              />
-              <p className="mt-2 text-xs text-slate-500">รับเฉพาะ PNG ไม่เกิน 5 MB และย่อเหลือไม่เกิน 512 × 512 พิกเซลก่อนอัปโหลด</p>
-              {avatarFile && <p className="mt-2 text-xs font-medium text-emerald-600">เลือกรูปโปรไฟล์แล้ว</p>}
-              {avatarError && <p role="alert" className="mt-2 text-xs text-rose-600">{avatarError}</p>}
-            </div>
           </FormSection>
 
           {/* ข้อมูลสุขภาพ */}

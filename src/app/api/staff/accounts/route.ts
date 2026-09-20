@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     return Response.json({ error: 'เฉพาะเจ้าหน้าที่เท่านั้นที่สร้างบัญชีผู้ป่วยได้' }, { status: 403 });
   }
 
-  const body = (await request.json()) as { email?: string; password?: string; details?: Details; avatarDataUrl?: string | null };
+  const body = (await request.json()) as { email?: string; password?: string; details?: Details };
   const email = body.email?.trim().toLowerCase() ?? '';
   const password = body.password ?? '';
   if (!body.details) return Response.json({ error: 'ข้อมูลผู้ป่วยไม่ครบถ้วน' }, { status: 400 });
@@ -107,34 +107,5 @@ export async function POST(request: Request) {
     return Response.json({ error: profileError.message }, { status: 400 });
   }
 
-  if (body.avatarDataUrl) {
-    const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(body.avatarDataUrl);
-    if (!match) {
-      await admin.auth.admin.deleteUser(created.user.id);
-      return Response.json({ error: 'รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น' }, { status: 400 });
-    }
-    const avatarPath = `${created.user.id}/avatar.png`;
-    const { error: uploadError } = await admin.storage
-      .from('profile-avatars')
-      .upload(avatarPath, Buffer.from(match[1], 'base64'), {
-        contentType: 'image/png',
-        upsert: true,
-      });
-    if (uploadError) {
-      await admin.auth.admin.deleteUser(created.user.id);
-      return Response.json({ error: uploadError.message }, { status: 400 });
-    }
-    const { data: publicUrlData } = admin.storage
-      .from('profile-avatars')
-      .getPublicUrl(avatarPath);
-    const { error: avatarError } = await admin
-      .from('profiles')
-      .update({ avatar_url: publicUrlData.publicUrl })
-      .eq('id', created.user.id);
-    if (avatarError) {
-      await admin.auth.admin.deleteUser(created.user.id);
-      return Response.json({ error: avatarError.message }, { status: 400 });
-    }
-  }
   return Response.json({ id: created.user.id }, { status: 201 });
 }

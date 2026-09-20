@@ -441,7 +441,6 @@ describe('registration validation', () => {
           studentId: '67116004',
           employeeId: undefined,
           phone: '0812345678',
-          avatarFile: null,
 
           allergyStatus: 'no',
           allergies: null,
