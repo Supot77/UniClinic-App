@@ -40,6 +40,25 @@ export interface DashboardView {
     doctorName: string;
     departmentName: string;
   }>;
+  nextAppointment?: DashboardView['appointmentQueue'][number] | null;
+  patientMedications?: Array<{
+    id: string;
+    name: string;
+    instruction: string;
+    reminderTimes: string[];
+    nextDoseTime: string | null;
+    endDate: string | null;
+    takenDoses?: number;
+    totalDoses?: number;
+  }>;
+  patientTreatmentHistory?: Array<{
+    id: string;
+    date: string;
+    doctorName: string;
+    departmentName: string;
+    summary: string;
+    medicationCount: number;
+  }>;
   departmentLoads: Array<{
     departmentId: string;
     departmentName: string;
@@ -55,7 +74,18 @@ export interface DashboardView {
     lowStock: boolean;
     expired: boolean;
   }>;
+  pendingPrescriptions?: Array<{
+    id: string;
+    patientName: string;
+    doctorName: string;
+    departmentName: string;
+    date: string;
+    diagnosis: string;
+    medicationCount: number;
+    dispensedCount: number;
+  }>;
   recentNotifications: Notification[];
+  unreadNotificationCount?: number;
   roleCounts: Array<{ role: UserRole; count: number }>;
 }
 

@@ -12,7 +12,7 @@ describe('role-based dashboard requirements', () => {
   it('builds a dedicated view for all three dashboard roles', async () => {
     const repositories = createClinicRepositories(new ClinicMockDatabase(0));
     const expectedMetric: Record<UserRole, string> = {
-      staff_admin: 'appointments-in-range', medical: 'own-queue', patient: 'my-reminders',
+      staff_admin: 'appointments-in-range', medical: 'own-queue', patient: 'unread-notifications',
     };
 
     for (const role of roles) {
@@ -20,6 +20,7 @@ describe('role-based dashboard requirements', () => {
       expect(result.error).toBeNull();
       expect(result.data?.role).toBe(role);
       expect(result.data?.metrics.map((item) => item.id)).toContain(expectedMetric[role]);
+      expect(result.data?.metrics.map((item) => item.id)).not.toEqual(expect.arrayContaining(['department-workload', 'accounts']));
     }
   });
 
@@ -30,6 +31,8 @@ describe('role-based dashboard requirements', () => {
 
     expect(strange.data?.metrics.find((item) => item.id === 'own-appointments')?.value).toBe(1);
     expect(strange.data?.metrics.find((item) => item.id === 'own-queue')?.value).toBe(1);
+    expect(strange.data?.metrics).toHaveLength(3);
+    expect(strange.data?.metrics.some((item) => item.id === 'unread-notifications')).toBe(false);
     expect(xavier.data?.metrics.find((item) => item.id === 'completed-in-range')?.value).toBe(1);
     expect(xavier.data?.metrics.find((item) => item.id === 'own-queue')?.value).toBe(0);
   });
@@ -43,11 +46,9 @@ describe('role-based dashboard requirements', () => {
     expect(serialized).not.toContain('diagnosis');
     expect(serialized).not.toContain('ไข้และปวดศีรษะ');
 
-    const accountsMetric = result.data?.metrics.find((item) => item.id === 'accounts');
-    expect(accountsMetric?.href).toBe('/staff/accounts');
-
-    const departmentMetric = result.data?.metrics.find((item) => item.id === 'department-workload');
-    expect(departmentMetric?.href).toBe('/departments');
+    expect(result.data?.metrics).toHaveLength(2);
+    expect(result.data?.metrics.some((item) => item.id === 'accounts')).toBe(false);
+    expect(result.data?.metrics.some((item) => item.id === 'department-workload')).toBe(false);
   });
 
   it('allows a patient to see only their own appointments', async () => {
