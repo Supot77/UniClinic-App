@@ -2,6 +2,10 @@
 
 อัปเดต 8 กันยายน 2569 ตาม D22/D23, FR-APT-01–06 และ FR-MED-01–03
 
+> **สถานะเอกสาร ณ 20 กันยายน 2569:** เอกสารนี้มีบันทึก deployment ของ PAI จากรอบก่อนอยู่ด้านล่าง ให้ถือข้อความดังกล่าวเป็น historical record. ผู้ใช้ยืนยันว่า [Database_check.md](Database_check.md) เป็น target ปัจจุบันเดียวกับ runtime และ migration ที่เกี่ยวข้อง deploy แล้ว; session-based RLS/browser QA ยังไม่ยืนยัน. Runtime/code trace ปัจจุบันให้อ้าง [PAI owner view](owners/pai/README.md) และ source path จริง
+
+> **DB snapshot ล่าสุดที่ได้รับ:** [Database_check.md](Database_check.md) พบ RPC ชื่อ `pai_*`, ตาราง `appointments`/`medical_records` และไม่พบตาราง `pai_appointments`/`pai_medical_records` ตาม migration รุ่นแรก. ผู้ใช้ยืนยันว่าเป็น environment เดียวกับ runtime และ migration `21`/`28` deploy แล้ว; current code target คือ `appointments`/`medical_records` ผ่าน RPC. Policy role เก่าบางรายการจะคงไว้ชั่วคราวจน reset ฐานทดสอบ
+
 ## Runtime และพฤติกรรม
 
 - `/appointments` ใช้ route guard เดิมและ container ตาม patient/medical/staff_admin
@@ -23,11 +27,13 @@
 
 ไม่แก้ `src/features/shop/**`, `src/components/schedules/**`, routes ตาราง/แผนก, scheduleService, shared types, layout หรือ Supabase clients เดิม
 
-Migration ใหม่สร้างเฉพาะตาราง ฟังก์ชัน policy และ index ชื่อ `pai_*` ไม่แก้ schema, RLS, status หรือ `booked_count` ของ slot เดิม การตรวจความจุอ่าน `appointment_slots.booked_count` ของช็อปแล้วบวกจำนวนนัด active ใน `pai_appointments`
+เอกสาร deployment เดิมอธิบาย migration รุ่นแรกที่สร้างตารางชื่อ `pai_*`; ข้อความนี้เป็น historical design. Migration รุ่นหลัง `21` และ `28` ชี้ PAI RPCs ไปยัง `appointments`/`medical_records` และไม่ควรสรุปว่า `pai_*` tables เป็น active schema จากเอกสารรุ่นแรก
 
-ส่งต่อคู่ตรวจช็อปและเจ้าของโมดูล: การเขียน appointments/medical_records จาก authenticated client ต้องผ่าน RPC ใหม่ สิทธิ์อ่านนัดของ medical จำกัดเฉพาะนัดของตน staff ไม่อ่าน diagnosis งาน runtime ใหม่ไม่ใช้ `appointmentService` เก่าที่เขียนตรง ไม่มีการส่งข้อความหรือเปิด PR แทนผู้ใช้
+ส่งต่อคู่ตรวจช็อปและเจ้าของโมดูล: การเขียน `appointments`/`medical_records` จาก authenticated client ต้องผ่าน RPC ชื่อ PAI ตาม migration รุ่นปัจจุบัน สิทธิ์อ่านนัดของ medical จำกัดเฉพาะนัดของตน staff ไม่อ่าน diagnosis งาน runtime ใหม่ไม่ใช้ `appointmentService` เก่าที่เขียนตรง ไม่มีการส่งข้อความหรือเปิด PR แทนผู้ใช้
 
-## ลงฐานเป้าหมาย
+## บันทึกการลงฐานเดิม (historical; รอตรวจ environment ปัจจุบัน)
+
+ข้อความในหัวข้อนี้คงไว้เพื่อประวัติการทำงาน ไม่ใช่การยืนยันว่า project เดิมยังเป็น target ปัจจุบันหรือว่า RLS/browser QA ผ่านแล้ว
 
 Deploy แล้วบน project `fjzqcmcyemtzrtvmlqdv` วันที่ 8 กันยายน 2569 ผ่าน migration history แยกเฉพาะ `20260908170000_pai_manual_appointments_records.sql` และ `20260908171000_pai_restrict_new_objects.sql` ตรวจ dry-run หลัง deploy แล้วฐานเป็น `upToDate: true`
 

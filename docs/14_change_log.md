@@ -80,3 +80,45 @@
 
 - sync `origin/develop` สำเร็จแบบ fast-forward ที่ commit `60e3217`
 - ยังไม่ commit/push การเปลี่ยนแปลงชุดนี้
+
+## งาน 2.2.1 ปรับ confirmation ของ schedule และ department — 20 กันยายน 2569
+
+- **ผู้รับผิดชอบ:** ช้อป (สุพจน์)
+- **คู่ตรวจ:** ปาย
+- **Commit อ้างอิง:** `0a3aa2d`
+- **เอกสารต้นทาง:** [แผนลดความซ้ำซ้อนและ Routing หัวข้อ 2.2](13_code_refactoring_and_routing_plan.md#22-โมดูลแผนก-แพทย์-วันลา-ตารางและ-slot)
+
+### ขอบเขตและไฟล์ที่แก้
+
+- เพิ่ม `src/components/common/ConfirmationModal.tsx`
+- ปรับ `src/components/schedules/DepartmentWorkspace.tsx`
+- ปรับ `src/components/schedules/ScheduleWorkspace.tsx`
+- ปรับ `tests/department-workspace.test.tsx` และ `tests/schedule-workspace-department-filter.test.tsx`
+
+### พฤติกรรมที่เปลี่ยน
+
+- แทนที่ `window.confirm` ด้วย shared confirmation modal สำหรับเปิด/ปิดแผนก แพทย์ และ slot
+- ยืนยันการยกเลิกวันลาผ่าน modal ก่อนเรียก repository
+- คง permission, validation, state เดิมเมื่อบันทึกล้มเหลว และไม่เปลี่ยน slot/นัดหมายเดิมอัตโนมัติ
+
+### Verification boundary
+
+- เอกสาร owner views อ้าง code path และ test files ดังกล่าว แต่ยังไม่ได้รัน quality gates ใหม่จากงานเอกสารนี้
+- Database integration/RLS และ browser 360px/1280px/keyboard ยังไม่ยืนยัน
+
+## งานเอกสาร owner/status reconciliation — 20 กันยายน 2569
+
+- **ขอบเขต:** ปรับเอกสาร canonical, owner views, historical notices และ text-backed diagrams ตาม code snapshot `0a3aa2d`
+- **กำหนดส่งที่ใช้อ้างอิง:** 25 กันยายน 2569
+- **สถานะ code โดยรวม:** ประมาณ 90% ตามข้อมูลเจ้าของโครงการ; ไม่ใช่หลักฐาน acceptance/deployment
+- **หลักการ:** ไม่เพิ่ม API/type/schema, ไม่แก้ business code, ไม่ย้ายหรือลบเอกสารกลาง, ไม่เขียนทับ PDF/DOC/archive binary
+- **Owner views:** [index](owners/README.md) และโฟลเดอร์ `feem`, `shop-supot`, `pai`, `kan`, `klong`, `herb`, `_shared`
+- **Deployment boundary:** ข้อความ deploy เดิมเก็บเป็น historical record; สถานะ environment ปัจจุบัน, RLS และ browser QA ต้องมีหลักฐานแยก
+- **Verification ของงานนี้:** ใช้ `git diff --check`, ตรวจลิงก์/ไฟล์ owner/โครงสร้าง diagram; ไม่อ้าง lint, typecheck, test หรือ build ใหม่จาก docs-only change
+
+## รับหลักฐาน Supabase snapshot — 20 กันยายน 2569
+
+- **หลักฐาน:** [docs/Database_check.md](Database_check.md)
+- **พบ:** ตาราง `appointments`/`medical_records` และ health profile columns มีอยู่, RLS เปิดในตารางหลักที่ snapshot ตรวจ, RPC PAI/Broadcast มีอยู่
+- **ประเด็นต้องแก้/ยืนยัน:** ไม่พบ `pai_appointments`, `pai_medical_records`; query orphan/status ของ PAI ล้มเหลว; policy บางรายการยังอ้าง legacy roles; migration `21`/`28` ใน repository ชี้ current PAI RPC ไปยัง `appointments`/`medical_records`; ไม่พบ `broadcast_recipients` ซึ่งสอดคล้องกับ migration `05` ที่ตั้งใจยุบ recipient ลง notifications และผู้ใช้ยืนยันให้ใช้ design นี้ต่อไป
+- **สถานะ:** ผู้ใช้ยืนยันว่า snapshot เป็น target ปัจจุบันเดียวกับ runtime และ migration ที่เกี่ยวข้อง deploy แล้ว; ยังคงไม่เปลี่ยนเป็น `RLS ผ่าน` เพราะยังไม่มี session-based verification. Role เก่าจะคงไว้ชั่วคราวจน reset ฐานทดสอบ

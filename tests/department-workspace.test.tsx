@@ -151,13 +151,17 @@ describe('Department and doctor workspace', () => {
     expect(screen.getByRole('button', { name: 'เพิ่มแพทย์' })).toBeDisabled();
   });
 
-  it('does not change a department or doctor when the confirmation is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does not change a department or doctor when the confirmation modal is cancelled', () => {
     render(<DepartmentWorkspace />);
     fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้ เวชปฏิบัติทั่วไป' }));
+    expect(screen.getByRole('dialog', { name: 'ยืนยันการปิดใช้งานแผนก' })).toBeInTheDocument();
     expect(shop.toggleDepartment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิก' }));
+    expect(screen.queryByRole('dialog', { name: 'ยืนยันการปิดใช้งานแผนก' })).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
     fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้ นพ. สมชาย ใจดี' }));
+    expect(screen.getByRole('dialog', { name: 'ปิดใช้งานแพทย์' })).toBeInTheDocument();
     expect(shop.toggleDoctor).not.toHaveBeenCalled();
   });
 
@@ -165,12 +169,13 @@ describe('Department and doctor workspace', () => {
     const leave: DoctorLeave = { id: 'leave-2', doctorId: 'doctor-2', startDate: '2026-09-15', endDate: '2026-09-17', reason: 'ประชุมวิชาการ' };
     shop.doctorLeaves = [leave];
     shop.deleteDoctorLeave.mockResolvedValueOnce({ ok: true, value: leave });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<DepartmentWorkspace />);
     fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
 
     expect(screen.getByText('ลาตรวจ (15 ก.ย. 2569–17 ก.ย. 2569)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา พญ. สมใจ ใจดี' }));
+    expect(screen.getByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา' }));
     expect(await screen.findByText('ยกเลิกวันลาของ พญ. สมใจ ใจดี แล้ว')).toBeInTheDocument();
     expect(shop.deleteDoctorLeave).toHaveBeenCalledWith('leave-2');
     expect(shop.slots).toEqual([]);

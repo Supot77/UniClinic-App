@@ -1,6 +1,8 @@
 # 09. แผนพัฒนาและส่งต่องาน
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — บันทึกผล implementation ข้อ 2.2 และ interaction แก้ไข/ยกเลิกวันลาจากปฏิทิน; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 20 กันยายน 2569 (2026-09-20) — บันทึกผล implementation ข้อ 2.2, owner status และกำหนดส่ง 25 กันยายน; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+
+กำหนดส่งรอบปัจจุบันคือ **25 กันยายน 2569**. ความคืบหน้า code โดยรวมประมาณ 90% เป็น estimate จากเจ้าของโครงการ ไม่ใช่เกณฑ์ผ่านงานหรือหลักฐาน deployment
 
 ## หลักการก่อนลงโค้ด
 
@@ -20,6 +22,7 @@
 ## สถานะ implementation ข้อ 2.2 ณ 20 กันยายน 2569
 
 - ทำแล้วใน code path: รวม role/session helper, รวม date/time constants, เพิ่ม dynamic route `/departments/[departmentId]` และหน้า detail แผนก, รวมถึงทำให้ชิปวันลาใน day/week/month คลิกเพื่อแก้ไขหรือยกเลิกได้ และซ่อน/กันการสร้าง slot ใหม่ในวันเสาร์-อาทิตย์
+- code ล่าสุด `0a3aa2d` เพิ่ม `ConfirmationModal` สำหรับยืนยันการเปิด/ปิดแผนก แพทย์ slot และการยกเลิกวันลา โดยแยก confirmation request ออกจาก async persistence และแสดง busy state ระหว่างบันทึก
 - สิทธิ์ UI สอดคล้องกับ service contract: `medical` จัดการเฉพาะวันลาของตนเอง, `staff_admin` จัดการได้ทุกแพทย์ และ `patient` ไม่มี action วันลา
 - การแก้ไขส่ง `id` เดิมกลับไปที่ repository; การยกเลิกมี Confirmation และลบเฉพาะรายการวันลา ไม่เปิด/ปิด slot หรือนัดหมายเดิมอัตโนมัติ
 - ไฟล์หลักที่เกี่ยวข้อง: `src/components/schedules/ScheduleWorkspace.tsx`, `src/components/schedules/DepartmentWorkspace.tsx`, `src/components/schedules/DepartmentDetailWorkspace.tsx`, `src/app/(clinic)/departments/[departmentId]/page.tsx`, `src/constants/dateTime.ts`, `src/lib/requireRole.ts` และ tests ใน `tests/`
@@ -86,3 +89,9 @@
 โมดูลถือว่าพร้อมส่งต่อเมื่อมี contract ที่ระบุ input/output และ error, Supabase repository ที่ใช้ session/RLS, mock repository สำหรับ tests, role-specific container เมื่อจำเป็น, ครอบคลุม success/validation/permission และแจ้งผลกระทบต่อไฟล์กลาง หากคำสั่งไม่ผ่านต้องพิสูจน์ว่า state เดิมไม่เปลี่ยน การมีหน้าจอ mock data หรือ query ที่ยังไม่ตรวจ RLS เพียงอย่างเดียวไม่ถือว่าพร้อมส่งต่อ
 
 ผู้รับงานต้องตรวจข้อมูลส่งต่อกับข้อมูลในตารางสัญญา, ทดลองกรณีสำเร็จและกรณีถูกปฏิเสธ แล้วบันทึกข้อจำกัดหรือสิ่งที่ยังไม่ได้ตรวจไว้ก่อนเชื่อมกับโมดูลถัดไป
+
+## Owner status ณ 20 กันยายน 2569
+
+รายละเอียด trace แยกตามผู้รับผิดชอบอยู่ใน [owner index](owners/README.md). สรุปคือ Shop function เสร็จและเหลือ UI polish, Feem ยังมี registration health fields/runtime validation เป็น backlog, Herb function เสร็จและเหลือ dashboard UI, ส่วน PAI/Kan/Klong ใช้สถานะเสร็จแบบรอ owner/evidence ยืนยัน
+
+ทุกโมดูลยังต้องแยก `ทำแล้วใน code` ออกจาก `ยังไม่ยืนยัน DB/RLS` และ `ยังไม่ตรวจ browser`; migration หรือ mock ใน repository ไม่ถือเป็นหลักฐานว่า environment ปัจจุบัน deploy แล้ว
