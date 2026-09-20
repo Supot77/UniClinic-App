@@ -30,7 +30,8 @@ describe('LoginPage', () => {
     render(<LoginPage />);
 
     expect(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('example@wu.ac.th')).toBeInTheDocument();
+    expect(screen.getByLabelText('อีเมลมหาวิทยาลัย')).toHaveAttribute('placeholder', 'example@mail.wu.ac.th');
+    expect(screen.getByText('รองรับเฉพาะอีเมลที่ลงท้ายด้วย @mail.wu.ac.th')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ลืมรหัสผ่าน?' })).toHaveAttribute('href', '/forgot-password');
     expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
@@ -45,8 +46,8 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText('example@wu.ac.th'), {
-      target: { value: 'patient@wu.ac.th' },
+    fireEvent.change(screen.getByLabelText('อีเมลมหาวิทยาลัย'), {
+      target: { value: 'patient@mail.wu.ac.th' },
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
       target: { value: 'password123' },
@@ -75,8 +76,8 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText('example@wu.ac.th'), {
-      target: { value: 'wrong@wu.ac.th' },
+    fireEvent.change(screen.getByLabelText('อีเมลมหาวิทยาลัย'), {
+      target: { value: 'wrong@mail.wu.ac.th' },
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
       target: { value: 'wrongpass' },
@@ -89,5 +90,20 @@ describe('LoginPage', () => {
       expect(screen.getByText('รหัสผ่านไม่ถูกต้อง')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).not.toBeDisabled();
     });
+  });
+
+  it('rejects non-university email before calling the auth service', async () => {
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText('อีเมลมหาวิทยาลัย'), {
+      target: { value: 'med@gmail.wu.ac.th' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'เข้าสู่ระบบ' }));
+
+    expect(await screen.findByText('กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น')).toBeInTheDocument();
+    expect(authService.signIn).not.toHaveBeenCalled();
   });
 });
