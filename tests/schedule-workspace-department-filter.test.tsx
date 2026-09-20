@@ -370,10 +370,10 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(entries.some((entry) => within(entry).queryByText('ปิดรอบ'))).toBe(true);
   });
 
-  it('shows every status by default so full slots remain visible', () => {
+  it('shows available status by default', () => {
     render(<ScheduleWorkspace role="patient" actorId="guest" />);
     const statusSelect = screen.getByLabelText('กรองสถานะ');
-    expect(statusSelect).toHaveValue('all');
+    expect(statusSelect).toHaveValue('available');
   });
 
   it('opens day view from the visible day action and preserves patient booking', () => {
@@ -557,5 +557,83 @@ describe('ScheduleWorkspace Service Filter', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'ปิดรอบตรวจ' })[0]);
     fireEvent.click(within(screen.getByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' })).getByRole('button', { name: 'ปิดรอบตรวจ' }));
     await waitFor(() => expect(shopState.toggleSlot).toHaveBeenCalledWith('slot-1', 'admin-1', 'staff_admin'));
+  });
+
+  it('navigates to the week that has matching doctor slots when current week has none', async () => {
+    // doc-2 has a slot in current week (2026-09-08), doc-1 only has a slot in next week (2026-09-15)
+    shopState.slots = [
+      { ...mockSlots[0], id: 'slot-doc1-next-week', doctorId: 'doc-1', slotDate: '2026-09-15' },
+      { ...mockSlots[1], id: 'slot-doc2-this-week', doctorId: 'doc-2', slotDate: '2026-09-08' },
+    ];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    // Filter by doc-1
+    const doctorSelect = screen.getByRole('combobox', { name: 'กรองแพทย์' });
+    fireEvent.change(doctorSelect, { target: { value: 'doc-1' } });
+
+    // Current week (2026-09-07) has no slots for doc-1
+    expect(screen.getByText('สัปดาห์นี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง')).toBeInTheDocument();
+
+    const jumpButton = screen.getByRole('button', { name: /ไปยังสัปดาห์ที่มีรอบตรวจ/ });
+    expect(jumpButton).toBeInTheDocument();
+
+    // Click to jump
+    fireEvent.click(jumpButton);
+
+    // Should navigate to next week and show doc-1's slot
+    expect(await screen.findByText(/ไปยังสัปดาห์ที่มีรอบตรวจ/)).toBeInTheDocument();
+    expect(screen.getByText('1 รอบตามตัวกรอง')).toBeInTheDocument();
+  });
+
+  it('shows reset filter button when no matching slots exist in the system and resets properly', async () => {
+    // Only doc-1 has slots
+    shopState.slots = [
+      { ...mockSlots[0], id: 'slot-doc1', doctorId: 'doc-1', slotDate: '2026-09-08' },
+    ];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    // Filter by doc-3 (who has no slots anywhere)
+    const doctorSelect = screen.getByRole('combobox', { name: 'กรองแพทย์' });
+    fireEvent.change(doctorSelect, { target: { value: 'doc-3' } });
+
+    // Should display notice with reset button
+    expect(screen.getByText('ไม่พบรอบตรวจที่ตรงตามตัวกรอง')).toBeInTheDocument();
+    const resetButton = screen.getByRole('button', { name: 'ล้างตัวกรอง' });
+    expect(resetButton).toBeInTheDocument();
+
+    // Click reset
+    fireEvent.click(resetButton);
+
+    // Filters reset to 'all' and slots become visible again
+    expect(doctorSelect).toHaveValue('all');
+    expect(await screen.findByText('ล้างตัวกรองทั้งหมดแล้ว')).toBeInTheDocument();
+    expect(screen.getByText('1 รอบตามตัวกรอง')).toBeInTheDocument();
+  });
+
+  it('branches today button functionality and label according to calendar view', async () => {
+    shopState.slots = [...mockSlots];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    const viewSelect = screen.getByRole('combobox', { name: 'มุมมองปฏิทิน' });
+
+    // 1. Week view (default): button displays "สัปดาห์นี้"
+    const weekTodayButton = screen.getByRole('button', { name: 'ไปยังสัปดาห์ปัจจุบัน' });
+    expect(weekTodayButton).toHaveTextContent('สัปดาห์นี้');
+    fireEvent.click(weekTodayButton);
+    expect(await screen.findByText('ไปยังสัปดาห์ปัจจุบันแล้ว')).toBeInTheDocument();
+
+    // 2. Day view: switch to day view, button displays "วันนี้"
+    fireEvent.change(viewSelect, { target: { value: 'day' } });
+    const dayTodayButton = screen.getByRole('button', { name: 'ไปยังวันนี้' });
+    expect(dayTodayButton).toHaveTextContent('วันนี้');
+    fireEvent.click(dayTodayButton);
+    expect(await screen.findByText(/ไปยังวันนี้แล้ว/)).toBeInTheDocument();
+
+    // 3. Month view: switch to month view, button displays "เดือนนี้"
+    fireEvent.change(viewSelect, { target: { value: 'month' } });
+    const monthTodayButton = screen.getByRole('button', { name: 'ไปยังเดือนปัจจุบัน' });
+    expect(monthTodayButton).toHaveTextContent('เดือนนี้');
+    fireEvent.click(monthTodayButton);
+    expect(await screen.findByText('ไปยังเดือนปัจจุบันแล้ว')).toBeInTheDocument();
   });
 });
