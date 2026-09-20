@@ -197,7 +197,7 @@ export default function DepartmentWorkspace() {
       return;
     }
 
-    setNotice(editingDepartmentId ? 'อัปเดตข้อมูลแผนกสำเร็จ' : 'เพิ่มแผนกใหม่สำเร็จ');
+    setNotice(editingDepartmentId ? 'อัปเดตข้อมูลแผนกแล้ว' : 'เพิ่มแผนกแล้ว');
     closeDepartmentDrawer();
   };
 
@@ -286,7 +286,7 @@ export default function DepartmentWorkspace() {
       return;
     }
 
-    setNotice(editingDoctorId ? 'อัปเดตข้อมูลแพทย์สำเร็จ' : 'ผูกแพทย์เข้ากับแผนกสำเร็จ');
+    setNotice(editingDoctorId ? 'อัปเดตข้อมูลแพทย์แล้ว' : 'เพิ่มแพทย์ในแผนกแล้ว');
     closeDoctorDrawer();
   };
 
@@ -355,7 +355,7 @@ export default function DepartmentWorkspace() {
   return (
     <div className="min-w-0 space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-5">
-        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">แผนกและแพทย์</h1>
+        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">จัดการแผนกและแพทย์</h1>
         <button
           type="button"
           disabled={isLoading}
@@ -367,7 +367,7 @@ export default function DepartmentWorkspace() {
         </button>
       </header>
 
-      <div className="flex items-end gap-1.5 sm:gap-2 border-b-2 border-brand-border-soft pt-3" role="tablist" aria-label="เลือกมุมมองการจัดการ">
+      <div className="flex items-end gap-1.5 sm:gap-2 border-b-2 border-brand-border-soft pt-3" role="tablist" aria-label="เลือกข้อมูลที่ต้องการจัดการ">
         {([
           ['departments', 'แผนก', departments.length, Building2],
           ['doctors', 'แพทย์', doctors.length, Stethoscope],
@@ -426,7 +426,7 @@ export default function DepartmentWorkspace() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={activeTab === 'departments' ? 'ชื่อแผนกหรือรายละเอียด' : 'ชื่อ ความเชี่ยวชาญ หรืออีเมล'}
+              placeholder={activeTab === 'departments' ? 'ชื่อแผนกหรือคำอธิบาย' : 'ชื่อแพทย์ ความเชี่ยวชาญ หรืออีเมล'}
               className={`${inputClass} pl-9`}
             />
           </span>
@@ -442,7 +442,7 @@ export default function DepartmentWorkspace() {
         )}
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-brand-body">
           <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-4 w-4 accent-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong" />
-          แสดงที่ปิดใช้
+          แสดงรายการที่ปิดใช้งาน
         </label>
       </section>
       <Toast message={notice} onDismiss={() => setNotice('')} />
@@ -474,13 +474,13 @@ export default function DepartmentWorkspace() {
       {activeTab === 'departments' && (
         <section id="departments-panel" role="tabpanel" aria-labelledby="departments-tab" aria-busy={isLoading} className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-brand-ink">รายชื่อแผนก</h2>
-            <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium tabular-nums text-brand-strong">{visibleDepartments.length} รายการ</span>
+            <h2 className="text-lg font-semibold text-brand-ink">รายการแผนก</h2>
+            <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium tabular-nums text-brand-strong">{visibleDepartments.length} แผนก</span>
           </div>
           {isLoading ? (
             <ListLoading label="กำลังโหลดรายการแผนก" />
           ) : visibleDepartments.length === 0 ? (
-            <EmptyPanel title="ไม่พบแผนก" detail="ลองเปลี่ยนคำค้นหา หรือเลือก “แสดงที่ปิดใช้”" />
+            <EmptyPanel title="ไม่พบแผนก" detail="ลองเปลี่ยนคำค้นหา หรือเลือก “แสดงรายการที่ปิดใช้งาน”" />
           ) : (
             <div className="divide-y divide-brand-border-soft border-y border-brand-border-soft">
               {visibleDepartments.map((department) => {
@@ -499,12 +499,12 @@ export default function DepartmentWorkspace() {
                       </Link>
                     </div>
                     <div className="min-w-0">
-                      <p className="mb-2 text-sm font-medium text-brand-body">แพทย์ประจำแผนก <span className="tabular-nums">({affiliatedDoctors.length})</span></p>
+                      <p className="mb-2 text-sm font-medium text-brand-body">แพทย์ในแผนก <span className="tabular-nums">({affiliatedDoctors.length})</span></p>
                       {affiliatedDoctors.length === 0 ? (
                         <div className="flex flex-wrap items-center gap-x-3">
                           <span className="text-sm text-brand-body">ยังไม่มีแพทย์</span>
                           <button type="button" onClick={() => { openDoctorForm(); setDoctorDraft((current) => ({ ...current, departmentId: department.id })); }} className={`${textActionClass} text-brand-strong`}>
-                            <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มแพทย์ในแผนก
+                            <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มแพทย์
                           </button>
                         </div>
                       ) : (
@@ -527,8 +527,8 @@ export default function DepartmentWorkspace() {
                       <button type="button" onClick={() => openDepartmentForm(department)} className={`${textActionClass} text-brand-strong`} aria-label={`แก้ไข ${department.name}`}>
                         <Pencil className="h-4 w-4" aria-hidden="true" />แก้ไข
                       </button>
-                      <button type="button" disabled={isSaving} onClick={() => toggleDepartment(department)} className={`${textActionClass} ${department.isActive ? 'text-status-critical' : 'text-status-success'}`} aria-label={`${department.isActive ? 'ปิดใช้' : 'เปิดใช้'} ${department.name}`}>
-                        <Power className="h-4 w-4" aria-hidden="true" />{department.isActive ? 'ปิดใช้' : 'เปิดใช้'}
+                      <button type="button" disabled={isSaving} onClick={() => toggleDepartment(department)} className={`${textActionClass} ${department.isActive ? 'text-status-critical' : 'text-status-success'}`} aria-label={`${department.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} ${department.name}`}>
+                        <Power className="h-4 w-4" aria-hidden="true" />{department.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                       </button>
                     </div>
                   </article>
@@ -542,13 +542,13 @@ export default function DepartmentWorkspace() {
       {activeTab === 'doctors' && (
         <section id="doctors-panel" role="tabpanel" aria-labelledby="doctors-tab" aria-busy={isLoading} className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-brand-ink">รายชื่อแพทย์</h2>
+            <h2 className="text-lg font-semibold text-brand-ink">รายการแพทย์</h2>
             <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium tabular-nums text-brand-strong">{visibleDoctors.length} คน</span>
           </div>
           {isLoading ? (
-            <ListLoading label="กำลังโหลดรายชื่อแพทย์" />
+            <ListLoading label="กำลังโหลดรายการแพทย์" />
           ) : visibleDoctors.length === 0 ? (
-            <EmptyPanel title="ไม่พบแพทย์" detail="ลองเปลี่ยนคำค้นหา แผนก หรือเลือก “แสดงที่ปิดใช้”" />
+            <EmptyPanel title="ไม่พบแพทย์" detail="ลองเปลี่ยนคำค้นหา แผนก หรือเลือก “แสดงรายการที่ปิดใช้งาน”" />
           ) : (
             <div className="border-y border-brand-border-soft">
               <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_140px] gap-6 border-b border-brand-border-soft bg-brand-surface/60 px-3 py-4 text-sm text-brand-body lg:grid">
@@ -567,7 +567,7 @@ export default function DepartmentWorkspace() {
                   const currentStatus = onLeaveToday || doctor.availability === 'on_leave'
                     ? { label: latestLeave ? `ลาตรวจ (${formatLeaveRange(latestLeave)})` : 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' }
                     : statusConfig[doctor.availability] ?? statusConfig.active;
-                  const toggleLabel = doctor.availability === 'inactive' ? 'เปิดใช้' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้' : 'ลบ';
+                  const toggleLabel = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้งาน' : 'ลบ';
                   return (
                     <article key={doctor.id} className="grid gap-4 py-6 transition-colors hover:bg-brand-surface/60 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_140px] lg:items-center lg:gap-6">
                       <div className="min-w-0">
@@ -575,7 +575,7 @@ export default function DepartmentWorkspace() {
                         {doctor.email && <p className="mt-1 break-all text-sm text-brand-body">{doctor.email}</p>}
                       </div>
                       <div className="min-w-0 text-sm leading-6">
-                        <p className="text-brand-ink"><span className="text-brand-body lg:hidden">แผนก: </span>{department?.name ?? 'ยังไม่สังกัดแผนก'}</p>
+                        <p className="text-brand-ink"><span className="text-brand-body lg:hidden">แผนก: </span>{department?.name ?? 'ยังไม่มีแผนกสังกัด'}</p>
                         {doctor.specialty && <p className="text-brand-body"><span className="lg:hidden">ความเชี่ยวชาญ: </span>{doctor.specialty}</p>}
                       </div>
                       <p className={`flex items-center gap-2 text-sm ${currentStatus.text}`}>
@@ -618,7 +618,7 @@ export default function DepartmentWorkspace() {
               <div className="border-b border-slate-200 px-6 py-5 flex items-start justify-between">
                 <div>
                   <h2 id="department-drawer-title" className="text-xl font-bold text-slate-900 mt-1">
-                    {editingDepartmentId ? 'แก้ไขแผนก' : 'เพิ่มแผนกใหม่'}
+                    {editingDepartmentId ? 'แก้ไขแผนก' : 'เพิ่มแผนก'}
                   </h2>
                 </div>
                 <button
@@ -655,14 +655,14 @@ export default function DepartmentWorkspace() {
 
                 <div className="space-y-1.5">
                   <label htmlFor="dept-desc" className="text-sm font-semibold text-slate-800">
-                    รายละเอียดแผนก
+                    คำอธิบายแผนก
                   </label>
                   <textarea
                     id="dept-desc"
                     rows={4}
                     value={departmentDraft.description}
                     onChange={(e) => setDepartmentDraft((curr) => ({ ...curr, description: e.target.value }))}
-                    placeholder="ระบุขอบเขตการรักษา หรือรายละเอียดเพิ่มเติมสำหรับผู้รับบริการ..."
+                    placeholder="ระบุขอบเขตการรักษาหรือข้อมูลสำหรับผู้รับบริการ"
                     className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-50"
                   />
                 </div>
@@ -686,10 +686,10 @@ export default function DepartmentWorkspace() {
                   {isSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                      <span>กำลังบันทึก...</span>
+                      <span>กำลังบันทึก…</span>
                     </>
                   ) : (
-                    <span>บันทึกแผนก</span>
+                    <span>บันทึกข้อมูลแผนก</span>
                   )}
                 </button>
               </div>
@@ -714,10 +714,10 @@ export default function DepartmentWorkspace() {
               <div className="border-b border-slate-200 px-6 py-5 flex items-start justify-between">
                 <div>
                   <h2 id="doctor-drawer-title" className="text-xl font-bold text-slate-900 mt-1">
-                    {editingDoctorId ? 'แก้ไขข้อมูลแพทย์' : 'เพิ่มแพทย์ในแผนก'}
+                    {editingDoctorId ? 'แก้ไขข้อมูลแพทย์' : 'เพิ่มแพทย์'}
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    เลือกบัญชีแพทย์ที่มีอยู่ แล้วระบุแผนกสังกัด
+                    เลือกบัญชีแพทย์และระบุแผนกสังกัด
                   </p>
                 </div>
                 <button
@@ -777,7 +777,7 @@ export default function DepartmentWorkspace() {
                     onChange={(e) => setDoctorDraft((curr) => ({ ...curr, departmentId: e.target.value }))}
                     className={inputClass}
                   >
-                    <option value="">-- เลือกแผนก --</option>
+                    <option value="">เลือกแผนก</option>
                     {departments
                       .filter((department) => department.isActive)
                       .map((department) => (
@@ -790,7 +790,7 @@ export default function DepartmentWorkspace() {
 
                 <div className="space-y-1.5">
                   <label htmlFor="doc-spec" className="text-sm font-semibold text-slate-800">
-                    ความเชี่ยวชาญเฉพาะทาง
+                    ความเชี่ยวชาญ
                   </label>
                   <input
                     id="doc-spec"
@@ -841,7 +841,7 @@ export default function DepartmentWorkspace() {
                   {isSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                      <span>กำลังบันทึก...</span>
+                      <span>กำลังบันทึก…</span>
                     </>
                   ) : (
                     <span>บันทึกข้อมูลแพทย์</span>
