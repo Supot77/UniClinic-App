@@ -5,6 +5,7 @@ import {
   Mail,
   Pencil,
   Phone,
+  Plus,
   RefreshCw,
   RotateCcw,
   Save,
@@ -15,6 +16,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { roleLabels } from "@/features/dashboard/types";
 import {
@@ -32,6 +34,66 @@ type ProfileFilter = UserRole | "all" | "suspended";
 type AccountAction =
   | { kind: "toggle"; profile: StaffProfileDirectoryItem; nextActive: boolean }
   | { kind: "hard-delete"; profile: StaffProfileDirectoryItem };
+
+interface ProfileActionsProps {
+  profile: StaffProfileDirectoryItem;
+  roleFilter: ProfileFilter;
+  onEdit: (profile: StaffProfileDirectoryItem) => void;
+  onAction: (action: AccountAction) => void;
+}
+function ProfileActions({
+  profile,
+  roleFilter,
+  onEdit,
+  onAction,
+}: ProfileActionsProps) {
+  return (
+    <div className="flex flex-nowrap items-center justify-center gap-2">
+      <button
+        type="button"
+        onClick={() => onEdit(profile)}
+        aria-label="แก้ไขข้อมูลผู้ใช้"
+        title="แก้ไขข้อมูลผู้ใช้"
+        className={`inline-flex size-10 items-center justify-center rounded-lg border bg-transparent transition ${profile.isActive ? "border-brand-border-strong text-brand-strong hover:border-brand-strong hover:bg-brand-soft" : "border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50"}`}
+      >
+        <Pencil className="size-4" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={profile.isActive}
+        aria-label={
+          profile.isActive ? "ระงับการใช้งานบัญชี" : "เปิดใช้งานบัญชี"
+        }
+        onClick={() =>
+          onAction({
+            kind: "toggle",
+            profile,
+            nextActive: !profile.isActive,
+          })
+        }
+        title={profile.isActive ? "ระงับการใช้งานบัญชี" : "เปิดใช้งานบัญชี"}
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${profile.isActive ? "bg-emerald-500" : "bg-slate-300"}`}
+      >
+        <span
+          aria-hidden="true"
+          className={`size-6 rounded-full bg-white shadow-sm transition-transform ${profile.isActive ? "translate-x-5" : "translate-x-0"}`}
+        />
+      </button>
+      {roleFilter === "suspended" && !profile.isActive && (
+        <button
+          type="button"
+          onClick={() => onAction({ kind: "hard-delete", profile })}
+          aria-label="ลบบัญชีถาวร"
+          title="ลบบัญชีถาวร"
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-rose-200 bg-transparent text-rose-600 transition hover:bg-rose-50"
+        >
+          <Trash2 className="size-5" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 function displayValue(value: string | null): string {
   return value?.trim() || "ไม่ระบุ";
@@ -246,18 +308,27 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
             จัดการข้อมูลติดต่อ บทบาท และสถานะการใช้งานของบัญชีในระบบ
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadProfiles(true)}
-          disabled={loading || refreshing}
-          className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
-        >
-          <RefreshCw
-            className={`size-4 ${refreshing ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          />{" "}
-          รีเฟรช
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <Link
+            href="/staff/accounts/new"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-strong bg-white px-4 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            เพิ่มบัญชีผู้ป่วย Walk-in
+          </Link>
+          <button
+            type="button"
+            onClick={() => void loadProfiles(true)}
+            disabled={loading || refreshing}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw
+              className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            />{" "}
+            รีเฟรช
+          </button>
+        </div>
       </header>}
 
       {!patientOnly && <section
@@ -268,7 +339,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
           type="button"
           onClick={() => setRoleFilter("all")}
           aria-pressed={roleFilter === "all"}
-          className={summaryCardClass(roleFilter === "all")}
+          className={`${summaryCardClass(roleFilter === "all")} col-span-2 sm:col-span-1`}
         >
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-800">บัญชีทั้งหมด</p>
@@ -322,15 +393,15 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
       </section>}
 
       <section className="overflow-hidden">
-        <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-brand-ink">{patientOnly ? "รายชื่อผู้ป่วย" : "รายชื่อบัญชี"}</h2>
             <p className="mt-1 text-sm text-brand-muted">
               แสดง {filteredProfiles.length} จาก {profiles.length} บัญชี
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <label className="relative block sm:w-64">
+          <div className="flex w-full min-w-0 flex-col gap-2 lg:w-auto lg:flex-row">
+            <label className="relative block w-full lg:w-64">
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-brand-body"
                 aria-hidden="true"
@@ -400,7 +471,8 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
             ไม่พบบัญชีตามเงื่อนไขที่เลือก
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1180px] table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[5%]" />
@@ -467,64 +539,80 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                       </span>
                     </td>
                     <td className="px-5 py-5 text-center">
-                      <div className="flex flex-nowrap items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(profile)}
-                          aria-label="แก้ไขข้อมูลผู้ใช้"
-                          title="แก้ไขข้อมูลผู้ใช้"
-                          className={`inline-flex size-10 items-center justify-center rounded-lg border bg-transparent transition ${profile.isActive ? "border-brand-border-strong text-brand-strong hover:border-brand-strong hover:bg-brand-soft" : "border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50"}`}
-                        >
-                          <Pencil className="size-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={profile.isActive}
-                          aria-label={
-                            profile.isActive
-                              ? "ระงับการใช้งานบัญชี"
-                              : "เปิดใช้งานบัญชี"
-                          }
-                          onClick={() =>
-                            setAccountAction({
-                              kind: "toggle",
-                              profile,
-                              nextActive: !profile.isActive,
-                            })
-                          }
-                          title={
-                            profile.isActive
-                              ? "ระงับการใช้งานบัญชี"
-                              : "เปิดใช้งานบัญชี"
-                          }
-                          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${profile.isActive ? "bg-emerald-500" : "bg-slate-300"}`}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={`size-6 rounded-full bg-white shadow-sm transition-transform ${profile.isActive ? "translate-x-5" : "translate-x-0"}`}
-                          />
-                        </button>
-                        {roleFilter === "suspended" && !profile.isActive && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAccountAction({ kind: "hard-delete", profile })
-                            }
-                            aria-label="ลบบัญชีถาวร"
-                            title="ลบบัญชีถาวร"
-                            className="inline-flex size-10 items-center justify-center rounded-lg border border-rose-200 bg-transparent text-rose-600 transition hover:bg-rose-50"
-                          >
-                            <Trash2 className="size-5" aria-hidden="true" />
-                          </button>
-                        )}
-                      </div>
+                      <ProfileActions
+                        profile={profile}
+                        roleFilter={roleFilter}
+                        onEdit={openEdit}
+                        onAction={(action) => setAccountAction(action)}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+            <div className="divide-y divide-brand-border-soft md:hidden">
+            {filteredProfiles.map((profile, index) => (
+              <article
+                key={profile.id}
+                className={`py-5 ${profile.isActive ? "" : "text-brand-muted"}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="w-6 shrink-0 pt-0.5 text-sm text-brand-muted">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`truncate text-base font-semibold ${profile.isActive ? "text-brand-ink" : "line-through"}`}
+                    >
+                      {displayValue(profile.fullName)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      <span
+                        className={`inline-flex items-center gap-1.5 font-semibold ${profile.isActive ? "text-brand-strong" : "text-brand-muted"}`}
+                      >
+                        <ShieldCheck className="size-3.5" aria-hidden="true" />
+                        {profile.role}
+                      </span>
+                      <span className="text-brand-muted">
+                        · {roleLabels[profile.role]} ·{" "}
+                        {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                  <div className="flex min-w-0 items-center gap-2 text-brand-body">
+                    <Mail
+                      className="size-4 shrink-0 text-brand-muted"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 truncate">
+                      {displayValue(profile.email)}
+                    </span>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2 text-brand-body">
+                    <Phone
+                      className="size-4 shrink-0 text-brand-muted"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 truncate">
+                      {displayValue(profile.phone)}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end border-t border-brand-border-soft pt-3">
+                  <ProfileActions
+                    profile={profile}
+                    roleFilter={roleFilter}
+                    onEdit={openEdit}
+                    onAction={(action) => setAccountAction(action)}
+                  />
+                </div>
+              </article>
+            ))}
+            </div>
+          </>
         )}
       </section>
 
@@ -541,7 +629,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
         >
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div
-              className={`mx-auto flex size-14 items-center justify-center rounded-full ${isRestoringAction ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"}`}
+              className={`mx-auto flex size-14 items-center justify-center rounded-full ${isHardDeleteAction ? "bg-rose-100 text-rose-600" : isRestoringAction ? "bg-emerald-100 text-emerald-600" : "bg-status-warning-bg text-status-warning"}`}
             >
               {isHardDeleteAction ? (
                 <Trash2 className="size-7" aria-hidden="true" />
@@ -593,7 +681,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                 type="button"
                 disabled={actionSaving}
                 onClick={() => void confirmAccountAction()}
-                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${isRestoringAction ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${isHardDeleteAction ? "bg-rose-600 hover:bg-rose-700" : isRestoringAction ? "bg-emerald-600 hover:bg-emerald-700" : "bg-status-warning hover:bg-amber-800"}`}
               >
                 {actionSaving && (
                   <RefreshCw

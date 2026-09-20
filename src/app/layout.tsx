@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import TopProgressBar from "@/components/common/TopProgressBar";
+import BackToTopButton from "@/components/common/BackToTopButton";
 import { AuthProvider } from "@/context/AuthContext";
 import { ClinicMockProvider } from "@/features/mock-database/ClinicMockProvider";
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "600", "700"],
-  variable: "--font-inter",
+const clinicFont = Noto_Sans_Thai({
+  subsets: ["latin", "thai"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-clinic",
   display: "swap",
 });
 
@@ -25,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={`${inter.variable} h-full scroll-smooth`} data-scroll-behavior="smooth">
+    <html lang="th" className={`${clinicFont.variable} h-full scroll-smooth`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col bg-brand-surface text-brand-ink antialiased">
         <AuthProvider>
           <ClinicMockProvider>
@@ -36,6 +37,7 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <BackToTopButton />
           </ClinicMockProvider>
         </AuthProvider>
       </body>

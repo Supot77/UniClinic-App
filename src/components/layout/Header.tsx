@@ -14,6 +14,7 @@ import {
   LogIn,
   Menu,
   Package,
+  Send,
   Stethoscope,
   UserRound,
   UserSearch,
@@ -135,7 +136,8 @@ export default function Header() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
-  const activeUnreadCount = isAuthenticated && user?.id ? unreadCount : null;
+  const isAdmin = role === "staff_admin";
+  const activeUnreadCount = isAuthenticated && user?.id && !isAdmin ? unreadCount : null;
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
@@ -210,7 +212,7 @@ export default function Header() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpenGroup(null);
       }}
     >
-      <nav aria-label="เมนูหลัก" className="mx-auto flex min-h-16 w-full max-w-[1440px] items-center gap-2 px-4 sm:gap-4 sm:px-6">
+      <nav aria-label="เมนูหลัก" className="flex min-h-16 w-full items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={() => { setMobileMenuOpen((open) => !open); setOpenGroup(null); }}
@@ -271,20 +273,30 @@ export default function Header() {
               href="/notifications"
               aria-current={isActive("/notifications") ? "page" : undefined}
               aria-label={
-                activeUnreadCount !== null && activeUnreadCount > 0
+                isAdmin
+                  ? "แจ้งเตือน เปิดดูประกาศจากแอดมิน"
+                  : activeUnreadCount !== null && activeUnreadCount > 0
                   ? `แจ้งเตือน มีข้อความที่ยังไม่ได้อ่าน ${activeUnreadCount} รายการ`
                   : "แจ้งเตือน อ่านหมดแล้ว"
               }
               title={
-                activeUnreadCount !== null && activeUnreadCount > 0
+                isAdmin
+                  ? "แจ้งเตือน (ประกาศจากแอดมิน)"
+                  : activeUnreadCount !== null && activeUnreadCount > 0
                   ? `แจ้งเตือน (${activeUnreadCount} ข้อความที่ยังไม่ได้อ่าน)`
                   : "แจ้งเตือน (อ่านหมดแล้ว)"
               }
               className="relative flex size-10 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
             >
               <span className="relative inline-flex items-center justify-center">
-                <Bell className="size-[18px]" aria-hidden="true" />
-                {activeUnreadCount !== null && (
+                <Bell className={`size-[18px] ${isAdmin ? "text-emerald-400" : ""}`} aria-hidden="true" />
+                {isAdmin ? (
+                  <Send
+                    data-testid="notification-admin-indicator"
+                    className="absolute -right-2 -top-2 size-3.5 text-emerald-400"
+                    aria-hidden="true"
+                  />
+                ) : activeUnreadCount !== null && (
                   activeUnreadCount > 0 ? (
                     <span
                       data-testid="notification-badge-count"
@@ -335,7 +347,7 @@ export default function Header() {
 
       {isAuthenticated && role && openGroup && (
         <div className="absolute inset-x-0 top-16 hidden border-t border-white/10 bg-brand-ink/98 shadow-2xl backdrop-blur lg:block" onMouseEnter={() => setOpenGroup(openGroup)}>
-          <div className="mx-auto grid max-w-[1440px] grid-cols-3 gap-8 px-6 py-7 xl:px-10">
+          <div className="grid w-full grid-cols-3 gap-8 px-6 py-7 xl:px-10">
             {visibleGroups.filter((group) => group.id === openGroup).map((group) => {
               const GroupIcon = group.icon;
               return (

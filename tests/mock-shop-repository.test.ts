@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { MockShopRepository } from '@/features/shop/data/mockRepository';
+import { shiftDate } from '@/constants/dateTime';
+import { MOCK_WEEK_START } from '@/mocks/scheduleData';
+
+const TEST_WEEK_START = MOCK_WEEK_START;
+const TEST_TOMORROW = shiftDate(TEST_WEEK_START, 1);
+const TEST_NEXT_DAY = shiftDate(TEST_WEEK_START, 2);
+const TEST_PAST_DATE = shiftDate(TEST_WEEK_START, -3);
+const TEST_BATCH_DATE = shiftDate(TEST_WEEK_START, 3);
+const TEST_LEAVE_DATE = shiftDate(TEST_WEEK_START, 4);
 
 describe('MockShopRepository', () => {
   it('soft deletes referenced departments and hard deletes new ones', () => {
@@ -28,7 +37,7 @@ describe('MockShopRepository', () => {
     const result = repository.saveSlot({
       doctorId: 'profile-stephen-strange',
       serviceId: 'service-general',
-      slotDate: '2026-09-07',
+      slotDate: TEST_WEEK_START,
       startTime: '09:15',
       endTime: '09:45',
       maxCapacity: 1,
@@ -61,7 +70,7 @@ describe('MockShopRepository', () => {
     expect(repository.saveDoctor({
       profileId: 'profile-gregory-house', fullName: 'Gregory House', initials: 'GH', email: 'gh@test', specialty: 'ทดสอบ', departmentId: 'dept-general', availability: 'active',
     }, 'missing')).toMatchObject({ ok: false });
-    expect(repository.saveSlot({ doctorId: 'profile-stephen-strange', serviceId: 'service-general', slotDate: '2026-09-07', startTime: '09:30', endTime: '10:00', maxCapacity: 1 }, 'missing')).toMatchObject({ ok: false });
+    expect(repository.saveSlot({ doctorId: 'profile-stephen-strange', serviceId: 'service-general', slotDate: TEST_WEEK_START, startTime: '09:30', endTime: '10:00', maxCapacity: 1 }, 'missing')).toMatchObject({ ok: false });
     expect(repository.snapshot()).toEqual(before);
   });
 
@@ -73,13 +82,13 @@ describe('MockShopRepository', () => {
       {
         doctorId: 'profile-stephen-strange',
         serviceId,
-        slotDate: '2026-09-04',
+        slotDate: TEST_PAST_DATE,
         startTime: '09:00',
         endTime: '09:30',
         maxCapacity: 1,
       },
       undefined,
-      '2026-09-07',
+      TEST_WEEK_START,
     );
     expect(result).toMatchObject({
       ok: false,
@@ -110,9 +119,9 @@ describe('MockShopRepository', () => {
 
   it('generates recurring slots for date range', () => {
     const repository = new MockShopRepository();
-    const generated = repository.generateSlotsForRange('2026-09-07', '2026-09-07', '2026-09-07');
+    const generated = repository.generateSlotsForRange(TEST_WEEK_START, TEST_WEEK_START, TEST_WEEK_START);
     expect(generated).toMatchObject({ ok: true });
-    const slots = repository.snapshot().slots.filter((slot) => slot.slotDate === '2026-09-07');
+    const slots = repository.snapshot().slots.filter((slot) => slot.slotDate === TEST_WEEK_START);
     expect(slots.length).toBeGreaterThan(0);
   });
 
@@ -124,17 +133,17 @@ describe('MockShopRepository', () => {
       {
         doctorId: 'profile-stephen-strange',
         serviceId,
-        dates: ['2026-09-08', '2026-09-09'],
+        dates: [TEST_TOMORROW, TEST_NEXT_DAY],
         timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 2 }],
       },
-      '2026-09-07',
+      TEST_WEEK_START,
       'profile-stephen-strange',
       'medical',
     );
 
     expect(result).toEqual({ ok: true, value: 2 });
     const created = repository.snapshot().slots.filter(
-      (slot) => slot.doctorId === 'profile-stephen-strange' && ['2026-09-08', '2026-09-09'].includes(slot.slotDate),
+      (slot) => slot.doctorId === 'profile-stephen-strange' && [TEST_TOMORROW, TEST_NEXT_DAY].includes(slot.slotDate),
     );
     expect(created).toHaveLength(2);
     expect(created.every((slot) => slot.maxCapacity === 2 && slot.bookedCount === 0)).toBe(true);
@@ -143,20 +152,20 @@ describe('MockShopRepository', () => {
   it('skips doctor leave dates while creating batch slots', () => {
     const repository = new MockShopRepository();
     const serviceId = repository.snapshot().services[0].id;
-    expect(repository.saveDoctorLeave({ doctorId: 'profile-stephen-strange', startDate: '2026-09-15', endDate: '2026-09-15', reason: 'ประชุม' })).toMatchObject({ ok: true });
+    expect(repository.saveDoctorLeave({ doctorId: 'profile-stephen-strange', startDate: TEST_LEAVE_DATE, endDate: TEST_LEAVE_DATE, reason: 'ประชุม' }, undefined, undefined, undefined, TEST_WEEK_START)).toMatchObject({ ok: true });
 
     const result = repository.createSlotBatch(
       {
         doctorId: 'profile-stephen-strange',
         serviceId,
-        dates: ['2026-09-14', '2026-09-15'],
+        dates: [TEST_BATCH_DATE, TEST_LEAVE_DATE],
         timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 1 }],
       },
-      '2026-09-07',
+      TEST_WEEK_START,
     );
 
     expect(result).toEqual({ ok: true, value: 1 });
-    expect(repository.snapshot().slots.filter((slot) => slot.doctorId === 'profile-stephen-strange' && slot.slotDate === '2026-09-15' && slot.startTime === '08:30')).toHaveLength(0);
+    expect(repository.snapshot().slots.filter((slot) => slot.doctorId === 'profile-stephen-strange' && slot.slotDate === TEST_LEAVE_DATE && slot.startTime === '08:30')).toHaveLength(0);
   });
 
   it('rejects batch slot changes outside the medical doctor ownership scope', () => {
@@ -166,10 +175,10 @@ describe('MockShopRepository', () => {
       {
         doctorId: 'profile-charles-xavier',
         serviceId: before.services[0].id,
-        dates: ['2026-09-08'],
+        dates: [TEST_TOMORROW],
         timeBlocks: [{ startTime: '08:30', endTime: '09:00', maxCapacity: 1 }],
       },
-      '2026-09-07',
+      TEST_WEEK_START,
       'profile-stephen-strange',
       'medical',
     );

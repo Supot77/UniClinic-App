@@ -40,7 +40,7 @@ export interface ShopRepository {
   toggleService(id: string): ShopResult<'deleted' | 'disabled' | 'enabled'>;
   saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): ShopResult<ScheduleDoctor>;
   toggleDoctor(id: string): ShopResult<ScheduleDoctor | 'deleted'>;
-  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave>;
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole, todayDate?: string): ShopResult<DoctorLeave>;
   deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave>;
   saveSlot(input: SlotInput, id?: string, todayDate?: string): ShopResult<ScheduleSlot>;
   createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): ShopResult<number>;

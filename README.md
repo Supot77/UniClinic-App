@@ -6,7 +6,7 @@
 
 ## เอกสารหลัก
 
-เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md) และ [แผนพัฒนา](docs/09_implementation_plan.md) เป้าหมาย runtime เป็น database-first ผ่าน Supabase repository; mock ใช้สำหรับ automated tests และ offline demo ที่ระบุชัด
+เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md), [แผนพัฒนา](docs/09_implementation_plan.md) และ [บันทึกการเปลี่ยนแปลง](docs/14_change_log.md) เป้าหมาย runtime เป็น database-first ผ่าน Supabase repository; mock ใช้สำหรับ automated tests และ offline demo ที่ระบุชัด
 
 ## ขอบเขต
 

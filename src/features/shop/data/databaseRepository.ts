@@ -66,13 +66,14 @@ export class DatabaseShopRepository {
     }));
   }
 
-  async fetchServices(): Promise<ScheduleService[]> {
+  async fetchServices(throwOnError = false): Promise<ScheduleService[]> {
     const { data, error } = await this.client
       .from('services')
       .select('id, code, name, description, is_active, created_at, updated_at')
       .order('name', { ascending: true });
 
     if (error || !data) {
+      if (throwOnError) throw error ?? new Error('Service catalog unavailable');
       console.error('Error fetching services:', error);
       return [];
     }
@@ -245,9 +246,10 @@ export class DatabaseShopRepository {
     id?: string,
     actorId?: string,
     role?: UserRole,
+    todayDate?: string,
   ): Promise<ShopResult<DoctorLeave>> {
     if (id && !isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
-    const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role);
+    const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role, todayDate);
     if (!validation.ok) return validation;
 
     const payload = {

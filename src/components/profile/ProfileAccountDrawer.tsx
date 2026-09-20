@@ -25,7 +25,7 @@ const accountItemsByRole: Record<UserRole, AccountMenuItem[]> = {
     { href: '/records', label: 'บันทึกการรักษา', icon: Stethoscope },
     { href: '/appointments', label: 'นัดหมายผู้ป่วย', icon: FileClock },
   ],
-  staff_admin: [{ href: '/departments', label: 'จัดการผู้ใช้งาน', icon: UsersRound }],
+  staff_admin: [{ href: '/staff/accounts', label: 'จัดการผู้ใช้งาน', icon: UsersRound }],
 };
 
 export default function ProfileAccountDrawer({ open, onClose, onSignOut, role }: ProfileAccountDrawerProps) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertCircle,
   Building2,
@@ -11,7 +12,6 @@ import {
   Search,
   Stethoscope,
   Trash2,
-  UsersRound,
   X,
 } from 'lucide-react';
 import { useShop } from '@/features/shop/context/ShopProvider';
@@ -23,19 +23,17 @@ import type {
   DoctorLeave,
 } from '@/types/schedule';
 import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
-import StaffProfileDirectory from '@/components/staff/StaffProfileDirectory';
+import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
 
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
-type WorkspaceTab = 'departments' | 'doctors' | 'patients';
-
-const leaveMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+type WorkspaceTab = 'departments' | 'doctors';
 
 function formatLeaveDate(dateValue: string) {
   const [year, month, day] = dateValue.split('-').map(Number);
-  return `${day} ${leaveMonthNames[month - 1]} ${year + 543}`;
+  return `${day} ${THAI_MONTHS_SHORT[month - 1]} ${year + 543}`;
 }
 
 function formatLeaveRange(leave: DoctorLeave) {
@@ -325,8 +323,8 @@ export default function DepartmentWorkspace() {
   return (
     <div className="min-w-0 space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-5">
-        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">แผนก แพทย์ และผู้ป่วย</h1>
-        {activeTab !== 'patients' && <button
+        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">แผนกและแพทย์</h1>
+        <button
           type="button"
           disabled={isLoading}
           onClick={() => (activeTab === 'departments' ? openDepartmentForm() : openDoctorForm())}
@@ -334,14 +332,13 @@ export default function DepartmentWorkspace() {
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {activeTab === 'departments' ? 'เพิ่มแผนก' : 'เพิ่มแพทย์'}
-        </button>}
+        </button>
       </header>
 
       <div className="flex items-end gap-1.5 sm:gap-2 border-b-2 border-brand-border-soft pt-3" role="tablist" aria-label="เลือกมุมมองการจัดการ">
         {([
           ['departments', 'แผนก', departments.length, Building2],
           ['doctors', 'แพทย์', doctors.length, Stethoscope],
-          ['patients', 'ผู้ป่วย', null, UsersRound],
         ] as const).map(([tab, label, count, Icon]) => {
           const isActive = activeTab === tab;
           return (
@@ -357,12 +354,12 @@ export default function DepartmentWorkspace() {
               onKeyDown={(event) => {
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                 event.preventDefault();
-                const tabs: WorkspaceTab[] = ['departments', 'doctors', 'patients'];
+                const tabs: WorkspaceTab[] = ['departments', 'doctors'];
                 const currentIndex = tabs.indexOf(tab);
                 const nextTab = event.key === 'Home'
                   ? 'departments'
                   : event.key === 'End'
-                    ? 'patients'
+                    ? 'doctors'
                     : tabs[(currentIndex + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
                 changeTab(nextTab);
                 document.getElementById(`${nextTab}-tab`)?.focus();
@@ -389,7 +386,7 @@ export default function DepartmentWorkspace() {
         })}
       </div>
 
-      {activeTab !== 'patients' && <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
+      <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
         <label className="grid w-full gap-2 text-sm text-brand-body sm:w-80">
           <span>{activeTab === 'departments' ? 'ค้นหาแผนก' : 'ค้นหาแพทย์'}</span>
           <span className="relative">
@@ -415,7 +412,7 @@ export default function DepartmentWorkspace() {
           <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-4 w-4 accent-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong" />
           แสดงที่ปิดใช้
         </label>
-      </section>}
+      </section>
       <Toast message={notice} onDismiss={() => setNotice('')} />
       <div aria-live="polite" className="space-y-3 empty:hidden">
         {formError && !departmentDrawerOpen && !doctorDrawerOpen && (
@@ -460,6 +457,9 @@ export default function DepartmentWorkspace() {
                         <span className={`h-1.5 w-1.5 rounded-full ${department.isActive ? 'bg-status-success' : 'bg-status-neutral'}`} aria-hidden="true" />
                         {department.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                       </p>
+                      <Link href={`/departments/${department.id}`} className={`${textActionClass} mt-3 text-brand-strong`}>
+                        ดูตารางและบริการ
+                      </Link>
                     </div>
                     <div className="min-w-0">
                       <p className="mb-2 text-sm font-medium text-brand-body">แพทย์ประจำแผนก <span className="tabular-nums">({affiliatedDoctors.length})</span></p>
@@ -563,11 +563,6 @@ export default function DepartmentWorkspace() {
               </div>
             </div>
           )}
-        </section>
-      )}
-      {activeTab === 'patients' && (
-        <section id="patients-panel" role="tabpanel" aria-labelledby="patients-tab" className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
-          <StaffProfileDirectory patientOnly />
         </section>
       )}
       {/* Slide-over Drawer: Department */}

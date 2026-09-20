@@ -1,4 +1,4 @@
-/* Font loaded via next/font/google in layout.tsx */
+/* Font loaded via next/font/google in layout.tsx; shared by all routes. */
 @import "tailwindcss";
 
 :root {
@@ -19,6 +19,7 @@
 
 /* Shared brand utilities. Keep status colors (error/warning/success) separate. */
 @theme {
+  --font-sans: var(--font-clinic);
   --color-brand: #1fa39a;
   --color-brand-strong: #087f78;
   --color-brand-ink: #102f3d;
@@ -160,10 +161,41 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-clinic, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+/* Branded scrolling surfaces. Keep thumb contrast and hit area usable across routes. */
+html,
+body,
+* {
+  scrollbar-color: var(--border-soft) var(--surface-light);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface-light);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid var(--surface-light);
+  border-radius: 999px;
+  background: var(--border-soft);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--surface-light);
 }
 
 /* Tight headline */

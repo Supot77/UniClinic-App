@@ -144,10 +144,10 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: next };
   }
 
-  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave> {
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole, todayDate?: string): ShopResult<DoctorLeave> {
     const existing = id ? this.state.doctorLeaves.find((leave) => leave.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบวันลาที่ต้องการแก้ไข' };
-    const validation = validateDoctorLeave(input, this.state.doctorLeaves, this.state.doctors, id, actorId, role);
+    const validation = validateDoctorLeave(input, this.state.doctorLeaves, this.state.doctors, id, actorId, role, todayDate);
     if (!validation.ok) return validation;
 
     const leave: DoctorLeave = existing

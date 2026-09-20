@@ -220,7 +220,23 @@ export function createClinicRepositories(
           | 'stock'
           | 'min_stock'
           | 'expiry_date'
-        >,
+        > &
+          Partial<
+            Pick<
+              Medication,
+              | 'dosage'
+              | 'brand_name'
+              | 'coverage_type'
+              | 'manufacturer'
+              | 'mfg_date'
+              | 'description'
+              | 'ingredients'
+              | 'is_active'
+              | 'unit'
+              | 'pack_unit'
+              | 'pack_size'
+            >
+          >,
         id?: string,
       ) => {
         if (
@@ -268,10 +284,16 @@ export function createClinicRepositories(
 
             const medication: Medication = {
               ...input,
+              unit: input.unit ?? 'เม็ด',
+              dosage: input.dosage ?? null,
+              brand_name: input.brand_name ?? null,
+              coverage_type: input.coverage_type ?? 'covered',
+              manufacturer: input.manufacturer ?? null,
+              mfg_date: input.mfg_date ?? null,
               id: crypto.randomUUID(),
-              description: null,
-              ingredients: null,
-              is_active: true,
+              description: input.description ?? null,
+              ingredients: input.ingredients ?? null,
+              is_active: input.is_active ?? true,
               created_at:
                 new Date().toISOString(),
               updated_at:
@@ -1120,7 +1142,7 @@ export function createClinicRepositories(
               'ภาพรวมงานคลินิกและผู้ดูแลระบบ',
 
             description:
-              'ติดตามนัดหมาย คิว แผนก บัญชี และการประกาศของคลินิก',
+              'ติดตามนัดหมาย คิว แผนก และบัญชีของคลินิก',
           },
 
           medical: {

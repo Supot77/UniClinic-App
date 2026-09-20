@@ -77,6 +77,10 @@ export type StockReservationStatus =
   | 'released'
   | 'expired';
 
+export type ProfileTitle = 'นาย' | 'นาง' | 'นางสาว' | 'อื่น ๆ';
+
+export type ProfileGender = 'male' | 'female' | 'unspecified';
+
 export type EmailJobType =
   | 'dose_advance'
   | 'dose_final_repeat'
@@ -96,22 +100,44 @@ export type EmailJobStatus =
 
 export interface Profile {
   id: string;
+
   student_id: string | null;
   full_name: string;
+
+  title?: ProfileTitle | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  date_of_birth?: string | null;
+  gender?: ProfileGender | null;
+
   phone: string | null;
   emergency_phone: string | null;
+
+  emergency_contact_title?: ProfileTitle | null;
+  emergency_contact_first_name?: string | null;
+  emergency_contact_last_name?: string | null;
+  emergency_contact_relationship?: string | null;
+
   address: string | null;
+
+  allergy_status?:
+    | HealthDeclarationStatus
+    | null;
+
   allergies: string | null;
+
+  chronic_disease_status?:
+    | HealthDeclarationStatus
+    | null;
+
   chronic_diseases: string | null;
+
   role: UserRole;
   avatar_url: string | null;
 
   patient_type?: PatientType | null;
   employee_id?: string | null;
   organization?: string | null;
-
-  allergy_status?: HealthDeclarationStatus | null;
-  chronic_disease_status?: HealthDeclarationStatus | null;
 
   is_active?: boolean;
   permission_version?: number;
@@ -207,15 +233,29 @@ export interface MedicalRecord {
   diagnosis: string; // NOT NULL CHECK (length >= 1)
   treatment_notes: string; // NOT NULL DEFAULT ''
   prescribed_medications: PrescribedMedication[]; // JSONB array, NOT NULL DEFAULT '[]'
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  blood_pressure?: string | null;
+  pulse_bpm?: number | null;
   created_at: string;
   updated_at?: string; // Table does not have updated_at column in latest schema
 }
 
+export type MedicationCoverageType = 'covered' | 'non_covered';
+
 export interface Medication {
   id: string;
   name: string;
+  dosage?: string | null; // ขนาดยา เช่น 1000mg, 250mg, 500mg
+  brand_name?: string | null; // ยี่ห้อยา เช่น Sara, Tylenol, Panadol
   type: string; // เม็ด, แคปซูล, น้ำ
+  unit?: string | null; // หน่วยจ่ายย่อยสุด เช่น เม็ด, แคปซูล, ขวด, หลอด, ไวอัล, ซอง
+  pack_unit?: string | null; // หน่วยบรรจุใหญ่ เช่น ลัง, กล่อง, กระปุก, แผง, แกลลอน
+  pack_size?: number | null; // อัตราส่วนบรรจุ (จำนวนหน่วยย่อยต่อแพ็ค)
   category: string;
+  coverage_type?: MedicationCoverageType | null; // 'covered' = ในสิทธิ์ (เบิกได้), 'non_covered' = นอกสิทธิ์ (จ่ายนอก)
+  manufacturer?: string | null; // บริษัทที่ผลิต เช่น องค์การเภสัชกรรม (GPO)
+  mfg_date?: string | null; // วันผลิต (DATE)
   stock: number;
   min_stock: number;
   expiry_date: string | null; // DATE
@@ -280,6 +320,17 @@ export interface Notification {
   broadcast_id?: string | null;
   read_at?: string | null;
   deleted_at?: string | null;
+  created_at: string;
+  sender_name?: string | null;
+  sender_role?: UserRole | null;
+}
+
+export interface UnreadNotificationRecipient {
+  notification_id: string;
+  user_id: string;
+  full_name: string;
+  role: UserRole;
+  title: string;
   created_at: string;
 }
 

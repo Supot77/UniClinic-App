@@ -24,20 +24,38 @@ describe('Clinic database-backed role containers with injected offline repositor
     const repo = createClinicMockRepository(withAppointment());
     render(<MedicalRecordsPage repository={repo} />);
     fireEvent.change(await screen.findByLabelText('ผลวินิจฉัย'), { target: { value: 'ผลทดสอบ' } });
+    fireEvent.change(screen.getByLabelText('ส่วนสูง (ซม.)'), { target: { value: '170' } });
+    fireEvent.change(screen.getByLabelText('น้ำหนัก (กก.)'), { target: { value: '65.5' } });
+    fireEvent.change(screen.getByLabelText('ความดันโลหิต (mmHg)'), { target: { value: '120/80' } });
+    fireEvent.change(screen.getByLabelText('ชีพจร (ครั้ง/นาที)'), { target: { value: '72' } });
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรายการยา' }));
     fireEvent.click(screen.getByRole('button', { name: 'ยารายการที่ 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'ยาทดสอบ · เม็ด' }));
     fireEvent.change(screen.getByLabelText('ขนาดยาต่อครั้ง (ระบุหน่วย)'), { target: { value: '2 เม็ด' } });
-    fireEvent.click(screen.getByRole('button', { name: 'การใช้ยากับอาหาร' }));
+    fireEvent.click(screen.getByRole('button', { name: 'การใช้ยากับอาหาร รายการที่ 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'หลังอาหาร' }));
-    fireEvent.change(screen.getByLabelText('ช่วงเวลาและความถี่ในการใช้ยา'), { target: { value: 'เช้า เที่ยง เย็น' } });
+    fireEvent.change(screen.getByLabelText('ช่วงเวลาและความถี่ในการใช้ยา รายการที่ 1'), { target: { value: 'เช้า เที่ยง เย็น' } });
     fireEvent.change(screen.getByLabelText('ระยะเวลา (วัน)'), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText('จำนวนที่สั่ง'), { target: { value: '18' } });
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
     expect(await screen.findByText('หลังอาหาร · เช้า เที่ยง เย็น')).toBeInTheDocument();
     expect(screen.getByText('2 เม็ด')).toBeInTheDocument();
     expect(screen.getByText('3 วัน')).toBeInTheDocument();
+    expect(screen.getByText('170 ซม.')).toBeInTheDocument();
+    expect(screen.getByText('65.5 กก.')).toBeInTheDocument();
+    expect(screen.getByText('120/80 mmHg')).toBeInTheDocument();
+    expect(screen.getByText('72 ครั้ง/นาที')).toBeInTheDocument();
     expect((await repo.load()).records[0].prescribed_medications?.[0]).toMatchObject({ dosage: '2 เม็ด', frequency: 'หลังอาหาร · เช้า เที่ยง เย็น', duration_days: 3, quantity: 18 });
+    expect((await repo.load()).records[0]).toMatchObject({ height_cm: 170, weight_kg: 65.5, blood_pressure: '120/80', pulse_bpm: 72 });
+  });
+  it('removes a medication with a compact red X control without affecting the record form', async () => {
+    render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
+    await screen.findByRole('textbox', { name: 'ผลวินิจฉัย' });
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรายการยา' }));
+    expect(screen.getByRole('button', { name: 'ลบยารายการที่ 1' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ลบยารายการที่ 1' }));
+    expect(screen.queryByRole('button', { name: 'ลบยารายการที่ 1' })).not.toBeInTheDocument();
+    expect(screen.getByText('ไม่มีรายการยา สามารถบันทึกผลตรวจโดยไม่สั่งยาได้')).toBeInTheDocument();
   });
   it('shows loading, then empty state without a role switcher', async () => {
     render(<AppointmentPage role="patient" repository={createClinicMockRepository(fixture())} />);
@@ -95,6 +113,7 @@ describe('Clinic database-backed role containers with injected offline repositor
     const seed = withAppointment('staff_admin'); seed.appointments[0].status = 'pending';
     render(<AppointmentPage role="staff_admin" repository={createClinicMockRepository(seed)} />);
     expect(await screen.findByRole('button', { name: 'อนุมัตินัด' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ยกเลิกนัด' })).not.toBeInTheDocument();
     expect(screen.getByText('LIVE DATABASE')).toBeInTheDocument();
     expect(screen.getByText('ASIA/BANGKOK')).toBeInTheDocument();
     expect(screen.getAllByText('รออนุมัติ', { selector: 'p' })).toHaveLength(2);
