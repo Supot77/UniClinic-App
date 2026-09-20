@@ -202,12 +202,12 @@ describe('ScheduleWorkspace Service Filter', () => {
     shopState.createSlotBatch.mockResolvedValueOnce({ ok: true, value: 14 });
     render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'สร้างหลายวัน' }));
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างรอบหลายวัน' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับสร้างรอบหลายวัน' }), { target: { value: 'doc-1' } });
     fireEvent.change(screen.getByLabelText('วันที่เริ่ม'), { target: { value: '2026-09-14' } });
     fireEvent.change(screen.getByLabelText('วันที่สิ้นสุด'), { target: { value: '2026-09-15' } });
 
-    expect(await screen.findByText('พร้อมสร้าง 14 รอบ ใน 2 วัน')).toBeInTheDocument();
+    expect(await screen.findByText('ตัวอย่างที่จะสร้าง: 14 รอบ ใน 2 วัน')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'สร้างรอบตรวจ' }));
 
     await waitFor(() => expect(shopState.createSlotBatch).toHaveBeenCalledWith(
@@ -229,7 +229,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     shopState.createSlotBatch.mockResolvedValueOnce({ ok: true, value: 1 });
     render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'คัดลอกวันก่อน' }));
+    fireEvent.click(screen.getByRole('button', { name: 'คัดลอกรอบจากวันก่อน' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับสร้างรอบหลายวัน' }), { target: { value: 'doc-1' } });
     expect(screen.getByText(/09:00.*12:00.*5 คน/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('วันที่ต้องการสร้าง'), { target: { value: '2026-09-10' } });
@@ -336,7 +336,7 @@ describe('ScheduleWorkspace Service Filter', () => {
 
     render(<ScheduleWorkspace role="patient" actorId="guest" />);
 
-    fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิ้ลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
+    fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
 
     expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'จอง' })).toHaveAttribute('href', '/appointments?slotId=slot-future');
@@ -350,7 +350,7 @@ describe('ScheduleWorkspace Service Filter', () => {
 
     render(<ScheduleWorkspace role="patient" actorId="guest" />);
 
-    fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิ้ลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
+    fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
 
     expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'จอง' })).not.toBeInTheDocument();
@@ -453,7 +453,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     }
 
     expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
-    expect(screen.getByText('วันนี้เป็นวันหยุดของคลินิก ไม่สามารถเพิ่มรอบใหม่')).toBeInTheDocument();
+    expect(screen.getByText('คลินิกปิดวันหยุด ไม่สามารถเพิ่มรอบตรวจได้')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันนี้' })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
@@ -466,8 +466,8 @@ describe('ScheduleWorkspace Service Filter', () => {
     render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
 
     expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('แพทย์มีวันลา ไม่สามารถเพิ่มรอบใหม่').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('วันนี้เป็นวันหยุดของคลินิก ไม่สามารถเพิ่มรอบใหม่').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('แพทย์มีวันลา ไม่สามารถเพิ่มรอบตรวจได้').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('คลินิกปิดวันหยุด ไม่สามารถเพิ่มรอบตรวจได้').length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
     expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
   });
@@ -481,7 +481,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     fireEvent.change(screen.getByLabelText('วันที่'), { target: { value: '2026-09-12' } });
     fireEvent.click(screen.getByRole('button', { name: 'บันทึกรอบตรวจ' }));
 
-    expect(screen.getByText('คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์')).toBeInTheDocument();
+    expect(screen.getByText('เพิ่มรอบตรวจได้เฉพาะวันจันทร์–ศุกร์')).toBeInTheDocument();
     expect(shopState.saveSlot).not.toHaveBeenCalled();
   });
 
@@ -572,7 +572,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     fireEvent.change(doctorSelect, { target: { value: 'doc-1' } });
 
     // Current week (2026-09-07) has no slots for doc-1
-    expect(screen.getByText('สัปดาห์นี้ไม่มีรอบตรวจที่ตรงตามตัวกรอง')).toBeInTheDocument();
+    expect(screen.getByText('สัปดาห์นี้ไม่พบรอบตรวจตามตัวกรอง')).toBeInTheDocument();
 
     const jumpButton = screen.getByRole('button', { name: /ไปยังสัปดาห์ที่มีรอบตรวจ/ });
     expect(jumpButton).toBeInTheDocument();
@@ -582,7 +582,7 @@ describe('ScheduleWorkspace Service Filter', () => {
 
     // Should navigate to next week and show doc-1's slot
     expect(await screen.findByText(/ไปยังสัปดาห์ที่มีรอบตรวจ/)).toBeInTheDocument();
-    expect(screen.getByText('1 รอบตามตัวกรอง')).toBeInTheDocument();
+    expect(screen.getByText('พบ 1 รอบตามตัวกรอง')).toBeInTheDocument();
   });
 
   it('shows reset filter button when no matching slots exist in the system and resets properly', async () => {
@@ -597,7 +597,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     fireEvent.change(doctorSelect, { target: { value: 'doc-3' } });
 
     // Should display notice with reset button
-    expect(screen.getByText('ไม่พบรอบตรวจที่ตรงตามตัวกรอง')).toBeInTheDocument();
+    expect(screen.getAllByText('ไม่พบรอบตรวจตามตัวกรอง').length).toBeGreaterThan(0);
     const resetButton = screen.getByRole('button', { name: 'ล้างตัวกรอง' });
     expect(resetButton).toBeInTheDocument();
 
@@ -606,8 +606,8 @@ describe('ScheduleWorkspace Service Filter', () => {
 
     // Filters reset to 'all' and slots become visible again
     expect(doctorSelect).toHaveValue('all');
-    expect(await screen.findByText('ล้างตัวกรองทั้งหมดแล้ว')).toBeInTheDocument();
-    expect(screen.getByText('1 รอบตามตัวกรอง')).toBeInTheDocument();
+    expect(await screen.findByText('ล้างตัวกรองแล้ว')).toBeInTheDocument();
+    expect(screen.getByText('พบ 1 รอบตามตัวกรอง')).toBeInTheDocument();
   });
 
   it('branches today button functionality and label according to calendar view', async () => {

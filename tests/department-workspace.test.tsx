@@ -51,7 +51,7 @@ describe('Department and doctor workspace', () => {
     expect(screen.queryByRole('heading', { name: 'กายภาพบำบัด' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'ค้นหาแผนก' }), { target: { value: 'แผนกที่ปิด' } });
     expect(screen.getByRole('heading', { name: 'ไม่พบแผนก' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'แสดงที่ปิดใช้' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'แสดงรายการที่ปิดใช้งาน' }));
     expect(screen.getByRole('heading', { name: 'แผนกที่ปิด' })).toBeInTheDocument();
   });
 
@@ -88,9 +88,9 @@ describe('Department and doctor workspace', () => {
     render(<DepartmentWorkspace />);
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มแผนก' }));
     fireEvent.change(screen.getByRole('textbox', { name: /ชื่อแผนก/ }), { target: { value: 'อายุรกรรม' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'รายละเอียดแผนก' }), { target: { value: 'โรคของผู้ใหญ่' } });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกแผนก' }));
-    expect(await screen.findByText('เพิ่มแผนกใหม่สำเร็จ')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'คำอธิบายแผนก' }), { target: { value: 'โรคของผู้ใหญ่' } });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลแผนก' }));
+    expect(await screen.findByText('เพิ่มแผนกแล้ว')).toBeInTheDocument();
     expect(shop.saveDepartment).toHaveBeenCalledWith({ name: 'อายุรกรรม', description: 'โรคของผู้ใหญ่' }, undefined);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -101,7 +101,7 @@ describe('Department and doctor workspace', () => {
     render(<DepartmentWorkspace />);
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข เวชปฏิบัติทั่วไป' }));
     fireEvent.change(screen.getByRole('textbox', { name: /ชื่อแผนก/ }), { target: { value: 'กายภาพบำบัด' } });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกแผนก' }));
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลแผนก' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('ชื่อแผนกซ้ำ');
     expect(screen.getByRole('textbox', { name: /ชื่อแผนก/ })).toHaveValue('กายภาพบำบัด');
     expect(shop.departments).toEqual(before);
@@ -111,13 +111,13 @@ describe('Department and doctor workspace', () => {
     shop.doctors = shop.doctors.filter((doctor) => doctor.departmentId !== 'physio');
     shop.saveDoctor.mockResolvedValueOnce({ ok: true, value: { id: 'new-doctor' } });
     render(<DepartmentWorkspace />);
-    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มแพทย์ในแผนก' }));
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มแพทย์' }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByRole('combobox', { name: /แผนกสังกัด/ })).toHaveValue('physio');
     expect(within(dialog).queryByRole('option', { name: /นพ\. สมชาย/ })).not.toBeInTheDocument();
     fireEvent.change(within(dialog).getByRole('combobox', { name: /เลือกบัญชีแพทย์/ }), { target: { value: 'new-profile' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'บันทึกข้อมูลแพทย์' }));
-    expect(await screen.findByText('ผูกแพทย์เข้ากับแผนกสำเร็จ')).toBeInTheDocument();
+    expect(await screen.findByText('เพิ่มแพทย์ในแผนกแล้ว')).toBeInTheDocument();
     expect(shop.saveDoctor).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'new-profile', departmentId: 'physio', fullName: 'พญ. แพทย์ใหม่' }), undefined);
   });
 
@@ -128,10 +128,10 @@ describe('Department and doctor workspace', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข นพ. สมชาย ใจดี' }));
     expect(screen.getByRole('combobox', { name: /เลือกบัญชีแพทย์/ })).toBeDisabled();
-    fireEvent.change(screen.getByRole('textbox', { name: 'ความเชี่ยวชาญเฉพาะทาง' }), { target: { value: 'เวชปฏิบัติทั่วไป' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'ความเชี่ยวชาญ' }), { target: { value: 'เวชปฏิบัติทั่วไป' } });
     fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลแพทย์' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('ไม่สามารถบันทึกแพทย์ได้');
-    expect(screen.getByRole('textbox', { name: 'ความเชี่ยวชาญเฉพาะทาง' })).toHaveValue('เวชปฏิบัติทั่วไป');
+    expect(screen.getByRole('textbox', { name: 'ความเชี่ยวชาญ' })).toHaveValue('เวชปฏิบัติทั่วไป');
     expect(shop.doctors).toEqual(before);
   });
 
@@ -141,7 +141,7 @@ describe('Department and doctor workspace', () => {
     trigger.focus();
     fireEvent.click(trigger);
     expect(screen.getByRole('textbox', { name: /ชื่อแผนก/ })).toHaveFocus();
-    const save = screen.getByRole('button', { name: 'บันทึกแผนก' });
+    const save = screen.getByRole('button', { name: 'บันทึกข้อมูลแผนก' });
     save.focus();
     fireEvent.keyDown(save, { key: 'Tab' });
     const close = screen.getByRole('button', { name: 'ปิดแผงแก้ไข' });
@@ -159,20 +159,20 @@ describe('Department and doctor workspace', () => {
     expect(screen.getByRole('status', { name: 'กำลังโหลดรายการแผนก' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'เพิ่มแผนก' })).toBeDisabled();
     fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
-    expect(screen.getByRole('status', { name: 'กำลังโหลดรายชื่อแพทย์' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'กำลังโหลดรายการแพทย์' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'เพิ่มแพทย์' })).toBeDisabled();
   });
 
   it('does not change a department or doctor when the confirmation modal is cancelled', () => {
     render(<DepartmentWorkspace />);
-    fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้ เวชปฏิบัติทั่วไป' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้งาน เวชปฏิบัติทั่วไป' }));
     expect(screen.getByRole('dialog', { name: 'ยืนยันการปิดใช้งานแผนก' })).toBeInTheDocument();
     expect(shop.toggleDepartment).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิก' }));
     expect(screen.queryByRole('dialog', { name: 'ยืนยันการปิดใช้งานแผนก' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /^แพทย์/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้ นพ. สมชาย ใจดี' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ปิดใช้งาน นพ. สมชาย ใจดี' }));
     expect(screen.getByRole('dialog', { name: 'ปิดใช้งานแพทย์' })).toBeInTheDocument();
     expect(shop.toggleDoctor).not.toHaveBeenCalled();
   });
