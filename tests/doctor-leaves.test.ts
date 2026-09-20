@@ -69,7 +69,7 @@ describe('MockShopRepository doctor leaves', () => {
   it('deletes a leave only for an authorized actor', () => {
     const repository = new MockShopRepository();
     const [owner, other] = repository.snapshot().doctors;
-    const created = repository.saveDoctorLeave({ doctorId: owner.id, startDate: '2026-09-20', endDate: '2026-09-20' }, undefined, 'admin-1', 'staff_admin');
+    const created = repository.saveDoctorLeave({ doctorId: owner.id, startDate: '2026-09-20', endDate: '2026-09-20' }, undefined, 'admin-1', 'staff_admin', TEST_TODAY);
     expect(created.ok).toBe(true);
     if (!created.ok) return;
 
