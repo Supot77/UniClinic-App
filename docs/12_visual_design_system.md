@@ -3,6 +3,8 @@
 ชุดสีที่เจ้าของโครงการกำหนด วันที่ 9 กันยายน 2569 ใช้ร่วมกันทุกโมดูล
 ค่ากลางอยู่ใน `src/app/globals.css` ใช้ Tailwind utilities ด้านล่างแทนการเพิ่มสี hex ใน component
 
+สถานะ 20 กันยายน 2569: งานเอกสารรอบนี้ไม่แก้ UI code. Shop และ Herb dashboard ยังมีรายการ UI polish ตาม owner views; การตรวจ browser 360px/1280px, keyboard, loading/empty/error ยังต้องทำแยก
+
 | หน้าที่ | Utility suffix | ค่า |
 | --- | --- | --- |
 | สีหลัก / ลิงก์และปุ่มที่มีข้อความขาว | brand / brand-strong | #1FA39A / #087F78 |

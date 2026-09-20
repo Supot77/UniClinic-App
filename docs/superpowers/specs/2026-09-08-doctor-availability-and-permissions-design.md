@@ -2,7 +2,9 @@
 
 - **Date**: 2026-09-08
 - **Topic**: Doctor Availability Templates, History Recommendations, and Role-based Slot Closure Permissions
-- **Status**: Approved by User
+- **Status**: Historical design; permission parts reflected in current code, availability-template parts remain target
+
+> **Current evidence:** `medical`/`staff_admin` leave and slot permission rules are traced in [Shop owner view](../../owners/shop-supot/as-built.md). No current route was found for persisted weekly availability templates or automatic slot generation; do not treat this specification as proof of implementation.
 
 ---
 
@@ -75,4 +77,3 @@ export interface DoctorAvailabilityTemplate {
   - Availability templates are saved and retrieved per doctor.
   - Empty history returns zero recommendations.
 - `npm run build`: Production Next.js 16.3 Turbopack build completes successfully.
-
