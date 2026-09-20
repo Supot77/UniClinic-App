@@ -73,19 +73,29 @@ Agent ต้องเลือกเปิดใช้งานและปฏ�
 
 ## การทดสอบและ Quality Gates
 
-ทุกงานที่แก้โค้ดต้องผ่านคำสั่งต่อไปนี้จาก root ของ repository:
+ปรับระดับการตรวจรับตามขนาดและความเสี่ยงของการเปลี่ยนแปลง (Risk-Based Quality Gates):
 
-```bash
-npm run lint
-npx --no-install tsc --noEmit
-npm run test
-npm run build
-```
+### 1. งานย่อยและงานปรับแต่งทั่วไป (Minor Changes / Tweaks / UI / Copy)
+- สำหรับงานขนาดเล็ก เช่น ปรับแก้ UI/CSS, สี, ข้อความ, assets หรือแก้บักเฉพาะจุดที่ไม่กระทบ business logic หรือ database schema
+- **ไม่จำเป็นต้องรัน Full Suite ทั้ง 4 คำสั่ง** เพื่อความรวดเร็วและคล่องตัวในการพัฒนา
+- ตรวจสอบเฉพาะเครื่องมือที่เกี่ยวข้องโดยตรง เช่น:
+  - `npx --no-install tsc --noEmit` เพื่อยืนยัน type safety
+  - และ/หรือ รัน test เฉพาะไฟล์ที่เกี่ยวข้อง เช่น `npx vitest run tests/<file>.test.tsx`
 
-- รัน test เฉพาะไฟล์ระหว่างพัฒนาได้ แต่ไม่ใช้แทน full test suite ก่อนส่งมอบ
+### 2. งานใหญ่และการส่งมอบสำคัญ (Major Changes / Pre-PR / Milestones)
+- สำหรับงานเพิ่ม/แก้ business logic สำคัญ, database schema, migration, สัญญา API/Interface กลาง หรือก่อนเปิด PR เพื่อ merge เข้า `develop` หรือ `main`
+- **ต้องผ่าน Full Quality Gates ครบทั้ง 4 คำสั่ง** จาก root ของ repository:
+  ```bash
+  npm run lint
+  npx --no-install tsc --noEmit
+  npm run test
+  npm run build
+  ```
+
+### ข้อปฏิบัติทั่วไป
 - ห้ามกล่าวว่า lint, typecheck, test หรือ build ผ่าน หากไม่ได้รันคำสั่งนั้นจริงในสถานะโค้ดล่าสุด
 - หาก gate ใดรันไม่ได้หรือล้มเหลว ให้รายงานคำสั่ง สาเหตุ และระบุว่าเป็นผลจากการเปลี่ยนแปลงครั้งนี้หรือเป็นปัญหาเดิม ห้ามปิดบังหรือข้ามโดยไม่แจ้ง
-- งานที่แก้ UI ต้องตรวจ flow ที่ได้รับผลกระทบใน Chrome ที่ความกว้าง 360px และ 1280px รวมการใช้งานด้วย keyboard และสถานะ loading, empty และ error บันทึกสิ่งที่ตรวจจริงและข้อจำกัด
+- งานที่แก้ UI ให้ตรวจ flow ที่ได้รับผลกระทบใน Chrome ที่ความกว้าง 360px และ 1280px รวมการใช้งานด้วย keyboard และสถานะ loading, empty และ error บันทึกสิ่งที่ตรวจจริงและข้อจำกัด
 - ก่อนรวม `main` ต้องผ่านกรณีหลักตาม acceptance criteria ที่เกี่ยวข้อง ส่วนก่อนนำเสนอต้องตรวจ SCN-01–07 และอีเมลจริงตามเอกสารเมื่อขอบเขตงานรองรับแล้ว
 
 ## การส่งมอบ
