@@ -293,7 +293,7 @@ export default function StaffProfileDirectory() {
     accountAction?.kind === "toggle" && accountAction.nextActive;
 
   return (
-    <main className="dashboard-shell mx-auto flex max-w-7xl flex-col gap-10 pb-10">
+    <main className="dashboard-shell flex w-full flex-col gap-10 pb-10">
       <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="min-w-0">
           <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
