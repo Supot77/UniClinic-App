@@ -1,6 +1,6 @@
 # 09. แผนพัฒนาและส่งต่องาน
 
-ปรับปรุง 13 กันยายน 2569 (2026-09-13) — เพิ่มวันลาแพทย์แบบ Manual-first ตาม D26 ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 20 กันยายน 2569 (2026-09-20) — บันทึกผล implementation ข้อ 2.2 และ interaction แก้ไข/ยกเลิกวันลาจากปฏิทิน; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
 ## หลักการก่อนลงโค้ด
 
@@ -15,7 +15,16 @@
 
 ใช้ 3 ค่าเท่านั้น: `patient` (ผู้ป่วย), `medical` (แพทย์/เภสัชกร) และ `staff_admin` (เจ้าหน้าที่/แอดมิน)
 
-ใน Schedule scope แพทย์ (`medical`) บันทึกและยกเลิกวันลาของตนเองได้ ส่วน `staff_admin` จัดการวันลาของแพทย์ทุกคนได้; ทั้งสอง role ต้องผ่าน validation และ RLS ตาม D26
+ใน Schedule scope แพทย์ (`medical`) บันทึก แก้ไข และยกเลิกวันลาของตนเองได้ ส่วน `staff_admin` จัดการวันลาของแพทย์ทุกคนได้; ทั้งสอง role ต้องผ่าน validation และ RLS ตาม D26/D28
+
+## สถานะ implementation ข้อ 2.2 ณ 20 กันยายน 2569
+
+- ทำแล้วใน code path: รวม role/session helper, รวม date/time constants, เพิ่ม dynamic route `/departments/[departmentId]` และหน้า detail แผนก, รวมถึงทำให้ชิปวันลาใน day/week/month คลิกเพื่อแก้ไขหรือยกเลิกได้ และซ่อน/กันการสร้าง slot ใหม่ในวันเสาร์-อาทิตย์
+- สิทธิ์ UI สอดคล้องกับ service contract: `medical` จัดการเฉพาะวันลาของตนเอง, `staff_admin` จัดการได้ทุกแพทย์ และ `patient` ไม่มี action วันลา
+- การแก้ไขส่ง `id` เดิมกลับไปที่ repository; การยกเลิกมี Confirmation และลบเฉพาะรายการวันลา ไม่เปิด/ปิด slot หรือนัดหมายเดิมอัตโนมัติ
+- ไฟล์หลักที่เกี่ยวข้อง: `src/components/schedules/ScheduleWorkspace.tsx`, `src/components/schedules/DepartmentWorkspace.tsx`, `src/components/schedules/DepartmentDetailWorkspace.tsx`, `src/app/(clinic)/departments/[departmentId]/page.tsx`, `src/constants/dateTime.ts`, `src/lib/requireRole.ts` และ tests ใน `tests/`
+- หลักฐานตรวจล่าสุด: targeted ScheduleWorkspace tests ผ่าน 25/25, typecheck ผ่าน, lint ผ่าน 0 errors/7 warnings เดิม, build ผ่าน; full test เหลือ failure เดิมของ pharmacy 1 เคสจาก 273 tests
+- ยังต้องตรวจแยก: database integration/RLS บนฐาน development/staging และ browser QA Chrome 360px/1280px/keyboard เพราะ environment นี้ไม่มี browser runtime
 
 ## ลำดับ implementation
 
@@ -29,7 +38,7 @@
 | 6 | Pharmacy | `medical` ตรวจ stock และจ่ายเต็มครั้งเดียวผ่าน transaction/RPC ที่จำเป็น |
 | 7 | Manual reminder | `staff_admin` กรอกรายการเตือน; `patient` บันทึกผลเอง |
 | 8 | Broadcast/dashboard | `staff_admin` ส่งข้อความเอง และแต่ละ role ใช้ dashboard/container ของตน |
-| 9 | ตรวจรับ | รัน tests, database integration/RLS และตรวจ AC01–AC22 ตาม [08](08_system_rules_and_acceptance.md) |
+| 9 | ตรวจรับ | รัน tests, database integration/RLS และตรวจ AC01–AC27 ตาม [08](08_system_rules_and_acceptance.md) |
 
 ## สัญญาส่งต่องานขั้นต่ำ
 

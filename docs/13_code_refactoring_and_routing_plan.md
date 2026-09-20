@@ -1,6 +1,6 @@
 # 13. แผนการปรับปรุงสถาปัตยกรรม: การลดความซ้ำซ้อน, การจัดการ Hardcode และการนำ Dynamic Routing มาใช้
 
-เอกสารฉบับนี้จัดทำขึ้น ณ วันที่ 19 กันยายน 2569 (2026-09-19) เพื่อเป็นแนวทางทางเทคนิคและแผนดำเนินงานสำหรับสมาชิกในทีมทุกคน ในการขจัดความซ้ำซ้อนของโค้ด (Code Redundancy), แก้ไขจุดที่มีการ Hardcode ข้อมูล, และนำฟีเจอร์ **Dynamic Routing** ของ Next.js App Router มาประยุกต์ใช้เพื่อยกระดับโครงสร้างระบบและประสบการณ์ผู้ใช้งาน (UX) โดยไม่กระทบต่อสัญญาข้อมูล (Contracts) และกฎระเบียบของระบบที่ระบุใน `docs/00_reading_guide.md` ถึง `docs/10_team_decisions.md`
+เอกสารฉบับนี้จัดทำขึ้น ณ วันที่ 20 กันยายน 2569 (2026-09-20) เพื่อเป็นแนวทางทางเทคนิคและบันทึกผล implementation สำหรับสมาชิกในทีมทุกคน ในการขจัดความซ้ำซ้อนของโค้ด (Code Redundancy), แก้ไขจุดที่มีการ Hardcode ข้อมูล, และนำฟีเจอร์ **Dynamic Routing** ของ Next.js App Router มาประยุกต์ใช้เพื่อยกระดับโครงสร้างระบบและประสบการณ์ผู้ใช้งาน (UX) โดยไม่กระทบต่อสัญญาข้อมูล (Contracts) และกฎระเบียบของระบบที่ระบุใน `docs/00_reading_guide.md` ถึง `docs/10_team_decisions.md`
 
 ---
 
@@ -83,7 +83,7 @@
 - **เจ้าของงาน**: **ช้อป (สุพจน์)** | **คู่ตรวจ**: **ปาย**
 - **ขอบเขตไฟล์**: `src/app/(clinic)/schedules/`, `src/app/(clinic)/departments/`, `src/components/schedules/`, `src/features/shop/`
 
-#### รายละเอียดงานและวิธีแก้ไข:
+#### รายละเอียดงานและวิธีแก้ไข (สถานะ ณ 20 กันยายน 2569):
 1. **ขจัดโค้ดซ้ำซ้อนใน `src/app/(clinic)/schedules/page.tsx`**:
    - ลบฟังก์ชัน `canonicalRole` และ `getScheduleUser` ในไฟล์ทิ้ง
    - เรียกใช้ `requireRole(['patient', 'medical', 'staff_admin'])` หรือ `getCurrentUserAndRole()` จาก `@/lib/requireRole`
@@ -93,6 +93,21 @@
    - นำเข้า `LEAVE_REASONS` มาใช้ render ตัวเลือกเหตุผลการลา
 3. **พิจารณา Dynamic Routing สำหรับแผนก**:
    - สร้าง `src/app/(clinic)/departments/[departmentId]/page.tsx` เพื่อแยกดูตารางเวรและบริการเฉพาะแผนก
+4. **แก้ไขและยกเลิกวันลาจากปฏิทิน**:
+   - เปลี่ยนชิปวันลาในมุมมอง day/week/month ให้ผู้มีสิทธิ์คลิกเปิด Modal แก้ไขข้อมูลเดิมได้
+   - `medical` แก้ไข/ยกเลิกได้เฉพาะวันลาของตนเอง ส่วน `staff_admin` จัดการได้ทุกแพทย์; `patient` ไม่มี action วันลา
+   - เพิ่ม Confirmation สำหรับ `ยกเลิกวันลา` และไม่เปิด/ปิด slot หรือนัดหมายเดิมอัตโนมัติ
+5. **จำกัดการสร้าง slot ตามวันเปิดคลินิก**:
+   - ซ่อนปุ่มเพิ่มรอบในวันเสาร์-อาทิตย์สำหรับมุมมอง day/week/month
+   - ตรวจซ้ำในฟอร์มก่อนบันทึก เพื่อไม่สร้าง slot ใหม่ในวันเสาร์-อาทิตย์จากปุ่มสร้างรอบด้านบน
+
+#### สถานะและหลักฐาน
+
+- รายการ 1–5 มี code path และ tests แล้ว โดยงานข้อ 2.2 ใช้ไฟล์สนับสนุนเพิ่มนอกขอบเขตเดิม ได้แก่ `src/constants/dateTime.ts`, `src/lib/requireRole.ts` และ tests ที่เกี่ยวข้อง
+- หน้า detail แผนกใช้ `/departments/[departmentId]` และ route guard; หน้า Schedule ใช้ helper role กลางและ constants กลาง
+- targeted ScheduleWorkspace tests ผ่าน 25/25, typecheck ผ่าน, lint ผ่าน 0 errors/7 warnings เดิม และ build ผ่าน
+- full test ล่าสุดผ่าน 272/273 tests; failure ที่เหลืออยู่ใน `tests/pharmacy-content-roles.test.tsx:380` เรื่องปุ่ม `ปิดหน้าต่าง` ซ้ำ และอยู่นอก scope นี้
+- ยังไม่มีหลักฐาน database integration/RLS บนฐาน development/staging หรือ browser QA เนื่องจาก environment ไม่มี browser runtime
 
 ---
 

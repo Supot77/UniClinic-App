@@ -440,14 +440,49 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(screen.getByLabelText('ปฏิทินรายเดือน')).toBeInTheDocument();
   });
 
+  it('hides slot creation on Saturday and Sunday in week, day, and month views', () => {
+    shopState.slots = [];
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 12 ก.ย.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 13 ก.ย.' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'day' } });
+    for (let index = 0; index < 5; index += 1) {
+      fireEvent.click(screen.getByLabelText('ช่วงถัดไป'));
+    }
+
+    expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
+    expect(screen.getByText('วันนี้เป็นวันหยุดของคลินิก ไม่สามารถเพิ่มรอบใหม่')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันนี้' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 12 ก.ย.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 13 ก.ย.' })).not.toBeInTheDocument();
+  });
+
   it('shows leave chips and blocks medical creation on a leave date', () => {
     shopState.doctorLeaves = [{ id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' }];
     render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
 
     expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
     expect(screen.getAllByText('แพทย์มีวันลา ไม่สามารถเพิ่มรอบใหม่').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('วันนี้เป็นวันหยุดของคลินิก ไม่สามารถเพิ่มรอบใหม่').length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
     expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
+  });
+
+  it('rejects a new slot date on Saturday or Sunday before persistence', () => {
+    shopState.slots = [];
+    shopState.saveSlot.mockClear();
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' }));
+    fireEvent.change(screen.getByLabelText('วันที่'), { target: { value: '2026-09-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรอบตรวจ' }));
+
+    expect(screen.getByText('คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์')).toBeInTheDocument();
+    expect(shopState.saveSlot).not.toHaveBeenCalled();
   });
 
   it('previews affected slots before saving a leave', async () => {
@@ -462,5 +497,41 @@ describe('ScheduleWorkspace Service Filter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'บันทึกวันลา' }));
     expect(await screen.findByText('บันทึกวันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง')).toBeInTheDocument();
     expect(shopState.saveDoctorLeave).toHaveBeenCalledWith({ doctorId: 'doc-1', startDate: '2026-09-08', endDate: '2026-09-08', reason: '' }, undefined, 'admin-1', 'staff_admin');
+  });
+
+  it('opens an existing leave from the calendar and saves edits', async () => {
+    shopState.doctorLeaves = [{ id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' }];
+    shopState.saveDoctorLeave.mockResolvedValueOnce({ ok: true, value: shopState.doctorLeaves[0] });
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขวันลา นพ. สมชาย ใจดี' })[0]);
+
+    expect(screen.getByRole('heading', { name: 'แก้ไขวันลาแพทย์' })).toBeInTheDocument();
+    expect(screen.getByLabelText('เหตุผลการลา')).toHaveValue('ประชุมวิชาการ');
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+
+    expect(await screen.findByText('แก้ไขวันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง')).toBeInTheDocument();
+    expect(shopState.saveDoctorLeave).toHaveBeenCalledWith(
+      { doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' },
+      'leave-1',
+      'prof-1',
+      'medical',
+    );
+  });
+
+  it('cancels an existing leave from its edit modal', async () => {
+    const leave = { id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' };
+    shopState.doctorLeaves = [leave];
+    shopState.deleteDoctorLeave.mockResolvedValueOnce({ ok: true, value: leave });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขวันลา นพ. สมชาย ใจดี' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา' }));
+
+    expect(await screen.findByText('ยกเลิกวันลาของ นพ. สมชาย ใจดี แล้ว')).toBeInTheDocument();
+    expect(shopState.deleteDoctorLeave).toHaveBeenCalledWith('leave-1', 'prof-1', 'medical');
+    expect(confirmSpy).toHaveBeenCalledWith('ยกเลิกวันลาของ นพ. สมชาย ใจดี ช่วง 10 ก.ย.–12 ก.ย.? รอบตรวจเดิมจะไม่เปลี่ยนแปลง');
+    confirmSpy.mockRestore();
   });
 });
