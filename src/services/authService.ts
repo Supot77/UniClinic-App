@@ -51,8 +51,11 @@ export interface PatientRegistrationDetails {
   lastName: string;
   dateOfBirth: string;
   gender: ProfileGender;
-  studentId: string;
+  patientType: 'student' | 'employee';
+  studentId?: string;
+  employeeId?: string;
   phone: string;
+  avatarFile?: File | null;
 
   allergyStatus?: 'yes' | 'no' | 'unknown';
   allergies?: string | null;
@@ -82,8 +85,8 @@ export async function signUp(
   const normalizedLastName =
     details.lastName.trim();
 
-  const normalizedStudentId =
-    details.studentId.trim();
+  const normalizedStudentId = details.studentId?.trim() ?? '';
+  const normalizedEmployeeId = details.employeeId?.trim() ?? '';
 
   const normalizedPhone =
     details.phone.trim();
@@ -159,10 +162,24 @@ export async function signUp(
     throw new Error('กรุณาเลือกเพศ');
   }
 
-  if (!/^\d{8}$/.test(normalizedStudentId)) {
+  if (!['student', 'employee'].includes(details.patientType)) {
+    throw new Error('กรุณาเลือกประเภทผู้ป่วย');
+  }
+
+  if (
+    details.patientType === 'student' &&
+    !/^\d{8}$/.test(normalizedStudentId)
+  ) {
     throw new Error(
       'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก',
     );
+  }
+
+  if (
+    details.patientType === 'employee' &&
+    !/^\d{8}$/.test(normalizedEmployeeId)
+  ) {
+    throw new Error('รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก');
   }
 
   if (
@@ -175,9 +192,9 @@ export async function signUp(
     );
   }
 
-  if (!/^0\d{9}$/.test(normalizedPhone)) {
+  if (!/^0[689]\d{8}$/.test(normalizedPhone)) {
     throw new Error(
-      'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลักและขึ้นต้นด้วย 0',
+      'เบอร์โทรศัพท์ต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09',
     );
   }
 
@@ -218,10 +235,18 @@ export async function signUp(
     );
   }
 
-  if (!/^0\d{9}$/.test(normalizedEmergencyPhone)) {
+  if (!/^0[689]\d{8}$/.test(normalizedEmergencyPhone)) {
     throw new Error(
-      'เบอร์โทรฉุกเฉินต้องเป็นตัวเลข 10 หลักและขึ้นต้นด้วย 0',
+      'เบอร์โทรฉุกเฉินต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09',
     );
+  }
+
+  if (normalizedEmergencyPhone === normalizedPhone) {
+    throw new Error('เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก');
+  }
+
+  if (details.avatarFile && details.avatarFile.type !== 'image/png') {
+    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น');
   }
 
   if (
@@ -291,7 +316,11 @@ export async function signUp(
         date_of_birth: details.dateOfBirth,
         gender: details.gender,
 
-        student_id: normalizedStudentId,
+        patient_type: details.patientType,
+        student_id:
+          details.patientType === 'student' ? normalizedStudentId : null,
+        employee_id:
+          details.patientType === 'employee' ? normalizedEmployeeId : null,
         phone: normalizedPhone,
 
         allergy_status: allergyStatus,
@@ -327,6 +356,29 @@ export async function signUp(
 
     if (profileError) {
       throw profileError;
+    }
+
+    if (details.avatarFile) {
+      const avatarPath = `${data.user.id}/avatar.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('profile-avatars')
+        .upload(avatarPath, details.avatarFile, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('profile-avatars')
+        .getPublicUrl(avatarPath);
+
+      const { error: avatarError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrlData.publicUrl })
+        .eq('id', data.user.id);
+
+      if (avatarError) throw avatarError;
     }
   }
 

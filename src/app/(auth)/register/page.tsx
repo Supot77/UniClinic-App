@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  ImagePlus,
   UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -18,7 +19,9 @@ type FieldName =
   | 'lastName'
   | 'dateOfBirth'
   | 'gender'
+  | 'patientType'
   | 'studentId'
+  | 'employeeId'
   | 'phone'
   | 'allergyStatus'
   | 'allergies'
@@ -45,7 +48,9 @@ const initialForm: RegistrationForm = {
   lastName: '',
   dateOfBirth: '',
   gender: '',
+  patientType: 'student',
   studentId: '',
+  employeeId: '',
   phone: '',
 
   allergyStatus: '',
@@ -69,6 +74,31 @@ function sanitizePersonName(value: string): string {
     /[^A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E '-]/g,
     '',
   );
+}
+
+async function resizePng(file: File): Promise<File> {
+  if (file.type !== 'image/png') {
+    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG เท่านั้น');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('รูปโปรไฟล์ต้นฉบับต้องมีขนาดไม่เกิน 5 MB');
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/png'),
+  );
+  if (!blob) throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
+  return new File([blob], 'avatar.png', { type: 'image/png' });
 }
 
 export function validateRegistration(
@@ -103,14 +133,22 @@ export function validateRegistration(
     errors.gender = 'กรุณาเลือกเพศ';
   }
 
-  if (!/^\d{8}$/.test(values.studentId)) {
+  if (!['student', 'employee'].includes(values.patientType)) {
+    errors.patientType = 'กรุณาเลือกประเภทผู้ป่วย';
+  }
+
+  if (values.patientType === 'student' && !/^\d{8}$/.test(values.studentId)) {
     errors.studentId =
       'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก';
   }
 
-  if (!/^0\d{9}$/.test(values.phone)) {
+  if (values.patientType === 'employee' && !/^\d{8}$/.test(values.employeeId)) {
+    errors.employeeId = 'รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก';
+  }
+
+  if (!/^0[689]\d{8}$/.test(values.phone)) {
     errors.phone =
-      'เบอร์โทรศัพท์ต้องมี 10 หลักและขึ้นต้นด้วย 0';
+      'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
   }
 
   if (!values.allergyStatus) {
@@ -167,9 +205,11 @@ export function validateRegistration(
       'กรุณาระบุความสัมพันธ์';
   }
 
-  if (!/^0\d{9}$/.test(values.emergencyPhone)) {
+  if (!/^0[689]\d{8}$/.test(values.emergencyPhone)) {
     errors.emergencyPhone =
-      'เบอร์โทรฉุกเฉินต้องมี 10 หลักและขึ้นต้นด้วย 0';
+      'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
+  } else if (values.emergencyPhone === values.phone) {
+    errors.emergencyPhone = 'เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก';
   }
 
   if (
@@ -211,6 +251,9 @@ export default function RegisterPage() {
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
+
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   function updateField(
     field: FieldName,
@@ -273,8 +316,11 @@ export default function RegisterPage() {
             | 'female'
             | 'unspecified',
 
-          studentId: form.studentId,
+          patientType: form.patientType as 'student' | 'employee',
+          studentId: form.patientType === 'student' ? form.studentId : undefined,
+          employeeId: form.patientType === 'employee' ? form.employeeId : undefined,
           phone: form.phone,
+          avatarFile,
 
           allergyStatus:
             form.allergyStatus as
@@ -540,28 +586,51 @@ export default function RegisterPage() {
               </Field>
 
               <Field
-                id="student-id"
-                label="รหัสนักศึกษา"
-                error={fieldErrors.studentId}
-                help={`${form.studentId.length}/8 หลัก`}
+                id="patient-type"
+                label="ประเภทผู้ป่วย"
+                error={fieldErrors.patientType}
+              >
+                <select
+                  id="patient-type"
+                  required
+                  value={form.patientType}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    updateField('patientType', value);
+                    updateField('studentId', '');
+                    updateField('employeeId', '');
+                  }}
+                  disabled={isSubmitting}
+                  className={inputClass('patientType')}
+                >
+                  <option value="student">นักศึกษา</option>
+                  <option value="employee">บุคลากร</option>
+                </select>
+              </Field>
+
+              <Field
+                id="patient-id"
+                label={form.patientType === 'student' ? 'รหัสนักศึกษา' : 'รหัสบุคลากร'}
+                error={form.patientType === 'student' ? fieldErrors.studentId : fieldErrors.employeeId}
+                help={`${form.patientType === 'student' ? form.studentId.length : form.employeeId.length}/8 หลัก`}
               >
                 <input
-                  id="student-id"
+                  id="patient-id"
                   type="text"
                   required
                   inputMode="numeric"
                   maxLength={8}
-                  value={form.studentId}
+                  value={form.patientType === 'student' ? form.studentId : form.employeeId}
                   onChange={(event) =>
                     updateNumericField(
-                      'studentId',
+                      form.patientType === 'student' ? 'studentId' : 'employeeId',
                       event.target.value,
                       8,
                     )
                   }
-                  placeholder="67116004"
+                  placeholder={form.patientType === 'student' ? '67116004' : '12345678'}
                   disabled={isSubmitting}
-                  className={inputClass('studentId')}
+                  className={inputClass(form.patientType === 'student' ? 'studentId' : 'employeeId')}
                 />
               </Field>
 
@@ -591,6 +660,35 @@ export default function RegisterPage() {
                   className={inputClass('phone')}
                 />
               </Field>
+            </div>
+
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+              <label htmlFor="profile-avatar" className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
+                <ImagePlus className="size-5 text-teal-600" aria-hidden="true" />
+                รูปโปรไฟล์ (ไม่บังคับ)
+              </label>
+              <input
+                id="profile-avatar"
+                type="file"
+                accept="image/png,.png"
+                disabled={isSubmitting}
+                className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:font-semibold file:text-teal-700"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  setAvatarError(null);
+                  setAvatarFile(null);
+                  if (!file) return;
+                  try {
+                    setAvatarFile(await resizePng(file));
+                  } catch (uploadError) {
+                    setAvatarError(uploadError instanceof Error ? uploadError.message : 'รูปโปรไฟล์ไม่ถูกต้อง');
+                    event.target.value = '';
+                  }
+                }}
+              />
+              <p className="mt-2 text-xs text-slate-500">รับเฉพาะ PNG ไม่เกิน 5 MB และย่อเหลือไม่เกิน 512 × 512 พิกเซลก่อนอัปโหลด</p>
+              {avatarFile && <p className="mt-2 text-xs font-medium text-emerald-600">เลือกรูปโปรไฟล์แล้ว</p>}
+              {avatarError && <p role="alert" className="mt-2 text-xs text-rose-600">{avatarError}</p>}
             </div>
           </FormSection>
 
@@ -1026,6 +1124,11 @@ export default function RegisterPage() {
                     'confirmPassword',
                   )}
                 />
+                {form.confirmPassword && !fieldErrors.confirmPassword && (
+                  <p role="status" className={`mt-2 text-xs font-medium ${form.confirmPassword === form.password ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {form.confirmPassword === form.password ? 'รหัสผ่านตรงกัน' : 'รหัสผ่านไม่ตรงกัน'}
+                  </p>
+                )}
               </Field>
             </div>
           </FormSection>
@@ -1042,7 +1145,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (form.confirmPassword.length > 0 && form.confirmPassword !== form.password)}
               className="inline-flex min-w-52 items-center justify-center gap-2 rounded-xl bg-teal-600 px-8 py-3.5 font-semibold text-white shadow-lg shadow-teal-600/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting && (
