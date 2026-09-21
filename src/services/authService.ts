@@ -407,8 +407,8 @@ export async function requestPasswordReset(
 ) {
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (!normalizedEmail) {
-    throw new Error('กรุณากรอกอีเมล');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error('กรุณากรอกอีเมลให้ถูกต้อง');
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(
@@ -825,7 +825,7 @@ async function requireStaffAdmin(): Promise<string> {
 
   if (profile.role !== 'staff_admin') {
     throw new Error(
-      'เฉพาะสตาฟแอดมินเท่านั้นที่แก้ข้อมูลผู้ป่วยได้',
+      'เฉพาะเจ้าหน้าที่เท่านั้นที่แก้ข้อมูลผู้ป่วยได้',
     );
   }
 
@@ -934,7 +934,7 @@ export async function searchProfilesByGroup(
     actorRole !== 'staff_admin'
   ) {
     throw new Error(
-      'เฉพาะสตาฟแอดมินเท่านั้นที่ดูข้อมูลบุคลากรได้',
+      'เฉพาะเจ้าหน้าที่เท่านั้นที่ดูข้อมูลบุคลากรได้',
     );
   }
 

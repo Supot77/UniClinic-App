@@ -849,7 +849,7 @@ export async function getDashboardView(
   const copyByRole: Record<UserRole, { title: string; description: string }> = {
     staff_admin: { title: 'ภาพรวมงานคลินิกของผู้ดูแลระบบ', description: 'ติดตามนัดหมาย คิว แผนก และบัญชีของคลินิก' },
     medical: {
-      title: 'ภาพรวมงานแพทย์และเภสัชกรรม',
+      title: 'ภาพรวมงานแพทย์',
       description: isDoctorActor ? 'แสดงเฉพาะตารางและคิวของแพทย์ที่เข้าสู่ระบบ พร้อมข้อมูลยา' : 'ติดตามงานจ่ายยาและสถานะคลังยา',
     },
     patient: { title: 'ภาพรวมสุขภาพของฉัน', description: 'นัดหมาย ยา การเตือน และข้อความของบัญชีนี้เท่านั้น' },

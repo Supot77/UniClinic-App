@@ -316,7 +316,7 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
   role: ClinicRole; section: 'appointments' | 'records'; error: string; message: string; busy: boolean;
   reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[];
 }) {
-  const roleLabel = role === 'patient' ? 'ผู้ป่วย' : role === 'medical' ? 'แพทย์/เภสัชกร' : 'เจ้าหน้าที่/แอดมิน';
+  const roleLabel = role === 'patient' ? 'ผู้ป่วย' : role === 'medical' ? 'แพทย์' : 'เจ้าหน้าที่/แอดมิน';
   const title = section === 'appointments' ? 'นัดหมายและคิวตรวจ' : 'ผลตรวจและรายการยา';
   return <section className="mx-auto max-w-6xl space-y-5 text-slate-800">
     <header className="relative overflow-hidden rounded-3xl border border-brand-border-soft bg-white shadow-sm">

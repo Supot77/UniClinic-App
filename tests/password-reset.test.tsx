@@ -21,13 +21,13 @@ describe('password recovery', () => {
     render(<ForgotPasswordForm />);
 
     fireEvent.change(screen.getByLabelText('อีเมล'), {
-      target: { value: 'Patient@WU.AC.TH' },
+      target: { value: 'Doctor@Gmail.COM' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'ส่งลิงก์รีเซ็ตรหัสผ่าน' }));
 
     await waitFor(() => {
       expect(authService.requestPasswordReset).toHaveBeenCalledWith(
-        'Patient@WU.AC.TH',
+        'Doctor@Gmail.COM',
         `${window.location.origin}/reset-password`,
       );
       expect(screen.getByRole('heading', { name: 'ตรวจสอบอีเมลของคุณ' })).toBeInTheDocument();
