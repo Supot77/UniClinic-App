@@ -912,6 +912,15 @@ export interface SearchProfilesResult {
   totalCount: number;
 }
 
+function escapeProfileSearchTerm(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/[%,_*]/g, '')
+    .replace(/[(),.]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export async function searchProfilesByGroup(
   group: AccountGroup,
   query: string = '',
@@ -930,12 +939,37 @@ export async function searchProfilesByGroup(
   }
 
   const normalizedQuery = query.trim();
+  const safeSearchTerm = escapeProfileSearchTerm(normalizedQuery);
+  const phoneSearchTerm = normalizedQuery.replace(/\D/g, '');
   const from = page * pageSize;
   const to = from + pageSize - 1;
 
+  if (normalizedQuery && !safeSearchTerm && phoneSearchTerm.length === 0) {
+    return { profiles: [], totalCount: 0, hasMore: false };
+  }
+
+  const selectedFields = [
+    'id',
+    'full_name',
+    'student_id',
+    'employee_id',
+    'patient_type',
+    'phone',
+    'role',
+    'is_active',
+    ...(actorRole === 'medical' && group === 'patient'
+      ? [
+          'allergy_status',
+          'allergies',
+          'chronic_disease_status',
+          'chronic_diseases',
+        ]
+      : []),
+  ].join(',');
+
   let request = supabase
     .from('profiles')
-    .select('*', { count: 'exact' })
+    .select(selectedFields, { count: 'exact' })
     .order('full_name', { ascending: true })
     .range(from, to);
 
@@ -949,14 +983,18 @@ export async function searchProfilesByGroup(
   }
 
   if (normalizedQuery) {
-    request = request.or(
-      [
-        `full_name.ilike.%${normalizedQuery}%`,
-        `student_id.ilike.%${normalizedQuery}%`,
-        `employee_id.ilike.%${normalizedQuery}%`,
-        `phone.ilike.%${normalizedQuery}%`,
-      ].join(','),
-    );
+    const filters = [
+      `full_name.ilike.%${safeSearchTerm}%`,
+      `student_id.ilike.%${safeSearchTerm}%`,
+      `employee_id.ilike.%${safeSearchTerm}%`,
+      `phone.ilike.%${safeSearchTerm}%`,
+    ];
+
+    if (phoneSearchTerm && phoneSearchTerm !== safeSearchTerm) {
+      filters.push(`phone.ilike.%${phoneSearchTerm}%`);
+    }
+
+    request = request.or(filters.join(','));
   }
 
   const { data, count, error } = await request;
@@ -965,7 +1003,7 @@ export async function searchProfilesByGroup(
     throw new Error(error.message);
   }
 
-  const profiles = data ?? [];
+  const profiles = (data ?? []) as unknown as Profile[];
   const totalCount = count ?? 0;
 
   return {

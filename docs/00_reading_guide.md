@@ -29,6 +29,7 @@
 | [10 ข้อสรุปทีม](10_team_decisions.md) | คำตอบที่ตกลงแล้วและประเด็นที่ยังเปิด |
 | [13 แผนลดความซ้ำซ้อนและ Routing](13_code_refactoring_and_routing_plan.md) | แผนขจัดความซ้ำซ้อน Hardcode และ Dynamic Routing |
 | [14 บันทึกการเปลี่ยนแปลง](14_change_log.md) | รายการไฟล์ที่แก้ พฤติกรรมที่เปลี่ยน และผลตรวจจริงหลังส่งมอบ |
+| [15 แผน Route Handlers ในอนาคต](15_future_api_route_migration_plan.md) | แผนเป้าหมายการแปลง Data Access Layer เป็น REST API Route Handlers (รอทำหลังจบโปรเจกต์) |
 | [Owner views](owners/README.md) | สรุปขอบเขต as-built หลักฐาน และงานค้างแยกตามผู้รับผิดชอบ |
 | [Catalog เดโม](superpowers/specs/2026-09-04-clinic-demo-data-design.md) | บัญชีสังเคราะห์ ตารางตรวจและยา |
 | [Process diagram](diagrams/clinic-manual-process.html) | ภาพรวม flow manual ของ 3 role |
