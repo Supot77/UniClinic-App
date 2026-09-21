@@ -9,6 +9,7 @@ git status
 git add .
 git commit -m "feat: อธิบายสั้นๆ ว่าทำอะไร"
 
+
 สร้าง branch (ไว้เพิ่มฟีเจอร์)
 git checkout -b feature/ชื่องาน
 

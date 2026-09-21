@@ -194,7 +194,11 @@ export function validateRegistration(
   return errors;
 }
 
-export default function RegisterPage() {
+export default function RegisterPage({
+  mode,
+}: {
+  mode?: 'patient' | 'staff-walk-in' | string;
+} = {}) {
   const router = useRouter();
 
   const [form, setForm] =

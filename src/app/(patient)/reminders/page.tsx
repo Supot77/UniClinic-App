@@ -1,5 +1,16 @@
 'use client';
 
+/**
+ * =============================================================================
+ * หน้าแสดงรายการยาและการแจ้งเตือนการทานยา (Medication Reminders Page)
+ * =============================================================================
+ * - ผู้ป่วย (Patient): ตรวจสอบตารางการทานยา, คำแนะนำการใช้ยากับอาหาร,
+ *   และสามารถเปิด/ปิดการแจ้งเตือนยาของตนเองได้
+ * - บุคลากรทางการแพทย์/เจ้าหน้าที่ (Staff / Medical / Doctor): ค้นหาและเลือกดูข้อมูลผู้ป่วย,
+ *   สั่งจ่ายยาใหม่, กำหนดเวลาทานยา, ตรวจสอบการแพ้ยา (Allergy Warning), แก้ไข และลบรายการยา
+ * =============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pill,
@@ -25,17 +36,22 @@ import {
 import type { Medication, MedicationReminderWithMedication, Profile } from '@/types/database';
 import { getPatients, getProfile } from '@/services/authService';
 
-
+/**
+ * ตรวจสอบว่า string ที่ส่งเข้ามาเป็นรูปแบบ UUID หรือไม่
+ */
 const isUuid = (val?: string | null): boolean =>
   typeof val === 'string' &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
+// คลาสสไตล์พื้นฐานสำหรับ Input และ Text Button แอ็กชัน
 const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-white px-3.5 text-sm text-brand-ink placeholder:text-brand-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong';
 const textActionClass =
   'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50 cursor-pointer';
 
-// รายชื่อผู้ป่วยตัวอย่างสำหรับคลินิก (ใช้ fallback เมื่อไม่มีข้อมูลในตาราง profiles)
+/**
+ * โครงสร้างข้อมูลตัวเลือกผู้ป่วยสำหรับคลินิก
+ */
 interface PatientOption {
   id: string;
   name: string;
@@ -45,6 +61,7 @@ interface PatientOption {
   gender?: string;
 }
 
+// รายชื่อผู้ป่วยตัวอย่างสำหรับคลินิก (ใช้เป็น Fallback เมื่อยังไม่มีข้อมูลในฐานข้อมูลจริง)
 const CLINIC_PATIENTS: PatientOption[] = [
   { id: 'profile-peter-parker', name: 'Peter Parker', studentId: '66000001', allergies: null, phone: '081-111-2222', gender: 'ชาย' },
   { id: 'profile-wednesday', name: 'Wednesday Addams', studentId: '66000002', allergies: 'แพ้ยา PENICILLIN (เพนิซิลลิน)', phone: '082-222-3333', gender: 'หญิง' },
@@ -54,7 +71,9 @@ const CLINIC_PATIENTS: PatientOption[] = [
   { id: 'profile-bruce-wayne', name: 'Bruce Wayne', studentId: '66000006', allergies: null, phone: '086-666-7777', gender: 'ชาย' },
 ];
 
-// Interface สำหรับข้อมูลยาในมุมมอง UI
+/**
+ * โครงสร้างข้อมูลยาที่ปรับแต่งให้พร้อมสำหรับการแสดงผลบน UI
+ */
 interface MedicationDisplayItem {
   id: string;
   medicationId?: string;
@@ -70,7 +89,12 @@ interface MedicationDisplayItem {
   isActive?: boolean;
 }
 
-// ฟังก์ชันแปลงเวลาเป็นภาษาไทย (เช้า, กลางวัน, เย็น, ก่อนนอน) พร้อมระบุการใช้ยากับอาหาร
+/**
+ * ฟังก์ชันแปลงเวลา 24 ชม. เป็นภาษาไทย (เช้า, กลางวัน, เย็น, ก่อนนอน) พร้อมระบุเงื่อนไขการใช้ยากับอาหาร
+ * @param time เวลา เช่น "08:00"
+ * @param mealTiming เงื่อนไขมื้ออาหาร เช่น "หลังอาหาร", "ก่อนอาหาร"
+ * @example formatTimeToThai("08:00", "หลังอาหาร") => "เช้า 08:00 น. (หลังอาหาร)"
+ */
 function formatTimeToThai(time: string, mealTiming?: string) {
   const hour = parseInt(time.split(':')[0], 10);
   let prefix = '';
@@ -85,7 +109,10 @@ function formatTimeToThai(time: string, mealTiming?: string) {
   return prefix;
 }
 
-// ฟังก์ชันระบุการใช้ยากับอาหารเริ่มต้น (ก่อนอาหาร / หลังอาหาร / พร้อมอาหาร / ก่อนนอน)
+/**
+ * ฟังก์ชันวิเคราะห์และระบุการใช้ยากับอาหารเริ่มต้นอัตโนมัติจากชื่อและคำอธิบายยา
+ * (เช่น ยาลดกรด Omeprazole มักทานก่อนอาหาร, ยาแก้แพ้ Cetirizine มักทานก่อนนอน)
+ */
 function getMealTimingForMed(name?: string | null, category?: string | null, description?: string | null): string {
   const str = `${name || ''} ${category || ''} ${description || ''}`.toLowerCase();
   if (str.includes('omeprazole') || str.includes('ลดกรด') || str.includes('ก่อนอาหาร')) {
@@ -100,7 +127,9 @@ function getMealTimingForMed(name?: string | null, category?: string | null, des
   return 'หลังอาหาร';
 }
 
-// Helper แปลง Reminder Model เป็น UI Item
+/**
+ * Helper แปลง MedicationReminderWithMedication จาก Database Model เป็น UI Item (MedicationDisplayItem)
+ */
 function mapReminderToDisplay(reminder: MedicationReminderWithMedication, customTiming?: string): MedicationDisplayItem {
   const med = reminder.medication;
   const desc = med?.description ? ` (${med.description})` : '';
@@ -128,19 +157,25 @@ function mapReminderToDisplay(reminder: MedicationReminderWithMedication, custom
 }
 
 export default function RemindersPage() {
+  // ---------------------------------------------------------------------------
+  // 1. ระบบยืนยันตัวตน และการตรวจสอบสิทธิ์การใช้งาน (Auth & Role Check)
+  // ---------------------------------------------------------------------------
   const { user, role, isLoading: authLoading } = useAuth();
   const { repositories } = useClinicMockDatabase();
 
+  // State สำหรับบันทึกตัวเลือกผู้ป่วยที่บุคลากรทางการแพทย์เลือกดู
   const [selectedPatientOverride, setSelectedPatientOverride] = useState<string | null>(null);
+  // รายชื่อผู้ป่วยที่โหลดมาจากตาราง profiles (role = 'patient')
   const [dbPatients, setDbPatients] = useState<PatientOption[]>([]);
+  // ข้อมูลโปรไฟล์ของผู้ใช้ที่เข้าสู่ระบบอยู่ในขณะนี้
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
 
-  // ตรวจสอบสิทธิ์: อนุญาตเฉพาะบุคลากรทางการแพทย์หรือผู้ดูแลระบบคลินิกเท่านั้นที่สามารถจ่ายยา/แก้ไข/ลบยาได้
+  // ตรวจสอบสิทธิ์: เฉพาะบุคลากรทางการแพทย์หรือเจ้าหน้าที่คลินิกเท่านั้นที่สามารถสั่งจ่ายยา/แก้ไข/ลบรายการยาได้
   const effectiveRole = (currentUserProfile?.role || user?.role || role || '').toString().toLowerCase().trim();
   const canManageMedication = !authLoading && ['medical', 'staff_admin', 'doctor', 'pharmacist', 'staff', 'admin'].includes(effectiveRole);
   const isPatient = !canManageMedication;
 
-  // ดึงข้อมูลโปรไฟล์ของผู้ใช้ปัจจุบัน (สำหรับผู้ป่วย เพื่อนำข้อมูลการแพ้ยา/รหัสนักศึกษามาแสดง)
+  // โหลดข้อมูลโปรไฟล์ของผู้ใช้ปัจจุบัน (สำหรับนำข้อมูลการแพ้ยาและรหัสนักศึกษามาแสดง)
   useEffect(() => {
     if (user && isUuid(user.id)) {
       getProfile(user.id)
@@ -151,7 +186,7 @@ export default function RemindersPage() {
     }
   }, [user]);
 
-  // โหลดรายชื่อผู้ป่วยจากฐานข้อมูล Supabase (ตาราง profiles โดย role = 'patient')
+  // ฟังก์ชันโหลดรายชื่อผู้ป่วยทั้งหมดจากฐานข้อมูล Supabase (ตาราง profiles โดย role = 'patient')
   const loadPatients = useCallback(async () => {
     try {
       const patients = await getPatients();
@@ -171,7 +206,7 @@ export default function RemindersPage() {
       console.warn('Could not fetch patients from Supabase profiles:', err);
     }
 
-    // Fallback: หากยังไม่ต่อ DB หรือใช้ mock repository
+    // Fallback: หากยังไม่ได้ต่อฐานข้อมูลจริง ให้ใช้ข้อมูลจาก mock repository
     try {
       const { data: mockProfiles } = await repositories.profiles.list();
       if (mockProfiles && mockProfiles.length > 0) {
@@ -193,9 +228,11 @@ export default function RemindersPage() {
       console.warn('Could not fetch patients from mock repository:', mockErr);
     }
 
+    // Fallback ชั้นสุดท้าย: ใช้รายชื่อตัวอย่างของคลินิก
     setDbPatients(CLINIC_PATIENTS);
   }, [repositories.profiles]);
 
+  // หากเป็นบุคลากร ให้โหลดรายชื่อผู้ป่วยเพื่อใส่ใน Dropdown เลือกผู้ป่วย
   useEffect(() => {
     if (canManageMedication) {
       const frame = requestAnimationFrame(() => {
@@ -205,7 +242,9 @@ export default function RemindersPage() {
     }
   }, [canManageMedication, loadPatients]);
 
-  // คำนวณผู้ป่วยที่เลือกอย่างปลอดภัยและสอดคล้องกับบทบาท
+  // คำนวณผู้ป่วยที่เลือกอย่างปลอดภัย:
+  // - ถ้าเป็นผู้ป่วย: ให้ใช้ user id ของตนเองเสมอ
+  // - ถ้าเป็นเจ้าหน้าที่: ให้ใช้ค่าที่เลือกจาก Dropdown หรือคนแรกในระบบ
   const selectedPatientId = useMemo(() => {
     if (!canManageMedication) {
       return (user && isUuid(user.id)) ? user.id : (user?.id || 'profile-peter-parker');
@@ -219,6 +258,9 @@ export default function RemindersPage() {
     return CLINIC_PATIENTS[0].id;
   }, [canManageMedication, user, selectedPatientOverride, dbPatients]);
 
+  // ---------------------------------------------------------------------------
+  // 2. State จัดการรายการยา การค้นหา และข้อความแจ้งเตือน (Data & Feedback States)
+  // ---------------------------------------------------------------------------
   const [medicationList, setMedicationList] = useState<MedicationDisplayItem[]>([]);
   const [availableMeds, setAvailableMeds] = useState<Medication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -226,11 +268,14 @@ export default function RemindersPage() {
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // ค้นหาและกรองสถานะรายการยา
+  // State ค้นหาและกรองสถานะรายการยา (ทั้งหมด / เปิดเตือน / หยุดชั่วคราว)
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'paused'>('all');
 
-  // Modal State: จ่ายยา / เพิ่มยาใหม่
+  // ---------------------------------------------------------------------------
+  // 3. State สำหรับ Modal หน้าต่างการทำงานต่างๆ (Modals State)
+  // ---------------------------------------------------------------------------
+  // Modal: สั่งจ่ายยา / เพิ่มการแจ้งเตือนยาใหม่
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedMedId, setSelectedMedId] = useState('');
   const [selectedMealTiming, setSelectedMealTiming] = useState<string>('หลังอาหาร');
@@ -238,7 +283,7 @@ export default function RemindersPage() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
 
-  // Modal State: แก้ไขตัวยาที่จ่ายไปแล้ว
+  // Modal: แก้ไขข้อมูลยาที่สั่งจ่ายไปแล้ว
   const [editingItem, setEditingItem] = useState<MedicationDisplayItem | null>(null);
   const [editMedId, setEditMedId] = useState('');
   const [editMealTiming, setEditMealTiming] = useState<string>('หลังอาหาร');
@@ -246,7 +291,7 @@ export default function RemindersPage() {
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
 
-  // Overrides สำหรับบันทึกค่าการใช้ยากับอาหาร (ก่อนอาหาร / หลังอาหาร / ฯลฯ) ต่อ Reminder ID
+  // เก็บค่า Overrides สำหรับเงื่อนไขการใช้ยากับอาหาร (เช่น ก่อนอาหาร / หลังอาหาร) ต่อ Reminder ID
   const [, setMealTimingOverrides] = useState<Record<string, string>>({});
   const mealTimingOverridesRef = useRef<Record<string, string>>({});
   const updateMealTimingOverride = useCallback((id: string, timing: string) => {
@@ -254,9 +299,10 @@ export default function RemindersPage() {
     setMealTimingOverrides((prev) => ({ ...prev, [id]: timing }));
   }, []);
 
-  // Modal State: ยืนยันการลบรายการยา
+  // Modal: ยืนยันการลบรายการเตือนยา
   const [deletingItem, setDeletingItem] = useState<MedicationDisplayItem | null>(null);
 
+  // Helper แสดงข้อความแจ้งเตือนสำเร็จ (Toast Notice)
   const showNotice = (msg: string) => {
     setNotice(msg);
     setTimeout(() => {
@@ -264,6 +310,7 @@ export default function RemindersPage() {
     }, 4000);
   };
 
+  // Helper แสดงข้อความแจ้งเตือนข้อผิดพลาด (Error Alert)
   const showError = (msg: string) => {
     setErrorMessage(msg);
     setTimeout(() => {
@@ -271,7 +318,7 @@ export default function RemindersPage() {
     }, 5000);
   };
 
-  // รายชื่อผู้ป่วยทั้งหมด (แยกตามสิทธิ์)
+  // รายชื่อผู้ป่วยทั้งหมด (คำนวณแยกตามสิทธิ์ของผู้ใช้งาน)
   const allPatients = useMemo<PatientOption[]>(() => {
     if (!canManageMedication) {
       if (user) {
@@ -297,16 +344,16 @@ export default function RemindersPage() {
     return CLINIC_PATIENTS;
   }, [canManageMedication, user, currentUserProfile, dbPatients]);
 
-  // ข้อมูลผู้ป่วยที่เลือก
+  // ข้อมูลของผู้ป่วยที่กำลังดูอยู่ในปัจจุบัน
   const currentPatient = useMemo(() => {
     return allPatients.find(p => p.id === selectedPatientId) || allPatients[0];
   }, [allPatients, selectedPatientId]);
 
-  // คำนวณจำนวนยาตามสถานะ
+  // คำนวณจำนวนรายการยาตามสถานะเพื่อแสดงในแท็บ Badge
   const activeCount = useMemo(() => medicationList.filter((m) => m.isActive).length, [medicationList]);
   const pausedCount = useMemo(() => medicationList.filter((m) => !m.isActive).length, [medicationList]);
 
-  // กรองรายการยาตามคำค้นหาและสถานะ
+  // กรองรายการยาตามคำค้นหา (ชื่อยา, หมวดหมู่, มื้ออาหาร, ขนาดยา) และแท็บสถานะ
   const filteredMedications = useMemo(() => {
     return medicationList.filter((med) => {
       const q = searchQuery.trim().toLowerCase();
@@ -326,11 +373,13 @@ export default function RemindersPage() {
     });
   }, [medicationList, searchQuery, filterStatus]);
 
-  // ดึงข้อมูลยาของผู้ป่วยที่เลือก
+  // ---------------------------------------------------------------------------
+  // 4. การดึงข้อมูลรายการยาและการแจ้งเตือน (Data Fetching)
+  // ---------------------------------------------------------------------------
   const loadData = useCallback(async (patientId: string) => {
     setIsLoading(true);
     try {
-      // 1. ดึงรายการยา
+      // ขั้นตอนที่ 1: ดึงรายชื่อยาที่มีทั้งหมดในคลังยา (Medication Master Data)
       let meds: Medication[] = [];
       try {
         meds = await getAvailableMedications();
@@ -343,7 +392,7 @@ export default function RemindersPage() {
       }
       setAvailableMeds(meds);
 
-      // 2. โหลดรายการยาจาก Supabase (กรณี patientId เป็น UUID)
+      // ขั้นตอนที่ 2: โหลดรายการแจ้งเตือนยาจาก Supabase (กรณี patientId เป็น UUID)
       let dbReminders: MedicationReminderWithMedication[] = [];
       if (isUuid(patientId)) {
         try {
@@ -353,7 +402,7 @@ export default function RemindersPage() {
         }
       }
 
-      // 3. โหลดรายการยาจาก Mock repository
+      // ขั้นตอนที่ 3: โหลดรายการยาจาก Mock repository (สำหรับ Demo หรือกรณีออฟไลน์)
       let mockReminders: unknown[] = [];
       try {
         const { data: mockData } = await repositories.reminders.listWithMedication(patientId);
@@ -364,7 +413,7 @@ export default function RemindersPage() {
         console.warn('Could not fetch reminders from mock repo:', mockErr);
       }
 
-      // 4. แปลงข้อมูลและเติมรายละเอียดตัวยาจาก meds
+      // ขั้นตอนที่ 4: แปลงข้อมูลดิบและเติมรายละเอียดตัวยาให้พร้อมแสดงผลบน UI
       const mappedDb = (dbReminders || []).map((item) => {
         const override = mealTimingOverridesRef.current[item.id];
         return mapReminderToDisplay(item, override);
@@ -389,6 +438,7 @@ export default function RemindersPage() {
         return display;
       });
 
+      // รวมข้อมูลและตัดรายการที่ ID ซ้ำกันออก
       const uniqueMap = new Map<string, MedicationDisplayItem>();
       for (const item of [...mappedDb, ...mappedMock]) {
         uniqueMap.set(item.id, item);
@@ -401,6 +451,7 @@ export default function RemindersPage() {
     }
   }, [repositories.medications, repositories.reminders]);
 
+  // โหลดข้อมูลยาใหม่ทุกครั้งที่ผู้ป่วยที่เลือกเปลี่ยนแปลง
   useEffect(() => {
     const timer = setTimeout(() => {
       void loadData(selectedPatientId);
@@ -408,13 +459,15 @@ export default function RemindersPage() {
     return () => clearTimeout(timer);
   }, [loadData, selectedPatientId]);
 
-  // สลับสถานะเปิด/ปิดการแจ้งเตือนยา (Toggle)
+  // ---------------------------------------------------------------------------
+  // 5. จัดการการเปิด/ปิดแจ้งเตือนยา (Toggle Status Active / Paused)
+  // ---------------------------------------------------------------------------
   const handleToggle = async (id: string) => {
     const item = medicationList.find((m) => m.id === id);
     if (!item) return;
     const nextActive = !item.isActive;
 
-    // อัปเดต UI ทันที (Optimistic update)
+    // อัปเดตสถานะบนหน้าจอทันที (Optimistic UI Update) เพื่อให้การกดสวิตช์รู้สึกลื่นไหล
     setMedicationList((prev) =>
       prev.map((m) => {
         if (m.id !== id) return m;
@@ -433,6 +486,7 @@ export default function RemindersPage() {
 
     const isReminderUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+    // บันทึกสถานะใหม่ลงฐานข้อมูล Supabase หรือ Mock
     try {
       if (isReminderUuid) {
         await updateReminder(id, { status: nextActive ? 'active' : 'paused' });
@@ -444,12 +498,15 @@ export default function RemindersPage() {
       try {
         await repositories.reminders.updateStatus(id, nextActive ? 'active' : 'paused');
       } catch {
-        // เงียบไว้เนื่องจาก UI อัปเดตเรียบร้อยแล้ว
+        // จัดการกรณีเกิดข้อผิดพลาดในการบันทึก
       }
     }
   };
 
-  // เปิด Modal ยืนยันการลบรายการเตือนยา
+  // ---------------------------------------------------------------------------
+  // 6. การลบรายการยา (Delete Medication Reminder)
+  // ---------------------------------------------------------------------------
+  // เปิดหน้าต่าง Modal ยืนยันการลบรายการยา
   const handleDeleteClick = (item: MedicationDisplayItem) => {
     if (isPatient) {
       showError('บัญชีนี้อยู่ในบทบาทผู้ป่วย ไม่มีสิทธิ์ลบรายการยา');
@@ -458,12 +515,13 @@ export default function RemindersPage() {
     setDeletingItem(item);
   };
 
-  // ยืนยันการลบรายการเตือนยาจริง
+  // ยืนยันการลบรายการเตือนยาออกจากระบบจริง
   const confirmDelete = async () => {
     if (isPatient || !deletingItem) return;
     const { id, name } = deletingItem;
     setDeletingItem(null);
 
+    // ลบออกจากรายการบนหน้าจอทันที (Optimistic)
     setMedicationList((prev) => prev.filter((m) => m.id !== id));
     showNotice(`ลบรายการยา "${name}" เรียบร้อยแล้ว`);
 
@@ -481,14 +539,17 @@ export default function RemindersPage() {
         await repositories.reminders.delete(id);
         await loadData(selectedPatientId);
       } catch {
-        // ignore
+        // จัดการกรณีเกิดข้อผิดพลาด
       }
     }
   };
 
-  // บันทึกการจ่ายยาและเพิ่มการเตือนยาใหม่
+  // ---------------------------------------------------------------------------
+  // 7. การสั่งจ่ายยาและสร้างการแจ้งเตือนใหม่ (Prescribe & Add Reminder)
+  // ---------------------------------------------------------------------------
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // ป้องกันไม่ให้ผู้ป่วยสั่งจ่ายยาเอง
     if (isPatient) {
       showError('บัญชีนี้อยู่ในบทบาทผู้ป่วย ไม่มีสิทธิ์สั่งจ่ายยา');
       return;
@@ -504,7 +565,7 @@ export default function RemindersPage() {
 
     const chosenMed = availableMeds.find(m => m.id === selectedMedId);
 
-    // ตรวจสอบการแพ้ยา (Allergy Warning)
+    // ระบบแจ้งเตือนความปลอดภัย: ตรวจสอบประวัติการแพ้ยาของผู้ป่วย (Allergy Warning Check)
     if (currentPatient.allergies && chosenMed) {
       const allergyLower = currentPatient.allergies.toLowerCase();
       const medNameLower = chosenMed.name.toLowerCase();
@@ -524,6 +585,7 @@ export default function RemindersPage() {
       const isTargetUserUuid = isUuid(selectedPatientId);
       const isMedUuid = isUuid(selectedMedId);
 
+      // บันทึกลง Supabase หากทั้งผู้ป่วยและยาเป็น UUID จริง
       if (isTargetUserUuid && isMedUuid) {
         try {
           const created = await createReminder({
@@ -544,6 +606,7 @@ export default function RemindersPage() {
         }
       }
 
+      // บันทึกลง Mock Database หากยังไม่ได้ต่อ Supabase หรือเป็นข้อมูลจำลอง
       if (!savedToSupabase) {
         const newMock = await repositories.reminders.create({
           patient_id: selectedPatientId,
@@ -559,6 +622,7 @@ export default function RemindersPage() {
         showNotice(`จ่ายยา "${chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
       }
 
+      // รีเซ็ตค่าในฟอร์มและปิด Modal
       setIsAddModalOpen(false);
       setSelectedMedId('');
       setSelectedMealTiming('หลังอาหาร');
@@ -584,12 +648,17 @@ export default function RemindersPage() {
     }
   };
 
+  // สลับการเลือกช่วงเวลาทานยา (เช้า, กลางวัน, เย็น, ก่อนนอน) ในฟอร์มเพิ่มยา
   const toggleTimeSelection = (time: string) => {
     setSelectedTimes((prev) =>
       prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time]
     );
   };
 
+  // ---------------------------------------------------------------------------
+  // 8. การแก้ไขข้อมูลยาที่สั่งจ่ายไปแล้ว (Edit Medication Reminder)
+  // ---------------------------------------------------------------------------
+  // เปิดหน้าต่าง Modal สำหรับแก้ไขข้อมูลยา
   const openEditModal = (item: MedicationDisplayItem) => {
     if (isPatient) {
       showError('บัญชีนี้อยู่ในบทบาทผู้ป่วย ไม่มีสิทธิ์แก้ไขรายการยา');
@@ -620,12 +689,14 @@ export default function RemindersPage() {
     }
   };
 
+  // สลับการเลือกช่วงเวลาทานยาในฟอร์มแก้ไขยา
   const toggleEditTimeSelection = (time: string) => {
     setEditTimes((prev) =>
       prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time]
     );
   };
 
+  // บันทึกการแก้ไขข้อมูลยา
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageMedication || !editingItem) {
@@ -650,7 +721,7 @@ export default function RemindersPage() {
       stock: 30,
     };
 
-    // ตรวจสอบการแพ้ยา (Allergy check)
+    // ตรวจสอบการแพ้ยาเมื่อเปลี่ยนตัวยา
     if (currentPatient.allergies && chosenMed) {
       const allergyLower = currentPatient.allergies.toLowerCase();
       const medNameLower = chosenMed.name.toLowerCase();
@@ -676,7 +747,7 @@ export default function RemindersPage() {
 
     updateMealTimingOverride(editingItem.id, editMealTiming);
 
-    // อัปเดตใน UI ทันที (Optimistic)
+    // อัปเดตใน UI ทันที (Optimistic Update)
     setMedicationList((prev) =>
       prev.map((item) => {
         if (item.id !== editingItem.id) return item;
@@ -736,10 +807,14 @@ export default function RemindersPage() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // 9. ส่วนแสดงผล UI หน้าเว็บ (JSX Rendering)
+  // ---------------------------------------------------------------------------
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] bg-brand-surface py-6 sm:py-8 px-4 sm:px-6 lg:px-8 xl:px-12 font-sans text-brand-body selection:bg-brand-soft selection:text-brand-ink">
       <div className="w-full max-w-[1720px] mx-auto space-y-6 sm:space-y-8">
-        {/* Header Title & Primary Action */}
+        
+        {/* === ส่วนหัวของหน้า (Header & Primary Action) === */}
         <header className="flex flex-wrap items-center justify-between gap-5">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">
@@ -750,6 +825,7 @@ export default function RemindersPage() {
             </p>
           </div>
 
+          {/* ปุ่มสั่งจ่ายยา (แสดงเฉพาะบุคลากรทางการแพทย์ / เจ้าหน้าที่) */}
           {canManageMedication && (
             <button
               type="button"
@@ -762,8 +838,9 @@ export default function RemindersPage() {
           )}
         </header>
 
-        {/* Notifications Banner */}
+        {/* === กล่องแจ้งเตือนผลการทำรายการ (Notification & Error Banners) === */}
         <div aria-live="polite" className="space-y-3 empty:hidden">
+          {/* แถบแจ้งเตือนสำเร็จ (Success Notice) */}
           {notice && (
             <div className="flex items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
               <span className="flex items-center gap-2">
@@ -781,6 +858,7 @@ export default function RemindersPage() {
             </div>
           )}
 
+          {/* แถบแจ้งเตือนข้อผิดพลาด (Error Alert) */}
           {errorMessage && (
             <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">
               <span className="flex items-center gap-2">
@@ -799,8 +877,9 @@ export default function RemindersPage() {
           )}
         </div>
 
-        {/* Patient Meta & Selector */}
+        {/* === ข้อมูลผู้ป่วยและตัวเลือกสลับผู้ป่วย (Patient Meta & Selector) === */}
         <section aria-label="ข้อมูลผู้ป่วย" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-brand-border-soft text-sm">
+          {/* ฝั่งซ้าย: ข้อมูลผู้ป่วยปัจจุบัน (ชื่อ, รหัสนักศึกษา, เบอร์โทร) */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-brand-soft text-brand-strong font-bold text-sm flex items-center justify-center border border-brand-border-soft shrink-0">
               {currentPatient.name.charAt(0)}
@@ -808,7 +887,7 @@ export default function RemindersPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-brand-ink">{currentPatient.name}</span>
               <span className="text-xs text-brand-muted tabular-nums">
-                รหัสนักศึกษา: {currentPatient.studentId}
+                (ผู้ป่วย) รหัสนักศึกษา: {currentPatient.studentId}
               </span>
               {currentPatient.phone && (
                 <span className="text-xs text-brand-muted">
@@ -818,8 +897,9 @@ export default function RemindersPage() {
             </div>
           </div>
 
+          {/* ฝั่งขวา: ตัวเลือกเปลี่ยนผู้ป่วยสำหรับเจ้าหน้าที่ และแถบเตือนประวัติแพ้ยา */}
           <div className="flex flex-wrap items-center gap-3">
-            {canManageMedication ? (
+            {canManageMedication && (
               <label className="flex items-center gap-2 text-sm text-brand-body">
                 <span className="text-xs font-semibold text-brand-ink whitespace-nowrap">ผู้ป่วย:</span>
                 <select
@@ -834,13 +914,9 @@ export default function RemindersPage() {
                   ))}
                 </select>
               </label>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-brand-body">
-                <span className="font-medium text-brand-ink">ผู้ป่วย:</span>
-                <span>{user?.full_name || 'บัญชีของคุณ'}</span>
-              </div>
             )}
 
+            {/* แถบเตือนประวัติการแพ้ยา (Allergy Badge) */}
             {currentPatient.allergies && (
               <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
                 <AlertTriangle size={15} className="text-rose-600 shrink-0" />
@@ -850,9 +926,9 @@ export default function RemindersPage() {
           </div>
         </section>
 
-        {/* Status Tabs (Left) & Search (Right) */}
+        {/* === แถบเลือกกรองสถานะ และช่องค้นหารายการยา (Status Tabs & Search) === */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border-soft pb-1.5">
-          {/* Status Tabs (Accessible Underline Tabs with Hover Box Affordance) */}
+          {/* แท็บสถานะการเตือนยา (ทั้งหมด / เปิดเตือน / หยุดชั่วคราว) */}
           <div
             className="flex flex-wrap items-center gap-2"
             role="tablist"
@@ -903,7 +979,7 @@ export default function RemindersPage() {
                   >
                     {count}
                   </span>
-                  {/* Active & Hover Underline indicator */}
+                  {/* เส้นขีดบอกสถานะ Active ใต้แท็บ */}
                   <span
                     className={`absolute -bottom-[7px] left-2 right-2 h-0.5 rounded-full transition-all duration-150 ${
                       isSelected
@@ -917,7 +993,7 @@ export default function RemindersPage() {
             })}
           </div>
 
-          {/* Search Input on the Right */}
+          {/* ช่องค้นหารายการยาทางด้านขวา (Search Input) */}
           <div className="relative w-full sm:w-80 md:w-96">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-muted" aria-hidden="true" />
             <input
@@ -941,8 +1017,9 @@ export default function RemindersPage() {
           </div>
         </div>
 
-        {/* Data Stream (Tab Panel) */}
+        {/* === รายการยาและการ์ดแจ้งเตือน (Medication Cards List / Grid) === */}
         <section id="reminders-panel" role="tabpanel" aria-labelledby={`${filterStatus}-tab`} aria-busy={isLoading}>
+          {/* สถานะกำลังโหลด (Loading Skeleton) */}
           {isLoading ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
               {[1, 2, 3, 4].map((idx) => (
@@ -959,6 +1036,7 @@ export default function RemindersPage() {
               ))}
             </div>
           ) : medicationList.length === 0 ? (
+            /* กรณีไม่มีรายการยาในระบบเลย (Empty State) */
             <div className="rounded-2xl border border-dashed border-brand-border-strong p-10 text-center space-y-4 bg-white/40">
               <div className="w-12 h-12 rounded-full bg-brand-soft text-brand-strong mx-auto flex items-center justify-center">
                 <Pill size={24} />
@@ -986,6 +1064,7 @@ export default function RemindersPage() {
               )}
             </div>
           ) : filteredMedications.length === 0 ? (
+            /* กรณีค้นหาแล้วไม่พบรายการยาที่ตรงกับเงื่อนไข */
             <div className="rounded-xl border border-dashed border-brand-border-strong bg-white/60 p-10 text-center space-y-3">
               <p className="text-sm font-semibold text-brand-ink">
                 ไม่พบรายการยาที่ตรงกับเงื่อนไข
@@ -1005,6 +1084,7 @@ export default function RemindersPage() {
               </button>
             </div>
           ) : (
+            /* แสดงรายการยาในรูปแบบ Grid การ์ด */
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
               {filteredMedications.map((med) => (
                 <article
@@ -1015,7 +1095,7 @@ export default function RemindersPage() {
                       : 'border-brand-border-soft/70 bg-slate-50/60 opacity-80 hover:opacity-100'
                   }`}
                 >
-                  {/* ข้อมูลยา */}
+                  {/* ข้อมูลยา (ชื่อ, หมวดหมู่, มื้ออาหาร, วิธีทาน, เวลา, ระยะเวลา) */}
                   <div className="flex items-start gap-3.5 sm:gap-4 flex-1 min-w-0">
                     <div className="w-11 h-11 rounded-xl bg-brand-soft border border-brand-border-soft text-brand-strong flex items-center justify-center shrink-0 mt-0.5">
                       <Pill size={22} />
@@ -1023,14 +1103,17 @@ export default function RemindersPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* ชื่อยา */}
                         <h3 className="font-bold text-base sm:text-lg text-brand-ink leading-snug">
                           {med.name}
                         </h3>
+                        {/* ป้ายหมวดหมู่ยา */}
                         {med.category && (
                           <span className="text-[11px] font-medium bg-brand-page text-brand-body px-2.5 py-0.5 rounded-full border border-brand-border-soft">
                             {med.category}
                           </span>
                         )}
+                        {/* ป้ายกำกับมื้ออาหาร (ก่อนอาหาร / หลังอาหาร / ก่อนนอน / พร้อมอาหาร) */}
                         {med.mealTiming && (
                           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
                             med.mealTiming === 'ก่อนอาหาร'
@@ -1044,6 +1127,7 @@ export default function RemindersPage() {
                             {med.mealTiming}
                           </span>
                         )}
+                        {/* ป้ายสถานะหยุดยาชั่วคราว */}
                         {!med.isActive && (
                           <span className="text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full">
                             หยุดชั่วคราว
@@ -1051,11 +1135,12 @@ export default function RemindersPage() {
                         )}
                       </div>
 
+                      {/* รายละเอียดคำแนะนำวิธีรับประทานยา */}
                       <p className="text-brand-body text-xs sm:text-sm mt-1.5 leading-relaxed">
                         {med.dosageInstruction}
                       </p>
 
-                      {/* Time Chips */}
+                      {/* รอบเวลาทานยา (Time Chips) */}
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {med.times.map((time, i) => (
                           <span
@@ -1068,7 +1153,7 @@ export default function RemindersPage() {
                         ))}
                       </div>
 
-                      {/* ระยะเวลาทานยา */}
+                      {/* ระยะเวลาทานยา (วันที่เริ่มต้น - สิ้นสุด) */}
                       <div className="flex items-center gap-2 mt-2.5 text-xs text-brand-muted">
                         <span>เริ่ม: {med.startDate || 'วันนี้'}</span>
                         <span>•</span>
@@ -1080,7 +1165,7 @@ export default function RemindersPage() {
                     </div>
                   </div>
 
-                  {/* ขวา: Toggle & Actions */}
+                  {/* ฝั่งขวา: สวิตช์เปิด/ปิดเตือนยา และปุ่มจัดการ (แก้ไข / ลบ) */}
                   <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-brand-border-soft shrink-0">
                     <div className="flex items-center gap-3">
                       <ToggleSwitch active={Boolean(med.isActive)} onToggle={() => handleToggle(med.id)} />
@@ -1116,10 +1201,13 @@ export default function RemindersPage() {
         </section>
       </div>
 
-      {/* --- Modal: จ่ายยาและเพิ่มการแจ้งเตือนยา --- */}
+      {/* =======================================================================
+          10. Modal: สั่งจ่ายยาและเพิ่มการแจ้งเตือนยาใหม่ (Prescribe Medication Modal)
+          ======================================================================= */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-ink/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-brand-hero border border-brand-border-soft animate-in zoom-in-95 duration-150">
+            {/* ส่วนหัวของ Modal */}
             <div className="flex items-center justify-between border-b border-brand-border-soft pb-4 mb-4">
               <div>
                 <h2 className="text-lg font-bold text-brand-ink">
@@ -1139,6 +1227,7 @@ export default function RemindersPage() {
               </button>
             </div>
 
+            {/* แถบเตือนประวัติการแพ้ยาของผู้ป่วยก่อนสั่งจ่ายยา */}
             {currentPatient.allergies && (
               <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex items-center gap-2 font-medium">
                 <AlertTriangle size={16} className="text-rose-600 shrink-0" />
@@ -1146,7 +1235,9 @@ export default function RemindersPage() {
               </div>
             )}
 
+            {/* ฟอร์มกรอกข้อมูลการสั่งจ่ายยา */}
             <form onSubmit={handleAddSubmit} className="space-y-4">
+              {/* ช่องเลือกตัวยาจากคลังยา */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-1.5">
                   เลือกตัวยา *
@@ -1171,6 +1262,7 @@ export default function RemindersPage() {
                 )}
               </div>
 
+              {/* ช่องเลือกการใช้ยากับอาหาร (ก่อนอาหาร, หลังอาหาร, พร้อมอาหาร, ก่อนนอน) */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-1.5">
                   การใช้ยากับอาหาร *
@@ -1189,6 +1281,7 @@ export default function RemindersPage() {
                 </select>
               </div>
 
+              {/* ช่องเลือกรอบเวลาที่ต้องทานยา (เช้า, กลางวัน, เย็น, ก่อนนอน) */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-2">
                   รอบเวลาที่ต้องทาน *
@@ -1224,6 +1317,7 @@ export default function RemindersPage() {
                 </div>
               </div>
 
+              {/* วันที่เริ่มต้น และวันที่สิ้นสุดการทานยา */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-brand-ink mb-1">
@@ -1253,6 +1347,7 @@ export default function RemindersPage() {
                 </div>
               </div>
 
+              {/* ปุ่มยกเลิก และปุ่มบันทึกการสั่งจ่ายยา */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-brand-border-soft">
                 <button
                   type="button"
@@ -1274,10 +1369,13 @@ export default function RemindersPage() {
         </div>
       )}
 
-      {/* --- Modal: แก้ไขตัวยาที่จ่ายไปแล้ว --- */}
+      {/* =======================================================================
+          11. Modal: แก้ไขข้อมูลยาที่จ่ายไปแล้ว (Edit Medication Modal)
+          ======================================================================= */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-ink/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-brand-hero border border-brand-border-soft animate-in zoom-in-95 duration-150">
+            {/* ส่วนหัวของ Modal */}
             <div className="flex items-center justify-between border-b border-brand-border-soft pb-4 mb-4">
               <div>
                 <h2 className="text-lg font-bold text-brand-ink">
@@ -1297,6 +1395,7 @@ export default function RemindersPage() {
               </button>
             </div>
 
+            {/* แถบเตือนประวัติการแพ้ยา */}
             {currentPatient.allergies && (
               <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex items-center gap-2 font-medium">
                 <AlertTriangle size={16} className="text-rose-600 shrink-0" />
@@ -1304,7 +1403,9 @@ export default function RemindersPage() {
               </div>
             )}
 
+            {/* ฟอร์มแก้ไขข้อมูลยา */}
             <form onSubmit={handleEditSubmit} className="space-y-4">
+              {/* เลือกเปลี่ยนตัวยา */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-1.5">
                   เลือกตัวยา *
@@ -1329,6 +1430,7 @@ export default function RemindersPage() {
                 </select>
               </div>
 
+              {/* แก้ไขการใช้ยากับอาหาร */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-1.5">
                   การใช้ยากับอาหาร *
@@ -1347,6 +1449,7 @@ export default function RemindersPage() {
                 </select>
               </div>
 
+              {/* แก้ไขรอบเวลาที่ต้องทานยา */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-2">
                   รอบเวลาที่ต้องทาน *
@@ -1382,6 +1485,7 @@ export default function RemindersPage() {
                 </div>
               </div>
 
+              {/* วันที่เริ่มต้น และวันที่สิ้นสุด */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-brand-ink mb-1">
@@ -1411,6 +1515,7 @@ export default function RemindersPage() {
                 </div>
               </div>
 
+              {/* ปุ่มยกเลิก และปุ่มบันทึกการแก้ไข */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-brand-border-soft">
                 <button
                   type="button"
@@ -1432,10 +1537,13 @@ export default function RemindersPage() {
         </div>
       )}
 
-      {/* --- Modal: ยืนยันการลบรายการยา --- */}
+      {/* =======================================================================
+          12. Modal: ยืนยันการลบรายการเตือนยา (Delete Confirmation Modal)
+          ======================================================================= */}
       {deletingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-ink/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-brand-hero border border-brand-border-soft animate-in zoom-in-95 duration-150">
+            {/* ส่วนหัวเตือนอันตราย */}
             <div className="flex items-center gap-3 text-status-critical mb-3">
               <div className="w-10 h-10 rounded-full bg-status-critical-bg flex items-center justify-center shrink-0 border border-red-200 text-status-critical">
                 <Trash2 size={20} className="text-status-critical" />
@@ -1446,6 +1554,7 @@ export default function RemindersPage() {
               </div>
             </div>
 
+            {/* กล่องสรุปข้อมูลยาและชื่อผู้ป่วยที่จะถูกลบ */}
             <div className="bg-brand-surface rounded-xl p-3.5 border border-brand-border-soft my-4 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Pill size={16} className="text-brand-strong shrink-0" />
@@ -1462,6 +1571,7 @@ export default function RemindersPage() {
               </p>
             </div>
 
+            {/* ปุ่มกดยกเลิก และปุ่มยืนยันการลบ */}
             <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-brand-border-soft">
               <button
                 type="button"
@@ -1486,8 +1596,15 @@ export default function RemindersPage() {
   );
 }
 
-// --- Components ย่อย ---
+// =============================================================================
+// 13. Subcomponents ย่อย (UI Helpers)
+// =============================================================================
 
+/**
+ * สวิตช์ Toggle สลับสถานะเปิด/ปิดการแจ้งเตือนยา
+ * @param active สถานะเปิดใช้งานอยู่หรือไม่
+ * @param onToggle ฟังก์ชัน Callback เมื่อคลิกสลับสวิตช์
+ */
 function ToggleSwitch({ active, onToggle }: { active: boolean; onToggle?: () => void }) {
   return (
     <button
