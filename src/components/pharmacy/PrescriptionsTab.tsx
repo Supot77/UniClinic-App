@@ -403,6 +403,7 @@ export default function PrescriptionsTab({
                   logErrMsg
                 );
               }
+            }
           }
         }
       }
