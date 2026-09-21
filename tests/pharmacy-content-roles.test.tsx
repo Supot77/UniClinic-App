@@ -165,39 +165,39 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     render(<PharmacyContent currentRole="admin" userName="แอดมิน สมบัติ" />);
 
     // Check header badge
-    expect(screen.getByText(/ผู้ดูแลระบบ \(Admin - ดูอย่างเดียว\)/)).toBeInTheDocument();
+    expect(screen.getByText(/สิทธิ์: ผู้ดูแลระบบ · ดูอย่างเดียว/)).toBeInTheDocument();
 
     // Check read-only banner
-    expect(screen.getByText(/โหมดดูอย่างเดียว \(Read-Only\)/)).toBeInTheDocument();
+    expect(screen.getByText(/โหมดดูอย่างเดียว/)).toBeInTheDocument();
 
     // Check locked add button
-    expect(screen.getByText('นำเข้าเวชภัณฑ์ใหม่ (ล็อค)')).toBeInTheDocument();
+    expect(screen.getByText('เพิ่มรายการยา (ดูอย่างเดียว)')).toBeInTheDocument();
 
     // Check table row has read-only lock
-    const lockedRows = await screen.findAllByText('ดูอย่างเดียว (ล็อค)');
+    const lockedRows = await screen.findAllByText('ดูอย่างเดียว');
     expect(lockedRows.length).toBeGreaterThan(0);
   });
 
   it('shows locked add button and read-only status for staff_admin role', async () => {
     render(<PharmacyContent currentRole="staff_admin" userName="เจ้าหน้าที่ สมใจ" />);
 
-    expect(screen.getByText(/เจ้าหน้าที่คลินิก \(Staff - ดูอย่างเดียว\)/)).toBeInTheDocument();
-    expect(screen.getByText('นำเข้าเวชภัณฑ์ใหม่ (ล็อค)')).toBeInTheDocument();
-    const lockedRows = await screen.findAllByText('ดูอย่างเดียว (ล็อค)');
+    expect(screen.getByText(/สิทธิ์: เจ้าหน้าที่คลินิก · ดูอย่างเดียว/)).toBeInTheDocument();
+    expect(screen.getByText('เพิ่มรายการยา (ดูอย่างเดียว)')).toBeInTheDocument();
+    const lockedRows = await screen.findAllByText('ดูอย่างเดียว');
     expect(lockedRows.length).toBeGreaterThan(0);
   });
 
   it('shows active add button and manage actions for medical role', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    expect(screen.getByText(/บุคลากรทางการแพทย์ \(Medical - จัดการยาได้\)/)).toBeInTheDocument();
-    expect(screen.getByText('นำเข้าเวชภัณฑ์ใหม่')).toBeInTheDocument();
-    expect(screen.queryByText('นำเข้าเวชภัณฑ์ใหม่ (ล็อค)')).not.toBeInTheDocument();
+    expect(screen.getByText(/สิทธิ์: บุคลากรทางการแพทย์ · จัดการยาได้/)).toBeInTheDocument();
+    expect(screen.getByText('เพิ่มรายการยา')).toBeInTheDocument();
+    expect(screen.queryByText('เพิ่มรายการยา (ดูอย่างเดียว)')).not.toBeInTheDocument();
 
     // Active edit and delete buttons should exist
     const editButtons = await screen.findAllByTitle('แก้ไขข้อมูล');
     expect(editButtons.length).toBeGreaterThan(0);
-    const deleteButtons = screen.getAllByTitle('ลบ / พักการใช้งานเวชภัณฑ์');
+    const deleteButtons = screen.getAllByTitle('ลบหรือพักใช้งานรายการนี้');
     expect(deleteButtons.length).toBeGreaterThan(0);
   });
 
@@ -206,7 +206,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Click on prescriptions tab
     const prescriptionsTab = screen.getByRole('button', {
-      name: /รายการสั่งยาและตัดจ่าย/,
+      name: /ใบสั่งยาและการตัดจ่าย/,
     });
     expect(prescriptionsTab).toBeInTheDocument();
     fireEvent.click(prescriptionsTab);
@@ -215,82 +215,82 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
     expect(screen.getByText('65123456')).toBeInTheDocument();
     expect(screen.getAllByText('นพ. วิชัย เก่งการุณ').length).toBeGreaterThan(0);
-    expect(screen.getByText(/ไข้หวัดทั่วไป/)).toBeInTheDocument();
-
+    expect(screen.queryByText(/ผลวินิจฉัย:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/คำแนะนำ:/)).not.toBeInTheDocument();
     // Verify medication details and stock status
     expect(screen.getByText('Paracetamol 500mg')).toBeInTheDocument();
-    expect(screen.getAllByText('พร้อมตัดจ่าย').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('พร้อมจ่าย').length).toBeGreaterThan(0);
 
     // Role medical should see active dispense button
-    expect(screen.getByRole('button', { name: /ตัดสต็อกจ่ายยา/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /จ่ายยาและตัดสต็อก/ })).toBeInTheDocument();
   });
 
   it('shows locked dispense button in prescriptions tab for admin role', async () => {
     render(<PharmacyContent currentRole="admin" userName="แอดมิน สมบัติ" />);
 
     const prescriptionsTab = screen.getByRole('button', {
-      name: /รายการสั่งยาและตัดจ่าย/,
+      name: /ใบสั่งยาและการตัดจ่าย/,
     });
     fireEvent.click(prescriptionsTab);
 
     expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
 
     // Role admin should see locked dispense indicator
-    expect(screen.getByText('ตัดสต็อก (ล็อค)')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'ตัดสต็อกจ่ายยา' })).not.toBeInTheDocument();
+    expect(screen.getByText('ดูอย่างเดียว')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'จ่ายยาและตัดสต็อก' })).not.toBeInTheDocument();
   });
 
   it('shows locked dispense button in prescriptions tab for staff_admin role', async () => {
     render(<PharmacyContent currentRole="staff_admin" userName="เจ้าหน้าที่ สมใจ" />);
 
     const prescriptionsTab = screen.getByRole('button', {
-      name: /รายการสั่งยาและตัดจ่าย/,
+      name: /ใบสั่งยาและการตัดจ่าย/,
     });
     fireEvent.click(prescriptionsTab);
 
     expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
 
     // Role staff_admin should see locked dispense indicator
-    expect(screen.getByText('ตัดสต็อก (ล็อค)')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'ตัดสต็อกจ่ายยา' })).not.toBeInTheDocument();
+    expect(screen.getByText('ดูอย่างเดียว')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'จ่ายยาและตัดสต็อก' })).not.toBeInTheDocument();
   });
 
   it('displays dispensed badge and disabled action for already dispensed prescriptions', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
     const prescriptionsTab = screen.getByRole('button', {
-      name: /รายการสั่งยาและตัดจ่าย/,
+      name: /ใบสั่งยาและการตัดจ่าย/,
     });
     fireEvent.click(prescriptionsTab);
 
     // Wait for prescriptions to load
-    expect(await screen.findByText('ปวดท้องโรคกระเพาะ')).toBeInTheDocument();
+    expect(await screen.findByText('Amoxicillin 500mg')).toBeInTheDocument();
 
     // The dispensed prescription (rec-2) should show "จ่ายยาครบถ้วนแล้ว"
     expect(screen.getByText('จ่ายยาครบถ้วนแล้ว')).toBeInTheDocument();
-    expect(screen.getByText('ตัดจ่ายสต็อกแล้ว')).toBeInTheDocument();
+    expect(screen.getAllByText('ตัดสต็อกแล้ว').length).toBeGreaterThan(0);
   });
 
   it('opens confirmation modal when clicking dispense and handles confirm', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
     const prescriptionsTab = screen.getByRole('button', {
-      name: /รายการสั่งยาและตัดจ่าย/,
+      name: /ใบสั่งยาและการตัดจ่าย/,
     });
     fireEvent.click(prescriptionsTab);
 
-    expect(await screen.findByText('ไข้หวัดทั่วไป มีไข้สูง')).toBeInTheDocument();
+    expect(await screen.findByText('Paracetamol 500mg')).toBeInTheDocument();
 
-    const dispenseBtn = screen.getByRole('button', { name: /ตัดสต็อกจ่ายยา/ });
+    const dispenseBtn = screen.getByRole('button', { name: /จ่ายยาและตัดสต็อก/ });
     fireEvent.click(dispenseBtn);
 
     // Confirmation modal should open
-    expect(screen.getByRole('heading', { name: 'ยืนยันการตัดสต็อกจ่ายยา' })).toBeInTheDocument();
-    expect(screen.getByText('รายการเวชภัณฑ์ที่จะตัดสต็อก')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ยืนยันการจ่ายยา' })).toBeInTheDocument();
+    expect(screen.getByText('รายการยาที่จะจ่าย')).toBeInTheDocument();
     expect(screen.getByText('คงเหลือหลังจ่าย')).toBeInTheDocument();
 
     // Checkbox to skip stock deduction should be present
-    const skipCheckbox = screen.getByLabelText(/บันทึกสถานะตัดจ่ายแล้วเท่านั้น/);
+    const skipCheckbox = screen.getByLabelText(/บันทึกว่าจ่ายแล้วโดยไม่ตัดสต็อกซ้ำ/);
     expect(skipCheckbox).toBeInTheDocument();
     expect(skipCheckbox).not.toBeChecked();
     fireEvent.click(skipCheckbox);
@@ -298,7 +298,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Click confirm button
     // Click confirm button directly without checkbox
-    const confirmBtn = screen.getByRole('button', { name: /ยืนยันการตัดสต็อกจ่ายยา/ });
+    const confirmBtn = screen.getByRole('button', { name: /ยืนยันการจ่ายยา/ });
     await act(async () => {
       fireEvent.click(confirmBtn);
     });
@@ -348,11 +348,11 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   it('opens add medication modal with dosage, brand, form dropdown, coverage options and manufacturer fields', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    const addBtn = await screen.findByText('นำเข้าเวชภัณฑ์ใหม่');
+    const addBtn = await screen.findByText('เพิ่มรายการยา');
     fireEvent.click(addBtn);
 
     // Modal title
-    expect(screen.getByRole('heading', { name: 'นำเข้าเวชภัณฑ์ใหม่' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'เพิ่มรายการยา' })).toBeInTheDocument();
 
     // Fields should exist
     expect(screen.getByPlaceholderText(/เช่น 1000mg, 250mg/)).toBeInTheDocument();
@@ -375,15 +375,15 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Should navigate to dynamic route
     // Modal should be visible with title and details (brand, manufacturer, dosage, ingredients, stock)
-    expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+    expect(screen.getByText('รายละเอียดยาและเวชภัณฑ์')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Paracetamol' })).toBeInTheDocument();
     expect(screen.getByText('Sara')).toBeInTheDocument();
     expect(screen.getAllByText('500mg').length).toBeGreaterThan(0);
     expect(screen.getByText('องค์การเภสัชกรรม (GPO)')).toBeInTheDocument();
-    expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('สต็อกคงเหลือ').length).toBeGreaterThan(0);
 
     // Check full page button navigates to dynamic route
-    const fullPageBtn = screen.getByRole('button', { name: /เปิดหน้าเต็ม/i });
+    const fullPageBtn = screen.getByRole('button', { name: /ดูรายละเอียดเต็มหน้า/i });
     fireEvent.click(fullPageBtn);
     expect(mockPush).toHaveBeenCalledWith('/pharmacy/medications/med-1');
 
@@ -392,7 +392,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     fireEvent.click(closeBtn);
 
     // Modal should be closed
-    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+    expect(screen.queryByText('รายละเอียดยาและเวชภัณฑ์')).not.toBeInTheDocument();
   });
 
   it('closes medication details popup modal when clicking outside (on backdrop) or pressing Escape', async () => {
@@ -404,28 +404,28 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Open popup via keyboard Enter
     fireEvent.keyDown(medRow!, { key: 'Enter', code: 'Enter' });
-    expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+    expect(screen.getByText('รายละเอียดยาและเวชภัณฑ์')).toBeInTheDocument();
 
     // Close on backdrop click
     const backdrop = screen.getByTestId('medication-details-backdrop');
     fireEvent.click(backdrop);
-    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+    expect(screen.queryByText('รายละเอียดยาและเวชภัณฑ์')).not.toBeInTheDocument();
 
     // Clicking view button in the same row opens popup
-    const viewButton = medRow!.querySelector('button[title="ดูรายละเอียดเวชภัณฑ์"]');
+    const viewButton = medRow!.querySelector('button[title="ดูรายละเอียดรายการนี้"]');
     expect(viewButton).not.toBeNull();
     fireEvent.click(viewButton!);
-    expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+    expect(screen.getByText('รายละเอียดยาและเวชภัณฑ์')).toBeInTheDocument();
 
     // Close with Escape key
     fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
-    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+    expect(screen.queryByText('รายละเอียดยาและเวชภัณฑ์')).not.toBeInTheDocument();
   });
 
   it('calculates stock from packaging (packages x items) and applies it to stock input', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    const addBtn = await screen.findByText('นำเข้าเวชภัณฑ์ใหม่');
+    const addBtn = await screen.findByText('เพิ่มรายการยา');
     fireEvent.click(addBtn);
 
     // Open packaging calculator
@@ -441,7 +441,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Result should show 500
     // Click apply button
-    const applyBtn = screen.getByRole('button', { name: 'ใช้เป็นยอดสต็อกปัจจุบัน' });
+    const applyBtn = screen.getByRole('button', { name: 'ใช้เป็นสต็อกปัจจุบัน' });
     fireEvent.click(applyBtn);
 
     // Stock input should now have 500
@@ -486,22 +486,22 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    const addBtn = await screen.findByText('นำเข้าเวชภัณฑ์ใหม่');
+    const addBtn = await screen.findByText('เพิ่มรายการยา');
     await act(async () => {
       fireEvent.click(addBtn);
     });
 
     // Modal should display restored banner and restored values
-    expect(screen.getByText(/กู้คืนข้อมูลแบบร่างที่คุณเคยกรอกค้างไว้ให้อัตโนมัติ/)).toBeInTheDocument();
+    expect(screen.getByText(/กู้คืนแบบร่างที่บันทึกไว้แล้ว/)).toBeInTheDocument();
     expect(screen.getByDisplayValue('Ibuprofen 400mg')).toBeInTheDocument();
 
     // Click clear draft
-    const clearBtn = screen.getByText('ล้างแบบร่าง (เริ่มใหม่)');
+    const clearBtn = screen.getByText('ล้างแบบร่าง');
     await act(async () => {
       fireEvent.click(clearBtn);
     });
 
-    expect(screen.queryByText(/กู้คืนข้อมูลแบบร่างที่คุณเคยกรอกค้างไว้ให้อัตโนมัติ/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/กู้คืนแบบร่างที่บันทึกไว้แล้ว/)).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue('Ibuprofen 400mg')).not.toBeInTheDocument();
 
     localStorage.removeItem('clinic_pharmacy_add_draft');
@@ -514,14 +514,14 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     const { unmount } = render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
     // Details modal should automatically restore and show medication details
-    expect(await screen.findByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+    expect(await screen.findByText('รายละเอียดยาและเวชภัณฑ์')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Paracetamol' })).toBeInTheDocument();
 
     // Close the modal
     const closeBtn = screen.getAllByRole('button', { name: 'ปิดหน้าต่าง' })[0];
     fireEvent.click(closeBtn);
 
-    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+    expect(screen.queryByText('รายละเอียดยาและเวชภัณฑ์')).not.toBeInTheDocument();
     expect(localStorage.getItem('clinic_pharmacy_active_med_id')).toBeNull();
 
     unmount();
@@ -532,7 +532,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Switch to Prescriptions tab
     const prescriptionsTab = screen.getByRole('button', {
-      name: /รายการสั่งยาและตัดจ่าย/,
+      name: /ใบสั่งยาและการตัดจ่าย/,
     });
     fireEvent.click(prescriptionsTab);
 
@@ -541,8 +541,8 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(allBtn).toHaveAttribute('aria-pressed', 'true');
     expect(allBtn.className).toContain('opacity-100');
 
-    // Click "รอตัดจ่ายสต็อก"
-    const pendingBtn = screen.getByRole('button', { name: /รอตัดจ่ายสต็อก/i });
+    // Click "รอตัดจ่ายยา"
+    const pendingBtn = screen.getByRole('button', { name: /รอตัดจ่ายยา/i });
     await act(async () => {
       fireEvent.click(pendingBtn);
     });

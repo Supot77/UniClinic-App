@@ -177,7 +177,7 @@ export default function PrescriptionsTab({
     if (!dispenseTarget || !canManage) return;
 
     if (dispenseTarget.is_fully_dispensed) {
-      alert('ใบสั่งยานี้ได้รับการตัดจ่ายสต็อกเรียบร้อยแล้ว ไม่สามารถตัดซ้ำได้');
+      alert('ใบสั่งยานี้ตัดสต็อกแล้ว ไม่สามารถตัดซ้ำได้');
       setDispenseTarget(null);
       return;
     }
@@ -190,7 +190,7 @@ export default function PrescriptionsTab({
         effectiveUserId = authData.user?.id;
       }
       if (!effectiveUserId) {
-        throw new Error('ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่');
+        throw new Error('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
       }
 
       if (!skipStockDeduction) {
@@ -254,7 +254,7 @@ export default function PrescriptionsTab({
                 `[PrescriptionsTab] Error: inventory_logs insert failed for ${item.name}:`,
                 logErrMsg
               );
-              throw new Error(`ไม่สามารถบันทึกประวัติการตัดจ่ายยา ${item.name}: ${logErrMsg}`);
+              throw new Error(`บันทึกประวัติการจ่ายยา ${item.name} ไม่สำเร็จ: ${logErrMsg}`);
             }
           }
         }
@@ -296,7 +296,7 @@ export default function PrescriptionsTab({
 
       if (updateError) {
         throw new Error(
-          `ไม่สามารถบันทึกสถานะการจ่ายยาในระบบฐานข้อมูลได้: ${updateError.message || JSON.stringify(updateError)}`
+          `บันทึกสถานะการจ่ายยาไม่สำเร็จ: ${updateError.message || JSON.stringify(updateError)}`
         );
       }
 
@@ -305,8 +305,8 @@ export default function PrescriptionsTab({
 
       onShowToast(
         skipStockDeduction
-          ? `บันทึกสถานะจ่ายยาสำหรับ ${dispenseTarget.patient_name} เรียบร้อยแล้ว (ไม่หักสต็อกซ้ำ)`
-          : `ตัดจ่ายยาสำหรับ ${dispenseTarget.patient_name} และอัปเดตสต็อกเรียบร้อยแล้ว`
+          ? `บันทึกสถานะการจ่ายยาสำหรับ ${dispenseTarget.patient_name} แล้ว (ไม่ตัดสต็อกซ้ำ)`
+          : `จ่ายยาสำหรับ ${dispenseTarget.patient_name} และอัปเดตสต็อกแล้ว`
       );
       setDispenseTarget(null);
       setDispenseReason('');
@@ -314,7 +314,7 @@ export default function PrescriptionsTab({
 
       await onStockUpdated();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการตัดจ่ายยา';
+      const msg = err instanceof Error ? err.message : 'จ่ายยาไม่สำเร็จ';
       console.error('Dispense error:', msg);
       alert(msg);
     } finally {
@@ -340,7 +340,7 @@ export default function PrescriptionsTab({
           },
           {
             key: 'pending' as const,
-            label: 'รอตัดจ่ายสต็อก',
+            label: 'รอตัดจ่ายยา',
             value: stats.pending,
             sub: 'ยังไม่ได้ตัดสต็อก',
             icon: Clock,
@@ -348,17 +348,17 @@ export default function PrescriptionsTab({
           },
           {
             key: 'dispensed' as const,
-            label: 'ตัดจ่ายเรียบร้อย',
+            label: 'ตัดจ่ายแล้ว',
             value: stats.dispensed,
-            sub: 'หักสต็อกคลังแล้ว',
+            sub: 'ตัดสต็อกแล้ว',
             icon: CheckCircle2,
             iconColorActive: 'text-emerald-600',
           },
           {
             key: 'insufficient' as const,
-            label: 'ยาที่สต็อกไม่พอ',
+            label: 'สต็อกยาไม่พอ',
             value: stats.insufficient,
-            sub: 'ใบสั่งยาที่ต้องการเพิ่มสต็อก',
+            sub: 'ต้องเติมสต็อกก่อนจ่าย',
             icon: AlertTriangle,
             iconColorActive: 'text-rose-600',
           },
@@ -417,7 +417,7 @@ export default function PrescriptionsTab({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ค้นหาชื่อผู้ป่วย, รหัสนักศึกษา, ชื่อแพทย์ หรือชื่อยาที่สั่งจ่าย..."
+            placeholder="ค้นหาชื่อผู้ป่วย รหัสนักศึกษา ชื่อแพทย์ หรือชื่อยา"
             className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           />
           {searchQuery && (
@@ -488,8 +488,8 @@ export default function PrescriptionsTab({
             onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           >
-            <option value="newest">วันที่สั่ง: ล่าสุดก่อน</option>
-            <option value="oldest">วันที่สั่ง: เก่าสุดก่อน</option>
+            <option value="newest">วันที่สั่ง: ใหม่ไปเก่า</option>
+            <option value="oldest">วันที่สั่ง: เก่าไปใหม่</option>
           </select>
 
           <button
@@ -539,8 +539,8 @@ export default function PrescriptionsTab({
           <h3 className="mt-3 text-base font-semibold text-slate-800">ไม่พบรายการสั่งยา</h3>
           <p className="mt-1 text-xs text-slate-500">
             {searchQuery || statusFilter !== 'all'
-              ? 'ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหาหรือตัวกรองที่เลือก'
-              : 'ยังไม่มีรายการสั่งยาจากแพทย์ในระบบ'}
+              ? 'ไม่พบรายการตามคำค้นหาหรือตัวกรอง'
+              : 'ยังไม่มีใบสั่งยาในระบบ'}
           </p>
         </div>
       ) : (
@@ -596,27 +596,13 @@ export default function PrescriptionsTab({
                     {order.is_fully_dispensed ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                         <CheckCircle2 className="h-4 w-4" />
-                        ตัดจ่ายสต็อกแล้ว
+                        ตัดสต็อกแล้ว
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/20">
                         <Clock className="h-4 w-4 text-amber-600" />
-                        รอตัดจ่ายสต็อก ({order.dispensed_items_count}/{order.prescribed_medications.length})
+                        รอตัดจ่ายยา ({order.dispensed_items_count}/{order.prescribed_medications.length})
                       </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Diagnosis & Notes */}
-                <div className="px-4 py-3 sm:px-5 border-b border-slate-100 bg-white">
-                  <div className="text-xs space-y-1">
-                    <p className="text-slate-700">
-                      <strong className="text-slate-900">ผลวินิจฉัย:</strong> {order.diagnosis}
-                    </p>
-                    {order.treatment_notes && (
-                      <p className="text-slate-600">
-                        <strong className="text-slate-900">คำแนะนำ:</strong> {order.treatment_notes}
-                      </p>
                     )}
                   </div>
                 </div>
@@ -627,13 +613,13 @@ export default function PrescriptionsTab({
                     <div className="flex items-center gap-2">
                       <Pill className="h-4 w-4 text-sky-600" />
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        รายการยาที่แพทย์สั่งจ่าย ({order.prescribed_medications.length} รายการ)
+                        รายการยาตามใบสั่ง ({order.prescribed_medications.length} รายการ)
                       </h4>
                     </div>
                     {hasShortage && !order.is_fully_dispensed && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600">
                         <AlertTriangle className="h-3.5 w-3.5" />
-                        มีเวชภัณฑ์ที่สต็อกไม่เพียงพอ
+                        สต็อกยาไม่พอสำหรับบางรายการ
                       </span>
                     )}
                   </div>
@@ -643,10 +629,10 @@ export default function PrescriptionsTab({
                       <thead className="bg-slate-50 text-slate-600">
                         <tr>
                           <th className="px-3.5 py-2.5 font-semibold">ชื่อยา / เวชภัณฑ์</th>
-                          <th className="px-3.5 py-2.5 font-semibold">ขนาดยา & วิธีใช้</th>
+                          <th className="px-3.5 py-2.5 font-semibold">ขนาดยาและวิธีใช้</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">จำนวนที่สั่ง</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">สต็อกในคลัง</th>
-                          <th className="px-3.5 py-2.5 font-semibold text-right">ความพร้อมจ่าย</th>
+                          <th className="px-3.5 py-2.5 font-semibold text-right">สถานะการจ่าย</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
@@ -693,7 +679,7 @@ export default function PrescriptionsTab({
                                 ) : isSufficient ? (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                                     <CheckCircle2 className="h-3 w-3" />
-                                    พร้อมตัดจ่าย
+                                    พร้อมจ่าย
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
@@ -720,7 +706,7 @@ export default function PrescriptionsTab({
                         </span>
                       ) : (
                         <span>
-                          ตัดจ่ายแล้ว {order.dispensed_items_count} จาก {order.prescribed_medications.length} รายการ
+                          จ่ายแล้ว {order.dispensed_items_count} จาก {order.prescribed_medications.length} รายการ
                         </span>
                       )}
                     </div>
@@ -738,15 +724,15 @@ export default function PrescriptionsTab({
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-sky-700 active:scale-95"
                         >
                           <Pill className="h-3.5 w-3.5 shrink-0" />
-                          <span>ตัดสต็อกจ่ายยา</span>
+                          <span>จ่ายยาและตัดสต็อก</span>
                         </button>
                       ) : (
                         <div
-                          title="โหมดดูอย่างเดียว: เฉพาะแพทย์หรือเภสัชกรเท่านั้นที่มีสิทธิ์ตัดสต็อกจ่ายยา (Admin และ Staff ดูได้อย่างเดียว)"
+                          title="ดูอย่างเดียว: แพทย์และเภสัชกรเท่านั้นที่จ่ายยาและตัดสต็อกได้"
                           className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-xs font-medium text-slate-400 cursor-not-allowed select-none"
                         >
                           <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                          <span>ตัดสต็อก (ล็อค)</span>
+                          <span>ดูอย่างเดียว</span>
                         </div>
                       )}
                     </div>
@@ -769,10 +755,10 @@ export default function PrescriptionsTab({
                 </span>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    ยืนยันการตัดสต็อกจ่ายยา
+                    ยืนยันการจ่ายยา
                   </h3>
                   <p className="text-xs text-slate-500">
-                    ระบบจะตัดลดยอดคงเหลือในคลังยาและบันทึกประวัติการจ่ายยา
+                    จะตัดสต็อกและบันทึกการจ่ายยา
                   </p>
                 </div>
               </div>
@@ -798,16 +784,12 @@ export default function PrescriptionsTab({
                 <span className="text-slate-500">แพทย์ผู้สั่ง:</span>
                 <span className="font-semibold text-slate-800">{dispenseTarget.doctor_name}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">ผลวินิจฉัย:</span>
-                <span className="text-slate-800">{dispenseTarget.diagnosis}</span>
-              </div>
             </div>
 
             {/* Medications Preview Table */}
             <div className="space-y-2">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                รายการเวชภัณฑ์ที่จะตัดสต็อก
+                รายการยาที่จะจ่าย
               </h4>
               <div className="overflow-hidden rounded-xl border border-slate-200">
                 <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
@@ -815,7 +797,7 @@ export default function PrescriptionsTab({
                     <tr>
                       <th className="px-3 py-2 font-semibold">ยา</th>
                       <th className="px-3 py-2 font-semibold text-center">สั่งจ่าย</th>
-                      <th className="px-3 py-2 font-semibold text-center">ปัจจุบัน</th>
+                      <th className="px-3 py-2 font-semibold text-center">สต็อกปัจจุบัน</th>
                       <th className="px-3 py-2 font-semibold text-center">คงเหลือหลังจ่าย</th>
                     </tr>
                   </thead>
@@ -867,7 +849,7 @@ export default function PrescriptionsTab({
               <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
                 <span>
-                  <strong>คำเตือน:</strong> มียาบางรายการที่มีสต็อกคงเหลือไม่เพียงพอกับจำนวนที่สั่งจ่าย กรุณาตรวจสอบหรือประสานงานแพทย์ก่อนจ่ายยา
+                  <strong>คำเตือน:</strong> สต็อกบางรายการไม่พอ กรุณาตรวจสอบก่อนจ่ายยา
                 </span>
               </div>
             )}
@@ -875,7 +857,7 @@ export default function PrescriptionsTab({
             {/* Optional Note */}
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                หมายเหตุการตัดจ่าย (ถ้ามี)
+                หมายเหตุการจ่าย (ถ้ามี)
               </label>
               <input
                 type="text"
@@ -895,7 +877,7 @@ export default function PrescriptionsTab({
                 className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
               />
               <span className="font-medium">
-                บันทึกสถานะตัดจ่ายแล้วเท่านั้น (ไม่หักลดจำนวนยาในคลังซ้ำ)
+                บันทึกว่าจ่ายแล้วโดยไม่ตัดสต็อกซ้ำ
               </span>
             </label>
 
@@ -918,12 +900,12 @@ export default function PrescriptionsTab({
                 {isDispensing ? (
                   <>
                     <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>กำลังตัดสต็อก...</span>
+                    <span>กำลังจ่ายยา…</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>ยืนยันการตัดสต็อกจ่ายยา</span>
+                    <span>ยืนยันการจ่ายยา</span>
                   </>
                 )}
               </button>

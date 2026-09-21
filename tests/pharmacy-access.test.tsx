@@ -25,8 +25,10 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
 
     const pageElement = await PharmacyPage();
     expect(requireRoleModule.requireRole).toHaveBeenCalledWith(['medical', 'staff_admin', 'admin']);
-    expect(pageElement.props.currentRole).toBe('doctor');
-    expect(pageElement.props.userEmail).toBe('doctor@wu.ac.th');
+    expect(pageElement.props.className).toContain('w-screen');
+    expect(pageElement.props.className).toContain('left-1/2');
+    expect(pageElement.props.children.props.currentRole).toBe('doctor');
+    expect(pageElement.props.children.props.userEmail).toBe('doctor@wu.ac.th');
   });
 
   it('allows access for staff_admin role', async () => {
@@ -37,7 +39,7 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
     });
 
     const pageElement = await PharmacyPage();
-    expect(pageElement.props.currentRole).toBe('staff_admin');
+    expect(pageElement.props.children.props.currentRole).toBe('staff_admin');
   });
 
   it('allows access for admin role specifically', async () => {
@@ -48,7 +50,7 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
     });
 
     const pageElement = await PharmacyPage();
-    expect(pageElement.props.currentRole).toBe('admin');
+    expect(pageElement.props.children.props.currentRole).toBe('admin');
   });
 
   it('delegates rejection to requireRole when unauthorized (throws redirect)', async () => {
