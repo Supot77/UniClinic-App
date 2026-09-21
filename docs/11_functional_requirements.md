@@ -27,7 +27,7 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
 | กลุ่ม FR | เส้นทาง/ข้อมูลที่พบ | สถานะที่สรุปได้ |
 | --- | --- | --- |
 | `FR-AUTH-*` | `authService`, auth pages, `profiles`, route guards บางหน้า | มี flow Supabase; guard ไม่สม่ำเสมอทุกหน้า ต้องตรวจ session/RLS จริง; `/register` ยังไม่รับ allergy/chronic disease fields ตาม health-profile target |
-| `FR-SCH-*` | `ScheduleWorkspace` → `ShopProvider` → `DatabaseShopRepository` หรือ `MockShopRepository`; `services`, `daily_service_offerings`, `appointment_slots`, `doctor_leaves` | มี service/daily offering, วันลา และ validation; factory กับ weekly schedule ยังมี mock path |
+| `FR-SCH-*` | `ScheduleWorkspace` → `SchedulingProvider` → `DatabaseSchedulingRepository` หรือ `MockSchedulingRepository`; `services`, `daily_service_offerings`, `appointment_slots`, `doctor_leaves` | มี service/daily offering, วันลา และ validation; factory กับ weekly schedule ยังมี mock path |
 | `FR-APT-*` | `appointments.tsx` → `clinic-care.tsx` → `pai_*` RPC → `appointments` | active appointment route; ไม่มี reschedule ในเส้นทางนี้; ไม่มี preview แยกใน runtime |
 | `FR-MED-*` | `medical-records.tsx` → `clinic-care.tsx` → `pai_save_record` → `medical_records` | active record route; บันทึกผลตรวจ/รายการยาก่อนจบตรวจ; `pai_*` เป็นชื่อ RPC ไม่ใช่ชื่อตารางปัจจุบัน |
 | `FR-PHA-*` | `/pharmacy`, `medicationService`, old `medications`/`inventory_logs`, mock/local storage | มี UI/service แยก แต่ยังไม่พบการเชื่อม dispense กับ PAI appointment แบบ end-to-end |

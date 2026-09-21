@@ -228,10 +228,10 @@ export function validateRegistration(
 }
 
 interface RegisterPageProps {
-  mode?: 'self-service' | 'staff-walk-in';
+  mode?: 'self-service' | 'staff-walk-in' | 'patient' | string;
 }
 
-export default function RegisterPage({ mode = 'self-service' }: RegisterPageProps) {
+export default function RegisterPage({ mode = 'self-service' }: RegisterPageProps = {}) {
   const router = useRouter();
 
   const [form, setForm] =

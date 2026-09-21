@@ -2,6 +2,24 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## Refactor ชื่อโมดูล Shop เป็น Scheduling — 21 กันยายน 2569
+
+- **ขอบเขต:** เปลี่ยนชื่อ technical identifiers จาก `shop` ซึ่งเป็นชื่อ owner เดิม ให้สื่อความหมายตาม domain เดียวกับโมดูลอื่น
+- **ไฟล์หลัก:** ย้าย `src/features/shop/` เป็น `src/features/scheduling/`; เปลี่ยน `ShopProvider`, `ShopRepository`, `MockShopRepository`, `DatabaseShopRepository` และ `useShop` เป็นชื่อ `Scheduling*`/`useScheduling`
+- **Consumer และ tests:** ปรับ clinic layout, schedule/department workspaces, landing service, schedule types และเปลี่ยนชื่อ scheduling repository/rules tests
+- **เอกสาร:** ปรับ current code references และ diagram labels; คง owner slug `shop-supot` และ historical specs เพื่อ trace เจ้าของ/ประวัติเดิม
+- **พฤติกรรม:** ไม่เปลี่ยน route, database schema, migration, repository contract semantics หรือ UI behavior
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted scheduling tests — 106/107 ผ่าน; failure เดิมที่ `tests/doctor-leaves.test.ts:73`
+- targeted ESLint — ผ่าน
+- `npm.cmd run build` — ผ่าน
+- `npm.cmd run lint` — ไม่ผ่านจาก error เดิมนอก scope ที่ `src/components/settings/SettingsContent.tsx:101` และ warnings 9 รายการ
+- `npm.cmd run test` — 299/300 tests ผ่าน; failure เดิมที่ `tests/doctor-leaves.test.ts:73`
+- Browser QA และ database integration/RLS — ยังไม่ได้ตรวจ; refactor นี้ไม่เปลี่ยน UI behavior หรือ schema
+
 ## งาน 2.2 โมดูลแผนก แพทย์ วันลา ตารางและ Slot — 20 กันยายน 2569
 
 - **ผู้รับผิดชอบ:** ช้อป (สุพจน์)
@@ -57,7 +75,7 @@
 - แก้ [`src/mocks/scheduleData.ts`](../src/mocks/scheduleData.ts) ให้ `MOCK_WEEK_START` อิงวันจันทร์ของสัปดาห์ปัจจุบัน
 - แก้ [`src/mocks/clinicDatabase.ts`](../src/mocks/clinicDatabase.ts) ให้วันที่ของ mock appointment slots คำนวณจาก anchor เดียวกัน โดยคงความสัมพันธ์ของ slot history และ slot ในสัปดาห์ปัจจุบัน
 - เพิ่ม [`tests/date-time-and-mock-anchor.test.ts`](../tests/date-time-and-mock-anchor.test.ts)
-- ปรับ `tests/dashboard-notifications.test.ts`, `tests/mock-shop-repository.test.ts` และ `tests/shop-rules.test.ts` ให้ใช้วันที่ relative กับ dynamic anchor แทนวันที่ตายตัว
+- ปรับ `tests/dashboard-notifications.test.ts`, `tests/mock-scheduling-repository.test.ts` และ `tests/scheduling-rules.test.ts` ให้ใช้วันที่ relative กับ dynamic anchor แทนวันที่ตายตัว
 
 ### พฤติกรรมที่เปลี่ยน
 

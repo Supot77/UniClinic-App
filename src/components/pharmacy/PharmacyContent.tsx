@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertOctagon,
   AlertTriangle,
-  ArrowUpDown,
   Ban,
   Calculator,
   CheckCircle2,
@@ -23,12 +22,19 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import type { Medication, MedicationCoverageType } from '@/types/database';
 import PrescriptionsTab, {
   type PrescribedMedItem,
   type PrescriptionOrder,
 } from './PrescriptionsTab';
+
+function ViewportPortal({ children }: { children: ReactNode }) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 
 const supabase = createClient();
 
@@ -170,6 +176,34 @@ function formatDisplayDate(dateStr: string | null | undefined): string {
   }).format(d);
 }
 
+interface RawMedicalRecord {
+  id: string;
+  appointment_id: string;
+  patient_id: string;
+  doctor_id: string;
+  diagnosis: string | null;
+  treatment_notes: string | null;
+  prescribed_medications: PrescribedMedItem[] | null;
+  created_at: string;
+}
+
+interface RawProfile {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  student_id: string | null;
+}
+
+interface RawInventoryLog {
+  id: string;
+  medication_id: string;
+  quantity: number;
+  reason: string | null;
+  idempotency_key: string | null;
+  created_at: string;
+  pharmacist?: { full_name?: string | null } | null;
+}
+
 interface PharmacyContentProps {
   currentRole?: string;
   userEmail?: string;
@@ -214,10 +248,13 @@ export default function PharmacyContent({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Medication | null>(null);
-  const [viewingItem, setViewingItem] = useState<Medication | null>(null);
   const [draft, setDraft] = useState<MedicationDraft>(DEFAULT_DRAFT);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form draft persistence
+  const DRAFT_STORAGE_KEY = 'clinic_pharmacy_add_draft';
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
 
   // Packaging Calculator state
   const [showPackCalculator, setShowPackCalculator] = useState(false);
@@ -259,6 +296,91 @@ export default function PharmacyContent({
 
   const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewingItem, setViewingItem] = useState<Medication | null>(null);
+
+  const ACTIVE_MED_STORAGE_KEY = 'clinic_pharmacy_active_med_id';
+
+  // Open viewing modal and persist to URL and localStorage for refresh resilience
+  const handleOpenViewingModal = useCallback((item: Medication) => {
+    setViewingItem(item);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('medId', item.id);
+        window.history.replaceState(null, '', url.pathname + url.search);
+        localStorage.setItem(ACTIVE_MED_STORAGE_KEY, item.id);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Close viewing modal and clear from URL and localStorage
+  const handleCloseViewingModal = useCallback(() => {
+    setViewingItem(null);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('medId')) {
+          url.searchParams.delete('medId');
+          window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+        }
+        localStorage.removeItem(ACTIVE_MED_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+
+  // Keyboard Escape to close viewing modal
+  useEffect(() => {
+    if (!viewingItem) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseViewingModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewingItem, handleCloseViewingModal]);
+
+  // Navigate to dedicated dynamic route for medication detail (if needed)
+  const handleNavigateToMedication = useCallback((medicationId: string) => {
+    router.push(`/pharmacy/medications/${medicationId}`);
+  }, [router]);
+
+
+
+  // Prevent accidental reload if modal form has unsaved content
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isModalOpen && (draft.name.trim() !== '' || draft.category.trim() !== '')) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isModalOpen, draft]);
+
+  // Auto-save form draft to localStorage while filling Add Medication modal
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isModalOpen || editingItem) return;
+    const hasContent =
+      (draft.name && draft.name.trim() !== '') ||
+      (draft.dosage && draft.dosage.trim() !== '') ||
+      (draft.category && draft.category.trim() !== '') ||
+      (draft.description && draft.description.trim() !== '');
+    if (hasContent) {
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch {
+        // ignore
+      }
+    }
+  }, [draft, isModalOpen, editingItem]);
 
   useEffect(() => {
     if (!successToast) return;
@@ -266,44 +388,8 @@ export default function PharmacyContent({
     return () => clearTimeout(timer);
   }, [successToast]);
 
-  useEffect(() => {
-    if (!viewingItem) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setViewingItem(null);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewingItem]);
 
-interface RawMedicalRecord {
-  id: string;
-  appointment_id: string;
-  patient_id: string;
-  doctor_id: string;
-  diagnosis: string | null;
-  treatment_notes: string | null;
-  prescribed_medications: PrescribedMedItem[] | null;
-  created_at: string;
-}
-
-interface RawProfile {
-  id: string;
-  full_name: string | null;
-  phone: string | null;
-  student_id: string | null;
-}
-
-interface RawInventoryLog {
-  id: string;
-  medication_id: string;
-  quantity: number;
-  reason: string | null;
-  idempotency_key: string | null;
-  created_at: string;
-  pharmacist?: { full_name?: string | null } | null;
-}
+  // Redirect ?medId= query param to dedicated dynamic route
 
   const loadMedications = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -317,7 +403,23 @@ interface RawInventoryLog {
       if (error) {
         throw error;
       }
-      setMedications((data as Medication[]) ?? []);
+      const items = (data as Medication[]) ?? [];
+      setMedications(items);
+
+      if (typeof window !== 'undefined') {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const targetMedId = urlParams.get('medId') || localStorage.getItem(ACTIVE_MED_STORAGE_KEY);
+          if (targetMedId) {
+            const found = items.find((m) => m.id === targetMedId);
+            if (found) {
+              setViewingItem(found);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดึงข้อมูลจาก Supabase';
       setErrorMessage(msg);
@@ -579,7 +681,24 @@ interface RawInventoryLog {
   const handleOpenAddModal = () => {
     if (!canManage) return;
     setEditingItem(null);
-    setDraft(DEFAULT_DRAFT);
+    let initialDraft = DEFAULT_DRAFT;
+    let restored = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object' && (parsed.name || parsed.category || parsed.dosage)) {
+            initialDraft = { ...DEFAULT_DRAFT, ...parsed };
+            restored = true;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    setDraft(initialDraft);
+    setHasRestoredDraft(restored);
     setShowPackCalculator(false);
     setCalcPackCount('');
     setCalcItemsPerPack('');
@@ -588,6 +707,18 @@ interface RawInventoryLog {
     setCalcItemsPerBox('');
     setFormError(null);
     setIsModalOpen(true);
+  };
+
+  const handleClearDraft = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+    setDraft(DEFAULT_DRAFT);
+    setHasRestoredDraft(false);
   };
 
   const handleOpenEditModal = (item: Medication) => {
@@ -682,6 +813,15 @@ interface RawInventoryLog {
         setSuccessToast(`เพิ่มเวชภัณฑ์ "${draft.name}" เข้าสู่คลังยาสำเร็จ`);
       }
 
+      if (!editingItem && typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setHasRestoredDraft(false);
+      }
+
       setIsModalOpen(false);
       await loadMedications();
     } catch (err: unknown) {
@@ -767,8 +907,9 @@ interface RawInventoryLog {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {successToast && (
+    <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 px-2 sm:px-4 md:px-6 lg:px-8">
+      <div className="w-full max-w-[1720px] mx-auto px-1 sm:px-3 lg:px-6 py-3 sm:py-6">
+        {successToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-medium text-emerald-800 shadow-xl transition-all animate-in slide-in-from-bottom-3">
           <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
           <span>{successToast}</span>
@@ -786,7 +927,7 @@ interface RawInventoryLog {
       <div className="mb-6 space-y-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
               <span className="text-xs font-bold tracking-wider text-sky-600 uppercase">
                 WU CLINIC / PHARMACY
               </span>
@@ -813,21 +954,21 @@ interface RawInventoryLog {
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
               คลังยาและเวชภัณฑ์ (Medication Inventory)
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">
               ควบคุมสต็อกเวชภัณฑ์ เฝ้าระวังยาใกล้หมดอายุ และบันทึกข้อมูลแบบเรียลไทม์
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => void handleReloadAll()}
               disabled={isLoading || isLoadingPrescriptions}
               title="รีเฟรชข้อมูลทั้งหมด"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 active:scale-95 disabled:opacity-50"
+              className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 sm:px-3.5 text-xs sm:text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 active:scale-95 disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading || isLoadingPrescriptions ? 'animate-spin text-sky-600' : ''}`} />
               <span className="hidden sm:inline">รีเฟรช</span>
@@ -837,7 +978,7 @@ interface RawInventoryLog {
                 <button
                   type="button"
                   onClick={handleOpenAddModal}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white shadow-xs transition hover:bg-sky-700 active:scale-95"
+                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-xs transition hover:bg-sky-700 active:scale-95"
                 >
                   <Plus className="h-4 w-4 shrink-0" />
                   <span>นำเข้าเวชภัณฑ์ใหม่</span>
@@ -845,7 +986,7 @@ interface RawInventoryLog {
               ) : (
                 <div
                   title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่สามารถนำเข้าเวชภัณฑ์ได้ (Admin และ Staff ดูได้อย่างเดียว)"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-medium text-slate-400 cursor-not-allowed select-none"
+                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-slate-400 cursor-not-allowed select-none"
                 >
                   <Lock className="h-4 w-4 shrink-0 text-slate-400" />
                   <span>นำเข้าเวชภัณฑ์ใหม่ (ล็อค)</span>
@@ -865,18 +1006,18 @@ interface RawInventoryLog {
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 pt-2">
+        <div className="flex border-b border-slate-200 pt-2 overflow-x-auto no-scrollbar whitespace-nowrap gap-1 sm:gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('inventory')}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold transition ${
               activeTab === 'inventory'
                 ? 'border-sky-600 text-sky-600'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
             }`}
           >
-            <Package className="h-4.5 w-4.5" />
-            <span>คลังเวชภัณฑ์ (Inventory)</span>
+            <Package className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+            <span>คลังเวชภัณฑ์ <span className="hidden sm:inline">(Inventory)</span></span>
             <span
               className={`ml-1 rounded-full px-2 py-0.5 text-xs ${
                 activeTab === 'inventory' ? 'bg-sky-100 text-sky-700 font-bold' : 'bg-slate-100 text-slate-600'
@@ -889,14 +1030,14 @@ interface RawInventoryLog {
           <button
             type="button"
             onClick={() => setActiveTab('prescriptions')}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold transition ${
               activeTab === 'prescriptions'
                 ? 'border-sky-600 text-sky-600'
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
             }`}
           >
-            <FileText className="h-4.5 w-4.5" />
-            <span>รายการสั่งยาและตัดจ่าย (Prescriptions & Dispensing)</span>
+            <FileText className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+            <span>รายการสั่งยาและตัดจ่าย <span className="hidden sm:inline">(Prescriptions & Dispensing)</span></span>
             {pendingPrescriptionsCount > 0 ? (
               <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 animate-pulse">
                 {pendingPrescriptionsCount} รอตัดจ่าย
@@ -929,187 +1070,200 @@ interface RawInventoryLog {
 
       {activeTab === 'inventory' ? (
         <>
-          {/* Summary Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          {
-            key: 'all',
-            label: 'รายการทั้งหมด',
-            value: stats.total,
-            sub: 'ในระบบคลังยา',
-            icon: Package,
-            color: 'bg-sky-50 text-sky-600',
-            activeBorder: 'ring-2 ring-sky-500',
-          },
-          {
-            key: 'sufficient',
-            label: 'มีเพียงพอ',
-            value: stats.sufficient,
-            sub: 'พร้อมให้บริการ',
-            icon: CheckCircle2,
-            color: 'bg-emerald-50 text-emerald-600',
-            activeBorder: 'ring-2 ring-emerald-500',
-          },
-          {
-            key: 'reorder',
-            label: 'ต้องสั่งเพิ่ม',
-            value: stats.reorder,
-            sub: 'ต่ำกว่าเกณฑ์',
-            icon: AlertTriangle,
-            color: 'bg-amber-50 text-amber-600',
-            activeBorder: 'ring-2 ring-amber-500',
-          },
-          {
-            key: 'critical',
-            label: 'วิกฤตใกล้หมด',
-            value: stats.critical,
-            sub: 'เร่งด่วนที่สุด',
-            icon: AlertOctagon,
-            color: 'bg-rose-50 text-rose-600',
-            activeBorder: 'ring-2 ring-rose-500',
-          },
-          {
-            key: 'expiring_soon',
-            label: 'ใกล้หมดอายุ',
-            value: stats.expiringSoon,
-            sub: '≤ 90 วันข้างหน้า',
-            icon: Clock,
-            color: 'bg-violet-50 text-violet-600',
-            activeBorder: 'ring-2 ring-violet-500',
-          },
-          {
-            key: 'expired',
-            label: 'หมดอายุ / ปิดใช้',
-            value: stats.expiredOrInactive,
-            sub: 'คัดแยกออกจากคลัง',
-            icon: Ban,
-            color: 'bg-slate-100 text-slate-600',
-            activeBorder: 'ring-2 ring-slate-500',
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          const isActive = statusFilter === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setStatusFilter((prev) => (prev === item.key ? 'all' : item.key))}
-              className={`flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:shadow-sm hover:border-slate-300 ${
-                isActive ? `${item.activeBorder} bg-slate-50/50` : ''
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-slate-500">{item.label}</span>
-                <span className={`rounded-xl p-2 ${item.color}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
-              </div>
+          {/* Summary Stat Cards - Styled identically to User Accounts page */}
+          <section
+            className="mb-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-8 xl:grid-cols-6 border-b border-slate-200 pb-2"
+            aria-label="สรุปสถานะเวชภัณฑ์"
+          >
+            {[
+              {
+                key: 'all',
+                label: 'รายการทั้งหมด',
+                value: stats.total,
+                sub: 'ในระบบคลังยา',
+                icon: Package,
+                iconColorActive: 'text-brand-strong',
+              },
+              {
+                key: 'sufficient',
+                label: 'มีเพียงพอ',
+                value: stats.sufficient,
+                sub: 'พร้อมให้บริการ',
+                icon: CheckCircle2,
+                iconColorActive: 'text-emerald-600',
+              },
+              {
+                key: 'reorder',
+                label: 'ต้องสั่งเพิ่ม',
+                value: stats.reorder,
+                sub: 'ต่ำกว่าเกณฑ์',
+                icon: AlertTriangle,
+                iconColorActive: 'text-amber-600',
+              },
+              {
+                key: 'critical',
+                label: 'วิกฤตใกล้หมด',
+                value: stats.critical,
+                sub: 'เร่งด่วนที่สุด',
+                icon: AlertOctagon,
+                iconColorActive: 'text-rose-600',
+              },
+              {
+                key: 'expiring_soon',
+                label: 'ใกล้หมดอายุ',
+                value: stats.expiringSoon,
+                sub: '≤ 90 วันข้างหน้า',
+                icon: Clock,
+                iconColorActive: 'text-violet-600',
+              },
+              {
+                key: 'expired',
+                label: 'หมดอายุ / ปิดใช้',
+                value: stats.expiredOrInactive,
+                sub: 'คัดแยกออกจากคลัง',
+                icon: Ban,
+                iconColorActive: 'text-slate-600',
+              },
+            ].map((item) => {
+              const isSelected = statusFilter === item.key;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setStatusFilter((prev) => (prev === item.key ? 'all' : item.key))}
+                  aria-pressed={isSelected}
+                  className={`border-b-2 px-1 py-3 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong cursor-pointer ${
+                    isSelected
+                      ? 'border-brand-strong text-brand-strong opacity-100 font-semibold'
+                      : 'border-transparent text-slate-700 opacity-40 hover:opacity-80 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-xs sm:text-sm ${isSelected ? 'font-bold text-brand-ink' : 'font-medium text-slate-600'}`}>
+                        {item.label}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-400 truncate">
+                        {item.sub}
+                      </p>
+                    </div>
+                    <Icon
+                      className={`size-5 shrink-0 transition-colors ${isSelected ? item.iconColorActive : 'text-slate-400'}`}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p className={`mt-3 text-2xl sm:text-3xl font-bold ${isSelected ? 'text-slate-950' : 'text-slate-700'}`}>
+                    {item.value}
+                  </p>
+                </button>
+              );
+            })}
+          </section>
+
+          {/* Main Table Card with Integrated Search & Filter Header */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            {/* Table Card Header */}
+            <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between bg-white">
               <div>
-                <p className="text-2xl font-bold tracking-tight text-slate-900">{item.value}</p>
-                <p className="mt-0.5 text-[11px] text-slate-400">{item.sub}</p>
+                <h2 className="text-xl font-semibold text-slate-900">รายชื่อเวชภัณฑ์</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  แสดง {filteredMedications.length} จาก {medications.length} รายการ
+                </p>
               </div>
-            </button>
-          );
-        })}
-      </div>
 
-      {/* Filter & Search Toolbar */}
-      <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหาชื่อยา, หมวดหมู่, สรรพคุณ หรือตัวยาสำคัญ..."
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100 placeholder:text-slate-400"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ค้นหาชื่อยา, หมวดหมู่, สรรพคุณ..."
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-sm text-slate-900 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft placeholder:text-slate-400"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
 
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-          >
-            <option value="all">ทุกหมวดหมู่ยา</option>
-            {categoriesInDb.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+                >
+                  <option value="all">ทุกหมวดหมู่ยา</option>
+                  {categoriesInDb.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
 
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-          >
-            <option value="all">ทุกรูปแบบ (Type)</option>
-            {TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+                >
+                  <option value="all">ทุกรูปแบบ (Type)</option>
+                  {TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
 
-          <select
-            value={selectedCoverage}
-            onChange={(e) => setSelectedCoverage(e.target.value)}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-          >
-            <option value="all">ทุกสิทธิ์การเบิกจ่าย</option>
-            <option value="covered">🟢 ยาในสิทธิ์ (เบิกได้)</option>
-            <option value="non_covered">🟣 ยานอกสิทธิ์ (จ่ายนอก)</option>
-          </select>
-        </div>
+                <select
+                  value={selectedCoverage}
+                  onChange={(e) => setSelectedCoverage(e.target.value)}
+                  className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+                >
+                  <option value="all">ทุกสิทธิ์การเบิกจ่าย</option>
+                  <option value="covered">🟢 ยาในสิทธิ์ (เบิกได้)</option>
+                  <option value="non_covered">🟣 ยานอกสิทธิ์ (จ่ายนอก)</option>
+                </select>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <ArrowUpDown className="h-3.5 w-3.5" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-            >
-              <option value="name">เรียงตาม: ชื่อ (ก-ฮ)</option>
-              <option value="stock_asc">เรียงตาม: สต็อกน้อย → มาก</option>
-              <option value="stock_desc">เรียงตาม: สต็อกมาก → น้อย</option>
-              <option value="expiry">เรียงตาม: วันหมดอายุเร็วสุด</option>
-            </select>
-          </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+                >
+                  <option value="name">เรียงตาม: ชื่อ (ก-ฮ)</option>
+                  <option value="stock_asc">เรียงตาม: สต็อกน้อย → มาก</option>
+                  <option value="stock_desc">เรียงตาม: สต็อกมาก → น้อย</option>
+                  <option value="expiry">เรียงตาม: วันหมดอายุเร็วสุด</option>
+                </select>
 
-          {(searchQuery || selectedCategory !== 'all' || selectedType !== 'all' || selectedCoverage !== 'all' || statusFilter !== 'all') && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
-                setSelectedType('all');
-                setSelectedCoverage('all');
-                setStatusFilter('all');
-              }}
-              className="h-11 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
-            >
-              ล้างตัวกรอง
-            </button>
-          )}
-        </div>
-      </div>
+                {(searchQuery || selectedCategory !== 'all' || selectedType !== 'all' || selectedCoverage !== 'all' || statusFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategory('all');
+                      setSelectedType('all');
+                      setSelectedCoverage('all');
+                      setStatusFilter('all');
+                    }}
+                    className="h-11 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition shrink-0"
+                  >
+                    ล้างตัวกรอง
+                  </button>
+                )}
+              </div>
+            </div>
 
-      {/* Main Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <div className="sm:hidden flex items-center justify-between px-3.5 py-2 bg-slate-50 text-[11px] text-slate-500 border-b border-slate-100">
+              <span>แตะแถวเพื่อดูรายละเอียด</span>
+              <span>↔ เลื่อนเพื่อดูตาราง</span>
+            </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
+          <table className="w-full min-w-[850px] text-left text-sm text-slate-600">
             <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-700 uppercase tracking-wider">
               <tr>
                 <th scope="col" className="px-5 py-4">ชื่อเวชภัณฑ์ / ขนาดยา</th>
@@ -1156,7 +1310,7 @@ interface RawInventoryLog {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => setViewingItem(item)}
+                      onClick={() => handleOpenViewingModal(item)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
@@ -1288,7 +1442,16 @@ interface RawInventoryLog {
 
                       <td className="px-4 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                         {!canManage ? (
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenViewingModal(item)}
+                              title="ดูรายละเอียดเวชภัณฑ์"
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-slate-400" />
+                              <span>ดูข้อมูล</span>
+                            </button>
                             <span
                               title="สิทธิ์ดูอย่างเดียว: เฉพาะแพทย์และเภสัชกรเท่านั้นที่สามารถแก้ไขหรือลบยาได้"
                               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-400 select-none"
@@ -1299,6 +1462,14 @@ interface RawInventoryLog {
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenViewingModal(item)}
+                              title="ดูรายละเอียดเวชภัณฑ์"
+                              className="rounded-lg p-1.5 text-slate-500 hover:bg-sky-50 hover:text-sky-600 transition"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </button>
                             {!item.is_active ? (
                               <>
                                 <button
@@ -1377,14 +1548,15 @@ interface RawInventoryLog {
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
+        <ViewportPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+            <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 my-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   {editingItem ? 'แก้ไขข้อมูลเวชภัณฑ์' : 'นำเข้าเวชภัณฑ์ใหม่'}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                   บันทึกข้อมูลเข้าสู่ฐานข้อมูลจริงของคลินิก (Supabase)
                 </p>
               </div>
@@ -1397,10 +1569,26 @@ interface RawInventoryLog {
               </button>
             </div>
 
-            <form onSubmit={handleSaveMedication} className="flex-1 overflow-y-auto p-6 pt-4 space-y-4">
+            <form onSubmit={handleSaveMedication} className="flex-1 overflow-y-auto p-4 sm:p-6 pt-3 sm:pt-4 space-y-4">
               {formError && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
                   {formError}
+                </div>
+              )}
+
+              {hasRestoredDraft && !editingItem && (
+                <div className="flex items-center justify-between rounded-xl border border-teal-200 bg-teal-50/70 px-3.5 py-2.5 text-xs text-teal-800">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-teal-600 animate-pulse" />
+                    <span>💾 กู้คืนข้อมูลแบบร่างที่คุณเคยกรอกค้างไว้ให้อัตโนมัติ</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearDraft}
+                    className="font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+                  >
+                    ล้างแบบร่าง (เริ่มใหม่)
+                  </button>
                 </div>
               )}
 
@@ -1915,19 +2103,19 @@ interface RawInventoryLog {
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4 mt-6">
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 sm:pt-4 mt-4 sm:mt-6">
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 text-sm font-semibold text-white hover:bg-sky-700 transition shadow-xs disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 sm:px-5 text-xs sm:text-sm font-semibold text-white hover:bg-sky-700 transition shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -1942,243 +2130,253 @@ interface RawInventoryLog {
             </form>
           </div>
         </div>
+        </ViewportPortal>
       )}
 
       {/* Medication Details Popup Modal */}
       {viewingItem && (
-        <div
-          data-testid="medication-details-backdrop"
-          onClick={() => setViewingItem(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto"
-        >
+        <ViewportPortal>
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="รายละเอียดเวชภัณฑ์"
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95"
+            data-testid="medication-details-backdrop"
+            onClick={handleCloseViewingModal}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
           >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-slate-100 p-6 pb-4 shrink-0">
-              <div className="flex items-start gap-3">
-                <div className="rounded-xl bg-sky-50 p-2.5 text-sky-600 shrink-0">
-                  <Pill className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold tracking-wider text-sky-600 uppercase block mb-0.5">
-                    รายละเอียดเวชภัณฑ์
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl font-bold text-slate-900 leading-tight">
-                      {viewingItem.name}
-                    </h2>
-                    {viewingItem.dosage && (
-                      <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 ring-1 ring-inset ring-sky-700/20">
-                        {viewingItem.dosage}
-                      </span>
-                    )}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl sm:max-w-3xl max-h-[88vh] sm:max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 my-auto"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-sky-50 p-2.5 text-sky-600 shrink-0">
+                    <Pill className="h-6 w-6" />
                   </div>
-                  {viewingItem.brand_name && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      ชื่อทางการค้า / ยี่ห้อ: <span className="font-semibold text-slate-700">{viewingItem.brand_name}</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                aria-label="ปิดหน้าต่าง"
-                onClick={() => setViewingItem(null)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Content Body */}
-            <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-4">
-              {/* Coverage Banner */}
-              <div className={`flex items-center justify-between rounded-xl p-3.5 border ${
-                viewingItem.coverage_type === 'non_covered'
-                  ? 'border-purple-200 bg-purple-50/70 text-purple-900'
-                  : 'border-emerald-200 bg-emerald-50/70 text-emerald-900'
-              }`}>
-                <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${
-                    viewingItem.coverage_type === 'non_covered' ? 'bg-purple-600' : 'bg-emerald-600'
-                  }`} />
                   <div>
-                    <span className="text-xs font-bold">
-                      {viewingItem.coverage_type === 'non_covered'
-                        ? 'ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)'
-                        : 'ยาในสิทธิ์ (เบิกได้)'}
+                    <span className="text-[11px] font-bold tracking-wider text-sky-600 uppercase block mb-0.5">
+                      รายละเอียดเวชภัณฑ์
                     </span>
-                    <p className="text-[11px] opacity-80 mt-0.5">
-                      {viewingItem.coverage_type === 'non_covered'
-                        ? 'อยู่นอกบัญชียาหลักแห่งชาติ หรือเป็นยานำเข้า/ยาทางเลือกพิเศษ'
-                        : 'ยาตามสิทธิ์การรักษา อยู่ในบัญชียาหลักแห่งชาติ'}
-                    </p>
-                  </div>
-                </div>
-                <span className={`text-[11px] font-semibold rounded-full px-2.5 py-0.5 ${
-                  viewingItem.coverage_type === 'non_covered'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-emerald-100 text-emerald-700'
-                }`}>
-                  {viewingItem.coverage_type === 'non_covered' ? 'Non-covered' : 'In-formulary'}
-                </span>
-              </div>
-
-              {/* Quick Info Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                  <span className="text-[11px] font-medium text-slate-400">รูปแบบยา</span>
-                  <p className="text-sm font-semibold text-slate-800 mt-0.5">
-                    {viewingItem.type || '-'}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                  <span className="text-[11px] font-medium text-slate-400">หน่วยนับตัดจ่าย</span>
-                  <p className="text-sm font-semibold text-sky-700 mt-0.5">
-                    {viewingItem.unit || 'เม็ด'}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                  <span className="text-[11px] font-medium text-slate-400">หมวดหมู่</span>
-                  <p className="text-sm font-semibold text-slate-800 mt-0.5 line-clamp-1">
-                    {viewingItem.category || '-'}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                  <span className="text-[11px] font-medium text-slate-400">สถานะในระบบ</span>
-                  <div className="mt-1">
-                    {viewingItem.is_active ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                        <CheckCircle2 className="h-3 w-3" /> พร้อมใช้งาน
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                        <Ban className="h-3 w-3" /> พักการใช้งาน
-                      </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                        {viewingItem.name}
+                      </h2>
+                      {viewingItem.dosage && (
+                        <span className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 ring-1 ring-inset ring-sky-700/20">
+                          {viewingItem.dosage}
+                        </span>
+                      )}
+                    </div>
+                    {viewingItem.brand_name && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        ชื่อทางการค้า / ยี่ห้อ: <span className="font-semibold text-slate-700">{viewingItem.brand_name}</span>
+                      </p>
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Manufacturer & Dates */}
-              <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2.5">
-                {viewingItem.manufacturer && (
-                  <div>
-                    <span className="text-[11px] font-medium text-slate-400">บริษัทที่ผลิต (Manufacturer)</span>
-                    <p className="text-xs font-semibold text-slate-800 mt-0.5">
-                      {viewingItem.manufacturer}
-                    </p>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
-                  <div>
-                    <span className="text-[11px] font-medium text-slate-400">วันผลิต (MFG Date)</span>
-                    <p className="text-xs font-medium text-slate-700 mt-0.5">
-                      {formatDisplayDate(viewingItem.mfg_date)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ (EXP Date)</span>
-                    <p className={`text-xs font-medium mt-0.5 ${
-                      isExpired(viewingItem.expiry_date) ? 'text-rose-600 font-bold' : 'text-slate-700'
-                    }`}>
-                      {formatDisplayDate(viewingItem.expiry_date)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stock Status Bar */}
-              <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700">ระดับสต็อกคงเหลือ</span>
-                  <span className="text-slate-500">
-                    คงเหลือ <strong className="text-slate-900 text-sm">{viewingItem.stock} {viewingItem.unit || 'หน่วย'}</strong>{' '}
-                    (ขั้นต่ำ {viewingItem.min_stock} {viewingItem.unit || 'หน่วย'})
-                  </span>
-                </div>
-                {viewingItem.pack_unit && viewingItem.pack_size && (
-                  <p className="text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
-                    📦 <strong>หน่วยบรรจุตอนซื้อ:</strong> 1 {viewingItem.pack_unit} = {viewingItem.pack_size} {viewingItem.unit || 'หน่วย'}
-                  </p>
-                )}
-                {(() => {
-                  const status = getStockStatus(viewingItem);
-                  const maxDisplay = Math.max(viewingItem.min_stock * 2, viewingItem.stock, 1);
-                  const percent = Math.min(Math.round((viewingItem.stock / maxDisplay) * 100), 100);
-                  let progressColor = 'bg-emerald-500';
-                  if (status === 'reorder') progressColor = 'bg-amber-500';
-                  if (status === 'critical') progressColor = 'bg-rose-500';
-                  return (
-                    <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${progressColor}`} style={{ width: `${percent}%` }} />
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Description & Ingredients */}
-              {viewingItem.description && (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
-                  <span className="text-[11px] font-medium text-slate-400">คำอธิบาย / ข้อบ่งใช้</span>
-                  <p className="text-xs text-slate-700 mt-1 leading-relaxed whitespace-pre-wrap">
-                    {viewingItem.description}
-                  </p>
-                </div>
-              )}
-
-              {viewingItem.ingredients && (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
-                  <span className="text-[11px] font-medium text-slate-400">ตัวยาสำคัญ (Active Ingredients)</span>
-                  <p className="text-xs text-slate-700 mt-1 font-mono leading-relaxed">
-                    {viewingItem.ingredients}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between border-t border-slate-100 p-4 px-6 shrink-0 bg-slate-50/50 rounded-b-2xl">
-              <span className="text-[11px] text-slate-400">
-                รหัสเวชภัณฑ์: {viewingItem.id.slice(0, 8)}...
-              </span>
-              <div className="flex items-center gap-2">
-                {canManage && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const item = viewingItem;
-                      setViewingItem(null);
-                      handleOpenEditModal(item);
-                    }}
-                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-50 px-4 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span>แก้ไขข้อมูล</span>
-                  </button>
-                )}
                 <button
                   type="button"
-                  onClick={() => setViewingItem(null)}
-                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                  onClick={handleCloseViewingModal}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                  title="ปิดหน้าต่าง"
                 >
-                  ปิดหน้าต่าง
+                  <X className="h-5 w-5" />
                 </button>
+              </div>
+
+              {/* Content Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 pt-3 sm:pt-4 space-y-4">
+                {/* Coverage Banner */}
+                <div className={`flex items-center justify-between rounded-xl p-3.5 border ${
+                  viewingItem.coverage_type === 'non_covered'
+                    ? 'border-purple-200 bg-purple-50/70 text-purple-900'
+                    : 'border-emerald-200 bg-emerald-50/70 text-emerald-900'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                      viewingItem.coverage_type === 'non_covered' ? 'bg-purple-600' : 'bg-emerald-600'
+                    }`} />
+                    <div>
+                      <span className="text-xs font-bold">
+                        {viewingItem.coverage_type === 'non_covered'
+                          ? 'ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)'
+                          : 'ยาในสิทธิ์ (เบิกได้)'}
+                      </span>
+                      <p className="text-[11px] opacity-80 mt-0.5">
+                        {viewingItem.coverage_type === 'non_covered'
+                          ? 'อยู่นอกบัญชียาหลักแห่งชาติ หรือเป็นยานำเข้า/ยาทางเลือกพิเศษ'
+                          : 'ยาตามสิทธิ์การรักษา อยู่ในบัญชียาหลักแห่งชาติ'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-[11px] font-semibold rounded-full px-2.5 py-0.5 shrink-0 ${
+                    viewingItem.coverage_type === 'non_covered'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {viewingItem.coverage_type === 'non_covered' ? 'Non-covered' : 'In-formulary'}
+                  </span>
+                </div>
+
+                {/* Quick Info Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                    <span className="text-[11px] font-medium text-slate-400">รูปแบบยา</span>
+                    <p className="text-sm font-semibold text-slate-800 mt-0.5">
+                      {viewingItem.type || '-'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                    <span className="text-[11px] font-medium text-slate-400">หน่วยนับตัดจ่าย</span>
+                    <p className="text-sm font-semibold text-sky-700 mt-0.5">
+                      {viewingItem.unit || 'หน่วย'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                    <span className="text-[11px] font-medium text-slate-400">หมวดหมู่</span>
+                    <p className="text-sm font-semibold text-slate-800 mt-0.5 line-clamp-1">
+                      {viewingItem.category || '-'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                    <span className="text-[11px] font-medium text-slate-400">สถานะในระบบ</span>
+                    <div className="mt-1">
+                      {viewingItem.is_active ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                          <CheckCircle2 className="h-3 w-3" /> พร้อมใช้งาน
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          <Ban className="h-3 w-3" /> พักการใช้งาน
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Manufacturer & Dates */}
+                <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2.5">
+                  {viewingItem.manufacturer && (
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-400">บริษัทที่ผลิต (Manufacturer)</span>
+                      <p className="text-xs font-semibold text-slate-800 mt-0.5">
+                        {viewingItem.manufacturer}
+                      </p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-400">วันผลิต (MFG Date)</span>
+                      <p className="text-xs font-medium text-slate-700 mt-0.5">
+                        {formatDisplayDate(viewingItem.mfg_date)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ (EXP Date)</span>
+                      <p className={`text-xs font-medium mt-0.5 ${
+                        isExpired(viewingItem.expiry_date) ? 'text-rose-600 font-bold' : 'text-slate-700'
+                      }`}>
+                        {formatDisplayDate(viewingItem.expiry_date)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stock Status Bar */}
+                <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">ระดับสต็อกคงเหลือ</span>
+                    <span className="text-slate-500">
+                      คงเหลือ <strong className="text-slate-900 text-sm">{viewingItem.stock} {viewingItem.unit || 'หน่วย'}</strong>{' '}
+                      (ขั้นต่ำ {viewingItem.min_stock} {viewingItem.unit || 'หน่วย'})
+                    </span>
+                  </div>
+                  {viewingItem.pack_unit && viewingItem.pack_size && (
+                    <p className="text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                      📦 <strong>หน่วยบรรจุตอนซื้อ:</strong> 1 {viewingItem.pack_unit} = {viewingItem.pack_size} {viewingItem.unit || 'หน่วย'}
+                    </p>
+                  )}
+                  {(() => {
+                    const status = getStockStatus(viewingItem);
+                    const maxDisplay = Math.max(viewingItem.min_stock * 2, viewingItem.stock, 1);
+                    const percent = Math.min(Math.round((viewingItem.stock / maxDisplay) * 100), 100);
+                    let progressColor = 'bg-emerald-500';
+                    if (status === 'reorder') progressColor = 'bg-amber-500';
+                    if (status === 'critical') progressColor = 'bg-rose-500';
+                    return (
+                      <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${progressColor}`} style={{ width: `${percent}%` }} />
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Description & Ingredients */}
+                {viewingItem.description && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                    <span className="text-[11px] font-medium text-slate-400">คำอธิบาย / ข้อบ่งใช้</span>
+                    <p className="text-xs text-slate-700 mt-1 leading-relaxed whitespace-pre-wrap">
+                      {viewingItem.description}
+                    </p>
+                  </div>
+                )}
+
+                {viewingItem.ingredients && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
+                    <span className="text-[11px] font-medium text-slate-400">ตัวยาสำคัญ (Active Ingredients)</span>
+                    <p className="text-xs text-slate-700 mt-1 font-mono leading-relaxed">
+                      {viewingItem.ingredients}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 px-6 shrink-0 bg-slate-50/50 rounded-b-2xl">
+                <span className="text-[11px] text-slate-400">
+                  รหัสเวชภัณฑ์: {viewingItem.id.slice(0, 8)}...
+                </span>
+                <div className="flex items-center gap-2">
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const itemToEdit = viewingItem;
+                        handleCloseViewingModal();
+                        handleOpenEditModal(itemToEdit);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>แก้ไขข้อมูล</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleNavigateToMedication(viewingItem.id)}
+                    title="เปิดหน้ารายละเอียดแบบเต็มหน้าจอ"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>เปิดหน้าเต็ม</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseViewingModal}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition shadow-2xs"
+                  >
+                    ปิดหน้าต่าง
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ViewportPortal>
       )}
 
       {/* Delete / Soft-delete Confirmation Modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95">
+        <ViewportPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className={`rounded-xl p-2 ${deleteTarget.is_active ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -2309,7 +2507,9 @@ interface RawInventoryLog {
             )}
           </div>
         </div>
+        </ViewportPortal>
       )}
+      </div>
     </div>
   );
 }

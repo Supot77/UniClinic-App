@@ -20,7 +20,7 @@
 
 | เส้นทาง | ตาราง/ฟังก์ชันหลัก | ข้อสรุปจาก repository |
 | --- | --- | --- |
-| Schedule | `services` → `daily_service_offerings` → `appointment_slots` | `DatabaseShopRepository` รองรับการอ่าน/เขียน; UI ยังมี mock composition บางคำสั่ง |
+| Schedule | `services` → `daily_service_offerings` → `appointment_slots` | `DatabaseSchedulingRepository` รองรับการอ่าน/เขียน; UI ยังมี mock composition บางคำสั่ง |
 | Appointment | `appointments`, `pai_workspace`, `pai_book_appointment`, `pai_transition_appointment` | route `/appointments` ใช้ RPC ชื่อ PAI แต่ migration รุ่นปัจจุบันชี้ไป `appointments`; ไม่ใช่หลักฐานว่า RPC deploy บน target แล้ว |
 | Medical record | `medical_records`, `pai_save_record` | route `/records` ใช้ RPC ชื่อ PAI ที่ migration `28` ชี้ไป `medical_records`; หนึ่งผลตรวจต่อนัดตาม schema/test ที่พบ |
 | Pharmacy | `medications`, `inventory_logs`, `medicationService`, `/pharmacy` | เส้นทางแยกจาก PAI และมี mock/local-storage fallback; ยังไม่ยืนยัน integration แบบครบวงจร |

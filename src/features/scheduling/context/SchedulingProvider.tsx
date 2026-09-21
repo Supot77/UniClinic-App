@@ -10,9 +10,9 @@ import {
   type ReactNode,
 } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { createShopRepository } from '../data/repositoryFactory';
-import { DatabaseShopRepository } from '../data/databaseRepository';
-import type { ShopRepository, ShopSnapshot } from '../domain/repository';
+import { createSchedulingRepository } from '../data/repositoryFactory';
+import { DatabaseSchedulingRepository } from '../data/databaseRepository';
+import type { SchedulingRepository, SchedulingSnapshot } from '../domain/repository';
 import type {
   DoctorWeeklySchedule,
   DoctorAvailabilityTemplate,
@@ -24,60 +24,60 @@ import type {
   DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotBatchInput, SlotInput } from '../domain/rules';
+import type { SchedulingResult, SlotBatchInput, SlotInput } from '../domain/rules';
 
-interface ShopContextValue extends ShopSnapshot {
+interface SchedulingContextValue extends SchedulingSnapshot {
   isLoading: boolean;
   refresh(): Promise<void>;
   saveDepartment(
     input: Omit<ScheduleDepartment, 'id' | 'isActive'>,
     id?: string,
-  ): Promise<ShopResult<ScheduleDepartment>>;
-  toggleDepartment(id: string): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>>;
+  ): Promise<SchedulingResult<ScheduleDepartment>>;
+  toggleDepartment(id: string): Promise<SchedulingResult<'deleted' | 'disabled' | 'enabled'>>;
   saveService(
     input: Omit<ScheduleService, 'id' | 'isActive'>,
     id?: string,
-  ): Promise<ShopResult<ScheduleService>>;
-  toggleService(id: string): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>>;
-  saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): Promise<ShopResult<ScheduleDoctor>>;
-  toggleDoctor(id: string): Promise<ShopResult<ScheduleDoctor | 'deleted'>>;
-  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): Promise<ShopResult<DoctorLeave>>;
-  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): Promise<ShopResult<DoctorLeave>>;
+  ): Promise<SchedulingResult<ScheduleService>>;
+  toggleService(id: string): Promise<SchedulingResult<'deleted' | 'disabled' | 'enabled'>>;
+  saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): Promise<SchedulingResult<ScheduleDoctor>>;
+  toggleDoctor(id: string): Promise<SchedulingResult<ScheduleDoctor | 'deleted'>>;
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole): Promise<SchedulingResult<DoctorLeave>>;
+  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): Promise<SchedulingResult<DoctorLeave>>;
   saveSlot(
     input: SlotInput,
     id?: string,
     todayDate?: string,
-  ): Promise<ShopResult<ScheduleSlot>> | ShopResult<ScheduleSlot>;
+  ): Promise<SchedulingResult<ScheduleSlot>> | SchedulingResult<ScheduleSlot>;
   createSlotBatch(
     input: SlotBatchInput,
     todayDate?: string,
     actorId?: string,
     role?: UserRole,
-  ): Promise<ShopResult<number>> | ShopResult<number>;
+  ): Promise<SchedulingResult<number>> | SchedulingResult<number>;
   toggleSlot(
     id: string,
     actorId?: string,
     role?: UserRole,
-  ): Promise<ShopResult<ScheduleSlot>> | ShopResult<ScheduleSlot>;
+  ): Promise<SchedulingResult<ScheduleSlot>> | SchedulingResult<ScheduleSlot>;
   saveWeeklySchedule(
     input: Omit<DoctorWeeklySchedule, 'id'>,
     id?: string,
-  ): ShopResult<DoctorWeeklySchedule>;
+  ): SchedulingResult<DoctorWeeklySchedule>;
   generateSlotsForRange(
     startDate: string,
     endDate: string,
     today: string,
     serviceId?: string,
-  ): Promise<ShopResult<number>> | ShopResult<number>;
+  ): Promise<SchedulingResult<number>> | SchedulingResult<number>;
   getDoctorTemplates(doctorId: string): DoctorAvailabilityTemplate[];
   saveDoctorTemplate(
     input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>,
-  ): ShopResult<DoctorAvailabilityTemplate>;
+  ): SchedulingResult<DoctorAvailabilityTemplate>;
 }
 
-const ShopContext = createContext<ShopContextValue | null>(null);
+const SchedulingContext = createContext<SchedulingContextValue | null>(null);
 
-export function ShopProvider({ children }: { children: ReactNode }) {
+export function SchedulingProvider({ children }: { children: ReactNode }) {
   const supabaseClient = useMemo(() => {
     try {
       return createClient();
@@ -87,11 +87,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dbRepo = useMemo(() => {
-    return supabaseClient ? new DatabaseShopRepository(supabaseClient) : null;
+    return supabaseClient ? new DatabaseSchedulingRepository(supabaseClient) : null;
   }, [supabaseClient]);
 
-  const [repository] = useState<ShopRepository>(() => createShopRepository());
-  const [snapshot, setSnapshot] = useState<ShopSnapshot>(() => {
+  const [repository] = useState<SchedulingRepository>(() => createSchedulingRepository());
+  const [snapshot, setSnapshot] = useState<SchedulingSnapshot>(() => {
     // When Supabase is configured, initialize empty so mock data never appears in real database mode
     if (typeof window !== 'undefined' || process.env.NEXT_PUBLIC_SUPABASE_URL) {
       return {
@@ -133,7 +133,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         weeklySchedules: [],
       });
     } catch (err) {
-      console.warn('ShopProvider refresh error:', err);
+      console.warn('SchedulingProvider refresh error:', err);
     }
   }, [dbRepo]);
 
@@ -164,7 +164,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
             });
           }
         } catch (err) {
-          console.warn('ShopProvider initial load error:', err);
+          console.warn('SchedulingProvider initial load error:', err);
         }
       }
       if (isMounted) setIsLoading(false);
@@ -189,7 +189,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   }, [dbRepo, refresh]);
 
   const run = useCallback(
-    <T,>(command: () => ShopResult<T>) => {
+    <T,>(command: () => SchedulingResult<T>) => {
       const result = command();
       if (result.ok) setSnapshot(repository.snapshot());
       return result;
@@ -201,7 +201,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     async (
       input: Omit<ScheduleDepartment, 'id' | 'isActive'>,
       id?: string,
-    ): Promise<ShopResult<ScheduleDepartment>> => {
+    ): Promise<SchedulingResult<ScheduleDepartment>> => {
       const isDbId = id ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) : true;
       if (dbRepo) {
         if (!isDbId) {
@@ -223,7 +223,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const handleToggleDepartment = useCallback(
-    async (id: string): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>> => {
+    async (id: string): Promise<SchedulingResult<'deleted' | 'disabled' | 'enabled'>> => {
       const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
       if (dbRepo) {
         if (!isDbId) {
@@ -252,7 +252,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     async (
       input: Omit<ScheduleDoctor, 'id'>,
       id?: string,
-    ): Promise<ShopResult<ScheduleDoctor>> => {
+    ): Promise<SchedulingResult<ScheduleDoctor>> => {
       const isDbId = id ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) : true;
       if (dbRepo) {
         if (!isDbId) {
@@ -277,7 +277,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     async (
       input: Omit<ScheduleService, 'id' | 'isActive'>,
       id?: string,
-    ): Promise<ShopResult<ScheduleService>> => {
+    ): Promise<SchedulingResult<ScheduleService>> => {
       const isDbId = id ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) : true;
       if (dbRepo) {
         if (!isDbId) return { ok: false, error: 'รหัสบริการไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
@@ -295,7 +295,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const handleToggleService = useCallback(
-    async (id: string): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>> => {
+    async (id: string): Promise<SchedulingResult<'deleted' | 'disabled' | 'enabled'>> => {
       const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
       if (dbRepo) {
         if (!isDbId) return { ok: false, error: 'รหัสบริการไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
@@ -315,7 +315,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const handleToggleDoctor = useCallback(
-    async (id: string): Promise<ShopResult<ScheduleDoctor | 'deleted'>> => {
+    async (id: string): Promise<SchedulingResult<ScheduleDoctor | 'deleted'>> => {
       const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
       if (dbRepo) {
         if (!isDbId) {
@@ -341,7 +341,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const handleSaveSlot = useCallback(
-    async (input: SlotInput, id?: string, todayDate?: string): Promise<ShopResult<ScheduleSlot>> => {
+    async (input: SlotInput, id?: string, todayDate?: string): Promise<SchedulingResult<ScheduleSlot>> => {
       const isDbId = id ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) : true;
       const isDbDoctor = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.doctorId);
       if (dbRepo) {
@@ -380,7 +380,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       todayDate?: string,
       actorId?: string,
       role?: UserRole,
-    ): Promise<ShopResult<number>> => {
+    ): Promise<SchedulingResult<number>> => {
       if (dbRepo) {
         const isDbDoctor = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.doctorId);
         if (!isDbDoctor) {
@@ -414,7 +414,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       id?: string,
       actorId?: string,
       role?: UserRole,
-    ): Promise<ShopResult<DoctorLeave>> => {
+    ): Promise<SchedulingResult<DoctorLeave>> => {
       const isDbId = id ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) : true;
       if (dbRepo) {
         if (!isDbId) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
@@ -432,7 +432,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const handleDeleteDoctorLeave = useCallback(
-    async (id: string, actorId?: string, role?: UserRole): Promise<ShopResult<DoctorLeave>> => {
+    async (id: string, actorId?: string, role?: UserRole): Promise<SchedulingResult<DoctorLeave>> => {
       const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
       if (dbRepo) {
         if (!isDbId) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
@@ -454,7 +454,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       id: string,
       actorId?: string,
       role?: UserRole,
-    ): Promise<ShopResult<ScheduleSlot>> => {
+    ): Promise<SchedulingResult<ScheduleSlot>> => {
       const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
       if (dbRepo) {
         if (!isDbId) {
@@ -480,7 +480,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   );
 
   const handleGenerateSlotsForRange = useCallback(
-    async (startDate: string, endDate: string, today: string, serviceId?: string): Promise<ShopResult<number>> => {
+    async (startDate: string, endDate: string, today: string, serviceId?: string): Promise<SchedulingResult<number>> => {
       if (dbRepo) {
         try {
           const result = await dbRepo.generateSlotsForRange(
@@ -506,7 +506,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.services, snapshot.slots, snapshot.weeklySchedules],
   );
 
-  const value = useMemo<ShopContextValue>(
+  const value = useMemo<SchedulingContextValue>(
     () => ({
       ...snapshot,
       isLoading,
@@ -548,11 +548,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
+  return <SchedulingContext.Provider value={value}>{children}</SchedulingContext.Provider>;
 }
 
-export function useShop() {
-  const value = useContext(ShopContext);
-  if (!value) throw new Error('useShop must be used inside ShopProvider');
+export function useScheduling() {
+  const value = useContext(SchedulingContext);
+  if (!value) throw new Error('useScheduling must be used inside SchedulingProvider');
   return value;
 }

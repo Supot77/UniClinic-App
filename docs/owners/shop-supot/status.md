@@ -2,7 +2,7 @@
 
 ## การเปลี่ยนแปลงล่าสุด
 
-- สถานะส่งต่อ: **code/function เสร็จ เหลือ UI polish เล็กน้อย** ตามข้อมูลเจ้าของโมดูล; รอบนี้ไม่แก้ Shop code
+- สถานะส่งต่อ: **code/function เสร็จ เหลือ UI polish เล็กน้อย** ตามข้อมูลเจ้าของโมดูล; รอบนี้ไม่แก้ Scheduling code
 - `0a3aa2d` เพิ่ม `ConfirmationModal` แทน `window.confirm` ในการเปิด/ปิดแผนก แพทย์ slot และยกเลิกวันลา
 - Confirmation แยกช่วงเตรียม request กับ async confirm action และแสดง busy state
 - `medical` จัดการวันลาของตนเอง; `staff_admin` จัดการของแพทย์ทุกคน; `patient` ไม่มี action วันลา

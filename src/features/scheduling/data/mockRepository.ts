@@ -29,14 +29,14 @@ import {
   validateDoctorLeavePermission,
   validateSlotPermission,
   validateSlot,
-  type ShopResult,
+  type SchedulingResult,
   type SlotBatchInput,
   type SlotInput,
 } from '../domain/rules';
-import type { ShopRepository, ShopSnapshot } from '../domain/repository';
+import type { SchedulingRepository, SchedulingSnapshot } from '../domain/repository';
 
-export class MockShopRepository implements ShopRepository {
-  private state: ShopSnapshot = {
+export class MockSchedulingRepository implements SchedulingRepository {
+  private state: SchedulingSnapshot = {
     departments: structuredClone(MOCK_DEPARTMENTS),
     doctors: structuredClone(MOCK_DOCTORS),
     services: structuredClone(MOCK_SERVICES),
@@ -48,11 +48,11 @@ export class MockShopRepository implements ShopRepository {
     availabilityTemplates: [],
   };
 
-  snapshot(): ShopSnapshot {
+  snapshot(): SchedulingSnapshot {
     return structuredClone(this.state);
   }
 
-  saveDepartment(input: Omit<ScheduleDepartment, 'id' | 'isActive'>, id?: string): ShopResult<ScheduleDepartment> {
+  saveDepartment(input: Omit<ScheduleDepartment, 'id' | 'isActive'>, id?: string): SchedulingResult<ScheduleDepartment> {
     const valid = validateDepartmentName(input.name, input.code, this.state.departments, id);
     if (!valid.ok) return valid;
     const existing = id ? this.state.departments.find((item) => item.id === id) : undefined;
@@ -67,7 +67,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: department };
   }
 
-  toggleDepartment(id: string): ShopResult<'deleted' | 'disabled' | 'enabled'> {
+  toggleDepartment(id: string): SchedulingResult<'deleted' | 'disabled' | 'enabled'> {
     const department = this.state.departments.find((item) => item.id === id);
     if (!department) return { ok: false, error: 'ไม่พบแผนก' };
     const referenced = department.hasHistory || this.state.doctors.some((item) => item.departmentId === id);
@@ -79,7 +79,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: department.isActive ? 'disabled' : 'enabled' };
   }
 
-  saveService(input: Omit<ScheduleService, 'id' | 'isActive'>, id?: string): ShopResult<ScheduleService> {
+  saveService(input: Omit<ScheduleService, 'id' | 'isActive'>, id?: string): SchedulingResult<ScheduleService> {
     const name = input.name.trim();
     const code = input.code.trim().toUpperCase();
     if (!name || !code) return { ok: false, error: 'กรอกรหัสและชื่อบริการก่อนบันทึก' };
@@ -98,7 +98,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: service };
   }
 
-  toggleService(id: string): ShopResult<'deleted' | 'disabled' | 'enabled'> {
+  toggleService(id: string): SchedulingResult<'deleted' | 'disabled' | 'enabled'> {
     const service = this.state.services.find((item) => item.id === id);
     if (!service) return { ok: false, error: 'ไม่พบบริการ' };
     const referenced = service.hasHistory || this.state.dailyServiceOfferings.some((offering) => offering.serviceId === id);
@@ -110,7 +110,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: service.isActive ? 'disabled' : 'enabled' };
   }
 
-  saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): ShopResult<ScheduleDoctor> {
+  saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): SchedulingResult<ScheduleDoctor> {
     if (!input.profileId || !input.departmentId || !input.specialty.trim()) {
       return { ok: false, error: 'เลือกบัญชีแพทย์ แผนก และกรอกความเชี่ยวชาญก่อนบันทึก' };
     }
@@ -131,7 +131,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: doctor };
   }
 
-  toggleDoctor(id: string): ShopResult<ScheduleDoctor | 'deleted'> {
+  toggleDoctor(id: string): SchedulingResult<ScheduleDoctor | 'deleted'> {
     const doctor = this.state.doctors.find((item) => item.id === id);
     if (!doctor) return { ok: false, error: 'ไม่พบแพทย์' };
     const referenced = doctor.hasHistory || this.state.slots.some((slot) => slot.doctorId === id);
@@ -144,7 +144,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: next };
   }
 
-  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole, todayDate?: string): ShopResult<DoctorLeave> {
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole, todayDate?: string): SchedulingResult<DoctorLeave> {
     const existing = id ? this.state.doctorLeaves.find((leave) => leave.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบวันลาที่ต้องการแก้ไข' };
     const validation = validateDoctorLeave(input, this.state.doctorLeaves, this.state.doctors, id, actorId, role, todayDate);
@@ -164,7 +164,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: structuredClone(leave) };
   }
 
-  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): ShopResult<DoctorLeave> {
+  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): SchedulingResult<DoctorLeave> {
     const leave = this.state.doctorLeaves.find((item) => item.id === id);
     if (!leave) return { ok: false, error: 'ไม่พบวันลาที่ต้องการยกเลิก' };
     const permission = validateDoctorLeavePermission(leave.doctorId, this.state.doctors, actorId, role);
@@ -173,7 +173,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: structuredClone(leave) };
   }
 
-  saveSlot(input: SlotInput, id?: string, todayDate?: string): ShopResult<ScheduleSlot> {
+  saveSlot(input: SlotInput, id?: string, todayDate?: string): SchedulingResult<ScheduleSlot> {
     const existing = id ? this.state.slots.find((item) => item.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
     const bookedCount = existing?.bookedCount ?? 0;
@@ -218,7 +218,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: slot };
   }
 
-  createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): ShopResult<number> {
+  createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): SchedulingResult<number> {
     const permission = validateSlotPermission(input.doctorId, this.state.doctors, actorId, role);
     if (!permission.ok) return permission;
 
@@ -278,7 +278,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: newSlots.length };
   }
 
-  toggleSlot(id: string, actorId?: string, role?: UserRole): ShopResult<ScheduleSlot> {
+  toggleSlot(id: string, actorId?: string, role?: UserRole): SchedulingResult<ScheduleSlot> {
     const slot = this.state.slots.find((item) => item.id === id);
     if (!slot) return { ok: false, error: 'ไม่พบรอบตรวจ' };
 
@@ -312,7 +312,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: next };
   }
 
-  saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): ShopResult<DoctorWeeklySchedule> {
+  saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): SchedulingResult<DoctorWeeklySchedule> {
     const doctor = this.state.doctors.find((item) => item.id === input.doctorId);
     if (!doctor) return { ok: false, error: 'ไม่พบแพทย์' };
     if (doctor.availability !== 'active') return { ok: false, error: 'แพทย์ต้องเปิดใช้งานก่อนตั้งตาราง', field: 'doctorId' };
@@ -332,7 +332,7 @@ export class MockShopRepository implements ShopRepository {
     return { ok: true, value: schedule };
   }
 
-  generateSlotsForRange(startDate: string, endDate: string, today: string, requestedServiceId?: string): ShopResult<number> {
+  generateSlotsForRange(startDate: string, endDate: string, today: string, requestedServiceId?: string): SchedulingResult<number> {
     if (!startDate || !endDate || startDate > endDate) return { ok: false, error: 'ช่วงวันที่สร้างรอบไม่ถูกต้อง' };
     let created = 0;
     for (let date = startDate; date <= endDate; date = shiftDate(date, 1)) {
@@ -365,7 +365,7 @@ export class MockShopRepository implements ShopRepository {
     return [...templates].sort((a, b) => b.usageCount - a.usageCount || b.lastUsedAt.localeCompare(a.lastUsedAt));
   }
 
-  saveDoctorTemplate(input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>): ShopResult<DoctorAvailabilityTemplate> {
+  saveDoctorTemplate(input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>): SchedulingResult<DoctorAvailabilityTemplate> {
     if (!this.state.availabilityTemplates) {
       this.state.availabilityTemplates = [];
     }

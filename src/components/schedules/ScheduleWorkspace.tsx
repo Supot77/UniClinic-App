@@ -23,7 +23,7 @@ import ScheduleSkeleton from './ScheduleSkeleton';
 import ConfirmationModal, { type ConfirmationModalRequest } from '@/components/common/ConfirmationModal';
 import Toast from '@/components/common/Toast';
 import DatePicker from '@/components/common/DatePicker';
-import { useShop } from '@/features/shop/context/ShopProvider';
+import { useScheduling } from '@/features/scheduling/context/SchedulingProvider';
 import type { DoctorLeave, ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
 import { CLINIC_TIME_BLOCKS, LEAVE_REASONS, THAI_MONTHS_SHORT, WEEKDAY_NAMES } from '@/constants/dateTime';
@@ -54,8 +54,8 @@ import {
   getBangkokToday,
   isDoctorOnLeave,
   isSlotExpired,
-} from '@/features/shop/domain/rules';
-import type { SlotBatchInput, SlotBatchTimeBlock } from '@/features/shop/domain/rules';
+} from '@/features/scheduling/domain/rules';
+import type { SlotBatchInput, SlotBatchTimeBlock } from '@/features/scheduling/domain/rules';
 
 function getTodayDate(): string {
   return getBangkokToday();
@@ -269,7 +269,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     services = [],
     slots,
     doctorLeaves = [],
-    refresh: refreshShop,
+    refresh: refreshScheduling,
     saveService: persistService,
     saveSlot: persistSlot,
     createSlotBatch: persistSlotBatch,
@@ -277,7 +277,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
     saveDoctorLeave: persistDoctorLeave,
     deleteDoctorLeave: persistDoctorLeaveDelete,
     isLoading,
-  } = useShop();
+  } = useScheduling();
 
   const currentDoctor = useMemo(
     () => doctors.find((d) => d.profileId === actorId || d.id === actorId),
@@ -336,8 +336,8 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   const [batchIsSaving, setBatchIsSaving] = useState(false);
 
   useEffect(() => {
-    void refreshShop();
-  }, [refreshShop]);
+    void refreshScheduling();
+  }, [refreshScheduling]);
 
   const [bangkokNow, setBangkokNow] = useState(() => ({
     date: getBangkokToday(),

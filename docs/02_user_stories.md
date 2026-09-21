@@ -19,7 +19,7 @@ Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.
 ส่วนนี้บอกสิ่งที่พบในโค้ดปัจจุบัน แยกจาก user story เป้าหมายด้านล่าง:
 
 - นัดหมายที่ route `/appointments` ใช้ PAI runtime และ Supabase RPC (`pai_workspace`, `pai_book_appointment`, `pai_transition_appointment`, `pai_save_record`) เมื่อมี session จริง; ไม่พบการเลื่อนนัดใน route นี้
-- ตาราง schedule รองรับ `service → daily offering → slot` และการกรองตามบริการ/แพทย์/วัน แต่ `ShopProvider` ยังมี mock composition และบางคำสั่ง weekly schedule ใช้ mock จึงยังสรุปว่า database runtime ครบไม่ได้
+- ตาราง schedule รองรับ `service → daily offering → slot` และการกรองตามบริการ/แพทย์/วัน แต่ `SchedulingProvider` ยังมี mock composition และบางคำสั่ง weekly schedule ใช้ mock จึงยังสรุปว่า database runtime ครบไม่ได้
 - `appointments`/`medical_records` เดิมเป็น schema legacy; runtime ปัจจุบันรวมอยู่ใน `appointments.tsx`, `medical-records.tsx` และ `clinic-care.tsx`
 - หน้า pharmacy เป็นเส้นทางแยกที่อ่าน Supabase ตรงและมี mock/local-storage fallback; PAI บันทึกเฉพาะรายการยาที่สั่งในผลตรวจ ยังไม่ใช่หลักฐานว่า dispense เชื่อมกับนัดแบบ end-to-end
 - หน้า reminders รองรับ CRUD, pause/resume และ medication log ผ่าน service พร้อม fallback mock บางกรณี ซึ่งเกิน/ไม่ตรงกับ target manual ที่ตัด pause และ automation ออก
@@ -110,7 +110,7 @@ Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.
 | Story | เส้นทางที่พบ | สถานะจากหลักฐานใน repository |
 | --- | --- | --- |
 | สมาชิก/โปรไฟล์ | `authService`, auth pages, `profiles` | มีโค้ด Supabase; ต้องตรวจ session/RLS จริง |
-| แผนก/ตาราง | `ScheduleWorkspace`/`DepartmentWorkspace`/`DepartmentDetailWorkspace` → `ShopProvider` → mock หรือ `DatabaseShopRepository` | มี route `/departments/[departmentId]`, ชิปวันลา edit/cancel และทั้งสอง adapter; ยังไม่ยืนยันว่า production ใช้ DB ครบทุกคำสั่ง |
+| แผนก/ตาราง | `ScheduleWorkspace`/`DepartmentWorkspace`/`DepartmentDetailWorkspace` → `SchedulingProvider` → mock หรือ `DatabaseSchedulingRepository` | มี route `/departments/[departmentId]`, ชิปวันลา edit/cancel และทั้งสอง adapter; ยังไม่ยืนยันว่า production ใช้ DB ครบทุกคำสั่ง |
 | นัด/ผลตรวจ | `appointments.tsx`/`medical-records.tsx` → `clinic-care.tsx` → `pai_*` RPC | active route; ไม่มี reschedule ใน route หลัก |
 | คลัง/การจ่าย | `/pharmacy`, `medicationService`, mock/local storage | เส้นทางแยก; ยังไม่เชื่อม dispense กับ PAI appointment แบบครบวงจร |
 | รายการเตือน | `/reminders`, `reminderService`, mock fallback | มี CRUD/log/pause-resume; ไม่ตรง target D22 บางส่วน |

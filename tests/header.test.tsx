@@ -162,7 +162,7 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: "ผลการตรวจ" })).not.toBeInTheDocument();
   });
 
-  it("links staff account management in the drawer to departments", () => {
+  it("links staff account management in the drawer to staff accounts", () => {
     authState.user = { full_name: "Admin Demo" };
     authState.isAuthenticated = true;
     authState.role = "staff_admin";
@@ -170,7 +170,7 @@ describe("Header", () => {
     render(<Header />);
     fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" }));
 
-    expect(screen.getByRole("link", { name: "จัดการผู้ใช้งาน" })).toHaveAttribute("href", "/departments");
+    expect(screen.getByRole("link", { name: "จัดการผู้ใช้งาน" })).toHaveAttribute("href", "/staff/accounts");
     expect(screen.queryByRole("link", { name: "นัดหมาย" })).not.toBeInTheDocument();
   });
 

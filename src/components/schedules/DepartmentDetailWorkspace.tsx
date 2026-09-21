@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowLeft, CalendarDays, Clock3, Stethoscope, Users } from 'lucide-react';
-import { useShop } from '@/features/shop/context/ShopProvider';
+import { useScheduling } from '@/features/scheduling/context/SchedulingProvider';
 import { THAI_MONTHS_SHORT, WEEKDAY_NAMES } from '@/constants/dateTime';
 import type { ScheduleSlotStatus } from '@/types/schedule';
 
@@ -37,7 +37,7 @@ export default function DepartmentDetailWorkspace({ departmentId }: { department
     slots,
     doctorLeaves = [],
     isLoading,
-  } = useShop();
+  } = useScheduling();
 
   if (isLoading) {
     return (

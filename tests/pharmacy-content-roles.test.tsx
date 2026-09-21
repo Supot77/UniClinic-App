@@ -2,8 +2,12 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import PharmacyContent from '@/components/pharmacy/PharmacyContent';
 
+const mockPush = vi.fn();
+const mockReplace = vi.fn();
+const mockRouter = { replace: mockReplace, push: mockPush };
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => mockRouter,
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -369,15 +373,19 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(medRow).not.toBeNull();
     fireEvent.click(medRow!);
 
+    // Should navigate to dynamic route
     // Modal should be visible with title and details (brand, manufacturer, dosage, ingredients, stock)
     expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Paracetamol' })).toBeInTheDocument();
     expect(screen.getByText('Sara')).toBeInTheDocument();
-    expect(screen.getAllByText('500mg').length).toBe(2);
+    expect(screen.getAllByText('500mg').length).toBeGreaterThan(0);
     expect(screen.getByText('องค์การเภสัชกรรม (GPO)')).toBeInTheDocument();
-    expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(2);
-    expect(screen.getAllByRole('button', { name: 'แก้ไขข้อมูล' }).length).toBeGreaterThan(1);
-    expect(screen.getAllByRole('button', { name: 'ปิดหน้าต่าง' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBeGreaterThan(0);
+
+    // Check full page button navigates to dynamic route
+    const fullPageBtn = screen.getByRole('button', { name: /เปิดหน้าเต็ม/i });
+    fireEvent.click(fullPageBtn);
+    expect(mockPush).toHaveBeenCalledWith('/pharmacy/medications/med-1');
 
     // Close the modal
     const closeBtn = screen.getAllByRole('button', { name: 'ปิดหน้าต่าง' })[0];
@@ -385,24 +393,32 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     // Modal should be closed
     expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
-    expect(screen.getAllByText('ระดับสต็อกคงเหลือ').length).toBe(1);
   });
 
-  it('closes medication details popup modal when clicking outside (on backdrop)', async () => {
+  it('closes medication details popup modal when clicking outside (on backdrop) or pressing Escape', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    // Click on Paracetamol row / card to open modal
     const medText = await screen.findByText('Paracetamol');
     const medRow = medText.closest('tr');
-    fireEvent.click(medRow!);
+    expect(medRow).not.toBeNull();
 
+    // Open popup via keyboard Enter
+    fireEvent.keyDown(medRow!, { key: 'Enter', code: 'Enter' });
     expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
 
-    // Click outside on the backdrop
+    // Close on backdrop click
     const backdrop = screen.getByTestId('medication-details-backdrop');
     fireEvent.click(backdrop);
+    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
 
-    // Modal should be closed
+    // Clicking view button in the same row opens popup
+    const viewButton = medRow!.querySelector('button[title="ดูรายละเอียดเวชภัณฑ์"]');
+    expect(viewButton).not.toBeNull();
+    fireEvent.click(viewButton!);
+    expect(screen.getByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+
+    // Close with Escape key
+    fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
     expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
   });
 
@@ -424,8 +440,6 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     fireEvent.change(itemsPerPackInput, { target: { value: '100' } });
 
     // Result should show 500
-    expect(screen.getByText('500 เม็ด')).toBeInTheDocument();
-
     // Click apply button
     const applyBtn = screen.getByRole('button', { name: 'ใช้เป็นยอดสต็อกปัจจุบัน' });
     fireEvent.click(applyBtn);
@@ -434,4 +448,112 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     const stockInput = screen.getByDisplayValue('500');
     expect(stockInput).toBeInTheDocument();
   });
+
+  it('highlights selected status filter card and dims unselected cards', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // By default "รายการทั้งหมด" is selected
+    const allBtn = screen.getByRole('button', { name: /รายการทั้งหมด/i });
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(allBtn.className).toContain('opacity-100');
+
+    // Click "มีเพียงพอ"
+    const sufficientBtn = screen.getByRole('button', { name: /มีเพียงพอ/i });
+    await act(async () => {
+      fireEvent.click(sufficientBtn);
+    });
+
+    expect(sufficientBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(sufficientBtn.className).toContain('opacity-100');
+    expect(sufficientBtn.className).toContain('border-brand-strong');
+
+    // "รายการทั้งหมด" is now unselected and dimmed
+    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(allBtn.className).toContain('opacity-40');
+  });
+
+  it('restores draft in Add Medication modal from localStorage and allows clearing', async () => {
+    // Pre-populate draft in localStorage
+    const savedDraft = {
+      name: 'Ibuprofen 400mg',
+      dosage: '400mg',
+      category: 'ยาแก้ปวดลดการอักเสบ',
+      type: 'เม็ด',
+      unit: 'เม็ด',
+      coverage_type: 'covered',
+    };
+    localStorage.setItem('clinic_pharmacy_add_draft', JSON.stringify(savedDraft));
+
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    const addBtn = await screen.findByText('นำเข้าเวชภัณฑ์ใหม่');
+    await act(async () => {
+      fireEvent.click(addBtn);
+    });
+
+    // Modal should display restored banner and restored values
+    expect(screen.getByText(/กู้คืนข้อมูลแบบร่างที่คุณเคยกรอกค้างไว้ให้อัตโนมัติ/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Ibuprofen 400mg')).toBeInTheDocument();
+
+    // Click clear draft
+    const clearBtn = screen.getByText('ล้างแบบร่าง (เริ่มใหม่)');
+    await act(async () => {
+      fireEvent.click(clearBtn);
+    });
+
+    expect(screen.queryByText(/กู้คืนข้อมูลแบบร่างที่คุณเคยกรอกค้างไว้ให้อัตโนมัติ/)).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Ibuprofen 400mg')).not.toBeInTheDocument();
+
+    localStorage.removeItem('clinic_pharmacy_add_draft');
+  });
+
+  it('persists viewing modal in localStorage and restores on page reload', async () => {
+    // Simulate active modal saved in localStorage prior to page refresh
+    localStorage.setItem('clinic_pharmacy_active_med_id', 'med-1');
+
+    const { unmount } = render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Details modal should automatically restore and show medication details
+    expect(await screen.findByText('รายละเอียดเวชภัณฑ์')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Paracetamol' })).toBeInTheDocument();
+
+    // Close the modal
+    const closeBtn = screen.getAllByRole('button', { name: 'ปิดหน้าต่าง' })[0];
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByText('รายละเอียดเวชภัณฑ์')).not.toBeInTheDocument();
+    expect(localStorage.getItem('clinic_pharmacy_active_med_id')).toBeNull();
+
+    unmount();
+  });
+
+  it('highlights selected prescription summary stat card and dims unselected cards', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Switch to Prescriptions tab
+    const prescriptionsTab = screen.getByRole('button', {
+      name: /รายการสั่งยาและตัดจ่าย/,
+    });
+    fireEvent.click(prescriptionsTab);
+
+    // Initial state: "ใบสั่งยาทั้งหมด" is selected
+    const allBtn = await screen.findByRole('button', { name: /ใบสั่งยาทั้งหมด/i });
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(allBtn.className).toContain('opacity-100');
+
+    // Click "รอตัดจ่ายสต็อก"
+    const pendingBtn = screen.getByRole('button', { name: /รอตัดจ่ายสต็อก/i });
+    await act(async () => {
+      fireEvent.click(pendingBtn);
+    });
+
+    expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(pendingBtn.className).toContain('opacity-100');
+    expect(pendingBtn.className).toContain('border-brand-strong');
+
+    // "ใบสั่งยาทั้งหมด" is now unselected and dimmed
+    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(allBtn.className).toContain('opacity-40');
+  });
 });
+

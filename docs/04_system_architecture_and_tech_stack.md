@@ -10,7 +10,7 @@ Role contract กลางมี 3 ค่าเท่านั้น: `patient`,
 
 เอกสารนี้ยังเป็น target architecture; จาก code path ปัจจุบัน route นัดหมาย/ผลตรวจใช้ PAI database repository และ RPC ตามที่ออกแบบ แต่ schedule บางคำสั่ง, dashboard metric, reminders และ pharmacy ยังมี mock/direct-service/local-storage path. ให้ใช้ [02](02_user_stories.md), [03](03_database_design_and_er.md) และ [11](11_functional_requirements.md) เป็นตาราง as-built gap และอย่าอ้างส่วน target ด้านล่างเป็นหลักฐานว่า runtime ทุกโมดูลใช้ DB จริงแล้ว
 
-งาน UI ที่ยังต้องเก็บรายละเอียดในรอบนี้อยู่ที่ Shop และ Herb dashboard; การมี component หรือ route แล้วไม่ปิด browser QA จนกว่าจะมีหลักฐานตาม [owner views](owners/README.md)
+งาน UI ที่ยังต้องเก็บรายละเอียดในรอบนี้อยู่ที่ Scheduling และ Herb dashboard; การมี component หรือ route แล้วไม่ปิด browser QA จนกว่าจะมีหลักฐานตาม [owner views](owners/README.md)
 
 ## ชั้นการทำงาน
 
