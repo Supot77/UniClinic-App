@@ -15,6 +15,7 @@ import {
 import type { Notification, NotificationType, UnreadNotificationRecipient, UserRole } from '@/types/database';
 import Toast from '@/components/common/Toast';
 import SegmentedControl from '@/components/common/SegmentedControl';
+import { toNotificationErrorMessage } from '@/lib/userFacingErrors';
 
 type InboxFilter = 'all' | 'unread' | 'read' | NotificationType;
 type UnreadRoleFilter = 'all' | UserRole;
@@ -33,7 +34,7 @@ function initialInboxFilter(): InboxFilter {
 }
 
 const unreadRoleFilters: Array<{ value: UnreadRoleFilter; label: string }> = [
-  { value: 'all', label: 'ผู้ใช้ทั้งหมด' },
+  { value: 'all', label: 'ผู้รับทั้งหมด' },
   { value: 'patient', label: 'ผู้ป่วย' },
   { value: 'medical', label: 'แพทย์' },
   { value: 'staff_admin', label: 'แอดมิน' },
@@ -104,34 +105,34 @@ function BroadcastComposer({ draft, onDraftChange, onClose, onCancel, onSent }: 
     setError(null);
     try {
       const result = await sendBroadcast(draft.title, draft.message, requestKey.current);
-      setSuccess(`${result.created ? 'ส่ง Broadcast สำเร็จ' : 'คำขอนี้ถูกส่งแล้ว'} · ผู้รับ ${result.recipientCount} คน`);
+      setSuccess(`${result.created ? 'ส่งประกาศสำเร็จ' : 'ประกาศนี้ถูกส่งไปแล้ว'} · ผู้รับ ${result.recipientCount} คน`);
       if (result.created) {
         onDraftChange(emptyBroadcastDraft);
         requestKey.current = crypto.randomUUID();
         await onSent();
       }
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'ส่ง Broadcast ไม่สำเร็จ');
+      setError(toNotificationErrorMessage(sendError, 'ส่งประกาศไม่สำเร็จ กรุณาลองใหม่'));
     } finally {
       setBusy(false);
     }
   };
 
   return <div className="space-y-6">
-    <div className="flex items-start justify-between gap-3 border-b border-brand-border-soft pb-4 sm:gap-4"><div className="min-w-0"><h2 className="text-lg font-semibold text-brand-ink">ส่งประกาศ Broadcast</h2><p className="mt-1 text-xs leading-5 text-brand-muted">ส่งประกาศถึงบัญชีที่ใช้งานอยู่ทุกบทบาท และบันทึกลงกล่องแจ้งเตือน</p></div><button type="button" onClick={onClose} autoFocus aria-label="ปิดแบบฟอร์มส่ง Broadcast" className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-brand-border-strong px-3 text-sm font-semibold text-brand-body transition hover:bg-brand-page hover:text-brand-ink"><X className="size-4" aria-hidden="true" />ปิด</button></div>
+    <div className="flex items-start justify-between gap-3 border-b border-brand-border-soft pb-4 sm:gap-4"><div className="min-w-0"><h2 className="text-lg font-semibold text-brand-ink">ส่งประกาศ</h2><p className="mt-1 text-xs leading-5 text-brand-muted">ส่งประกาศถึงผู้ใช้ที่มีบัญชีใช้งานอยู่ทั้งหมด และบันทึกลงกล่องแจ้งเตือน</p></div><button type="button" onClick={onClose} autoFocus aria-label="ปิดแบบฟอร์มส่งประกาศ" className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-brand-border-strong px-3 text-sm font-semibold text-brand-body transition hover:bg-brand-page hover:text-brand-ink"><X className="size-4" aria-hidden="true" />ปิด</button></div>
     <form onSubmit={submit} className="space-y-5">
       <label className="block text-sm font-medium text-brand-ink">หัวข้อ<input value={draft.title} onChange={(event) => onDraftChange({ ...draft, title: event.target.value })} maxLength={120} required className="mt-2 w-full rounded-lg border border-brand-border-strong bg-white px-3.5 py-2.5 font-normal text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft" placeholder="เช่น แจ้งเปลี่ยนเวลาทำการ" /></label>
       <label className="block text-sm font-medium text-brand-ink">ข้อความ<textarea value={draft.message} onChange={(event) => onDraftChange({ ...draft, message: event.target.value })} maxLength={1000} required rows={4} className="mt-2 w-full resize-y rounded-lg border border-brand-border-strong bg-white px-3.5 py-2.5 font-normal text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft" placeholder="รายละเอียดประกาศ" /></label>
-      <div className="flex flex-col gap-3 border-t border-brand-border-soft pt-5 sm:flex-row sm:items-center sm:justify-between"><div aria-live="polite" className="text-sm text-status-critical">{error}</div><div className="flex flex-col-reverse gap-3 sm:flex-row"><button type="button" onClick={onCancel} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-5 py-2.5 text-sm font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">ยกเลิก</button><button type="submit" disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60">{busy ? <RefreshCw className="size-4 animate-spin" /> : <Send className="size-4" />}{busy ? 'กำลังส่ง…' : 'ยืนยันการส่ง'}</button></div></div>
+      <div className="flex flex-col gap-3 border-t border-brand-border-soft pt-5 sm:flex-row sm:items-center sm:justify-between"><div aria-live="polite" className="text-sm text-status-critical">{error}</div><div className="flex flex-col-reverse gap-3 sm:flex-row"><button type="button" onClick={onCancel} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-5 py-2.5 text-sm font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">ยกเลิก</button><button type="submit" disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60">{busy ? <RefreshCw className="size-4 animate-spin" /> : <Send className="size-4" aria-hidden="true" />}{busy ? 'กำลังส่ง…' : 'ส่งประกาศ'}</button></div></div>
     </form>
     <Toast message={success} onDismiss={() => setSuccess(null)} />
   </div>;
 }
 
 function AdminBroadcastHistory({ history, loading }: { history: BroadcastHistoryItem[]; loading: boolean }) {
-  return <section className="overflow-hidden rounded-2xl border border-brand-border bg-white shadow-xs" aria-live="polite" aria-label="ประวัติ Broadcast">
-    <div className="flex flex-col gap-3 border-b border-brand-border-soft bg-brand-page/35 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6"><div className="min-w-0"><h2 className="text-lg font-semibold text-brand-ink">ประวัติ Broadcast</h2><p className="mt-1 text-xs leading-5 text-brand-muted">ประกาศที่ส่งจากบัญชีแอดมินและสถานะการอ่านของผู้รับ</p></div><span className="self-start rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-strong">{history.length} รายการ</span></div>
-    {loading ? <div className="space-y-3 p-5" aria-label="กำลังโหลดประวัติ Broadcast"><div className="h-24 animate-pulse rounded-xl bg-brand-page" /><div className="h-24 animate-pulse rounded-xl bg-brand-page" /></div> : history.length === 0 ? <div className="flex min-h-48 flex-col items-center justify-center p-8 text-center"><span className="rounded-2xl bg-brand-soft p-3 text-brand-strong"><Megaphone className="size-7" aria-hidden="true" /></span><h3 className="mt-3 font-semibold text-brand-ink">ยังไม่มีประวัติ Broadcast</h3><p className="mt-1 text-sm text-brand-muted">ประกาศที่ส่งสำเร็จจะแสดงในส่วนนี้</p></div> : <div className="divide-y divide-brand-border-soft">{history.map((item) => <article key={item.id} className="px-5 py-5 sm:px-6 sm:py-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8"><div className="flex min-w-0 gap-3"><span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong" aria-hidden="true"><Megaphone className="size-5" /></span><div className="min-w-0"><h3 className="break-words text-base font-semibold text-brand-ink">{item.title}</h3><p className="mt-1 break-words text-sm leading-6 text-brand-body">{item.message}</p></div></div><time className="shrink-0 text-xs text-brand-muted lg:pt-1">{formatDateTime(item.sentAt)}</time></div><div className="mt-5 grid gap-3 border-y border-brand-border-soft py-3 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-brand-border-soft"><div className="sm:px-4 sm:first:pl-0"><p className="text-xs text-brand-muted">สถานะการส่ง</p><p className="mt-1 text-sm font-semibold text-status-success">ส่งสำเร็จ</p></div><div className="sm:px-4"><p className="text-xs text-brand-muted">ผู้รับทั้งหมด</p><p className="mt-1 text-sm font-semibold text-brand-ink">{item.recipientCount} คน</p></div><div className="sm:px-4 sm:last:pr-0"><p className="text-xs text-brand-muted">อ่านแล้ว</p><p className="mt-1 text-sm font-semibold text-brand-ink">{item.readCount ?? 0} คน</p></div></div><div className="mt-4 flex flex-wrap gap-2">{broadcastRoleOrder.map((role) => { const summary = item.roleReadCounts?.[role] ?? { read: 0, total: 0 }; const isComplete = summary.total > 0 && summary.read === summary.total; return <span key={role} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${isComplete ? 'bg-status-success-bg text-status-success' : 'bg-brand-page text-brand-body'}`}><span className={`size-1.5 rounded-full ${isComplete ? 'bg-status-success' : 'bg-brand-border-strong'}`} aria-hidden="true" />{roleLabels[role]} <span className="tabular-nums">อ่านแล้ว {summary.read}/{summary.total}</span></span>; })}</div></article>)}</div>}
+  return <section className="overflow-hidden rounded-2xl border border-brand-border bg-white shadow-xs" aria-live="polite" aria-label="ประวัติประกาศ">
+    <div className="flex flex-col gap-3 border-b border-brand-border-soft bg-brand-page/35 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6"><div className="min-w-0"><h2 className="text-lg font-semibold text-brand-ink">ประวัติประกาศ</h2><p className="mt-1 text-xs leading-5 text-brand-muted">ประกาศที่ส่งจากบัญชีผู้ดูแลระบบและสถานะการอ่านของผู้รับ</p></div><span className="self-start rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-strong">{history.length} รายการ</span></div>
+    {loading ? <div className="space-y-3 p-5" aria-label="กำลังโหลดประวัติประกาศ"><div className="h-24 animate-pulse rounded-xl bg-brand-page" /><div className="h-24 animate-pulse rounded-xl bg-brand-page" /></div> : history.length === 0 ? <div className="flex min-h-48 flex-col items-center justify-center p-8 text-center"><span className="rounded-2xl bg-brand-soft p-3 text-brand-strong"><Megaphone className="size-7" aria-hidden="true" /></span><h3 className="mt-3 font-semibold text-brand-ink">ยังไม่มีประวัติประกาศ</h3><p className="mt-1 text-sm text-brand-muted">ประกาศที่ส่งสำเร็จจะแสดงในส่วนนี้</p></div> : <div className="divide-y divide-brand-border-soft">{history.map((item) => <article key={item.id} className="px-5 py-5 sm:px-6 sm:py-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8"><div className="flex min-w-0 gap-3"><span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong" aria-hidden="true"><Megaphone className="size-5" /></span><div className="min-w-0"><h3 className="break-words text-base font-semibold text-brand-ink">{item.title}</h3><p className="mt-1 break-words text-sm leading-6 text-brand-body">{item.message}</p></div></div><time className="shrink-0 text-xs text-brand-muted lg:pt-1">{formatDateTime(item.sentAt)}</time></div><div className="mt-5 grid gap-3 border-y border-brand-border-soft py-3 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-brand-border-soft"><div className="sm:px-4 sm:first:pl-0"><p className="text-xs text-brand-muted">สถานะการส่ง</p><p className="mt-1 text-sm font-semibold text-status-success">ส่งสำเร็จ</p></div><div className="sm:px-4"><p className="text-xs text-brand-muted">ผู้รับทั้งหมด</p><p className="mt-1 text-sm font-semibold text-brand-ink">{item.recipientCount} คน</p></div><div className="sm:px-4 sm:last:pr-0"><p className="text-xs text-brand-muted">อ่านแล้ว</p><p className="mt-1 text-sm font-semibold text-brand-ink">{item.readCount ?? 0} คน</p></div></div><div className="mt-4 flex flex-wrap gap-2">{broadcastRoleOrder.map((role) => { const summary = item.roleReadCounts?.[role] ?? { read: 0, total: 0 }; const isComplete = summary.total > 0 && summary.read === summary.total; return <span key={role} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${isComplete ? 'bg-status-success-bg text-status-success' : 'bg-brand-page text-brand-body'}`}><span className={`size-1.5 rounded-full ${isComplete ? 'bg-status-success' : 'bg-brand-border-strong'}`} aria-hidden="true" />{roleLabels[role]} <span className="tabular-nums">อ่านแล้ว {summary.read}/{summary.total}</span></span>; })}</div></article>)}</div>}
   </section>;
 }
 
@@ -146,7 +147,7 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<InboxFilter>('all');
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; canReload: boolean } | null>(null);
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
   const [broadcastDraft, setBroadcastDraft] = useState<BroadcastDraft>(emptyBroadcastDraft);
 
@@ -190,7 +191,7 @@ export default function NotificationsPage() {
         }
       })
       .catch((loadError) => {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'โหลดการแจ้งเตือนไม่สำเร็จ');
+        if (!cancelled) setError({ message: toNotificationErrorMessage(loadError, 'โหลดการแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่'), canReload: true });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -203,7 +204,7 @@ export default function NotificationsPage() {
     const poller = window.setInterval(() => {
       void loadBroadcastHistory()
         .then((history) => setBroadcastHistory(history))
-        .catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'โหลดประวัติ Broadcast ไม่สำเร็จ'));
+        .catch((loadError) => setError({ message: toNotificationErrorMessage(loadError, 'โหลดประวัติประกาศไม่สำเร็จ กรุณาลองใหม่'), canReload: true }));
     }, 5000);
     return () => window.clearInterval(poller);
   }, [auth.role, loadBroadcastHistory]);
@@ -217,7 +218,7 @@ export default function NotificationsPage() {
       setBroadcastHistory(history);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'โหลดการแจ้งเตือนไม่สำเร็จ');
+      setError({ message: toNotificationErrorMessage(loadError, 'โหลดการแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่'), canReload: true });
     } finally {
       setLoading(false);
     }
@@ -269,7 +270,7 @@ export default function NotificationsPage() {
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('notifications-updated'));
       setError(null);
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'บันทึกสถานะอ่านไม่สำเร็จ');
+      setError({ message: toNotificationErrorMessage(updateError, 'ทำเครื่องหมายว่าอ่านแล้วไม่สำเร็จ กรุณาลองใหม่'), canReload: false });
     } finally {
       setWorkingId(null);
     }
@@ -284,7 +285,7 @@ export default function NotificationsPage() {
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('notifications-updated'));
       setError(null);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'ลบการแจ้งเตือนไม่สำเร็จ');
+      setError({ message: toNotificationErrorMessage(deleteError, 'ลบการแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่'), canReload: false });
     } finally {
       setWorkingId(null);
     }
@@ -296,9 +297,9 @@ export default function NotificationsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl">ศูนย์แจ้งเตือน</h1>
-            <p className="mt-1 text-sm text-brand-body">นัดหมาย เตือนยา และประกาศที่ส่งถึงบัญชีนี้</p>
+            <p className="mt-1 text-sm text-brand-body">นัดหมาย การเตือนยา และประกาศของคุณ</p>
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto">{auth.role === 'staff_admin' && <button onClick={() => setIsBroadcastOpen(true)} aria-expanded={isBroadcastOpen} aria-controls="notification-broadcast-panel" className="inline-flex min-h-10 w-full flex-1 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"><Send className="size-4" aria-hidden="true" />ส่ง Broadcast</button>}<button onClick={() => void reloadInbox()} disabled={loading || auth.isLoading} className="inline-flex min-h-10 w-full flex-1 shrink-0 items-center justify-center gap-2 rounded-brand-button border border-brand-border bg-white px-3 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:flex-initial">
+          <div className="flex w-full items-center gap-2 sm:w-auto">{auth.role === 'staff_admin' && <button onClick={() => setIsBroadcastOpen(true)} aria-expanded={isBroadcastOpen} aria-controls="notification-broadcast-panel" className="inline-flex min-h-10 w-full flex-1 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"><Send className="size-4" aria-hidden="true" />ส่งประกาศ</button>}<button onClick={() => void reloadInbox()} disabled={loading || auth.isLoading} className="inline-flex min-h-10 w-full flex-1 shrink-0 items-center justify-center gap-2 rounded-brand-button border border-brand-border bg-white px-3 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:flex-initial">
               <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" /> รีเฟรช
           </button></div>
         </div>
@@ -395,11 +396,11 @@ export default function NotificationsPage() {
           })}
         </div>
         <div id="unread-users-panel" role="tabpanel" className="mt-1" aria-label={`รายชื่อ${unreadRoleFilters.find((item) => item.value === unreadRoleFilter)?.label ?? 'ผู้ใช้'}ที่ยังไม่อ่าน`}>
-          {loading || auth.isLoading ? <div className="mt-4 h-12 animate-pulse rounded-xl bg-brand-page" aria-label="กำลังโหลดรายชื่อผู้ใช้" /> : unreadRecipients.length === 0 ? <p className="mt-4 text-sm text-brand-muted">ผู้ใช้ทุกคนอ่านประกาศแล้ว</p> : visibleUnreadUsers.length === 0 ? <p className="mt-4 text-sm text-brand-muted">ไม่พบผู้ใช้ในตัวกรองนี้</p> : <div className={visibleUnreadUsers.length > 1 ? 'grid grid-cols-1 gap-x-8 md:grid-cols-2' : ''}>{visibleUnreadUsers.map(({ recipient, unreadCount: unreadForUser }) => <div key={recipient.user_id} className="flex min-w-0 flex-col gap-1 border-b border-brand-border-soft py-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-semibold text-brand-ink">{recipient.full_name}</p><span className="mt-1 inline-flex rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-strong">{roleLabel(recipient.role)}</span></div><p className="shrink-0 text-xs text-brand-muted">ยังไม่อ่าน {unreadForUser} ประกาศ</p></div>)}</div>}
+          {loading || auth.isLoading ? <div className="mt-4 h-12 animate-pulse rounded-xl bg-brand-page" aria-label="กำลังโหลดรายชื่อผู้รับ" /> : unreadRecipients.length === 0 ? <p className="mt-4 text-sm text-brand-muted">ผู้รับทั้งหมดอ่านประกาศแล้ว</p> : visibleUnreadUsers.length === 0 ? <p className="mt-4 text-sm text-brand-muted">ไม่พบผู้รับในตัวกรองนี้</p> : <div className={visibleUnreadUsers.length > 1 ? 'grid grid-cols-1 gap-x-8 md:grid-cols-2' : ''}>{visibleUnreadUsers.map(({ recipient, unreadCount: unreadForUser }) => <div key={recipient.user_id} className="flex min-w-0 flex-col gap-1 border-b border-brand-border-soft py-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-sm font-semibold text-brand-ink">{recipient.full_name}</p><span className="mt-1 inline-flex rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-strong">{roleLabel(recipient.role)}</span></div><p className="shrink-0 text-xs text-brand-muted">ยังไม่อ่าน {unreadForUser} ประกาศ</p></div>)}</div>}
         </div>
       </section>}
 
-      {error && <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert"><span>{error}</span><button onClick={() => void reloadInbox()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RefreshCw className="size-4" /> ลองใหม่</button></div>}
+      {error && <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert"><span>{error.message}</span>{error.canReload && <button type="button" onClick={() => void reloadInbox()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RefreshCw className="size-4" aria-hidden="true" /> โหลดข้อมูลใหม่</button>}</div>}
 
       {auth.role === 'staff_admin' ? <div id="notification-content" role="tabpanel" aria-label="เนื้อหาการแจ้งเตือน"><AdminBroadcastHistory history={visibleBroadcastHistory} loading={loading || auth.isLoading} /></div> : <div id="notification-content" role="tabpanel" aria-label="เนื้อหาการแจ้งเตือน">
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs" aria-live="polite">
@@ -449,9 +450,9 @@ export default function NotificationsPage() {
       </section>
       </div>}
 
-      {auth.role === 'staff_admin' && isBroadcastOpen && <div id="notification-broadcast-panel" className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-ink/20 p-2 backdrop-blur-sm sm:p-6" role="presentation"><div className="relative z-10 max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-brand-border-soft bg-brand-surface px-4 py-5 shadow-2xl sm:max-h-[90vh] sm:px-8 sm:py-6" role="dialog" aria-modal="true" aria-label="ส่งประกาศ Broadcast"><BroadcastComposer draft={broadcastDraft} onDraftChange={setBroadcastDraft} onClose={() => setIsBroadcastOpen(false)} onCancel={cancelBroadcast} onSent={reloadInbox} /></div></div>}
+      {auth.role === 'staff_admin' && isBroadcastOpen && <div id="notification-broadcast-panel" className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-ink/20 p-2 backdrop-blur-sm sm:p-6" role="presentation"><div className="relative z-10 max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-brand-border-soft bg-brand-surface px-4 py-5 shadow-2xl sm:max-h-[90vh] sm:px-8 sm:py-6" role="dialog" aria-modal="true" aria-label="ส่งประกาศ"><BroadcastComposer draft={broadcastDraft} onDraftChange={setBroadcastDraft} onClose={() => setIsBroadcastOpen(false)} onCancel={cancelBroadcast} onSent={reloadInbox} /></div></div>}
 
-      <p className="text-center text-xs leading-5 text-slate-400">การอ่านหรือลบมีผลกับกล่องข้อความของบัญชีนี้ · สถานะการอ่าน Broadcast จะสรุปให้ staff_admin เห็นแยกตาม role</p>
+      <p className="text-center text-xs leading-5 text-slate-400">การอ่านและลบมีผลเฉพาะกล่องข้อความของบัญชีนี้</p>
     </main>
   );
 }

@@ -79,7 +79,7 @@ export default function PasswordSecurityCard() {
         <p className="text-xs text-slate-400">รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร</p>
         <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60">
           {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-          {isSubmitting ? 'กำลังเปลี่ยนรหัสผ่าน...' : 'เปลี่ยนรหัสผ่าน'}
+          {isSubmitting ? 'กำลังเปลี่ยนรหัสผ่าน…' : 'เปลี่ยนรหัสผ่าน'}
         </button>
       </form>
     </section>

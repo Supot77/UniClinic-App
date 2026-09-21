@@ -189,7 +189,7 @@ export default function DatePicker({
     if (startDate && endDate) {
       displayLabel = `${formatThaiDisplayDate(startDate, true)} – ${formatThaiDisplayDate(endDate, true)}`;
     } else if (startDate) {
-      displayLabel = `${formatThaiDisplayDate(startDate, true)} – ...`;
+      displayLabel = `${formatThaiDisplayDate(startDate, true)} – …`;
     } else {
       displayLabel = placeholder || 'เลือกช่วงวันที่';
     }

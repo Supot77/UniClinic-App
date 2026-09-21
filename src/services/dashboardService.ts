@@ -205,7 +205,7 @@ export async function sendBroadcast(
   if (error) throw error;
 
   const row = (Array.isArray(data) ? data[0] : data) as BroadcastRpcRow | null;
-  if (!row) throw new Error('ฐานข้อมูลไม่ส่งผลลัพธ์การ Broadcast กลับมา');
+  if (!row) throw new Error('ส่งประกาศไม่สำเร็จ');
 
   return { recipientCount: row.recipient_count, created: row.created };
 }

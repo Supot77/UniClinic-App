@@ -126,10 +126,31 @@ export default function SettingsContent() {
                   <p className="mt-1 text-xs leading-5 text-[var(--settings-muted)]">เลือกรูปแบบสีของหน้าจอ</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="ธีม">
-                <OptionButton selected={theme === "light"} onClick={() => changeTheme("light")} icon={<Sun className="size-4" />} label="สว่าง" />
-                <OptionButton selected={theme === "dark"} onClick={() => changeTheme("dark")} icon={<Moon className="size-4" />} label="มืด" />
-                <OptionButton selected={theme === "system"} onClick={() => changeTheme("system")} icon={<Laptop className="size-4" />} label="ตามอุปกรณ์" />
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
+                <OptionCard
+                  selected={theme === "light"}
+                  onClick={() => changeTheme("light")}
+                  icon={<Sun className="size-7 sm:size-8" />}
+                  title="สว่าง"
+                  description="เหมาะสำหรับการใช้งานในที่สว่าง"
+                />
+
+                <OptionCard
+                  selected={theme === "dark"}
+                  onClick={() => changeTheme("dark")}
+                  icon={<Moon className="size-7 sm:size-8" />}
+                  title="มืด"
+                  description="เหมาะสำหรับการใช้งานในที่แสงน้อย"
+                />
+
+                <OptionCard
+                  selected={theme === "system"}
+                  onClick={() => changeTheme("system")}
+                  icon={<Laptop className="size-7 sm:size-8" />}
+                  title="ตามอุปกรณ์"
+                  description="ใช้การตั้งค่าของอุปกรณ์"
+                />
               </div>
             </div>
 

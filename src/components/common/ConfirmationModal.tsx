@@ -147,7 +147,7 @@ export default function ConfirmationModal({ request, onCancel, isBusy = false }:
             className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${confirmClass}`}
           >
             {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {pending ? 'กำลังดำเนินการ...' : request.confirmLabel}
+            {pending ? 'กำลังดำเนินการ…' : request.confirmLabel}
           </button>
         </div>
       </div>

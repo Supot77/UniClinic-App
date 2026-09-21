@@ -143,7 +143,7 @@ export default function StaffEditPatientForm({
     try {
       await staffAdminUpdatePatient(patientId, form);
 
-      setSuccess('บันทึกข้อมูลผู้ป่วยเรียบร้อยแล้ว');
+      setSuccess('บันทึกข้อมูลผู้ป่วยแล้ว');
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -164,7 +164,7 @@ export default function StaffEditPatientForm({
             aria-hidden="true"
           />
 
-          กำลังโหลดข้อมูลผู้ป่วย...
+          กำลังโหลดข้อมูลผู้ป่วย…
         </div>
       </main>
     );
@@ -523,7 +523,7 @@ export default function StaffEditPatientForm({
             )}
 
             {isSaving
-              ? 'กำลังบันทึก...'
+              ? 'กำลังบันทึก…'
               : 'บันทึกข้อมูล'}
           </button>
         </div>

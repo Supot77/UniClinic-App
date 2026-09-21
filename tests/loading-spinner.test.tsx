@@ -8,7 +8,7 @@ describe('LoadingSpinner', () => {
 
     const status = screen.getByRole('status');
     expect(status).toBeInTheDocument();
-    expect(screen.getByText('กำลังโหลด...')).toBeInTheDocument();
+    expect(screen.getByText('กำลังโหลด…')).toBeInTheDocument();
   });
 
   it('renders with custom visible label', () => {

@@ -40,7 +40,7 @@ export default function ScheduleSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">กำลังโหลดตารางตรวจแพทย์...</span>
+      <span className="sr-only">กำลังโหลดตารางตรวจแพทย์…</span>
     </div>
   );
 }

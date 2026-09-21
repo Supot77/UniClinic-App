@@ -523,7 +523,7 @@ export default function RemindersPage() {
 
     // ลบออกจากรายการบนหน้าจอทันที (Optimistic)
     setMedicationList((prev) => prev.filter((m) => m.id !== id));
-    showNotice(`ลบรายการยา "${name}" เรียบร้อยแล้ว`);
+    showNotice(`ลบรายการยา "${name}" แล้ว`);
 
     const isReminderUuid = isUuid(id);
     try {
@@ -599,7 +599,7 @@ export default function RemindersPage() {
           if (created) {
             savedToSupabase = true;
             updateMealTimingOverride(created.id, selectedMealTiming);
-            showNotice(`จ่ายยา "${created.medication?.name ?? chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
+            showNotice(`บันทึกการจ่ายยา "${created.medication?.name ?? chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} แล้ว`);
           }
         } catch (dbErr: unknown) {
           console.warn('Supabase createReminder error:', dbErr);
@@ -619,7 +619,7 @@ export default function RemindersPage() {
         if (newMock?.data?.id) {
           updateMealTimingOverride(newMock.data.id, selectedMealTiming);
         }
-        showNotice(`จ่ายยา "${chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} เรียบร้อยแล้ว`);
+        showNotice(`บันทึกการจ่ายยา "${chosenMed?.name ?? 'ยา'}" (${selectedMealTiming}) ให้ ${currentPatient.name} แล้ว`);
       }
 
       // รีเซ็ตค่าในฟอร์มและปิด Modal
@@ -785,7 +785,7 @@ export default function RemindersPage() {
           end_date: editEndDate || null,
         });
       }
-      showNotice(`บันทึกการแก้ไขข้อมูลยา "${chosenMed.name}" เรียบร้อยแล้ว`);
+      showNotice(`บันทึกการแก้ไขยา "${chosenMed.name}" แล้ว`);
       await loadData(selectedPatientId);
     } catch (err) {
       console.warn('Could not persist updated reminder to Supabase/mock:', err);
@@ -799,7 +799,7 @@ export default function RemindersPage() {
       } catch {
         // ignore
       }
-      showNotice(`บันทึกการแก้ไขข้อมูลยา "${chosenMed.name}" เรียบร้อยแล้ว`);
+      showNotice(`บันทึกการแก้ไขยา "${chosenMed.name}" แล้ว`);
       await loadData(selectedPatientId);
     } finally {
       setIsSaving(false);
@@ -999,7 +999,7 @@ export default function RemindersPage() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหารายการยา..."
+              placeholder="ค้นหารายการยา…"
               className="h-10 w-full min-w-0 rounded-lg border border-brand-border-strong bg-white pl-9 pr-8 text-sm text-brand-ink placeholder:text-brand-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
               aria-label="ค้นหารายการยา"
             />
@@ -1248,7 +1248,7 @@ export default function RemindersPage() {
                   onChange={(e) => handleMedSelectChange(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">-- กรุณาเลือกยา --</option>
+                  <option value="">เลือกยา</option>
                   {availableMeds.map((med) => (
                     <option key={med.id} value={med.id}>
                       {med.name} · {getMealTimingForMed(med.name, med.category, med.description)} ({med.category} · {med.type})
@@ -1361,7 +1361,7 @@ export default function RemindersPage() {
                   disabled={isSaving}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 cursor-pointer"
                 >
-                  {isSaving ? 'กำลังบันทึก...' : 'บันทึกการจ่ายยา'}
+                  {isSaving ? 'กำลังบันทึก…' : 'บันทึกการจ่ายยา'}
                 </button>
               </div>
             </form>
@@ -1416,7 +1416,7 @@ export default function RemindersPage() {
                   onChange={(e) => handleEditMedSelectChange(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">-- กรุณาเลือกยา --</option>
+                  <option value="">เลือกยา</option>
                   {!availableMeds.some((m) => m.id === editMedId) && editingItem.name && (
                     <option value={editMedId}>
                       {editingItem.name} · {editingItem.mealTiming || getMealTimingForMed(editingItem.name, editingItem.category)} ({editingItem.category || 'ยาทั่วไป'})
@@ -1529,7 +1529,7 @@ export default function RemindersPage() {
                   disabled={isSaving}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 cursor-pointer"
                 >
-                  {isSaving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                  {isSaving ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}
                 </button>
               </div>
             </form>

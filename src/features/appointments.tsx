@@ -103,7 +103,7 @@ function BookingForm({ data, busy, book, initialSlotId }: {
         </span>
         <div>
           <h2 className="text-xl font-bold tracking-tight text-brand-ink">จองนัดใหม่</h2>
-          <p className="mt-1 text-sm leading-6 text-brand-body">เลือกวันและเวลาที่สะดวก พร้อมแจ้งอาการก่อนเข้ารับบริการ</p>
+          <p className="mt-1 text-sm leading-6 text-brand-body">เลือกวันและเวลาที่สะดวก แล้วระบุอาการก่อนเข้ารับบริการ</p>
         </div>
     </div>
 
@@ -137,7 +137,7 @@ function BookingForm({ data, busy, book, initialSlotId }: {
       <section aria-labelledby="appointment-slot-title" className="space-y-2">
         <div className="flex items-end justify-between gap-3">
           <h3 id="appointment-slot-title" className="text-sm font-semibold text-brand-ink">รอบตรวจ</h3>
-          <span className="text-xs text-brand-body">{slots.length ? `พบ ${slots.length} รอบที่ว่าง` : 'ยังไม่มีรอบที่ว่าง'}</span>
+          <span className="text-xs text-brand-body">{slots.length ? `มีรอบว่าง ${slots.length} รอบ` : 'ยังไม่มีรอบที่ว่าง'}</span>
         </div>
         <ClinicSelect value={selected?.id ?? ''} onChange={setSlotId} placeholder="เลือกรอบตรวจ" ariaLabel="รอบตรวจ" className={bookingControlClass} options={slots.map((slot) => ({ value: slot.id, label: `${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)} · ${slot.doctor} · ว่าง ${slot.max_capacity - slot.booked_count} ที่` }))} />
         {slots.length === 0 && <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-status-warning-bg px-4 py-3 text-sm leading-6 text-status-warning"><Clock3 className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /><p>ไม่มีรอบว่างในวันที่และบริการนี้ ลองเลือกวันอื่นหรือเปลี่ยนบริการ</p></div>}
@@ -284,7 +284,7 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
           <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">สถานะนัดหมาย</p><ClinicSelect value={status} onChange={setStatus} placeholder="ทุกสถานะ" ariaLabel="สถานะ" className="!mt-2 !h-12 !border-brand-border" options={[...(role === 'medical' ? [{ value: 'pending_confirmed', label: 'รออนุมัติและรอตรวจ' }] : []), ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]} /></div>
           <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">เรียงคิว</p><ClinicSelect value={sortOrder} onChange={(value) => setSortOrder(value as 'newest' | 'oldest')} placeholder="ใหม่สุดก่อน" ariaLabel="เรียงคิว" className="!mt-2 !h-12 !border-brand-border" options={[{ value: 'newest', label: 'ใหม่สุดก่อน' }, { value: 'oldest', label: 'เก่าสุดก่อน' }]} /></div>
         </div>
-        {rows.length === 0 && <div className="flex flex-col items-center px-6 py-14 text-center"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-surface text-brand-strong"><Search className="h-6 w-6" aria-hidden="true" /></span><p className="mt-4 font-semibold text-brand-ink">ไม่พบนัดหมายตามเงื่อนไขนี้</p><p className="mt-1 text-sm text-brand-body">ลองเปลี่ยนสถานะ วันที่ หรือคำค้นหา แล้วลองอีกครั้ง</p></div>}
+        {rows.length === 0 && <div className="flex flex-col items-center px-6 py-14 text-center"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-surface text-brand-strong"><Search className="h-6 w-6" aria-hidden="true" /></span><p className="mt-4 font-semibold text-brand-ink">ไม่พบนัดหมายตามเงื่อนไขนี้</p><p className="mt-1 text-sm text-brand-body">ลองเปลี่ยนสถานะ วันที่ หรือคำค้นหา แล้วลองใหม่</p></div>}
         <div className="grid gap-4 pt-6 lg:grid-cols-2 lg:gap-5">{rows.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} slot={data.slots.find((slot) => slot.id === appointment.slot_id)} role={role} state={state} bangkokNow={bangkokNow} />)}</div>
       </section>
     </div>}
