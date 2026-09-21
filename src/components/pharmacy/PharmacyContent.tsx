@@ -205,6 +205,9 @@ interface RawInventoryLog {
 }
 
 interface PharmacyContentProps {
+  initialTab?: 'inventory' | 'prescriptions';
+  initialStatus?: 'all' | 'pending' | 'dispensed' | 'insufficient';
+  initialSort?: 'newest' | 'oldest';
   currentRole?: string;
   userEmail?: string;
   userName?: string;
@@ -212,6 +215,9 @@ interface PharmacyContentProps {
 }
 
 export default function PharmacyContent({
+  initialTab = 'inventory',
+  initialStatus = 'all',
+  initialSort = 'newest',
   currentRole,
   userEmail,
   userName,
@@ -229,8 +235,73 @@ export default function PharmacyContent({
   const effectiveRole = currentRole || authRole || 'medical';
   const isAdminOrStaff = effectiveRole === 'admin' || effectiveRole === 'staff_admin' || effectiveRole === 'staff';
   const canManage = !isAdminOrStaff;
+  const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions'>(initialTab);
+  const [prescriptionStatusFilter, setPrescriptionStatusFilter] = useState<'all' | 'pending' | 'dispensed' | 'insufficient'>(initialStatus);
+  const [prescriptionSortBy, setPrescriptionSortBy] = useState<'newest' | 'oldest'>(initialSort);
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions'>('inventory');
+  const handleSelectTab = (tab: 'inventory' | 'prescriptions') => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('clinic_pharmacy_active_tab', tab);
+        localStorage.setItem('clinic_pharmacy_active_tab', tab);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        if (tab === 'prescriptions') {
+          if (prescriptionStatusFilter !== 'all') {
+            url.searchParams.set('status', prescriptionStatusFilter);
+          } else {
+            url.searchParams.delete('status');
+          }
+          if (prescriptionSortBy !== 'newest') {
+            url.searchParams.set('sort', prescriptionSortBy);
+          } else {
+            url.searchParams.delete('sort');
+          }
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handlePrescriptionStatusChange = (status: 'all' | 'pending' | 'dispensed' | 'insufficient') => {
+    setPrescriptionStatusFilter(status);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('clinic_prescription_status_filter', status);
+        const url = new URL(window.location.href);
+        if (status === 'all') {
+          url.searchParams.delete('status');
+        } else {
+          url.searchParams.set('status', status);
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handlePrescriptionSortChange = (sort: 'newest' | 'oldest') => {
+    setPrescriptionSortBy(sort);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('clinic_prescription_sort_by', sort);
+        const url = new URL(window.location.href);
+        if (sort === 'newest') {
+          url.searchParams.delete('sort');
+        } else {
+          url.searchParams.set('sort', sort);
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   const [medications, setMedications] = useState<Medication[]>([]);
   const [prescriptions, setPrescriptions] = useState<PrescriptionOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -554,14 +625,14 @@ export default function PharmacyContent({
         prev.map((order) => {
           if (order.id !== orderId) return order;
           const count = updatedMeds.filter((m) => m.dispensed).length;
-          const isFull = count >= updatedMeds.length;
+          const isFull = count > 0 && count >= updatedMeds.length;
           return {
             ...order,
             prescribed_medications: updatedMeds,
             dispensed_items_count: count,
             is_fully_dispensed: isFull,
-            dispensed_at: new Date().toISOString(),
-            pharmacist_name: userName || 'แพทย์ผู้ตรวจ',
+            dispensed_at: isFull ? (order.dispensed_at || new Date().toISOString()) : null,
+            pharmacist_name: isFull ? (order.pharmacist_name || userName || 'เภสัชกร') : null,
           };
         })
       );
@@ -1004,7 +1075,7 @@ export default function PharmacyContent({
         <div className="flex border-b border-slate-200 pt-2 overflow-x-auto no-scrollbar whitespace-nowrap gap-1 sm:gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab('inventory')}
+            onClick={() => handleSelectTab('inventory')}
             className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold transition ${
               activeTab === 'inventory'
                 ? 'border-sky-600 text-sky-600'
@@ -1024,7 +1095,7 @@ export default function PharmacyContent({
 
           <button
             type="button"
-            onClick={() => setActiveTab('prescriptions')}
+            onClick={() => handleSelectTab('prescriptions')}
             className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold transition ${
               activeTab === 'prescriptions'
                 ? 'border-sky-600 text-sky-600'
@@ -1534,6 +1605,10 @@ export default function PharmacyContent({
           canManage={canManage}
           isAdminOrStaff={isAdminOrStaff}
           userId={userId}
+          statusFilter={prescriptionStatusFilter}
+          onStatusFilterChange={handlePrescriptionStatusChange}
+          sortBy={prescriptionSortBy}
+          onSortByChange={handlePrescriptionSortChange}
           onRefresh={loadPrescriptions}
           onStockUpdated={handleReloadAll}
           onPrescriptionDispensed={handlePrescriptionDispensed}
@@ -1544,8 +1619,8 @@ export default function PharmacyContent({
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <ViewportPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-            <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 my-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+            <div className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -2131,11 +2206,11 @@ export default function PharmacyContent({
           <div
             data-testid="medication-details-backdrop"
             onClick={handleCloseViewingModal}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl sm:max-w-3xl max-h-[88vh] sm:max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 my-auto"
+              className="relative w-full max-w-2xl sm:max-w-3xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
             >
               {/* Header */}
               <div className="flex items-start justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
@@ -2367,8 +2442,8 @@ export default function PharmacyContent({
       {/* Delete / Soft-delete Confirmation Modal */}
       {deleteTarget && (
         <ViewportPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto">
-            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 my-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-hidden animate-in fade-in duration-150">
+            <div className="relative w-full max-w-md max-h-[85vh] rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className={`rounded-xl p-2 ${deleteTarget.is_active ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
