@@ -112,9 +112,10 @@ function ProfileActions({
 
 interface StaffProfileDirectoryProps {
   patientOnly?: boolean;
+  canCreatePersonnel?: boolean;
 }
 
-export default function StaffProfileDirectory({ patientOnly = false }: StaffProfileDirectoryProps) {
+export default function StaffProfileDirectory({ patientOnly = false, canCreatePersonnel = false }: StaffProfileDirectoryProps) {
   const [profiles, setProfiles] = useState<StaffProfileDirectoryItem[]>([]);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<ProfileFilter>(patientOnly ? "patient" : "all");
@@ -306,7 +307,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
 
   return (
     <main className="dashboard-shell flex w-full flex-col gap-10 pb-10">
-      <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
             บัญชีผู้ใช้งานทั้งหมด
@@ -315,41 +316,55 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
             จัดการข้อมูลติดต่อ บทบาท และสถานะบัญชี
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadProfiles(true)}
-          disabled={loading || refreshing}
-          aria-label="รีเฟรชข้อมูลบัญชี"
-          title="รีเฟรช"
-          className="inline-flex size-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-strong px-0 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:px-4"
-        >
-          <RefreshCw
-            className={`size-4 ${refreshing ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          />
-          <span className="hidden sm:inline">รีเฟรช</span>
-        </button>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          <Link
+            href="/staff/accounts/new"
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover sm:flex-none"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            <span>เพิ่มบัญชีผู้ป่วย</span>
+          </Link>
+          {canCreatePersonnel && (
+            <Link
+              href="/staff/accounts/personnel/new"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-brand-strong bg-white px-4 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft sm:flex-none"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              <span>เพิ่มบัญชีบุคลากร</span>
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => void loadProfiles(true)}
+            disabled={loading || refreshing}
+            aria-label="รีเฟรชข้อมูลบัญชี"
+            title="รีเฟรช"
+            className="inline-flex size-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-strong px-0 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:px-4"
+          >
+            <RefreshCw
+              className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            />
+            <span className="hidden sm:inline">รีเฟรช</span>
+          </button>
+        </div>
       </header>
 
       {!patientOnly && <section
-        className="grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-5"
+        className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
         aria-label="สรุปจำนวนบัญชี"
       >
         <button
           type="button"
           onClick={() => setRoleFilter("all")}
           aria-pressed={roleFilter === "all"}
-          className={`${summaryCardClass(roleFilter === "all")} col-span-2 text-center sm:col-span-1 sm:text-left`}
+          className={`${summaryCardClass(roleFilter === "all")} min-w-0 text-left`}
         >
-          <div className="relative flex items-center justify-center sm:justify-between">
-            <Users
-              className="absolute left-0 size-5 text-sky-600 sm:hidden"
-              aria-hidden="true"
-            />
+          <div className="flex items-center justify-between">
             <p className="text-sm text-slate-800">บัญชีทั้งหมด</p>
-            <Users className="absolute right-0 size-5 text-sky-600 sm:static" aria-hidden="true" />
+            <Users className="size-5 text-sky-600" aria-hidden="true" />
           </div>
-          <p className="mt-3 text-center text-3xl font-bold text-slate-950 sm:text-left">
+          <p className="mt-3 text-3xl font-bold text-slate-950">
             {profiles.length}
           </p>
         </button>

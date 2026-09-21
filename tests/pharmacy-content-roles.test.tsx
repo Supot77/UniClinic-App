@@ -4,7 +4,8 @@ import PharmacyContent from '@/components/pharmacy/PharmacyContent';
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
-const mockRouter = { replace: mockReplace, push: mockPush };
+const mockRefresh = vi.fn();
+const mockRouter = { replace: mockReplace, push: mockPush, refresh: mockRefresh };
 
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
@@ -159,6 +160,11 @@ vi.mock('@/utils/supabase/client', () => ({
 describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/pharmacy');
+    }
   });
 
   it('shows locked add button and read-only status for admin role', async () => {
@@ -555,5 +561,93 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(allBtn).toHaveAttribute('aria-pressed', 'false');
     expect(allBtn.className).toContain('opacity-40');
   });
+
+  it('respects initialStatus and initialSort and preserves them in sessionStorage and URL on dispense', async () => {
+    render(
+      <PharmacyContent
+        currentRole="medical"
+        userName="นพ. สมชาย"
+        initialTab="prescriptions"
+        initialStatus="pending"
+        initialSort="oldest"
+      />
+    );
+
+    // "รอตัดจ่ายยา" should be selected initially
+    const pendingBtn = await screen.findByRole('button', { name: /รอตัดจ่ายยา/i });
+    expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // Wait for prescription order data to load
+    expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
+
+    // Click dispense button on pending order
+    const dispenseBtn = screen.getByRole('button', { name: /จ่ายยาและตัดสต็อก/ });
+    fireEvent.click(dispenseBtn);
+
+    // Confirm dispense modal
+    const confirmBtn = await screen.findByRole('button', { name: /ยืนยันการจ่ายยา/ });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    // Verify sessionStorage retains active filter and sort
+    expect(sessionStorage.getItem('clinic_prescription_status_filter')).toBe('pending');
+    expect(sessionStorage.getItem('clinic_prescription_sort_by')).toBe('oldest');
+    expect(window.location.search).toContain('status=pending');
+    expect(window.location.search).toContain('sort=oldest');
+  });
+
+  it('shows revoke button for dispensed prescription and handles confirmation modal for medical role', async () => {
+    render(
+      <PharmacyContent
+        currentRole="medical"
+        userName="นพ. สมชาย"
+        initialTab="prescriptions"
+        initialStatus="dispensed"
+      />
+    );
+
+    // Verify dispensed patient is visible
+    expect(await screen.findByText('นางสาว อารียา สุขใจ')).toBeInTheDocument();
+    expect(screen.getByText('จ่ายยาครบถ้วนแล้ว')).toBeInTheDocument();
+
+    // Revoke button should exist for medical role
+    const revokeBtn = screen.getByRole('button', { name: /ยกเลิก\/คืนสต็อก/i });
+    expect(revokeBtn).toBeInTheDocument();
+    fireEvent.click(revokeBtn);
+
+    // Revoke confirmation modal should open
+    expect(screen.getByText('ยืนยันยกเลิกการตัดจ่ายยา (คืนสต็อก)')).toBeInTheDocument();
+    expect(screen.getByText('+10')).toBeInTheDocument();
+
+    // Confirm revoke
+    const confirmRevokeBtn = screen.getByRole('button', { name: /ยืนยันยกเลิกและคืนสต็อก/i });
+    await act(async () => {
+      fireEvent.click(confirmRevokeBtn);
+    });
+
+    // Modal should close
+    expect(screen.queryByText('ยืนยันยกเลิกการตัดจ่ายยา (คืนสต็อก)')).not.toBeInTheDocument();
+  });
+
+  it('does not show revoke button for dispensed prescription for admin role', async () => {
+    render(
+      <PharmacyContent
+        currentRole="admin"
+        userName="แอดมิน สมบัติ"
+        initialTab="prescriptions"
+        initialStatus="dispensed"
+      />
+    );
+
+    // Verify dispensed patient is visible
+    expect(await screen.findByText('นางสาว อารียา สุขใจ')).toBeInTheDocument();
+    expect(screen.getByText('จ่ายยาครบถ้วนแล้ว')).toBeInTheDocument();
+
+    // Revoke button should NOT exist for admin role (read-only)
+    expect(screen.queryByRole('button', { name: /ยกเลิก\/คืนสต็อก/i })).not.toBeInTheDocument();
+  });
 });
+
+
 

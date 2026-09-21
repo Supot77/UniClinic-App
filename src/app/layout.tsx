@@ -7,6 +7,7 @@ import TopProgressBar from "@/components/common/TopProgressBar";
 import BackToTopButton from "@/components/common/BackToTopButton";
 import { AuthProvider } from "@/context/AuthContext";
 import { ClinicMockProvider } from "@/features/mock-database/ClinicMockProvider";
+import AppearanceInitializer from "@/components/settings/AppearanceInitializer";
 
 const clinicFont = Noto_Sans_Thai({
   subsets: ["latin", "thai"],
@@ -26,8 +27,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={`${clinicFont.variable} h-full scroll-smooth`} data-scroll-behavior="smooth">
+    <html lang="th" className={`${clinicFont.variable} h-full scroll-smooth`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-brand-surface text-brand-ink antialiased">
+        <AppearanceInitializer />
         <AuthProvider>
           <ClinicMockProvider>
             <TopProgressBar />

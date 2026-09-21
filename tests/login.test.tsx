@@ -31,8 +31,9 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
     expect(screen.getByLabelText('อีเมล')).toHaveAttribute('placeholder', 'name@example.com');
-    expect(screen.getByText('ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail.wu.ac.th ส่วนบุคลากรใช้อีเมลตามบัญชีที่ผู้ดูแลระบบกำหนด')).toBeInTheDocument();
+    expect(screen.getByText(/ผู้ป่วยใช้อีเมล @mail\.wu\.ac\.th/)).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'แสดงรหัสผ่าน' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ลืมรหัสผ่าน?' })).toHaveAttribute('href', '/forgot-password');
     expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
   });
@@ -89,14 +90,19 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getByText('อีเมลหรือรหัสผ่านไม่ถูกต้อง')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'แสดงรหัสผ่าน' })).toBeEnabled();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: 'แสดงรหัสผ่าน' }));
+    expect(screen.getByPlaceholderText('••••••••')).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'ซ่อนรหัสผ่าน' })).toBeInTheDocument();
   });
 
-  it('rejects invalid email format before calling the auth service', async () => {
+  it('rejects malformed email before calling the auth service', async () => {
     render(<LoginPage />);
 
     fireEvent.change(screen.getByLabelText('อีเมล'), {
-      target: { value: 'test@invalid' },
+      target: { value: 'user@example' },
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
       target: { value: 'password123' },
