@@ -1,8 +1,8 @@
 # 09. แผนพัฒนาและส่งต่องาน
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — บันทึกผล implementation ข้อ 2.2, owner status และกำหนดส่ง 25 กันยายน; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 22 กันยายน 2569 (2026-09-22) — สรุปสถานะ implementation ล่าสุดของทุก feature ใน scope และบันทึกผลส่งมอบ; หลักฐาน deployment, database integration/RLS และ browser acceptance ยังคงแยกตรวจตามขอบเขต
 
-กำหนดส่งรอบปัจจุบันคือ **25 กันยายน 2569**. ความคืบหน้า code โดยรวมประมาณ 90% เป็น estimate จากเจ้าของโครงการ ไม่ใช่เกณฑ์ผ่านงานหรือหลักฐาน deployment
+กำหนดส่งรอบปัจจุบันคือ **25 กันยายน 2569**. สถานะ feature implementation ปัจจุบันคือ **สำเร็จครบตาม scope**; ข้อความ estimate และสถานะก่อนส่งมอบยังคงเป็นประวัติศาสตร์ตามวันที่ระบุ
 
 ## หลักการก่อนลงโค้ด
 
@@ -18,6 +18,14 @@
 ใช้ 3 ค่าเท่านั้น: `patient` (ผู้ป่วย), `medical` (แพทย์/เภสัชกร) และ `staff_admin` (เจ้าหน้าที่/แอดมิน)
 
 ใน Schedule scope แพทย์ (`medical`) บันทึก แก้ไข และยกเลิกวันลาของตนเองได้ ส่วน `staff_admin` จัดการวันลาของแพทย์ทุกคนได้; ทั้งสอง role ต้องผ่าน validation และ RLS ตาม D26/D28
+
+## สถานะ implementation ล่าสุด ณ 22 กันยายน 2569
+
+- ฟีเจอร์ตามขอบเขตปัจจุบันของ Auth/Profile, Scheduling, Appointment, Medical record, Pharmacy, Manual reminder, Broadcast และ Dashboard ถือว่าพัฒนาเสร็จครบตาม scope ที่ส่งมอบ
+- Route Handler migration ตาม Phase 0–4 และฟอร์มบันทึกผลตรวจแบบทีละขั้นตอนถูกนำไปใช้งานใน code path และบันทึกในเอกสาร 14
+- commit ส่งมอบคือ 9f7d319 บน branch feat/api-route-migration และ push ไปยัง remote แล้ว
+- Automated verification ล่าสุด: typecheck ผ่าน, build ผ่าน, focused tests 56/56 ผ่าน, lint 0 errors; full test มี failure เดิม 1 เคสใน dashboard metric ซึ่งอยู่นอกไฟล์งานชุดนี้
+- สถานะ “สำเร็จครบตาม scope” หมายถึง feature implementation เสร็จแล้ว; deployment, database integration/RLS และ browser QA เป็นหลักฐานอีกชั้นหนึ่งและต้องรายงานตามผลตรวจจริง
 
 ## สถานะ implementation ข้อ 2.2 ณ 20 กันยายน 2569
 
@@ -90,7 +98,11 @@
 
 ผู้รับงานต้องตรวจข้อมูลส่งต่อกับข้อมูลในตารางสัญญา, ทดลองกรณีสำเร็จและกรณีถูกปฏิเสธ แล้วบันทึกข้อจำกัดหรือสิ่งที่ยังไม่ได้ตรวจไว้ก่อนเชื่อมกับโมดูลถัดไป
 
-## Owner status ณ 20 กันยายน 2569
+## Owner status ล่าสุด ณ 22 กันยายน 2569
+
+ทุก feature ในขอบเขตการส่งมอบถือว่าพัฒนาเสร็จและสำเร็จครบตาม scope แล้ว โดยใช้เอกสาร 14 เป็นจุดอ้างอิงไฟล์และผลตรวจล่าสุด ส่วน deployment, database integration/RLS และ browser QA ให้ถือเป็น verification boundary แยกจากสถานะ feature และห้ามเติมผลตรวจที่ยังไม่ได้รัน
+
+## Owner status เดิม ณ 20 กันยายน 2569
 
 รายละเอียด trace แยกตามผู้รับผิดชอบอยู่ใน [owner index](owners/README.md). สรุปคือ Scheduling function เสร็จและเหลือ UI polish, Feem ยังมี registration health fields/runtime validation เป็น backlog, Herb function เสร็จและเหลือ dashboard UI, ส่วน PAI/Kan/Klong ใช้สถานะเสร็จแบบรอ owner/evidence ยืนยัน
 

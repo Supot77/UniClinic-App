@@ -1,6 +1,6 @@
 # 00. คู่มืออ่านเอกสาร
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — ข้อกำหนดสำหรับพัฒนาและ as-built trace จาก code path; code progress เป็นค่าประมาณ ไม่ใช่หลักฐาน deployment หรือการตรวจรับ
+ปรับปรุง 22 กันยายน 2569 (2026-09-22) — ข้อกำหนดสำหรับพัฒนาและ as-built trace จาก code path; สถานะ feature implementation ล่าสุดสำเร็จครบตาม scope ตามเอกสาร 14 แต่ไม่ใช้แทนหลักฐาน deployment หรือการตรวจรับ
 
 ข้อสรุปทีมใน [10](10_team_decisions.md) เป็นหลักสำหรับกติกาที่เปลี่ยนล่าสุด [09](09_implementation_plan.md) เป็นแผนดำเนินงาน [08](08_system_rules_and_acceptance.md) เป็นข้อกำหนดและเกณฑ์ตรวจรับ หากพบเนื้อหาเก่าใน Git history หรือ PDF archive ให้ยึดข้อสรุปล่าสุดที่ทีมตอบรับ ไม่ใช้ข้อเสนอที่ยังไม่อนุมัติแทนข้อยุติ
 
@@ -29,7 +29,7 @@
 | [10 ข้อสรุปทีม](10_team_decisions.md) | คำตอบที่ตกลงแล้วและประเด็นที่ยังเปิด |
 | [13 แผนลดความซ้ำซ้อนและ Routing](13_code_refactoring_and_routing_plan.md) | แผนขจัดความซ้ำซ้อน Hardcode และ Dynamic Routing |
 | [14 บันทึกการเปลี่ยนแปลง](14_change_log.md) | รายการไฟล์ที่แก้ พฤติกรรมที่เปลี่ยน และผลตรวจจริงหลังส่งมอบ |
-| [15 แผน Route Handlers ในอนาคต](15_future_api_route_migration_plan.md) | แผนเป้าหมายการแปลง Data Access Layer เป็น REST API Route Handlers (รอทำหลังจบโปรเจกต์) |
+| [15 แผนและบันทึก Route Handlers](15_future_api_route_migration_plan.md) | แผนและ as-built record ของการแปลง Data Access Layer เป็น REST API Route Handlers |
 | [Owner views](owners/README.md) | สรุปขอบเขต as-built หลักฐาน และงานค้างแยกตามผู้รับผิดชอบ |
 | [Catalog เดโม](superpowers/specs/2026-09-04-clinic-demo-data-design.md) | บัญชีสังเคราะห์ ตารางตรวจและยา |
 | [Process diagram](diagrams/clinic-manual-process.html) | ภาพรวม flow manual ของ 3 role |
@@ -38,6 +38,12 @@
 | [SQL เดิม](SQL.md) | อ้างอิงทางประวัติศาสตร์ ไม่ใช่ migration ตามข้อสรุปใหม่ |
 
 แยกสถานะ ตกลงความต้องการแล้ว / แบบเทคนิคเสนอ / พัฒนาแล้ว / deploy แล้ว / ตรวจรับแล้ว เสมอ เอกสาร 00–11 ต้องใช้ role contract และ scope manual เดียวกัน การอนุญาตให้เชื่อมฐานจริงไม่ใช่หลักฐานว่า migration ถูก deploy หรือ flow ผ่านการตรวจรับ
+
+## สถานะงานล่าสุด ณ 22 กันยายน 2569
+
+- Feature implementation ในขอบเขตปัจจุบันถือว่าสำเร็จครบแล้ว ทั้ง role flow, scheduling, appointments, medical records, pharmacy, reminders, dashboard และ Route Handler migration ตามรายการในเอกสาร 09 และ 14
+- ให้ใช้เอกสาร 14 เป็นหลักฐานสรุปไฟล์และคำสั่งตรวจล่าสุด และใช้เอกสาร 15 เป็น as-built record ของ API migration
+- คงการแยกสถานะ feature complete, deployed และ acceptance verified: การระบุว่าฟีเจอร์สำเร็จครบไม่ใช่การอ้างว่า database integration/RLS หรือ browser QA ผ่านโดยอัตโนมัติ
 
 ## Data source และ UI contract ปัจจุบัน
 

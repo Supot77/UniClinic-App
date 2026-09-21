@@ -1,8 +1,10 @@
-# 15. แผนเป้าหมายในอนาคต: การแปลง Data Access Layer เป็น HTTP Route Handlers (REST API)
+# 15. แผนและบันทึกการ implementation: การแปลง Data Access Layer เป็น HTTP Route Handlers (REST API)
 
-> **สถานะเอกสาร**: `[PROPOSED / FUTURE TARGET]` (แผนเป้าหมายระยะยาว — รอเริ่มหลังทุกคนส่งมอบงานเสร็จสิ้น)  
-> **วันที่บันทึก**: 21 กันยายน 2569 (2026-09-21)  
-> **เงื่อนไขสำคัญก่อนเริ่ม (Hard Gate)**: **ห้ามเริ่มทำเด็ดขาด** จนกว่าสมาชิกทุกคนในทีมจะพัฒนาฟีเจอร์หลักเสร็จ ตรวจรับผ่านเกณฑ์ SCN-01 ถึง SCN-07 และรวมเข้า branch `main` เรียบร้อยแล้ว เพื่อป้องกันปัญหา Merge Conflict ขนาดใหญ่และไม่ให้ Test Suite พังระหว่างการส่งมอบ
+> **สถานะเอกสาร**: `[FEATURE COMPLETE / IMPLEMENTED]` — Phase 0–4 และ Route Handler/API adapter ตาม scope ทำเสร็จและส่งมอบแล้ว
+> **วันที่บันทึกล่าสุด**: 22 กันยายน 2569 (2026-09-22)
+> **สถานะส่งมอบ**: commit `9f7d319` บน branch `feat/api-route-migration` ถูก push ไปยัง `origin/feat/api-route-migration` แล้ว
+> **Hard Gate เดิม:** ก่อนเริ่ม implementation ต้องรอ feature หลัก, SCN-01 ถึง SCN-07 และการรวม branch ตามกติกาเดิม; งานนี้เริ่มตามข้อยกเว้นที่ผู้ใช้สั่งโดยตรง
+> **Verification boundary:** feature implementation สำเร็จครบตาม scope; database integration/RLS และ browser acceptance เป็นหลักฐานแยก และยังไม่เติมผลตรวจที่ไม่ได้รัน
 
 ---
 
@@ -27,7 +29,9 @@ src/app/api/
 │   ├── route.ts                        # GET: รายชื่อแผนก, POST: เพิ่มแผนกใหม่
 │   └── [id]/route.ts                   # GET, PATCH, DELETE: แผนกรายตัว
 ├── doctors/
-│   ├── route.ts                        # GET: รายชื่อแพทย์พร้อมประวัติและแผนก
+│   ├── route.ts                        # GET: รายชื่อแพทย์พร้อมประวัติและแผนก, POST: ผูกบัญชีแพทย์กับข้อมูลแพทย์
+│   ├── accounts/route.ts               # GET: บัญชี medical ที่เปิดใช้งานสำหรับ staff/medical
+│   └── [id]/route.ts                   # PATCH, DELETE: แก้ไข/ปิดใช้งานข้อมูลแพทย์
 │   └── leaves/
 │       ├── route.ts                    # GET: รายการวันลา, POST: ขอลางาน
 │       └── [id]/route.ts               # DELETE: ยกเลิกวันลา
@@ -45,13 +49,16 @@ src/app/api/
 │   └── [id]/route.ts                   # GET: รายละเอียดเวชระเบียนรายครั้ง
 ├── medications/
 │   ├── route.ts                        # GET: รายการยาในคลัง, POST: เพิ่มรายการยา
-│   └── [id]/route.ts                   # PATCH: แก้ไขสต็อก/ข้อมูลยา, DELETE: ปิดการใช้งานยา
+│   ├── [id]/route.ts                   # GET, PATCH: แก้ไขสต็อก/ข้อมูลยา, DELETE: ปิดการใช้งานยา
+│   └── inventory/route.ts              # GET, POST: ประวัติและรายการเคลื่อนไหวคลังยา
 ├── reminders/
 │   ├── route.ts                        # GET: รายการแจ้งเตือนยาของผู้ป่วย, POST: เพิ่มการแจ้งเตือน
 │   └── [id]/route.ts                   # PATCH: ทำเครื่องหมายทานยาแล้ว / แก้ไขเวลา, DELETE: ลบเตือน
 └── dashboard/
     └── stats/route.ts                  # GET: ดึงสถิติตาม Role (Patient/Medical/Staff)
 ```
+
+บริการที่หน้า landing และ scheduling ใช้ร่วมกันอยู่ที่ `/api/services` และ `/api/services/[id]`; การสร้าง/อ่าน offering รายวันอยู่ที่ `/api/schedules/offerings` ซึ่งเป็น supporting routes ของแผนนี้
 
 ---
 
@@ -75,7 +82,7 @@ src/app/api/
 | `/api/appointments/[id]/status` | `PATCH` | `medical`, `staff_admin`, `patient` | อัปเดตสถานะนัดหมาย (มี Guard ตาม Role) |
 | `/api/medical-records` | `GET` | `patient`, `medical` | ผู้ป่วยดูของตน / แพทย์ดูคนไข้ที่ดูแล |
 | `/api/medical-records` | `POST` | `medical` | แพทย์บันทึกผลวินิจฉัยและใบสั่งยา |
-| `/api/medications` | `GET` | `medical`, `staff_admin` | ดูรายการยาในคลัง |
+| `/api/medications` | `GET` | `patient`, `medical`, `staff_admin` | ดูรายการยาที่เปิดใช้งาน; patient ใช้สร้างตารางเตือนยา |
 | `/api/reminders` | `GET`, `POST`, `PATCH` | `patient` | จัดการตารางเตือนทานยา |
 | `/api/dashboard/stats` | `GET` | ทุก Role | ตัวเลขสรุปสถิติประจำวัน |
 
@@ -193,30 +200,39 @@ export async function apiClient<T>(endpoint: string, options?: RequestInit): Pro
 - เพิ่ม Global Fetch Interceptor ใน `tests/setup.ts` ที่ดักเฉพาะ `/api/*`; request ที่ยังไม่มี mock handler จะตอบ `501` เพื่อป้องกัน test ยิง network จริง
 - เพิ่ม `tests/api-client.test.ts` ครอบคลุม success, header, JSON error, non-JSON error, `204` และ unconfigured API
 - ขอบเขตยังไม่รวมการสร้าง Route Handler หรือการย้าย service/repository/UI ไปใช้ API
-- Phase 0 เริ่มจากคำสั่งผู้ใช้ที่อนุญาตให้ข้าม Hard Gate; Hard Gate เดิมยังคงใช้กับ Phase 1 เป็นต้นไป
+- Phase 0 เริ่มจากคำสั่งผู้ใช้ที่อนุญาตให้ข้าม Hard Gate; Hard Gate เดิมเป็นกติกาประวัติศาสตร์ และงาน Phase 1–4 ถูกดำเนินการตามข้อยกเว้นที่ผู้ใช้สั่งโดยตรง
 - ตรวจแล้ว: targeted lint ผ่าน, typecheck ผ่าน, full test `37 files / 319 tests` ผ่าน และ build ผ่าน
 - Full lint ยังมี failure เดิมนอก Phase 0 ที่ `src/components/settings/SettingsContent.tsx:101` จาก `react-hooks/set-state-in-effect`
-- [ ] **Phase 1: กลุ่มข้อมูลพื้นฐาน (Low Risk)**
-  - [ ] แปลง `departments` และ `doctors` เป็น `/api/departments` และ `/api/doctors`
-  - [ ] ปรับ UI ใน `ScheduleWorkspace.tsx` และ `DepartmentWorkspace.tsx` ให้ใช้ Client Fetcher
-  - [ ] ตรวจสอบว่า Test ของหน้าแผนกยังผ่านครบ
-- [ ] **Phase 2: กลุ่มตารางตรวจและคิว (Medium Risk)**
-  - [ ] แปลง `slots` และ `leaves` ใน `databaseRepository.ts` เป็น `/api/schedules/slots` และ `/api/doctors/leaves`
-  - [ ] ปรับ `SchedulingProvider.tsx` ให้เรียกผ่าน API
-  - [ ] รัน Full Quality Gates ตรวจสอบ
-- [ ] **Phase 3: กลุ่มนัดหมายและการรักษา (High Risk - Core Clinic)**
-  - [ ] แปลง RPC `pai_workspace` และการบันทึกเวชระเบียนเป็น `/api/appointments` และ `/api/medical-records`
-  - [ ] ปรับ `src/features/clinic-care.tsx`
-  - [ ] ทดสอบ Flow จองคิว, หมอตรวจ, จ่ายยา
-- [ ] **Phase 4: กลุ่มยาและการแจ้งเตือน (Final Polish)**
-  - [ ] แปลง `medicationService.ts` และ `reminderService.ts` เป็น `/api/medications` และ `/api/reminders`
-  - [ ] ลบฟังก์ชัน Service เก่าที่ไม่ได้ใช้งานออก
-- [ ] **Phase 5: ทดสอบ Full Suite Acceptance**
-  - [ ] รัน `npm run lint`
-  - [ ] รัน `npx --no-install tsc --noEmit`
-  - [ ] รัน `npm run test`
-  - [ ] รัน `npm run build`
-  - [ ] ตรวจ Manual Test SCN-01 ถึง SCN-07 ในเบราว์เซอร์
+- [x] **Phase 1: กลุ่มข้อมูลพื้นฐาน (Low Risk)**
+  - [x] แปลง `departments` และ `doctors` เป็น `/api/departments` และ `/api/doctors`
+  - [x] ปรับ scheduling adapter ให้ `ScheduleWorkspace.tsx` และ `DepartmentWorkspace.tsx` เรียก Client Fetcher ผ่าน `SchedulingProvider`
+  - [x] เพิ่ม route-handler authorization/validation tests และรักษา targeted scheduling tests เดิม
+- [x] **Phase 2: กลุ่มตารางตรวจและคิว (Medium Risk)**
+  - [x] แปลง `slots` และ `leaves` ใน runtime repository เป็น `/api/schedules/slots` และ `/api/doctors/leaves`
+  - [x] ปรับ `SchedulingProvider.tsx` ให้เรียกผ่าน API
+  - [x] เพิ่ม server-side validation สำหรับวันย้อนหลัง, วันทำการ, เวลาพัก, วันลา, conflict และ capacity
+- [x] **Phase 3: กลุ่มนัดหมายและการรักษา (High Risk - Core Clinic)**
+  - [x] แปลงการอ่าน workspace, การจอง, transition และ `pai_save_record` เป็น `/api/appointments` และ `/api/medical-records`
+  - [x] ปรับ `src/features/clinic-care.tsx` เป็น API adapter โดยคง Supabase adapter สำหรับ isolated tests
+  - [x] เพิ่ม route-handler tests สำหรับ validation และ role guard; หลักฐาน browser/database เป็น verification boundary แยกจาก feature implementation
+- [x] **Phase 4: กลุ่มยาและการแจ้งเตือน (Final Polish)**
+  - [x] แปลง `medicationService.ts` และ `reminderService.ts` เป็น `/api/medications` และ `/api/reminders`
+  - [x] คง service interfaces เป็น thin API wrappers เพื่อไม่กระทบ consumer เดิม; ไม่มี direct query เหลือในสอง service นี้
+- [x] **Phase 5: Automated verification**
+  - [x] รัน `npm run lint` — 0 errors, warnings เดิม 5 รายการ
+  - [x] รัน `npx --no-install tsc --noEmit`
+  - [x] รัน `npm run test` — 363/364 tests ผ่าน; failure เดิม 1 เคสใน `tests/dashboard-service.test.ts:235`
+  - [x] รัน `npm run build`
+  - [ ] ตรวจ Manual Test SCN-01 ถึง SCN-07 ในเบราว์เซอร์ — เป็น verification boundary ที่ยังไม่ได้ตรวจ
+
+### หลักฐาน implementation รอบ Route Migration (22 กันยายน 2569)
+
+- เพิ่ม shared API auth/error helpers, Route Handlers ตาม endpoint tree, `ApiSchedulingRepository` และ route-handler tests ใน `tests/api-route-handlers.test.ts`
+- Runtime paths ที่ย้ายแล้ว: auth registration, landing services, departments/scheduling, appointments/records, medications/reminders และ dashboard stats
+- `generateSlotsForRange` และ weekly schedule/template ยังไม่มี endpoint ใน blueprint จึงคงเป็น mock-only helper และไม่อ้างว่าเป็น database migration ที่เสร็จแล้ว
+- `dashboardService.ts`, profile UI และ pharmacy dispensing UI ยังมี direct Supabase paths นอก Phase 1–4 ของ blueprint; ต้องแยก scope หากต้องการย้ายทั้งระบบทุก consumer
+- สถานะ implementation: feature complete ตาม scope ของ Phase 0–4; verification ล่าสุดคือ typecheck ผ่าน, build ผ่าน, focused tests 56/56 ผ่าน และ lint 0 errors
+- Full test มี failure เดิม 1 เคสที่ `tests/dashboard-service.test.ts:235` ซึ่งอยู่นอกไฟล์งาน migration/stepper; Browser SCN-01 ถึง SCN-07 และ database integration/RLS ยังไม่อ้างว่าผ่าน
 
 ---
 

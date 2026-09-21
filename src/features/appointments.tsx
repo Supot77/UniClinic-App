@@ -14,6 +14,7 @@ import {
   TicketCheck,
 } from 'lucide-react';
 import DatePicker from '@/components/common/DatePicker';
+import { MedicalRecordStepper } from '@/features/medical-records';
 import {
   actionLabels,
   allowedActions,
@@ -163,15 +164,21 @@ function BookingForm({ data, busy, book, initialSlotId }: {
   </form>;
 }
 
-function AppointmentCard({ appointment, slot, role, state, bangkokNow }: {
+function AppointmentCard({ appointment, slot, role, state, bangkokNow, onStartExam, onOpenExam }: {
   appointment: ClinicSnapshot['appointments'][number];
   slot?: ClinicSnapshot['slots'][number];
   role: ClinicRole;
   state: ReturnType<typeof useClinicWorkspace>;
   bangkokNow: { date: string; time: string };
+  onStartExam?: (appointmentId: string) => void;
+  onOpenExam?: (appointmentId: string) => void;
 }) {
   const actions = allowedActions(role, appointment, slot, bangkokNow.date, bangkokNow.time).filter((action) => !(role === 'staff_admin' && action === 'cancelled'));
   const title = role === 'patient' ? `คิว ${appointment.queue_number ?? '—'}` : `${appointment.patient} · คิว ${appointment.queue_number ?? '—'}`;
+  async function transition(action: typeof actions[number]) {
+    const ok = await state.run((repository) => repository.transition(appointment.id, action), action === 'request_cancel' ? 'ส่งคำขอยกเลิกแล้ว รอเจ้าหน้าที่ดำเนินการ' : 'บันทึกสถานะนัดแล้ว');
+    if (ok && action === 'in_progress') onStartExam?.(appointment.id);
+  }
   return <article className={role === 'patient'
     ? 'flex min-w-0 flex-col rounded-2xl border border-brand-border bg-white p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6'
     : 'group relative overflow-visible rounded-[1.5rem] border border-brand-border bg-white p-5 shadow-[0_8px_24px_rgba(26,61,62,0.04)] transition hover:-translate-y-0.5 hover:border-brand-border-strong hover:shadow-[0_16px_34px_rgba(26,61,62,0.08)] sm:p-6'}>
@@ -216,9 +223,10 @@ function AppointmentCard({ appointment, slot, role, state, bangkokNow }: {
           const ok = await state.run((repository) => repository.transition(appointment.id, action, typeof value === 'string' ? value : ''), 'ปฏิเสธนัดแล้วและบันทึกเหตุผล');
           if (ok) form.reset();
         }}><label className="block text-sm font-semibold text-rose-900">เหตุผลการปฏิเสธ<textarea name="rejection_reason" required maxLength={2000} rows={3} className={`${inputClass} mt-2 bg-white`} placeholder="เช่น รอบตรวจถูกยกเลิก หรือข้อมูลการจองไม่ครบ" /></label><button type="submit" disabled={state.busy} className={`${secondaryButtonClass} border-rose-200 text-rose-700`}>{state.busy ? 'กำลังบันทึก…' : 'ยืนยันปฏิเสธนัด'}</button></form>
-      </details> : <button key={action} disabled={state.busy} className={`${secondaryButtonClass} rounded-xl`} onClick={() => void state.run((repository) => repository.transition(appointment.id, action), action === 'request_cancel' ? 'ส่งคำขอยกเลิกแล้ว รอเจ้าหน้าที่ดำเนินการ' : 'บันทึกสถานะนัดแล้ว')}>{actionLabels[action]}</button>)}
+      </details> : <button key={action} disabled={state.busy} className={`${secondaryButtonClass} rounded-xl`} onClick={() => void transition(action)}>{actionLabels[action]}</button>)}
       {role === 'medical' && appointment.status === 'confirmed' && slot && !isSlotArrived(slot.slot_date, slot.start_time, bangkokNow.date, bangkokNow.time) && <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 ring-1 ring-amber-200"><Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />ยังไม่ถึงเวลารอบตรวจ</span>}
-      {role === 'medical' && appointment.status === 'in_progress' && <Link href={`/records?appointment=${appointment.id}`} className={`${primaryButtonClass} rounded-xl`}><FileText className="h-4 w-4" aria-hidden="true" />เปิดผลตรวจ<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>}
+      {role === 'medical' && appointment.status === 'in_progress' && !appointment.has_record && onOpenExam && <button type="button" className={`${primaryButtonClass} rounded-xl`} onClick={() => onOpenExam(appointment.id)}><FileText className="h-4 w-4" aria-hidden="true" />เปิดฟอร์มตรวจ<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></button>}
+      {role === 'medical' && appointment.status === 'in_progress' && (appointment.has_record || !onOpenExam) && <Link href={`/records?appointment=${appointment.id}`} className={`${primaryButtonClass} rounded-xl`}><FileText className="h-4 w-4" aria-hidden="true" />เปิดผลตรวจ<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>}
       {role === 'patient' && appointment.status === 'completed' && <Link href={`/records?appointment=${appointment.id}`} className={`${secondaryButtonClass} w-full !border-brand-border text-brand-strong sm:w-auto`}><FileText className="h-4 w-4" aria-hidden="true" />ดูผลตรวจและยา<ArrowUpRight className="ml-auto h-4 w-4 sm:ml-2" aria-hidden="true" /></Link>}
     </div>}
   </article>;
@@ -234,14 +242,22 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
     if (role === 'medical') return 'pending_confirmed';
     return '';
   });
+  const [activeExamId, setActiveExamId] = useState<string>();
   const [bangkokNow, setBangkokNow] = useState(() => ({ date: bangkokDate(), time: bangkokTime() }));
+  const data = state.data;
 
   useEffect(() => {
     const timer = setInterval(() => setBangkokNow({ date: bangkokDate(), time: bangkokTime() }), 10000);
     return () => clearInterval(timer);
   }, []);
 
-  const data = state.data;
+  useEffect(() => {
+    if (!activeExamId || !data) return;
+    const stepper = document.getElementById('medical-exam-stepper');
+    if (stepper && typeof stepper.scrollIntoView === 'function') stepper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [activeExamId, data]);
+
+  const activeExam = data?.appointments.find((appointment) => appointment.id === activeExamId && appointment.status === 'in_progress' && !appointment.has_record);
   const rows = data?.appointments.filter((appointment) => {
     const slot = data.slots.find((item) => item.id === appointment.slot_id);
     const matchesStatus = !status ? true : status === 'pending_confirmed' ? ['pending', 'confirmed'].includes(appointment.status) : appointment.status === status;
@@ -273,6 +289,7 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
   return <ClinicWorkspaceShell {...state} role={role} section="appointments" stats={headerStats} wide>
     {state.loading ? <ClinicPageLoading /> : data && <div className={role === 'patient' ? 'space-y-8' : 'space-y-5'}>
       {role === 'patient' && <BookingForm data={data} busy={state.busy} initialSlotId={initialSlotId} book={(id, reason) => state.run((repository) => repository.book(id, reason), 'จองนัดสำเร็จ รอเจ้าหน้าที่อนุมัติ')} />}
+      {role === 'medical' && activeExam && <div id="medical-exam-stepper"><MedicalRecordStepper key={activeExam.id} data={data} busy={state.busy} selectedId={activeExam.id} showQueueSelector={false} onSaved={() => setActiveExamId(undefined)} save={(input) => state.run((repository) => repository.saveRecord(input), input.complete ? 'บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดดูได้' : 'บันทึกผลตรวจแล้ว จบตรวจเพื่อให้ผู้ป่วยเปิดดูผลได้')} /></div>}
       <section className="overflow-visible rounded-[1.75rem]">
         <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
           <div><h2 className="text-xl font-bold tracking-tight text-brand-ink">{role === 'medical' ? 'คิวที่รับผิดชอบ' : role === 'staff_admin' ? 'รายการนัดทั้งหมด' : 'นัดหมายของฉัน'}</h2><p className="mt-1 text-sm leading-6 text-brand-body">{role === 'patient' ? 'ติดตามสถานะนัดหมาย และเปิดดูผลตรวจเมื่อรับบริการเสร็จ' : 'ใช้ตัวกรองด้านล่างเพื่อค้นหารายการที่ต้องการ'}</p></div>
@@ -285,7 +302,7 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
           <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">เรียงคิว</p><ClinicSelect value={sortOrder} onChange={(value) => setSortOrder(value as 'newest' | 'oldest')} placeholder="ใหม่สุดก่อน" ariaLabel="เรียงคิว" className="!mt-2 !h-12 !border-brand-border" options={[{ value: 'newest', label: 'ใหม่สุดก่อน' }, { value: 'oldest', label: 'เก่าสุดก่อน' }]} /></div>
         </div>
         {rows.length === 0 && <div className="flex flex-col items-center px-6 py-14 text-center"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-surface text-brand-strong"><Search className="h-6 w-6" aria-hidden="true" /></span><p className="mt-4 font-semibold text-brand-ink">ไม่พบนัดหมายตามเงื่อนไขนี้</p><p className="mt-1 text-sm text-brand-body">ลองเปลี่ยนสถานะ วันที่ หรือคำค้นหา แล้วลองใหม่</p></div>}
-        <div className="grid gap-4 pt-6 lg:grid-cols-2 lg:gap-5">{rows.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} slot={data.slots.find((slot) => slot.id === appointment.slot_id)} role={role} state={state} bangkokNow={bangkokNow} />)}</div>
+        <div className="grid gap-4 pt-6 lg:grid-cols-2 lg:gap-5">{rows.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} slot={data.slots.find((slot) => slot.id === appointment.slot_id)} role={role} state={state} bangkokNow={bangkokNow} onStartExam={role === 'medical' ? setActiveExamId : undefined} onOpenExam={role === 'medical' ? setActiveExamId : undefined} />)}</div>
       </section>
     </div>}
   </ClinicWorkspaceShell>;
