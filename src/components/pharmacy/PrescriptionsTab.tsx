@@ -67,6 +67,12 @@ interface PrescriptionsTabProps {
   canManage: boolean;
   isAdminOrStaff: boolean;
   userId?: string;
+  initialStatus?: 'all' | 'pending' | 'dispensed' | 'insufficient';
+  initialSort?: 'newest' | 'oldest';
+  statusFilter?: 'all' | 'pending' | 'dispensed' | 'insufficient';
+  onStatusFilterChange?: (status: 'all' | 'pending' | 'dispensed' | 'insufficient') => void;
+  sortBy?: 'newest' | 'oldest';
+  onSortByChange?: (sort: 'newest' | 'oldest') => void;
   onRefresh: () => Promise<void>;
   onStockUpdated: () => Promise<void>;
   onPrescriptionDispensed?: (orderId: string, updatedMeds: PrescribedMedItem[]) => void;
@@ -93,6 +99,12 @@ export default function PrescriptionsTab({
   medications,
   canManage,
   userId,
+  initialStatus = 'all',
+  initialSort = 'newest',
+  statusFilter: controlledStatusFilter,
+  onStatusFilterChange,
+  sortBy: controlledSortBy,
+  onSortByChange,
   onRefresh,
   onStockUpdated,
   onPrescriptionDispensed,
@@ -100,8 +112,55 @@ export default function PrescriptionsTab({
 }: PrescriptionsTabProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'dispensed' | 'insufficient'>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<'all' | 'pending' | 'dispensed' | 'insufficient'>(initialStatus);
+  const [internalSortBy, setInternalSortBy] = useState<'newest' | 'oldest'>(initialSort);
+
+  const statusFilter = controlledStatusFilter ?? internalStatusFilter;
+  const sortBy = controlledSortBy ?? internalSortBy;
+
+  const handleStatusFilterChange = (status: 'all' | 'pending' | 'dispensed' | 'insufficient') => {
+    if (onStatusFilterChange) {
+      onStatusFilterChange(status);
+    } else {
+      setInternalStatusFilter(status);
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('clinic_prescription_status_filter', status);
+          const url = new URL(window.location.href);
+          if (status === 'all') {
+            url.searchParams.delete('status');
+          } else {
+            url.searchParams.set('status', status);
+          }
+          window.history.replaceState({}, '', url.toString());
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
+
+  const handleSortByChange = (sort: 'newest' | 'oldest') => {
+    if (onSortByChange) {
+      onSortByChange(sort);
+    } else {
+      setInternalSortBy(sort);
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('clinic_prescription_sort_by', sort);
+          const url = new URL(window.location.href);
+          if (sort === 'newest') {
+            url.searchParams.delete('sort');
+          } else {
+            url.searchParams.set('sort', sort);
+          }
+          window.history.replaceState({}, '', url.toString());
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
 
   const [dispenseTarget, setDispenseTarget] = useState<PrescriptionOrder | null>(null);
   const [isDispensing, setIsDispensing] = useState(false);
@@ -366,21 +425,39 @@ export default function PrescriptionsTab({
         router.refresh();
       }
 
-      // Trigger automatic page reload cleanly with preserved tab
-      if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+      // Trigger automatic page reload cleanly with preserved tab, status filter and sort
+      if (typeof window !== 'undefined') {
         try {
           sessionStorage.setItem('clinic_pharmacy_active_tab', 'prescriptions');
           localStorage.setItem('clinic_pharmacy_active_tab', 'prescriptions');
+          sessionStorage.setItem('clinic_prescription_status_filter', statusFilter);
+          sessionStorage.setItem('clinic_prescription_sort_by', sortBy);
+
           const url = new URL(window.location.href);
           url.searchParams.set('tab', 'prescriptions');
+          if (statusFilter !== 'all') {
+            url.searchParams.set('status', statusFilter);
+          } else {
+            url.searchParams.delete('status');
+          }
+          if (sortBy !== 'newest') {
+            url.searchParams.set('sort', sortBy);
+          } else {
+            url.searchParams.delete('sort');
+          }
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
         }
+      }
+
+      if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
         setTimeout(() => {
           try {
             if (typeof window.location?.reload === 'function') {
               window.location.reload();
+            } else {
+              window.location.href = window.location.href;
             }
           } catch {
             // ignore
@@ -443,7 +520,7 @@ export default function PrescriptionsTab({
             <button
               key={item.key}
               type="button"
-              onClick={() => setStatusFilter((prev) => (prev === item.key ? 'all' : item.key))}
+              onClick={() => handleStatusFilterChange(statusFilter === item.key ? 'all' : item.key)}
               aria-pressed={isSelected}
               className={`border-b-2 px-1 py-3 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong cursor-pointer ${
                 isSelected
@@ -510,7 +587,7 @@ export default function PrescriptionsTab({
           <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
             <button
               type="button"
-              onClick={() => setStatusFilter('all')}
+              onClick={() => handleStatusFilterChange('all')}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                 statusFilter === 'all'
                   ? 'bg-white text-slate-900 shadow-xs'
@@ -521,7 +598,7 @@ export default function PrescriptionsTab({
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('pending')}
+              onClick={() => handleStatusFilterChange('pending')}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                 statusFilter === 'pending'
                   ? 'bg-amber-100 text-amber-900 shadow-xs'
@@ -532,7 +609,7 @@ export default function PrescriptionsTab({
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('dispensed')}
+              onClick={() => handleStatusFilterChange('dispensed')}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                 statusFilter === 'dispensed'
                   ? 'bg-emerald-100 text-emerald-900 shadow-xs'
@@ -544,7 +621,7 @@ export default function PrescriptionsTab({
             {stats.insufficient > 0 && (
               <button
                 type="button"
-                onClick={() => setStatusFilter('insufficient')}
+                onClick={() => handleStatusFilterChange('insufficient')}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   statusFilter === 'insufficient'
                     ? 'bg-rose-100 text-rose-900 shadow-xs'
@@ -559,7 +636,7 @@ export default function PrescriptionsTab({
           {/* Sort Selector */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+            onChange={(e) => handleSortByChange(e.target.value as 'newest' | 'oldest')}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           >
             <option value="newest">วันที่สั่ง: ล่าสุดก่อน</option>

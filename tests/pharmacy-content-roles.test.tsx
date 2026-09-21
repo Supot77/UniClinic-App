@@ -561,5 +561,38 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(allBtn).toHaveAttribute('aria-pressed', 'false');
     expect(allBtn.className).toContain('opacity-40');
   });
+
+  it('respects initialStatus and initialSort and preserves them in sessionStorage and URL on dispense', async () => {
+    render(
+      <PharmacyContent
+        currentRole="medical"
+        userName="นพ. สมชาย"
+        initialTab="prescriptions"
+        initialStatus="pending"
+        initialSort="oldest"
+      />
+    );
+
+    // "รอตัดจ่ายสต็อก" should be selected initially
+    const pendingBtn = await screen.findByRole('button', { name: /รอตัดจ่ายสต็อก/i });
+    expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // Click dispense button on pending order
+    const dispenseBtn = screen.getByRole('button', { name: /ตัดสต็อกจ่ายยา/ });
+    fireEvent.click(dispenseBtn);
+
+    // Confirm dispense modal
+    const confirmBtn = screen.getByRole('button', { name: /ยืนยันการตัดสต็อกจ่ายยา/ });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    // Verify sessionStorage retains active filter and sort
+    expect(sessionStorage.getItem('clinic_prescription_status_filter')).toBe('pending');
+    expect(sessionStorage.getItem('clinic_prescription_sort_by')).toBe('oldest');
+    expect(window.location.search).toContain('status=pending');
+    expect(window.location.search).toContain('sort=oldest');
+  });
 });
+
 

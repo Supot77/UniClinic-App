@@ -206,6 +206,8 @@ interface RawInventoryLog {
 
 interface PharmacyContentProps {
   initialTab?: 'inventory' | 'prescriptions';
+  initialStatus?: 'all' | 'pending' | 'dispensed' | 'insufficient';
+  initialSort?: 'newest' | 'oldest';
   currentRole?: string;
   userEmail?: string;
   userName?: string;
@@ -214,6 +216,8 @@ interface PharmacyContentProps {
 
 export default function PharmacyContent({
   initialTab = 'inventory',
+  initialStatus = 'all',
+  initialSort = 'newest',
   currentRole,
   userEmail,
   userName,
@@ -232,6 +236,8 @@ export default function PharmacyContent({
   const isAdminOrStaff = effectiveRole === 'admin' || effectiveRole === 'staff_admin' || effectiveRole === 'staff';
   const canManage = !isAdminOrStaff;
   const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions'>(initialTab);
+  const [prescriptionStatusFilter, setPrescriptionStatusFilter] = useState<'all' | 'pending' | 'dispensed' | 'insufficient'>(initialStatus);
+  const [prescriptionSortBy, setPrescriptionSortBy] = useState<'newest' | 'oldest'>(initialSort);
 
   const handleSelectTab = (tab: 'inventory' | 'prescriptions') => {
     setActiveTab(tab);
@@ -241,6 +247,54 @@ export default function PharmacyContent({
         localStorage.setItem('clinic_pharmacy_active_tab', tab);
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
+        if (tab === 'prescriptions') {
+          if (prescriptionStatusFilter !== 'all') {
+            url.searchParams.set('status', prescriptionStatusFilter);
+          } else {
+            url.searchParams.delete('status');
+          }
+          if (prescriptionSortBy !== 'newest') {
+            url.searchParams.set('sort', prescriptionSortBy);
+          } else {
+            url.searchParams.delete('sort');
+          }
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handlePrescriptionStatusChange = (status: 'all' | 'pending' | 'dispensed' | 'insufficient') => {
+    setPrescriptionStatusFilter(status);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('clinic_prescription_status_filter', status);
+        const url = new URL(window.location.href);
+        if (status === 'all') {
+          url.searchParams.delete('status');
+        } else {
+          url.searchParams.set('status', status);
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handlePrescriptionSortChange = (sort: 'newest' | 'oldest') => {
+    setPrescriptionSortBy(sort);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('clinic_prescription_sort_by', sort);
+        const url = new URL(window.location.href);
+        if (sort === 'newest') {
+          url.searchParams.delete('sort');
+        } else {
+          url.searchParams.set('sort', sort);
+        }
         window.history.replaceState({}, '', url.toString());
       } catch {
         // ignore
@@ -1556,6 +1610,10 @@ export default function PharmacyContent({
           canManage={canManage}
           isAdminOrStaff={isAdminOrStaff}
           userId={userId}
+          statusFilter={prescriptionStatusFilter}
+          onStatusFilterChange={handlePrescriptionStatusChange}
+          sortBy={prescriptionSortBy}
+          onSortByChange={handlePrescriptionSortChange}
           onRefresh={loadPrescriptions}
           onStockUpdated={handleReloadAll}
           onPrescriptionDispensed={handlePrescriptionDispensed}
