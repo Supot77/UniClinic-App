@@ -92,7 +92,7 @@ export default function PrescriptionsTab({
   onShowToast,
 }: PrescriptionsTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'dispensed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'dispensed' | 'insufficient'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   const [dispenseTarget, setDispenseTarget] = useState<PrescriptionOrder | null>(null);
@@ -137,6 +137,16 @@ export default function PrescriptionsTab({
       .filter((order) => {
         if (statusFilter === 'pending' && order.is_fully_dispensed) return false;
         if (statusFilter === 'dispensed' && !order.is_fully_dispensed) return false;
+        if (statusFilter === 'insufficient') {
+          if (order.is_fully_dispensed) return false;
+          const anyShort = order.prescribed_medications.some((item) => {
+            const med = medications.find(
+              (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+            );
+            return !med || med.stock < item.quantity;
+          });
+          if (!anyShort) return false;
+        }
 
         if (q) {
           const matchPatient = order.patient_name.toLowerCase().includes(q);
@@ -160,7 +170,7 @@ export default function PrescriptionsTab({
         const timeB = new Date(b.created_at).getTime();
         return sortBy === 'newest' ? timeB - timeA : timeA - timeB;
       });
-  }, [prescriptions, searchQuery, statusFilter, sortBy]);
+  }, [prescriptions, medications, searchQuery, statusFilter, sortBy]);
 
   // Handle Dispense
   const handleConfirmDispense = async () => {
@@ -314,76 +324,90 @@ export default function PrescriptionsTab({
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <button
-          type="button"
-          onClick={() => setStatusFilter('all')}
-          className={`flex flex-col items-start justify-between rounded-2xl border p-4 text-left transition ${
-            statusFilter === 'all'
-              ? 'border-sky-500 bg-sky-50/50 shadow-xs ring-2 ring-sky-500/20'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <div className="flex w-full items-center justify-between">
-            <span className="text-xs font-semibold text-slate-600">ใบสั่งยาทั้งหมด</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-              <FileText className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="mt-3 text-2xl font-bold text-slate-900">{stats.total}</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">รวมทุกสถานะ</p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStatusFilter('pending')}
-          className={`flex flex-col items-start justify-between rounded-2xl border p-4 text-left transition ${
-            statusFilter === 'pending'
-              ? 'border-amber-500 bg-amber-50/50 shadow-xs ring-2 ring-amber-500/20'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <div className="flex w-full items-center justify-between">
-            <span className="text-xs font-semibold text-amber-800">รอตัดจ่ายสต็อก</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <Clock className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="mt-3 text-2xl font-bold text-amber-700">{stats.pending}</p>
-          <p className="mt-0.5 text-[11px] text-amber-600">ยังไม่ได้ตัดสต็อก</p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setStatusFilter('dispensed')}
-          className={`flex flex-col items-start justify-between rounded-2xl border p-4 text-left transition ${
-            statusFilter === 'dispensed'
-              ? 'border-emerald-500 bg-emerald-50/50 shadow-xs ring-2 ring-emerald-500/20'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <div className="flex w-full items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-800">ตัดจ่ายเรียบร้อย</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-              <CheckCircle2 className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="mt-3 text-2xl font-bold text-emerald-700">{stats.dispensed}</p>
-          <p className="mt-0.5 text-[11px] text-emerald-600">หักสต็อกคลังแล้ว</p>
-        </button>
-
-        <div className="flex flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex w-full items-center justify-between">
-            <span className="text-xs font-semibold text-rose-700">ยาที่สต็อกไม่พอ</span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
-              <AlertTriangle className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="mt-3 text-2xl font-bold text-rose-600">{stats.insufficient}</p>
-          <p className="mt-0.5 text-[11px] text-rose-500">ใบสั่งยาที่ต้องการเพิ่มสต็อก</p>
-        </div>
-      </div>
+      {/* Summary Stat Cards - Styled identically to Medication Inventory */}
+      <section
+        className="mb-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-8 sm:grid-cols-4 border-b border-slate-200 pb-2"
+        aria-label="สรุปสถานะรายการสั่งยา"
+      >
+        {[
+          {
+            key: 'all' as const,
+            label: 'ใบสั่งยาทั้งหมด',
+            value: stats.total,
+            sub: 'รวมทุกสถานะ',
+            icon: FileText,
+            iconColorActive: 'text-brand-strong',
+          },
+          {
+            key: 'pending' as const,
+            label: 'รอตัดจ่ายสต็อก',
+            value: stats.pending,
+            sub: 'ยังไม่ได้ตัดสต็อก',
+            icon: Clock,
+            iconColorActive: 'text-amber-600',
+          },
+          {
+            key: 'dispensed' as const,
+            label: 'ตัดจ่ายเรียบร้อย',
+            value: stats.dispensed,
+            sub: 'หักสต็อกคลังแล้ว',
+            icon: CheckCircle2,
+            iconColorActive: 'text-emerald-600',
+          },
+          {
+            key: 'insufficient' as const,
+            label: 'ยาที่สต็อกไม่พอ',
+            value: stats.insufficient,
+            sub: 'ใบสั่งยาที่ต้องการเพิ่มสต็อก',
+            icon: AlertTriangle,
+            iconColorActive: 'text-rose-600',
+          },
+        ].map((item) => {
+          const isSelected = statusFilter === item.key;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setStatusFilter((prev) => (prev === item.key ? 'all' : item.key))}
+              aria-pressed={isSelected}
+              className={`border-b-2 px-1 py-3 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong cursor-pointer ${
+                isSelected
+                  ? 'border-brand-strong text-brand-strong opacity-100 font-semibold'
+                  : 'border-transparent text-slate-700 opacity-40 hover:opacity-80 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p
+                    className={`text-xs sm:text-sm ${
+                      isSelected ? 'font-bold text-brand-ink' : 'font-medium text-slate-600'
+                    }`}
+                  >
+                    {item.label}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-slate-400 truncate">
+                    {item.sub}
+                  </p>
+                </div>
+                <Icon
+                  className={`size-5 shrink-0 transition-colors ${
+                    isSelected ? item.iconColorActive : 'text-slate-400'
+                  }`}
+                  aria-hidden="true"
+                />
+              </div>
+              <p
+                className={`mt-3 text-2xl sm:text-3xl font-bold ${
+                  isSelected ? 'text-slate-950' : 'text-slate-700'
+                }`}
+              >
+                {item.value}
+              </p>
+            </button>
+          );
+        })}
+      </section>
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
@@ -443,6 +467,19 @@ export default function PrescriptionsTab({
             >
               ตัดจ่ายแล้ว ({stats.dispensed})
             </button>
+            {stats.insufficient > 0 && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter('insufficient')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  statusFilter === 'insufficient'
+                    ? 'bg-rose-100 text-rose-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                สต็อกไม่พอ ({stats.insufficient})
+              </button>
+            )}
           </div>
 
           {/* Sort Selector */}

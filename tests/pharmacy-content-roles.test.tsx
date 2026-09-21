@@ -526,4 +526,34 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
 
     unmount();
   });
+
+  it('highlights selected prescription summary stat card and dims unselected cards', async () => {
+    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
+
+    // Switch to Prescriptions tab
+    const prescriptionsTab = screen.getByRole('button', {
+      name: /รายการสั่งยาและตัดจ่าย/,
+    });
+    fireEvent.click(prescriptionsTab);
+
+    // Initial state: "ใบสั่งยาทั้งหมด" is selected
+    const allBtn = await screen.findByRole('button', { name: /ใบสั่งยาทั้งหมด/i });
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(allBtn.className).toContain('opacity-100');
+
+    // Click "รอตัดจ่ายสต็อก"
+    const pendingBtn = screen.getByRole('button', { name: /รอตัดจ่ายสต็อก/i });
+    await act(async () => {
+      fireEvent.click(pendingBtn);
+    });
+
+    expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(pendingBtn.className).toContain('opacity-100');
+    expect(pendingBtn.className).toContain('border-brand-strong');
+
+    // "ใบสั่งยาทั้งหมด" is now unselected and dimmed
+    expect(allBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(allBtn.className).toContain('opacity-40');
+  });
 });
+

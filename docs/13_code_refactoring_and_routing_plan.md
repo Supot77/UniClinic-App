@@ -11,14 +11,16 @@
 ### 1.1 การใช้งาน Dynamic Routing
 - **จุดที่มีการใช้งานอยู่แล้ว**:
   - `src/app/(clinic)/patients/[patientId]/edit/page.tsx`: รับ parameter `[patientId]` สำหรับแก้ไขข้อมูลผู้ป่วย
+  - `src/app/(clinic)/departments/[departmentId]/page.tsx`: หน้ารายละเอียดแผนกและแพทย์ประจำแผนก (ทำแล้วใน code โดย ช้อป)
+  - `src/app/(clinic)/pharmacy/medications/[medicationId]/page.tsx` และ `src/app/(clinic)/pharmacy/[medicationId]/page.tsx`: หน้ารายละเอียดเวชภัณฑ์แบบเต็มหน้า (ทำแล้วใน code โดย กัญจน์)
   - **ข้อสังเกต**: มีเฉพาะหน้า `/edit` แต่ยังไม่มีหน้าดูข้อมูลทั่วไป `/patients/[patientId]` (หากเข้า URL นี้ตรง ๆ จะพบข้อผิดพลาด 404)
-- **จุดที่ควรเปลี่ยนมาใช้ Dynamic Routing**:
-  1. `/patients/[patientId]`: หน้ารายละเอียดและประวัติผู้ป่วย (Read-only overview)
-  2. `/records/[recordId]`: หน้าบันทึกเวชระเบียนและผลการตรวจเฉพาะรอบ (แทนที่ Query parameter `?appointment=xxx`)
-  3. `/appointments/[appointmentId]`: หน้ารายละเอียดบัตรนัดและบัตรคิวตรวจ (Queue Ticket with Live Status / QR)
-  4. `/pharmacy/[tab]`: แยกแท็บคลังยาและใบสั่งยา `/pharmacy/inventory` และ `/pharmacy/prescriptions` (แทน Client State)
-  5. `/pharmacy/medications/[medicationId]`: หน้ารายละเอียดเวชภัณฑ์, ล็อตยา (Batch), และประวัติการเบิกจ่าย
-  6. `/departments/[departmentId]`: หน้ารายละเอียดแผนกและแพทย์ประจำแผนก
+- **จุดที่ควรเปลี่ยนมาใช้ Dynamic Routing / สถานะดำเนินการ**:
+  1. `/patients/[patientId]`: หน้ารายละเอียดและประวัติผู้ป่วย (Read-only overview) [Target ยังไม่พบ code]
+  2. `/records/[recordId]`: หน้าบันทึกเวชระเบียนและผลการตรวจเฉพาะรอบ (แทนที่ Query parameter `?appointment=xxx`) [Target ยังไม่พบ code]
+  3. `/appointments/[appointmentId]`: หน้ารายละเอียดบัตรนัดและบัตรคิวตรวจ (Queue Ticket with Live Status / QR) [Target ยังไม่พบ code]
+  4. `/pharmacy/[tab]`: แยกแท็บคลังยาและใบสั่งยา `/pharmacy/inventory` และ `/pharmacy/prescriptions` (แทน Client State) [Target ยังไม่พบ code]
+  5. `/pharmacy/medications/[medicationId]`: หน้ารายละเอียดเวชภัณฑ์, ล็อตยา (Batch), และประวัติการเบิกจ่าย [ทำแล้วใน code — รองรับทั้ง Dynamic Route หน้าเต็ม และ Popup Modal ในหน้ารายการ]
+  6. `/departments/[departmentId]`: หน้ารายละเอียดแผนกและแพทย์ประจำแผนก [ทำแล้วใน code]
 
 ### 1.2 โค้ดที่ซ้ำซ้อน (Code Redundancy)
 1. **การแปลง Role และ Session Query**:
@@ -108,7 +110,7 @@
 - รายการ 1–5 มี code path และ tests แล้ว โดยงานข้อ 2.2 ใช้ไฟล์สนับสนุนเพิ่มนอกขอบเขตเดิม ได้แก่ `src/constants/dateTime.ts`, `src/lib/requireRole.ts` และ tests ที่เกี่ยวข้อง
 - หน้า detail แผนกใช้ `/departments/[departmentId]` และ route guard; หน้า Schedule ใช้ helper role กลางและ constants กลาง
 - targeted ScheduleWorkspace tests ผ่าน 25/25, typecheck ผ่าน, lint ผ่าน 0 errors/7 warnings เดิม และ build ผ่าน
-- full test ล่าสุดผ่าน 272/273 tests; failure ที่เหลืออยู่ใน `tests/pharmacy-content-roles.test.tsx:380` เรื่องปุ่ม `ปิดหน้าต่าง` ซ้ำ และอยู่นอก scope นี้
+- full test ล่าสุด (21 ก.ย. 2569) ผ่านครบ 308/308 tests จาก 35 ไฟล์; ข้อผิดพลาดเดิมใน `tests/pharmacy-content-roles.test.tsx` ได้รับการแก้ไขเรียบร้อยแล้ว
 - ยังไม่มีหลักฐาน database integration/RLS บนฐาน development/staging หรือ browser QA เนื่องจาก environment ไม่มี browser runtime
 - หลังจากนั้น code ล่าสุด `0a3aa2d` เปลี่ยนคำสั่งสำคัญใน schedule/department จาก `window.confirm` เป็น shared `ConfirmationModal` และยังคงกติกาเดิมเรื่อง permission, state เดิมเมื่อ error และไม่เปลี่ยน slot/นัดหมายอัตโนมัติ
 - สถานะโมดูลนี้: **ทำแล้วใน code** สำหรับข้อ 1–5; เหลือ UI polish และหลักฐาน DB/RLS/browser ตาม [scheduling owner view](owners/shop-supot/README.md)
@@ -135,13 +137,28 @@
 - **เจ้าของงาน**: **กัญจน์** | **คู่ตรวจ**: **กลอง**
 - **ขอบเขตไฟล์**: `src/app/(clinic)/pharmacy/`, `src/components/pharmacy/`, `src/services/medicationService.ts`
 
-#### รายละเอียดงานและวิธีแก้ไข:
+#### รายละเอียดงานและวิธีแก้ไข (สถานะ ณ 21 กันยายน 2569):
 1. **Target ยังไม่พบ code: แยกแท็บหน้าจอด้วย Dynamic Route `src/app/(clinic)/pharmacy/[tab]/page.tsx`**:
    - รองรับ `/pharmacy/inventory` (คลังเวชภัณฑ์) และ `/pharmacy/prescriptions` (ใบสั่งยา)
    - กำหนดให้ `/pharmacy` redirect ไปยัง `/pharmacy/inventory` อัตโนมัติ เพื่อรักษาประวัติการเข้าชม (History) และไม่หลุดแท็บเมื่อรีเฟรช
-2. **Target ยังไม่พบ code: สร้างหน้าเจาะลึกตัวยา `src/app/(clinic)/pharmacy/medications/[medicationId]/page.tsx`**:
-   - แสดงข้อมูลจำเพาะ, ข้อบ่งใช้, จุดเตือนสต็อกขั้นต่ำ, ล็อตยา (Batch / Expiry Date), และประวัติการเบิกจ่าย
-   - สามารถประยุกต์ใช้ Next.js Intercepting Route `(.)medications/[medicationId]` เพื่อให้เปิดเป็น Modal ได้เมื่อคลิกจากหน้ารายการ แต่แสดงเป็นหน้าเต็มเมื่อเปิดผ่านลิงก์ตรง
+2. **ทำแล้วใน code: สร้างหน้าเจาะลึกตัวยา Dynamic Route และ Popup Modal**:
+   - สร้าง Dynamic Route เต็มหน้า:
+     - `src/app/(clinic)/pharmacy/medications/[medicationId]/page.tsx`
+     - `src/app/(clinic)/pharmacy/[medicationId]/page.tsx` (route เสริมสำหรับรองรับ path โดยตรง)
+   - พัฒนาคอมโพเนนต์ `MedicationDetailContent.tsx`:
+     - แสดงข้อมูลจำเพาะครบถ้วน: หมวดหมู่ยา, ขนาดยา (Dosage), ผู้ผลิต, วันที่ผลิต/หมดอายุ, สิทธิ์การเบิก (Coverage: ในสิทธิ์/นอกสิทธิ์), สต็อกคงเหลือ, สถานะระดับสต็อก, และคำแนะนำการใช้งาน
+     - ควบคุมสิทธิ์ปุ่ม "แก้ไขข้อมูล" ตามบทบาท: ผู้ใช้สิทธิ์ `medical` และ `staff_admin` แก้ไขได้ ส่วน `patient` ดูข้อมูลได้อย่างเดียว
+     - รองรับสถานะไม่พบข้อมูล (Not Found State) เมื่อระบุ ID ไม่ถูกต้อง
+   - ยกระดับ UX ใน `PharmacyContent.tsx`:
+     - คลิกการ์ดหรือแถวเวชภัณฑ์เพื่อเปิดดูรายละเอียดเป็น Popup Modal ได้ทันทีโดยไม่ต้องโหลดหน้าใหม่
+     - มีปุ่ม "เปิดหน้าเต็ม" ภายใน Modal เพื่อนำทางไปยัง Dynamic Route `/pharmacy/medications/[medicationId]`
+     - จดจำสถานะเปิด Modal ค้างไว้ผ่าน `localStorage` (`clinic_pharmacy_active_med_id`) ทำให้เมื่อรีเฟรชหน้าเว็บจะกู้คืน Popup ตัวเดิมกลับมาอัตโนมัติ
+     - เพิ่มตัวช่วยคำนวณจำนวนเม็ดยาจากแพ็กเกจ (Packaging Calculator: จำนวนกล่อง x จำนวนต่อกล่อง) ในฟอร์มนำเข้าเวชภัณฑ์
+     - เพิ่มระบบกู้คืนแบบร่างนำเข้ายา (Draft Persistence: `clinic_pharmacy_add_draft`) ในฟอร์มผ่าน `localStorage` พร้อมปุ่มล้างแบบร่าง
+     - ปรับปรุงการเลือกตัวกรองสถานะสต็อก (Filter Cards) ให้ไฮไลต์การ์ดที่เลือกและลดความเด่น (Dim) การ์ดที่ไม่ได้เลือก
+   - หลักฐานการทดสอบ (Quality Gate Evidence):
+     - `tests/medication-detail.test.tsx` (5 tests ผ่านครบถ้วน 100%)
+     - `tests/pharmacy-content-roles.test.tsx` (17 tests ผ่านครบถ้วน 100%)
 
 ---
 
