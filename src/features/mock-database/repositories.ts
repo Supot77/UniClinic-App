@@ -1255,7 +1255,7 @@ export function createClinicRepositories(
 
           medical: {
             title:
-              'ภาพรวมงานแพทย์และเภสัชกรรม',
+              'ภาพรวมงานแพทย์',
 
             description:
               isDoctorActor

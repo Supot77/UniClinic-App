@@ -138,6 +138,7 @@ export interface Profile {
   patient_type?: PatientType | null;
   employee_id?: string | null;
   organization?: string | null;
+  staff_position?: string | null;
 
   is_active?: boolean;
   permission_version?: number;
@@ -181,6 +182,7 @@ export interface Doctor {
   id: string; // FK → profiles.id
   specialty: string | null;
   department_id: string | null; // FK → departments.id
+  license_number?: string | null;
   created_at: string;
   updated_at: string;
 }

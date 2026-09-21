@@ -76,7 +76,7 @@ export default function ForgotPasswordForm() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={isSubmitting}
-            placeholder="example@wu.ac.th"
+            placeholder="name@example.com"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500 disabled:bg-zinc-50"
           />
         </div>

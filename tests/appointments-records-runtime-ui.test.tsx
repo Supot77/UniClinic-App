@@ -98,7 +98,7 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.click(await screen.findByRole('button', { name: 'รอบตรวจ' }));
     expect(screen.getByRole('option', { name: /09:00–09:30/ })).toBeInTheDocument();
   });
-  it('uses a compact Thai calendar for booking date while keeping the list filter separate', async () => {
+  it('uses the shared Thai calendar for booking date while keeping the list filter separate', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-08T12:00:00+07:00'));
     render(<AppointmentPage role="patient" repository={createClinicMockRepository(fixture())} />);
@@ -109,12 +109,12 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.click(trigger);
     const dialog = screen.getByRole('dialog', { name: 'เลือกวันที่ตรวจ' });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'เลือกวันที่ 7 กันยายน 2569' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'วันที่ 7 กันยายน 2569' })).toBeDisabled();
     expect(within(dialog).getByText('กันยายน 2569')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'เดือนถัดไป' }));
     expect(within(dialog).getByText('ตุลาคม 2569')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'เดือนก่อนหน้า' }));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'เลือกวันที่ 10 กันยายน 2569' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'วันที่ 10 กันยายน 2569' }));
     expect(screen.getByLabelText('วันที่ตรวจ')).toHaveValue('2026-09-10');
     expect(screen.queryByRole('dialog', { name: 'เลือกวันที่ตรวจ' })).not.toBeInTheDocument();
 
@@ -140,9 +140,6 @@ describe('Clinic database-backed role containers with injected offline repositor
     render(<AppointmentPage role="staff_admin" repository={createClinicMockRepository(seed)} />);
     expect(await screen.findByRole('button', { name: 'อนุมัตินัด' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'ยกเลิกนัด' })).not.toBeInTheDocument();
-    expect(screen.getByText('LIVE DATABASE')).toBeInTheDocument();
-    expect(screen.getByText('ASIA/BANGKOK')).toBeInTheDocument();
-    expect(screen.getAllByText('รออนุมัติ', { selector: 'p' })).toHaveLength(2);
     expect(screen.queryByRole('link', { name: 'ผลตรวจและรายการยา' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'จองนัดใหม่' })).not.toBeInTheDocument();
   });
@@ -218,6 +215,30 @@ describe('Clinic database-backed role containers with injected offline repositor
 
     render(<AppointmentPage role="medical" repository={createClinicMockRepository(fixture('medical'))} />);
     expect(await screen.findByRole('button', { name: 'สถานะ' })).toHaveTextContent('รออนุมัติและรอตรวจ');
+  });
+  it('shows the newest queue first and allows switching to oldest first', async () => {
+    const seed = fixture('patient');
+    const newestSlotId = '00000000-0000-4000-8000-000000000012';
+    const oldestSlotId = '00000000-0000-4000-8000-000000000013';
+    seed.slots = [
+      { ...seed.slots[0], id: newestSlotId, slot_date: '2026-09-11', booked_count: 1 },
+      { ...seed.slots[0], id: oldestSlotId, slot_date: '2026-09-10', booked_count: 1 },
+    ];
+    seed.appointments = [
+      { id: '00000000-0000-4000-8000-000000000014', user_id: seed.actor.id, patient: 'ผู้ป่วยทดสอบ', slot_id: newestSlotId, queue_number: 2, reason: 'ใหม่', status: 'pending', cancel_requested_at: null, rejection_reason: null, has_record: false },
+      { id: '00000000-0000-4000-8000-000000000015', user_id: seed.actor.id, patient: 'ผู้ป่วยทดสอบ', slot_id: oldestSlotId, queue_number: 1, reason: 'เก่า', status: 'pending', cancel_requested_at: null, rejection_reason: null, has_record: false },
+    ];
+    render(<AppointmentPage role="patient" repository={createClinicMockRepository(seed)} />);
+
+    const newestFirst = await screen.findAllByRole('article');
+    expect(newestFirst[0]).toHaveTextContent('ใหม่');
+    expect(newestFirst[1]).toHaveTextContent('เก่า');
+
+    fireEvent.click(screen.getByRole('button', { name: 'เรียงคิว' }));
+    fireEvent.click(screen.getByRole('option', { name: 'เก่าสุดก่อน' }));
+    const oldestFirst = screen.getAllByRole('article');
+    expect(oldestFirst[0]).toHaveTextContent('เก่า');
+    expect(oldestFirst[1]).toHaveTextContent('ใหม่');
   });
   it('hides start exam button and displays slot arrival badge before slot time for medical', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });

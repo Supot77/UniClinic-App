@@ -15,6 +15,15 @@
   --text-muted: #49636b;
   --border-soft: #e8efed;
   --emerald: #10b981;
+  --theme-brand-ink: #102f3d;
+  --theme-brand-hover: #174858;
+  --theme-brand-page: #eaf5f2;
+  --theme-brand-soft: #e2f5f1;
+  --theme-brand-surface: #f5faf8;
+  --theme-brand-muted: #7b9093;
+  --theme-brand-body: #49636b;
+  --theme-brand-border-soft: #e8efed;
+  --theme-brand-border-strong: #a9c9c4;
 }
 
 /* Shared brand utilities. Keep status colors (error/warning/success) separate. */
@@ -22,19 +31,19 @@
   --font-sans: var(--font-clinic);
   --color-brand: #1fa39a;
   --color-brand-strong: #087f78;
-  --color-brand-ink: #102f3d;
-  --color-brand-hover: #174858;
-  --color-brand-page: #eaf5f2;
-  --color-brand-soft: #e2f5f1;
-  --color-brand-surface: #f5faf8;
-  --color-brand-muted: #7b9093;
-  --color-brand-body: #49636b;
+  --color-brand-ink: var(--theme-brand-ink);
+  --color-brand-hover: var(--theme-brand-hover);
+  --color-brand-page: var(--theme-brand-page);
+  --color-brand-soft: var(--theme-brand-soft);
+  --color-brand-surface: var(--theme-brand-surface);
+  --color-brand-muted: var(--theme-brand-muted);
+  --color-brand-body: var(--theme-brand-body);
   --color-brand-accent: #83d6c6;
   --color-brand-footer-text: #b6ced0;
   --color-brand-footer-muted: #88a7aa;
   --color-brand-border: #9bcfc5;
-  --color-brand-border-soft: #e8efed;
-  --color-brand-border-strong: #a9c9c4;
+  --color-brand-border-soft: var(--theme-brand-border-soft);
+  --color-brand-border-strong: var(--theme-brand-border-strong);
   --color-status-critical: #b42318;
   --color-status-critical-bg: #fff1f0;
   --color-status-warning: #a16207;
@@ -328,14 +337,37 @@ body,
 }
 
 html[data-theme="dark"] {
-  --settings-page-bg: #0f172a;
-  --settings-page-text: #f8fafc;
-  --settings-card: #111827;
-  --settings-option: #1e293b;
-  --settings-border: #334155;
-  --settings-muted: #94a3b8;
+  color-scheme: light;
+  --background: #e7efed;
+  --foreground: #102f3d;
+  --theme-brand-ink: #102f3d;
+  --theme-brand-hover: #174858;
+  --theme-brand-page: #dce8e5;
+  --theme-brand-soft: #d4e8e3;
+  --theme-brand-surface: #e7efed;
+  --theme-brand-muted: #667c80;
+  --theme-brand-body: #36545d;
+  --theme-brand-border-soft: #cfddda;
+  --theme-brand-border-strong: #9fbeb8;
+  --settings-page-bg: #e7efed;
+  --settings-page-text: #102f3d;
+  --settings-card: #f3f7f6;
+  --settings-option: #edf3f1;
+  --settings-border: #cfddda;
+  --settings-muted: #667c80;
+}
+
+html[data-theme="dark"] .bg-white {
+  background-color: #f3f7f6;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: #f7faf9;
+  color: #102f3d;
 }
 
 html[data-font-size="large"] {
-  font-size: 112.5%;
+  font-size: 106.25%;
 }
