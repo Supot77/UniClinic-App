@@ -11,7 +11,7 @@ export interface ScheduleItem {
 
 
 /**
- * View models for Shop's mock-first UI.
+ * View models for Scheduling's mock-first UI.
  *
  * INTEGRATION: Keep presentation-only fields (code, room, tone, initials)
  * outside the shared database interfaces. When Supabase is connected,

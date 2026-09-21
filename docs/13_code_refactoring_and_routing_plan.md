@@ -83,7 +83,7 @@
 
 ### 2.2 โมดูลแผนก แพทย์ วันลา ตารางและ Slot
 - **เจ้าของงาน**: **ช้อป (สุพจน์)** | **คู่ตรวจ**: **ปาย**
-- **ขอบเขตไฟล์**: `src/app/(clinic)/schedules/`, `src/app/(clinic)/departments/`, `src/components/schedules/`, `src/features/shop/`
+- **ขอบเขตไฟล์**: `src/app/(clinic)/schedules/`, `src/app/(clinic)/departments/`, `src/components/schedules/`, `src/features/scheduling/`
 
 #### รายละเอียดงานและวิธีแก้ไข (สถานะ ณ 20 กันยายน 2569):
 1. **ขจัดโค้ดซ้ำซ้อนใน `src/app/(clinic)/schedules/page.tsx`**:
@@ -111,7 +111,7 @@
 - full test ล่าสุดผ่าน 272/273 tests; failure ที่เหลืออยู่ใน `tests/pharmacy-content-roles.test.tsx:380` เรื่องปุ่ม `ปิดหน้าต่าง` ซ้ำ และอยู่นอก scope นี้
 - ยังไม่มีหลักฐาน database integration/RLS บนฐาน development/staging หรือ browser QA เนื่องจาก environment ไม่มี browser runtime
 - หลังจากนั้น code ล่าสุด `0a3aa2d` เปลี่ยนคำสั่งสำคัญใน schedule/department จาก `window.confirm` เป็น shared `ConfirmationModal` และยังคงกติกาเดิมเรื่อง permission, state เดิมเมื่อ error และไม่เปลี่ยน slot/นัดหมายอัตโนมัติ
-- สถานะโมดูลนี้: **ทำแล้วใน code** สำหรับข้อ 1–5; เหลือ UI polish และหลักฐาน DB/RLS/browser ตาม [shop owner view](owners/shop-supot/README.md)
+- สถานะโมดูลนี้: **ทำแล้วใน code** สำหรับข้อ 1–5; เหลือ UI polish และหลักฐาน DB/RLS/browser ตาม [scheduling owner view](owners/shop-supot/README.md)
 
 ---
 

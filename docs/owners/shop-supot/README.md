@@ -10,7 +10,7 @@
 
 - `src/app/(clinic)/schedules/`, `src/app/(clinic)/departments/`
 - `src/components/schedules/`
-- `src/features/shop/`
+- `src/features/scheduling/`
 - `src/constants/dateTime.ts` และ shared confirmation UI เมื่อถูกใช้โดย flow นี้
 
 ## Dependency และ handoff

@@ -8,7 +8,7 @@ import {
   isSlotExpired,
   validateDepartmentName,
   validateSlot,
-} from '@/features/shop/domain/rules';
+} from '@/features/scheduling/domain/rules';
 
 const validSlot = {
   doctorId: 'profile-stephen-strange',
@@ -24,7 +24,7 @@ const TOMORROW = shiftDate(TEST_TODAY, 1);
 const YESTERDAY = shiftDate(TEST_TODAY, -1);
 const PAST_DATE = shiftDate(TEST_TODAY, -3);
 
-describe('shop schedule domain rules', () => {
+describe('scheduling schedule domain rules', () => {
   it('accepts adjacent slots but rejects overlapping slots', () => {
     const adjacent = validateSlot(
       { ...validSlot, slotDate: TEST_TODAY, startTime: '09:30', endTime: '10:00' },
