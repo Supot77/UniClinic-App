@@ -279,10 +279,10 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
       setAccountAction(null);
       setToast(
         accountAction.kind === "hard-delete"
-          ? "ลบบัญชีถาวรเรียบร้อยแล้ว"
+          ? "ลบบัญชีถาวรแล้ว"
           : accountAction.nextActive
-            ? "กู้คืนบัญชีเรียบร้อยแล้ว"
-            : "ระงับบัญชีเรียบร้อยแล้ว",
+            ? "กู้คืนบัญชีแล้ว"
+            : "ระงับบัญชีแล้ว",
       );
     } catch (actionError) {
       setError(
@@ -312,7 +312,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
             บัญชีผู้ใช้งานทั้งหมด
           </h1>
           <p className="mt-2 text-sm text-brand-muted">
-            จัดการข้อมูลติดต่อ บทบาท และสถานะการใช้งานของบัญชีในระบบ
+            จัดการข้อมูลติดต่อ บทบาท และสถานะบัญชี
           </p>
         </div>
         <button
@@ -363,10 +363,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-500">{role}</p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {roleLabels[role]}
-                </p>
+                <p className="text-sm text-slate-500">{roleLabels[role]}</p>
               </div>
               <UserRound className="size-5 text-slate-400" aria-hidden="true" />
             </div>
@@ -414,12 +411,12 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="ค้นหาชื่อ อีเมล หรือเบอร์โทร"
+              placeholder="ค้นหาชื่อ อีเมล หรือเบอร์โทรศัพท์"
                 className="h-11 w-full rounded-lg border border-brand-border-strong bg-transparent py-2.5 pl-9 pr-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
               />
             </label>
             {!patientOnly && <><label className="sr-only" htmlFor="role-filter">
-              กรองตาม role
+              กรองตามบทบาท
             </label>
             <select
               id="role-filter"
@@ -467,7 +464,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
               onClick={() => void loadProfiles()}
               className="rounded-lg border border-brand-border-strong px-3 py-2 text-sm font-medium text-brand-strong hover:border-brand-strong hover:bg-brand-soft"
             >
-              ลองอีกครั้ง
+              ลองใหม่
             </button>
           </div>
         ) : filteredProfiles.length === 0 ? (
@@ -492,7 +489,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                   <th className="px-5 py-4 text-center">ชื่อ</th>
                   <th className="px-5 py-4 text-center">อีเมล</th>
                   <th className="px-5 py-4 text-center">เบอร์โทรศัพท์</th>
-                  <th className="px-5 py-4 text-center">role</th>
+              <th className="px-5 py-4 text-center">บทบาท</th>
                   <th className="whitespace-nowrap px-5 py-4 text-center">จัดการบัญชี</th>
                 </tr>
               </thead>
@@ -533,12 +530,11 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                         className={`inline-flex items-center gap-1.5 text-xs font-semibold ${profile.isActive ? "text-brand-strong" : "text-brand-muted"}`}
                       >
                         <ShieldCheck className="size-3.5" aria-hidden="true" />
-                        {profile.role}
+                        {roleLabels[profile.role]}
                       </span>
                       <span
                         className="mt-1 block text-xs text-brand-muted"
                       >
-                        {roleLabels[profile.role]} ·{" "}
                         {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
                       </span>
                     </td>
@@ -576,11 +572,10 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                         className={`inline-flex items-center gap-1.5 font-semibold ${profile.isActive ? "text-brand-strong" : "text-brand-muted"}`}
                       >
                         <ShieldCheck className="size-3.5" aria-hidden="true" />
-                        {profile.role}
+                        {roleLabels[profile.role]}
                       </span>
                       <span className="text-brand-muted">
-                        · {roleLabels[profile.role]} ·{" "}
-                        {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
+                        · {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
                       </span>
                     </div>
                   </div>
@@ -773,7 +768,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                 />
               </label>
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                Role
+                บทบาท
                 <select
                   value={editForm.role}
                   onChange={(event) =>

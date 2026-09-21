@@ -628,7 +628,7 @@ export default function PrescriptionsTab({
                     <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
                       <thead className="bg-slate-50 text-slate-600">
                         <tr>
-                          <th className="px-3.5 py-2.5 font-semibold">ชื่อยา / เวชภัณฑ์</th>
+                          <th className="px-3.5 py-2.5 font-semibold">รายการยาและเวชภัณฑ์</th>
                           <th className="px-3.5 py-2.5 font-semibold">ขนาดยาและวิธีใช้</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">จำนวนที่สั่ง</th>
                           <th className="px-3.5 py-2.5 font-semibold text-center">สต็อกในคลัง</th>

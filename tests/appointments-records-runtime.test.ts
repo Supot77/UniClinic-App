@@ -153,7 +153,7 @@ describe('Clinic database adapter boundary', () => {
   });
   it('does not fall back to mock when the migration is missing', async () => {
     const c = client(); c.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } });
-    await expect(createClinicDatabaseRepository(c.fake, 'patient').load()).rejects.toThrow('ติดตั้ง');
+    await expect(createClinicDatabaseRepository(c.fake, 'patient').load()).rejects.toThrow('ระบบยังไม่พร้อมบันทึกผลตรวจ');
   });
   it('sends physical-exam measurements to the database RPC', async () => {
     const c = client('medical');

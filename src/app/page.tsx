@@ -60,10 +60,10 @@ export default function Home() {
               <div className="pt-4 sm:pt-0 sm:pr-6">
                 <dt className="flex items-center gap-2 text-sm text-brand-body"><Clock3 size={18} aria-hidden="true" />เวลาทำการ</dt>
                 <dd className="mt-2 text-lg font-semibold text-brand-ink">จันทร์–ศุกร์ · 08:30–16:30 น.</dd>
-                <dd className="mt-1 text-sm text-brand-muted">หยุดตามวันหยุดราชการ · เวลาใช้สำหรับการสาธิต</dd>
+                <dd className="mt-1 text-sm text-brand-muted">หยุดตามวันหยุดราชการ · ข้อมูลเวลาใช้สำหรับการสาธิต</dd>
               </div>
               <div className="pt-4 sm:pt-0 sm:px-6">
-                <dt className="flex items-center gap-2 text-sm text-brand-body"><Users size={18} aria-hidden="true" />ผู้มีสิทธิ์ใช้บริการ</dt>
+                <dt className="flex items-center gap-2 text-sm text-brand-body"><Users size={18} aria-hidden="true" />ผู้ใช้บริการ</dt>
                 <dd className="mt-2 font-semibold text-brand-ink">นักศึกษาและบุคลากร<br />มหาวิทยาลัยวลัยลักษณ์</dd>
               </div>
               <div className="pt-4 sm:pt-0 sm:pl-6">
@@ -86,7 +86,7 @@ export default function Home() {
       <section aria-labelledby="services-heading" className="mx-auto max-w-7xl px-5 py-14 sm:px-8 lg:py-20">
         <p className="text-xs font-semibold tracking-[0.15em] text-brand-strong">บริการของคลินิก</p>
         <h2 id="services-heading" className="mt-3 text-3xl font-semibold">เลือกบริการที่ต้องการ</h2>
-        <p className="mt-3 text-brand-body">ดูบริการ แล้วเลือกบริการและรอบว่างในหน้าจองนัดหมาย</p>
+        <p className="mt-3 text-brand-body">เลือกบริการและรอบว่างเพื่อจองนัดหมาย</p>
         <LandingServices />
       </section>
 

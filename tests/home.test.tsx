@@ -51,7 +51,7 @@ describe("Landing", () => {
     render(<LandingServices />);
     await screen.findByText(/โหลดบริการไม่สำเร็จ/);
     fetchServices.mockResolvedValueOnce([{ id: "a", name: "บริการจริง", isActive: true }]);
-    fireEvent.click(screen.getByRole("button", { name: "ลองอีกครั้ง" }));
+    fireEvent.click(screen.getByRole("button", { name: "ลองใหม่" }));
     await screen.findByText("บริการจริง");
   });
 });

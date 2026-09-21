@@ -1427,7 +1427,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/80">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-600">Service catalog</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-600">รายการบริการ</p>
                <h2 id="service-form-title" className="mt-1 text-xl font-bold text-slate-950">{editingServiceId ? 'แก้ไขบริการ' : 'เพิ่มบริการ'}</h2>
                <p className="mt-1 text-xs text-slate-500">บริการนี้จะใช้เปิดรับจองในวันที่และรอบตรวจที่กำหนด</p>
               </div>

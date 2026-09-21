@@ -23,7 +23,7 @@ describe('password recovery', () => {
     fireEvent.change(screen.getByLabelText('อีเมล'), {
       target: { value: 'Patient@WU.AC.TH' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'ส่งลิงก์รีเซ็ตรหัสผ่าน' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งลิงก์ตั้งรหัสผ่านใหม่' }));
 
     await waitFor(() => {
       expect(authService.requestPasswordReset).toHaveBeenCalledWith(

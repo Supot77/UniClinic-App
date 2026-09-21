@@ -270,7 +270,7 @@ export default function PatientSearchContent() {
               onClick={() => void fetchProfiles(activeQuery, 0, false)}
               className="shrink-0 font-semibold underline underline-offset-4 hover:text-red-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
             >
-              ลองอีกครั้ง
+              ลองใหม่
             </button>
           )}
         </div>

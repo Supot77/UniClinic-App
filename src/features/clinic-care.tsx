@@ -122,11 +122,11 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
     const result = await client.rpc(name, args);
     if (result.error) {
       if (result.error.code === 'P0001') throw new Error(result.error.message);
-      if (result.error.code === 'PGRST202' || result.error.code === '42883') throw new Error('ยังไม่ได้ติดตั้ง RPC สำหรับบันทึกผลตรวจ กรุณารัน migration 28_medical_record_vitals.sql ใน Supabase แล้วโหลดหน้าใหม่');
-      if (result.error.code === 'PGRST203') throw new Error('Supabase พบ RPC บันทึกผลตรวจซ้ำหรือไม่ชัดเจน กรุณารัน migration 28_medical_record_vitals.sql และ reload schema');
+      if (result.error.code === 'PGRST202' || result.error.code === '42883') throw new Error('ระบบยังไม่พร้อมบันทึกผลตรวจ กรุณาติดต่อผู้ดูแลระบบ');
+      if (result.error.code === 'PGRST203') throw new Error('ระบบบันทึกผลตรวจมีปัญหา กรุณาลองใหม่หรือติดต่อผู้ดูแลระบบ');
       if (result.error.code === '42501') throw new Error('บัญชีนี้ไม่มีสิทธิ์บันทึกผลตรวจ หรือไม่ได้เป็นแพทย์เจ้าของนัด');
       if (result.error.code === '23505') throw new Error('นัดนี้มีผลตรวจบันทึกแล้ว ไม่สามารถบันทึกซ้ำได้');
-      throw new Error('ไม่สามารถทำรายการได้ กรุณาโหลดข้อมูลใหม่ก่อนลองอีกครั้ง');
+      throw new Error('ทำรายการไม่สำเร็จ กรุณาลองใหม่');
     }
     return result.data;
   }
@@ -299,7 +299,7 @@ export function useClinicWorkspace(role: ClinicRole, injected?: ClinicRepository
       await reload();
       return true;
     } catch (errorValue) {
-      setError(errorValue instanceof Error ? errorValue.message : 'ทำรายการไม่สำเร็จ กรุณาโหลดใหม่ก่อนลองอีกครั้ง');
+      setError(errorValue instanceof Error ? errorValue.message : 'ทำรายการไม่สำเร็จ กรุณาลองใหม่');
       return false;
     } finally { lock.current = false; setBusy(false); }
   }

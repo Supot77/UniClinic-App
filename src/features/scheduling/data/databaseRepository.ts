@@ -73,7 +73,7 @@ export class DatabaseSchedulingRepository {
       .order('name', { ascending: true });
 
     if (error || !data) {
-      if (throwOnError) throw error ?? new Error('Service catalog unavailable');
+      if (throwOnError) throw error ?? new Error('ไม่พบรายการบริการ');
       console.error('Error fetching services:', error);
       return [];
     }

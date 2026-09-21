@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import LoginPage from '@/app/(auth)/login/page';
 import * as authService from '@/services/authService';
@@ -31,7 +31,7 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
     expect(screen.getByLabelText('อีเมล')).toHaveAttribute('placeholder', 'name@example.com');
-    expect(screen.getByText('ผู้ป่วยใช้อีเมล @mail.wu.ac.th ส่วนบุคลากรใช้อีเมลบัญชีที่ได้รับ')).toBeInTheDocument();
+    expect(screen.getByText('ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail.wu.ac.th ส่วนบุคลากรใช้อีเมลตามบัญชีที่ผู้ดูแลระบบกำหนด')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ลืมรหัสผ่าน?' })).toHaveAttribute('href', '/forgot-password');
     expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
@@ -65,14 +65,14 @@ describe('LoginPage', () => {
     // Expect redirect overlay and button text
     await waitFor(() => {
       expect(screen.getByText('เข้าสู่ระบบสำเร็จ')).toBeInTheDocument();
-      expect(screen.getByText('กำลังนำทางไปยังหน้าโปรไฟล์ กรุณารอสักครู่...')).toBeInTheDocument();
+      expect(within(screen.getByRole('status')).getByText('กำลังเปิดหน้าถัดไป…')).toBeInTheDocument();
       expect(routerState.push).toHaveBeenCalledWith('/profile');
       expect(routerState.refresh).toHaveBeenCalled();
     });
   });
 
   it('handles sign in error and resets button', async () => {
-    vi.mocked(authService.signIn).mockRejectedValue(new Error('รหัสผ่านไม่ถูกต้อง'));
+    vi.mocked(authService.signIn).mockRejectedValue(new Error('Invalid login credentials'));
 
     render(<LoginPage />);
 
@@ -87,7 +87,7 @@ describe('LoginPage', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('รหัสผ่านไม่ถูกต้อง')).toBeInTheDocument();
+      expect(screen.getByText('อีเมลหรือรหัสผ่านไม่ถูกต้อง')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'เข้าสู่ระบบ' })).not.toBeDisabled();
     });
   });

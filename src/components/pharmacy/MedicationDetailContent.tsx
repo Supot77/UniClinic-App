@@ -648,7 +648,7 @@ export default function MedicationDetailContent({
               <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                 <span className="text-[11px] font-medium text-slate-400">รหัสเวชภัณฑ์</span>
                 <p className="text-xs font-mono font-semibold text-slate-700 mt-1 truncate" title={medication.id}>
-                  {medication.id.slice(0, 10)}...
+                  {medication.id.slice(0, 10)}…
                 </p>
               </div>
             </div>

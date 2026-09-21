@@ -216,7 +216,7 @@ export default function SettingsContent() {
                   onClick={() => changeTheme("system")}
                   icon={<Laptop className="size-7 sm:size-8" />}
                   title="ตามอุปกรณ์"
-                  description="ปรับอัตโนมัติตามการตั้งค่าของอุปกรณ์"
+                  description="ใช้การตั้งค่าของอุปกรณ์"
                 />
               </div>
             </section>
