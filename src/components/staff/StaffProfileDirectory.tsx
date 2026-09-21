@@ -17,7 +17,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { roleLabels } from "@/features/dashboard/types";
 import {
   deleteStaffProfile,
@@ -41,6 +42,12 @@ function displayValue(value: string | null): string {
 
 function summaryCardClass(isSelected: boolean): string {
   return `rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${isSelected ? "border-brand-strong bg-brand-soft text-brand-strong shadow-sm" : "border-transparent text-brand-ink hover:border-brand-border-soft hover:bg-brand-page"}`;
+}
+
+function BodyPortal({ children }: { children: ReactNode }) {
+  return typeof document === "undefined"
+    ? null
+    : createPortal(children, document.body);
 }
 
 interface ProfileActionsProps {
@@ -616,17 +623,18 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
       </section>
 
       {accountAction && (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="account-action-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !actionSaving)
-              setAccountAction(null);
-          }}
-        >
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <BodyPortal>
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="account-action-title"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !actionSaving)
+                setAccountAction(null);
+            }}
+          >
+            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div
               className={`mx-auto flex size-14 items-center justify-center rounded-full ${isHardDeleteAction ? "bg-rose-100 text-rose-600" : isRestoringAction ? "bg-emerald-100 text-emerald-600" : "bg-status-warning-bg text-status-warning"}`}
             >
@@ -697,20 +705,22 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                       : "ยืนยันการระงับ"}
               </button>
             </div>
+            </div>
           </div>
-        </div>
+        </BodyPortal>
       )}
 
       {editingProfile && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-profile-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeEdit();
-          }}
-        >
+        <BodyPortal>
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-profile-title"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeEdit();
+            }}
+          >
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -815,7 +825,8 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </BodyPortal>
       )}
 
       <Toast message={toast} onDismiss={() => setToast(null)} />

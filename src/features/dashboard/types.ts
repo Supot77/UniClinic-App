@@ -2,10 +2,23 @@ import type {
   AppointmentStatus,
   Notification,
   NotificationType,
+  ProfileGender,
   UserRole,
 } from '@/types/database';
 
 export type DashboardRange = 'today' | '7d' | '30d';
+
+export type DepartmentDensityStatus = 'normal' | 'near_full' | 'full';
+export type ClinicDoctorStatus = 'in_progress' | 'available' | 'away' | 'completed';
+export type DashboardPatientGender = ProfileGender;
+export type DashboardPatientDoseStatus = 'taken' | 'pending';
+
+export interface DashboardGenderCount {
+  gender: DashboardPatientGender;
+  label: string;
+  count: number;
+  percentage: number;
+}
 
 export interface DashboardMetric {
   id: string;
@@ -25,6 +38,8 @@ export interface DashboardView {
   title: string;
   description: string;
   metrics: DashboardMetric[];
+  patientGenderCounts?: DashboardGenderCount[];
+  doctorGenderCounts?: DashboardGenderCount[];
   appointmentStatuses: Array<{
     status: AppointmentStatus;
     label: string;
@@ -36,20 +51,37 @@ export interface DashboardView {
     date: string;
     startTime: string;
     status: AppointmentStatus;
+    cancelRequestedAt?: string | null;
     patientName: string;
     doctorName: string;
     departmentName: string;
+    serviceName?: string;
   }>;
   nextAppointment?: DashboardView['appointmentQueue'][number] | null;
+  patientProfile?: {
+    phone: string | null;
+    patientType: string | null;
+    patientId: string | null;
+    allergyStatus: string | null;
+    allergyDetail: string | null;
+    chronicDiseaseStatus: string | null;
+    chronicDiseaseDetail: string | null;
+  } | null;
   patientMedications?: Array<{
     id: string;
     name: string;
+    dosage: string;
     instruction: string;
     reminderTimes: string[];
     nextDoseTime: string | null;
     endDate: string | null;
     takenDoses?: number;
     totalDoses?: number;
+    todayDoses?: Array<{
+      scheduledAt: string;
+      time: string;
+      status: DashboardPatientDoseStatus;
+    }>;
   }>;
   patientTreatmentHistory?: Array<{
     id: string;
@@ -57,6 +89,8 @@ export interface DashboardView {
     doctorName: string;
     departmentName: string;
     summary: string;
+    advice?: string;
+    medicationNames?: string[];
     medicationCount: number;
   }>;
   departmentLoads: Array<{
@@ -64,7 +98,23 @@ export interface DashboardView {
     departmentName: string;
     appointmentCount: number;
     capacity: number;
+    patientCount?: number;
+    doctorCount?: number;
+    activeDoctorCount?: number;
+    densityPercent?: number;
+    densityStatus?: DepartmentDensityStatus;
   }>;
+  doctorStatuses?: Array<{
+    doctorId: string;
+    doctorName: string;
+    departmentId: string;
+    departmentName: string;
+    status: ClinicDoctorStatus;
+    currentPatientName?: string | null;
+    currentQueueNumber?: number | null;
+    nextAppointmentTime?: string | null;
+  }>;
+  servedAppointmentCount?: number;
   medicationAlerts: Array<{
     id: string;
     name: string;
