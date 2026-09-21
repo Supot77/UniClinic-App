@@ -165,7 +165,7 @@ export interface BroadcastHistoryItem {
 export const roleLabels: Record<UserRole, string> = {
   patient: 'ผู้ป่วย',
   staff_admin: 'เจ้าหน้าที่',
-  medical: 'บุคลากรทางการแพทย์',
+  medical: 'แพทย์',
 };
 
 export const dashboardRangeLabels: Record<DashboardRange, string> = {
