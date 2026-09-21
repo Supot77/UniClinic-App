@@ -2,6 +2,50 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## ย้าย runtime data access ไปยัง Route Handlers ตามแผนไฟล์ 15 — 22 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- เพิ่ม Route Handlers ใน `src/app/api/` สำหรับ auth, departments, doctors/leaves, schedules/slots, appointments, medical-records, medications, reminders และ dashboard stats รวม supporting routes ของ services, offerings, inventory และ medication logs
+- เพิ่ม `src/app/api/_lib/auth.ts`, `src/app/api/_lib/http.ts`, `src/features/scheduling/data/apiRepository.ts` และ `tests/api-route-handlers.test.ts`
+- ปรับ `SchedulingProvider.tsx`, `clinic-care.tsx`, `authService.ts`, `landingService.ts`, `scheduleService.ts`, `medicationService.ts` และ `reminderService.ts` ให้ runtime เรียกผ่าน `apiClient`
+
+### พฤติกรรมและ guard ที่เพิ่ม
+
+- Route ทุกตัวตรวจ session/profile/role ผ่าน Supabase Server Client; writes ตรวจ UUID, payload, role ownership และแปลง PostgREST errors เป็น HTTP responses
+- รักษา service/RPC boundary เดิมสำหรับการจอง, transition, บันทึกเวชระเบียน และ batch slot creation
+- เพิ่ม validation ฝั่ง server สำหรับ slot วันย้อนหลัง/วันทำการ/เวลาคลินิก/พักกลางวัน/วันลา/conflict/capacity และ leave overlap
+- เพิ่ม `/api/doctors/accounts` เพื่อไม่ให้ scheduling ใช้รายชื่อบัญชีแพทย์จากข้อมูล `doctors` ที่ไม่ครบ และไม่เปิดเผยตัวเลือกนี้แก่ patient
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint สำหรับ `src/app/api`, adapters/services ที่เปลี่ยน และ route tests — ผ่าน 0 errors/0 warnings
+- targeted route tests `npx.cmd vitest run tests/api-route-handlers.test.ts` — ผ่าน 5/5
+- `npm.cmd run build` — ผ่าน (Next route compilation และ static pages ผ่าน)
+- `npm.cmd test` — 362/363 ผ่าน; failure เดิมใน `tests/dashboard-service.test.ts` คาดหวัง metric `[1,0,1]` แต่ได้ `[1,1,1]`; `src/services/dashboardService.ts` ไม่ได้แก้ในงานนี้
+- `npm.cmd run lint` — ไม่ผ่านจาก warning เดิม 5 รายการใน `src/components/profile/ProfileContent.tsx` (ไม่มี error ใน route migration scope)
+- browser/database integration/SCN-01 ถึง SCN-07 — ยังไม่ตรวจยืนยัน; ห้ามสรุปว่า full acceptance ผ่าน
+
+## ฟอร์มบันทึกผลตรวจแบบทีละขั้นตอน — 22 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- ปรับ `src/features/appointments.tsx` ให้แพทย์กด `เริ่มตรวจ` แล้วเปิดฟอร์มตรวจในหน้าเดิมทันที และเปิดฟอร์มเดิมต่อได้จากนัดที่อยู่สถานะ `in_progress` แต่ยังไม่มีผลตรวจ
+- ปรับ `src/features/medical-records.tsx` ให้กรอกตามลำดับ `การตรวจร่างกายเบื้องต้น` → `สรุปผลตรวจ` → `รายการยา` → `ตรวจทานและยืนยัน` พร้อม validation รายสเต็ป
+- ปรับ `tests/appointments-records-runtime-ui.test.tsx` ให้ครอบคลุมการเริ่มตรวจและการกรอก stepper; ยังคงบันทึกผ่าน `saveRecord` เดิมครั้งเดียว และไม่เพิ่ม schema, draft หรือ RPC ใหม่
+
+### Verification
+
+- `npx.cmd --no-install next typegen` — ผ่าน
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `npm.cmd run lint` — ผ่าน 0 errors, 5 warnings เดิมใน `src/components/profile/ProfileContent.tsx`
+- focused tests `npx.cmd --no-install vitest run tests/appointments-records-runtime.test.ts tests/appointments-records-runtime-ui.test.tsx tests/api-route-handlers.test.ts` — ผ่าน 3 files / 56 tests
+- full `npm.cmd run test` — ผ่าน 41/42 files และ 363/364 tests; failure เดิมที่ `tests/dashboard-service.test.ts:235` คาดหวัง metric `[1,0,1]` แต่ได้ `[1,1,1]`; ไม่เกี่ยวกับไฟล์ stepper ที่แก้
+- `npm.cmd run build` — ผ่าน และ compile route handlers กับหน้า appointments/records สำเร็จ
+- Browser QA ที่ 360px/1280px, keyboard และ database integration/RLS — ยังไม่ได้ตรวจยืนยัน
+
+
 ## Refactor ชื่อโมดูล Shop เป็น Scheduling — 21 กันยายน 2569
 
 - **ขอบเขต:** เปลี่ยนชื่อ technical identifiers จาก `shop` ซึ่งเป็นชื่อ owner เดิม ให้สื่อความหมายตาม domain เดียวกับโมดูลอื่น

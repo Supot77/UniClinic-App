@@ -1,66 +1,35 @@
 // 👤 รับผิดชอบโดย: กัญจน์
 // ระบบจัดการคลังยาและประวัติเวชภัณฑ์
 
-import { supabase } from '@/lib/supabase';
+import { apiClient } from '@/lib/api-client';
 import type { Medication, InventoryLog, InventoryAction } from '@/types/database';
 
 // --- Medications (Stock) ---
 export async function getMedications(activeOnly = true): Promise<Medication[]> {
-  let query = supabase.from('medications').select('*').order('name');
-  if (activeOnly) query = query.eq('is_active', true);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  return apiClient<Medication[]>(`/api/medications?activeOnly=${activeOnly}`);
 }
 
 export async function getMedicationById(id: string): Promise<Medication | null> {
-  const { data, error } = await supabase.from('medications').select('*').eq('id', id).single();
-  if (error) throw error;
-  return data;
+  return apiClient<Medication>(`/api/medications/${id}`);
 }
 
 export async function createMedication(med: Omit<Medication, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabase.from('medications').insert(med).select().single();
-  if (error) throw error;
-  return data;
+  return apiClient<Medication>('/api/medications', { method: 'POST', body: JSON.stringify(med) });
 }
 
 export async function updateMedication(id: string, updates: Partial<Medication>) {
-  const { data, error } = await supabase
-    .from('medications')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return apiClient<Medication>(`/api/medications/${id}`, { method: 'PATCH', body: JSON.stringify(updates) });
 }
 
 export async function getLowStockMedications(threshold?: number): Promise<Medication[]> {
-  // Get medications where stock <= min_stock
-  const { data, error } = await supabase
-    .from('medications')
-    .select('*')
-    .eq('is_active', true)
-    .filter('stock', 'lte', threshold ?? 'min_stock');
-  if (error) throw error;
-  return data ?? [];
+  const medications = await getMedications(true);
+  return medications.filter((medication) => medication.stock <= (threshold ?? medication.min_stock));
 }
 
 // --- Inventory Logs ---
 export async function getInventoryLogs(medicationId?: string): Promise<InventoryLog[]> {
-  let query = supabase
-    .from('inventory_logs')
-    .select('*, medication:medications(name), pharmacist:profiles(full_name)')
-    .order('created_at', { ascending: false });
-
-  if (medicationId) {
-    query = query.eq('medication_id', medicationId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  const params = medicationId ? `?medicationId=${encodeURIComponent(medicationId)}` : '';
+  return apiClient<InventoryLog[]>(`/api/medications/inventory${params}`);
 }
 
 export async function createInventoryLog(
@@ -70,19 +39,7 @@ export async function createInventoryLog(
   quantity: number,
   reason?: string
 ) {
-  const { data, error } = await supabase
-    .from('inventory_logs')
-    .insert({
-      medication_id: medicationId,
-      pharmacist_id: pharmacistId,
-      action,
-      quantity,
-      reason: reason || null,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return apiClient<InventoryLog>('/api/medications/inventory', { method: 'POST', body: JSON.stringify({ medicationId, pharmacistId, action, quantity, reason }) });
 }
 
 // --- Dispense (จ่ายยา + ตัดสต๊อก) ---

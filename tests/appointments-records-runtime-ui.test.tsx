@@ -30,11 +30,13 @@ describe('Clinic database-backed role containers with injected offline repositor
     render(<MedicalRecordsPage repository={repo} />);
     const workspace = (await screen.findByRole('heading', { name: 'ผลตรวจและรายการยา' })).closest('section');
     expect(workspace).toHaveClass('w-screen', 'left-1/2', '-translate-x-1/2');
-    fireEvent.change(await screen.findByLabelText('ผลวินิจฉัย'), { target: { value: 'ผลทดสอบ' } });
     fireEvent.change(screen.getByLabelText('ส่วนสูง (ซม.)'), { target: { value: '170' } });
     fireEvent.change(screen.getByLabelText('น้ำหนัก (กก.)'), { target: { value: '65.5' } });
     fireEvent.change(screen.getByLabelText('ความดันโลหิต (mmHg)'), { target: { value: '120/80' } });
     fireEvent.change(screen.getByLabelText('ชีพจร (ครั้ง/นาที)'), { target: { value: '72' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    fireEvent.change(screen.getByLabelText('ผลวินิจฉัย'), { target: { value: 'ผลทดสอบ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     const addMedicationButton = screen.getByRole('button', { name: 'เพิ่มรายการยา' });
     expect(addMedicationButton).toHaveClass('bg-brand-surface', 'text-brand-ink', 'hover:bg-brand-soft');
     fireEvent.click(addMedicationButton);
@@ -47,6 +49,7 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.change(screen.getByLabelText('ช่วงเวลาและความถี่ในการใช้ยา รายการที่ 1'), { target: { value: 'เช้า เที่ยง เย็น' } });
     fireEvent.change(screen.getByLabelText('ระยะเวลา (วัน)'), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText('จำนวนที่สั่ง'), { target: { value: '18' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
     expect(await screen.findByText('หลังอาหาร · เช้า เที่ยง เย็น')).toBeInTheDocument();
     expect(screen.getByText('2 เม็ด')).toBeInTheDocument();
@@ -60,7 +63,9 @@ describe('Clinic database-backed role containers with injected offline repositor
   });
   it('removes a medication with a compact red X control without affecting the record form', async () => {
     render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
-    await screen.findByRole('textbox', { name: 'ผลวินิจฉัย' });
+    fireEvent.click(await screen.findByRole('button', { name: 'ถัดไป' }));
+    fireEvent.change(screen.getByLabelText('ผลวินิจฉัย'), { target: { value: 'ผลทดสอบ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรายการยา' }));
     expect(screen.getByRole('button', { name: 'ลบยารายการที่ 1' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'ลบยารายการที่ 1' }));
@@ -201,8 +206,11 @@ describe('Clinic database-backed role containers with injected offline repositor
   });
   it('medical saves a result and the completed record appears after reload', async () => {
     render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
-    const diagnosis = await screen.findByRole('textbox', { name: 'ผลวินิจฉัย' });
+    fireEvent.click(await screen.findByRole('button', { name: 'ถัดไป' }));
+    const diagnosis = screen.getByRole('textbox', { name: 'ผลวินิจฉัย' });
     fireEvent.change(diagnosis, { target: { value: 'ผลทดสอบ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
     expect(await screen.findByText('บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดดูได้')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/ผลวินิจฉัย:/).parentElement).toHaveTextContent('ผลทดสอบ'));
@@ -211,8 +219,11 @@ describe('Clinic database-backed role containers with injected offline repositor
   it('failed record save retains the entered diagnosis for correction', async () => {
     const repo: ClinicRepository = { ...createClinicMockRepository(withAppointment()), saveRecord: vi.fn().mockRejectedValue(new Error('ไม่พบยา')) };
     render(<MedicalRecordsPage repository={repo} />);
-    const diagnosis = await screen.findByRole('textbox', { name: 'ผลวินิจฉัย' });
+    fireEvent.click(await screen.findByRole('button', { name: 'ถัดไป' }));
+    const diagnosis = screen.getByRole('textbox', { name: 'ผลวินิจฉัย' });
     fireEvent.change(diagnosis, { target: { value: 'ผลทดสอบ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('ไม่พบยา');
     expect(diagnosis).toHaveValue('ผลทดสอบ');
@@ -267,6 +278,21 @@ describe('Clinic database-backed role containers with injected offline repositor
     render(<AppointmentPage role="medical" repository={createClinicMockRepository(seed)} />);
     expect(await screen.findByRole('button', { name: 'เริ่มตรวจ' })).toBeInTheDocument();
     expect(screen.queryByText('ยังไม่ถึงเวลารอบตรวจ')).not.toBeInTheDocument();
+  });
+  it('opens the physical-exam stepper after medical starts an appointment', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-09T09:00:00+07:00'));
+    const seed = withAppointment('medical');
+    seed.appointments[0].status = 'confirmed';
+    const repo = createClinicMockRepository(seed, new Date('2026-09-09T09:00:00+07:00'));
+    render(<AppointmentPage role="medical" repository={repo} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'เริ่มตรวจ' }));
+
+    expect(await screen.findByRole('heading', { name: 'การตรวจร่างกายเบื้องต้น' })).toBeInTheDocument();
+    expect(screen.getByLabelText('ส่วนสูง (ซม.)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ถัดไป' })).toBeInTheDocument();
+    expect((await repo.load()).appointments[0]).toMatchObject({ status: 'in_progress', has_record: false });
   });
   it('throws error when doctor attempts to start exam before slot arrival in mock repository', async () => {
     const seed = withAppointment('medical');

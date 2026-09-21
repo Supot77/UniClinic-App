@@ -2,11 +2,11 @@
 // ระบบยืนยันตัวตนและโปรไฟล์
 
 import { createClient } from '@/utils/supabase/client';
+import { apiClient } from '@/lib/api-client';
 import type {
   Profile,
   ProfileGender,
   ProfileTitle,
-  UserRole,
 } from '@/types/database';
 
 const supabase = createClient();
@@ -113,9 +113,6 @@ export async function signUp(
 
   const normalizedChronicDiseases =
     details.chronicDiseases?.trim() || null;
-
-  const fullName =
-    `${normalizedFirstName} ${normalizedLastName}`;
 
   const validTitles: ProfileTitle[] = [
     'นาย',
@@ -295,74 +292,29 @@ export async function signUp(
     );
   }
 
-  const { data, error } =
-    await supabase.auth.signUp({
+  return apiClient<{ id: string; emailConfirmationRequired: boolean }>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
       email: normalizedEmail,
       password,
-    });
-
-  if (error) {
-    throw error;
-  }
-
-  if (data.user) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: data.user.id,
-        full_name: fullName,
-
-        title: details.title,
-        first_name: normalizedFirstName,
-        last_name: normalizedLastName,
-        date_of_birth: details.dateOfBirth,
-        gender: details.gender,
-
-        patient_type: details.patientType,
-        student_id:
-          details.patientType === 'student' ? normalizedStudentId : null,
-        employee_id:
-          details.patientType === 'employee' ? normalizedEmployeeId : null,
+      details: {
+        ...details,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
+        studentId: normalizedStudentId,
+        employeeId: normalizedEmployeeId,
         phone: normalizedPhone,
-
-        allergy_status: allergyStatus,
-        allergies:
-          allergyStatus === 'yes'
-            ? normalizedAllergies
-            : null,
-
-        chronic_disease_status:
-          chronicDiseaseStatus,
-        chronic_diseases:
-          chronicDiseaseStatus === 'yes'
-            ? normalizedChronicDiseases
-            : null,
-
-        emergency_contact_title:
-          details.emergencyContactTitle,
-
-        emergency_contact_first_name:
-          normalizedEmergencyFirstName,
-
-        emergency_contact_last_name:
-          normalizedEmergencyLastName,
-
-        emergency_contact_relationship:
-          normalizedEmergencyRelationship,
-
-        emergency_phone:
-          normalizedEmergencyPhone,
-
-        role: 'patient' as UserRole,
-      });
-
-    if (profileError) {
-      throw profileError;
-    }
-
-  }
-
-  return data;
+        emergencyContactFirstName: normalizedEmergencyFirstName,
+        emergencyContactLastName: normalizedEmergencyLastName,
+        emergencyContactRelationship: normalizedEmergencyRelationship,
+        emergencyPhone: normalizedEmergencyPhone,
+        allergies: normalizedAllergies,
+        chronicDiseases: normalizedChronicDiseases,
+        allergyStatus,
+        chronicDiseaseStatus,
+      },
+    }),
+  });
 }
 
 

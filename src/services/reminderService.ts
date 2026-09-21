@@ -1,56 +1,26 @@
-import { createClient } from '@/utils/supabase/client';
+import { apiClient } from '@/lib/api-client';
 import type { Medication, MedicationReminder, MedicationLog, MedicationReminderWithMedication } from '@/types/database';
-
-const supabase = createClient();
 
 // --- Medication Reminders ---
 export async function getReminders(userId: string): Promise<MedicationReminderWithMedication[]> {
-  const { data, error } = await supabase
-    .from('medication_reminders')
-    .select('*, medication:medications(*)')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  void userId;
+  return apiClient<MedicationReminderWithMedication[]>('/api/reminders');
 }
 
 export async function getAvailableMedications(): Promise<Medication[]> {
-  const { data, error } = await supabase
-    .from('medications')
-    .select('*')
-    .eq('is_active', true)
-    .order('name');
-  if (error) throw error;
-  return data ?? [];
+  return apiClient<Medication[]>('/api/medications?activeOnly=true');
 }
 
 export async function createReminder(reminder: Pick<MedicationReminder, 'user_id' | 'medication_id' | 'reminder_times' | 'start_date' | 'end_date'>) {
-  const { data, error } = await supabase
-    .from('medication_reminders')
-    .insert({ ...reminder, status: 'active' })
-    .select('*, medication:medications(*)')
-    .single();
-  if (error) throw error;
-  return data as MedicationReminderWithMedication;
+  return apiClient<MedicationReminderWithMedication>('/api/reminders', { method: 'POST', body: JSON.stringify(reminder) });
 }
 
 export async function updateReminder(id: string, updates: Partial<MedicationReminder>) {
-  const { data, error } = await supabase
-    .from('medication_reminders')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select('*, medication:medications(*)')
-    .single();
-  if (error) throw error;
-  return data as MedicationReminderWithMedication;
+  return apiClient<MedicationReminderWithMedication>(`/api/reminders/${id}`, { method: 'PATCH', body: JSON.stringify(updates) });
 }
 
 export async function deleteReminder(id: string) {
-  const { error } = await supabase
-    .from('medication_reminders')
-    .delete()
-    .eq('id', id);
-  if (error) throw error;
+  await apiClient(`/api/reminders/${id}`, { method: 'DELETE' });
 }
 
 export async function seedSampleReminders(userId: string): Promise<MedicationReminderWithMedication[]> {
@@ -85,12 +55,9 @@ export async function seedSampleReminders(userId: string): Promise<MedicationRem
 
   if (toInsert.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from('medication_reminders')
-    .insert(toInsert)
-    .select('*, medication:medications(*)');
-  if (error) throw error;
-  return (data ?? []) as MedicationReminderWithMedication[];
+  const created: MedicationReminderWithMedication[] = [];
+  for (const item of toInsert) created.push(await createReminder(item));
+  return created;
 }
 
 export async function pauseReminder(id: string) {
@@ -107,51 +74,19 @@ export async function completeReminder(id: string) {
 
 // --- Medication Logs ---
 export async function getMedicationLogs(reminderId: string): Promise<MedicationLog[]> {
-  const { data, error } = await supabase
-    .from('medication_logs')
-    .select('*')
-    .eq('reminder_id', reminderId)
-    .order('scheduled_datetime', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  return apiClient<MedicationLog[]>(`/api/reminders/${reminderId}/logs`);
 }
 
 export async function logMedicationTaken(reminderId: string, scheduledDatetime: string) {
-  const { data, error } = await supabase
-    .from('medication_logs')
-    .upsert({
-      reminder_id: reminderId,
-      scheduled_datetime: scheduledDatetime,
-      actual_datetime: new Date().toISOString(),
-      status: 'taken',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return apiClient<MedicationLog>(`/api/reminders/${reminderId}/logs`, { method: 'POST', body: JSON.stringify({ scheduledDatetime, status: 'taken' }) });
 }
 
 export async function logMedicationMissed(reminderId: string, scheduledDatetime: string) {
-  const { data, error } = await supabase
-    .from('medication_logs')
-    .upsert({
-      reminder_id: reminderId,
-      scheduled_datetime: scheduledDatetime,
-      status: 'missed',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return apiClient<MedicationLog>(`/api/reminders/${reminderId}/logs`, { method: 'POST', body: JSON.stringify({ scheduledDatetime, status: 'missed' }) });
 }
 
 export async function getMedicationLogsByReminderIds(reminderIds: string[]): Promise<MedicationLog[]> {
   if (reminderIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from('medication_logs')
-    .select('*')
-    .in('reminder_id', reminderIds)
-    .order('scheduled_datetime', { ascending: false });
-  if (error) return [];
-  return data ?? [];
+  const rows = await Promise.all(reminderIds.map((id) => getMedicationLogs(id).catch(() => [])));
+  return rows.flat();
 }
