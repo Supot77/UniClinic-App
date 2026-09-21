@@ -625,14 +625,14 @@ export default function PharmacyContent({
         prev.map((order) => {
           if (order.id !== orderId) return order;
           const count = updatedMeds.filter((m) => m.dispensed).length;
-          const isFull = count >= updatedMeds.length;
+          const isFull = count > 0 && count >= updatedMeds.length;
           return {
             ...order,
             prescribed_medications: updatedMeds,
             dispensed_items_count: count,
             is_fully_dispensed: isFull,
-            dispensed_at: new Date().toISOString(),
-            pharmacist_name: userName || 'แพทย์ผู้ตรวจ',
+            dispensed_at: isFull ? (order.dispensed_at || new Date().toISOString()) : null,
+            pharmacist_name: isFull ? (order.pharmacist_name || userName || 'เภสัชกร') : null,
           };
         })
       );

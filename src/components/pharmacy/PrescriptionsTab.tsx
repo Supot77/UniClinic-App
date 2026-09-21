@@ -13,6 +13,7 @@ import {
   Lock,
   Pill,
   RefreshCw,
+  RotateCcw,
   Search,
   Stethoscope,
   User,
@@ -201,6 +202,45 @@ export default function PrescriptionsTab({
       document.body.style.overflow = originalOverflow;
     };
   }, [dispenseTarget, handleCloseDispenseModal]);
+
+  const [revokeTarget, setRevokeTarget] = useState<PrescriptionOrder | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [revokeReason, setRevokeReason] = useState('');
+  const [restockToInventory, setRestockToInventory] = useState(true);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+
+  const handleOpenRevokeModal = (order: PrescriptionOrder) => {
+    setRevokeTarget(order);
+    setRevokeError(null);
+    setRevokeReason('');
+    setRestockToInventory(true);
+  };
+
+  const handleCloseRevokeModal = useCallback(() => {
+    if (isRevoking) return;
+    setRevokeTarget(null);
+    setRevokeError(null);
+    setRevokeReason('');
+    setRestockToInventory(true);
+  }, [isRevoking]);
+
+  useEffect(() => {
+    if (!revokeTarget) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseRevokeModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [revokeTarget, handleCloseRevokeModal]);
 
   // Stats
   const stats = useMemo(() => {
@@ -470,6 +510,170 @@ export default function PrescriptionsTab({
       setDispenseError(msg);
     } finally {
       setIsDispensing(false);
+    }
+  };
+
+  // Handle Revoke Dispensation & Restock
+  const handleConfirmRevokeDispense = async () => {
+    if (!revokeTarget || !canManage) return;
+
+    setIsRevoking(true);
+    setRevokeError(null);
+    try {
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        const { data: authData } = await supabase.auth.getUser();
+        effectiveUserId = authData.user?.id;
+      }
+      if (!effectiveUserId) {
+        throw new Error('ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่');
+      }
+
+      // 1. Restock medications if requested
+      if (restockToInventory) {
+        for (const item of revokeTarget.prescribed_medications) {
+          const med = medications.find(
+            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+          );
+
+          if (med) {
+            const targetMedId = med.id;
+            const currentStock = med.stock;
+            const newStock = currentStock + item.quantity;
+
+            const { error: updateError } = await supabase
+              .from('medications')
+              .update({ stock: newStock, updated_at: new Date().toISOString() })
+              .eq('id', targetMedId);
+
+            if (updateError) {
+              const updateMsg = updateError.message || JSON.stringify(updateError);
+              console.error(`Failed to restock for ${item.name}:`, updateMsg);
+              throw new Error(`ไม่สามารถคืนสต็อกของ ${item.name}: ${updateMsg}`);
+            }
+
+            const reasonText = revokeReason.trim()
+              ? `ยกเลิกการตัดจ่ายยา: ${revokeReason.trim()} (ผู้ป่วย: ${revokeTarget.patient_name} บันทึก #${revokeTarget.id.slice(0, 8)})`
+              : `ยกเลิกการตัดจ่ายและคืนสต็อก: ${revokeTarget.patient_name} (บันทึก #${revokeTarget.id.slice(0, 8)})`;
+
+            const { error: logError } = await supabase.from('inventory_logs').insert({
+              medication_id: targetMedId,
+              pharmacist_id: effectiveUserId,
+              action: 'restock',
+              quantity: item.quantity,
+              reason: reasonText,
+            });
+
+            if (logError) {
+              console.warn(
+                `[PrescriptionsTab] Non-fatal: inventory_logs insert skipped for restock of ${item.name}:`,
+                logError.message
+              );
+            }
+          }
+        }
+      }
+
+      // 2. Reset prescribed_medications status in medical_records
+      const revertedMeds = revokeTarget.prescribed_medications.map((item) => ({
+        ...item,
+        dispensed: false,
+        dispensed_at: null,
+        dispensed_by: null,
+      }));
+
+      let updateError: { message?: string } | null = null;
+      const { error: recordError } = await supabase
+        .from('medical_records')
+        .update({
+          prescribed_medications: revertedMeds,
+        })
+        .eq('id', revokeTarget.id);
+
+      if (recordError) {
+        console.warn(
+          '[PrescriptionsTab] Direct update failed, attempting RPC dispense_medical_record_prescriptions:',
+          recordError
+        );
+        const { error: rpcError } = await supabase.rpc('dispense_medical_record_prescriptions', {
+          p_record_id: revokeTarget.id,
+          p_prescribed_medications: revertedMeds,
+        });
+
+        if (rpcError) {
+          console.error('[PrescriptionsTab] Both direct update and RPC failed for revoke:', rpcError);
+          updateError = recordError;
+        }
+      }
+
+      if (updateError) {
+        throw new Error(
+          `ไม่สามารถปรับปรุงสถานะใบสั่งยาในฐานข้อมูลได้: ${updateError.message || JSON.stringify(updateError)}`
+        );
+      }
+
+      // Optimistic update to parent state
+      onPrescriptionDispensed?.(revokeTarget.id, revertedMeds);
+
+      onShowToast(
+        restockToInventory
+          ? `ยกเลิกการตัดจ่ายและคืนสต็อกยาสำหรับ ${revokeTarget.patient_name} เรียบร้อยแล้ว`
+          : `ยกเลิกสถานะจ่ายยาสำหรับ ${revokeTarget.patient_name} เรียบร้อยแล้ว (ไม่คืนสต็อก)`
+      );
+      setRevokeTarget(null);
+      setRevokeReason('');
+      setRestockToInventory(true);
+
+      await onStockUpdated();
+      if (typeof router?.refresh === 'function') {
+        router.refresh();
+      }
+
+      // Save tab, status, sort before reloading cleanly
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('clinic_pharmacy_active_tab', 'prescriptions');
+          localStorage.setItem('clinic_pharmacy_active_tab', 'prescriptions');
+          sessionStorage.setItem('clinic_prescription_status_filter', statusFilter);
+          sessionStorage.setItem('clinic_prescription_sort_by', sortBy);
+
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', 'prescriptions');
+          if (statusFilter !== 'all') {
+            url.searchParams.set('status', statusFilter);
+          } else {
+            url.searchParams.delete('status');
+          }
+          if (sortBy !== 'newest') {
+            url.searchParams.set('sort', sortBy);
+          } else {
+            url.searchParams.delete('sort');
+          }
+          window.history.replaceState({}, '', url.toString());
+        } catch {
+          // ignore
+        }
+      }
+
+      if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+        setTimeout(() => {
+          try {
+            if (typeof window.location?.reload === 'function') {
+              window.location.reload();
+            } else {
+              window.location.href = window.location.href;
+            }
+          } catch {
+            // ignore
+          }
+        }, 500);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการยกเลิกการตัดจ่ายยา';
+      console.error('Revoke dispense error:', msg);
+      setRevokeError(msg);
+    } finally {
+      setIsRevoking(false);
     }
   };
 
@@ -878,10 +1082,23 @@ export default function PrescriptionsTab({
 
                     <div>
                       {order.is_fully_dispensed ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                          <CheckCircle2 className="h-4 w-4" />
-                          จ่ายยาครบถ้วนแล้ว
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                            <CheckCircle2 className="h-4 w-4" />
+                            จ่ายยาครบถ้วนแล้ว
+                          </span>
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRevokeModal(order)}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 hover:border-amber-400 active:scale-95 shadow-xs"
+                              title="ยกเลิกการตัดจ่ายและคืนสต็อกเข้าคลังยา"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 text-amber-700" />
+                              <span>ยกเลิก/คืนสต็อก</span>
+                            </button>
+                          )}
+                        </div>
                       ) : canManage ? (
                         <button
                           type="button"
@@ -1108,6 +1325,191 @@ export default function PrescriptionsTab({
                     <>
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       <span>ยืนยันการตัดสต็อกจ่ายยา</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ViewportPortal>
+      )}
+
+      {/* Confirmation Modal for Revoking Dispensation */}
+      {revokeTarget && (
+        <ViewportPortal>
+          <div
+            data-testid="revoke-modal-backdrop"
+            onClick={handleCloseRevokeModal}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="revoke-modal-title"
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-amber-50 p-2.5 text-amber-600 shrink-0">
+                    <RotateCcw className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold tracking-wider text-amber-600 uppercase block mb-0.5">
+                      ยกเลิกการตัดจ่ายเวชภัณฑ์
+                    </span>
+                    <h3 id="revoke-modal-title" className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                      ยืนยันยกเลิกการตัดจ่ายยา (คืนสต็อก)
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      ระบบจะปรับสถานะใบสั่งยากลับเป็นรอตัดจ่าย และคืนยอดคงเหลือเข้าคลังยา
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseRevokeModal}
+                  disabled={isRevoking}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                  aria-label="ปิดหน้าต่าง"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                {/* Error Banner */}
+                {revokeError && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                    <div className="flex-1">
+                      <strong className="font-semibold block">เกิดข้อผิดพลาดในการยกเลิก:</strong>
+                      <span>{revokeError}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Patient Details Card */}
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-xs space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">ผู้ป่วย:</span>
+                    <span className="font-bold text-slate-900 text-sm">
+                      {revokeTarget.patient_name}{' '}
+                      {revokeTarget.patient_student_id ? (
+                        <span className="text-xs font-normal text-slate-500">({revokeTarget.patient_student_id})</span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">แพทย์ผู้สั่ง:</span>
+                    <span className="font-semibold text-slate-800">{revokeTarget.doctor_name}</span>
+                  </div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-slate-500 shrink-0">ผลวินิจฉัย:</span>
+                    <span className="text-slate-800 text-right ml-4">{revokeTarget.diagnosis || 'ไม่ระบุ'}</span>
+                  </div>
+                </div>
+
+                {/* Medications Restock Preview Table */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    รายการเวชภัณฑ์ที่จะคืนเข้าคลังยา
+                  </h4>
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-600">
+                        <tr>
+                          <th className="px-3 py-2.5 font-semibold">ยา</th>
+                          <th className="px-3 py-2.5 font-semibold text-center">จำนวนคืน</th>
+                          <th className="px-3 py-2.5 font-semibold text-center">สต็อกปัจจุบัน</th>
+                          <th className="px-3 py-2.5 font-semibold text-center">สต็อกหลังคืน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {revokeTarget.prescribed_medications.map((item, idx) => {
+                          const med = medications.find(
+                            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+                          );
+                          const currentStock = med ? med.stock : 0;
+                          const afterStock = currentStock + item.quantity;
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/60 transition">
+                              <td className="px-3 py-2.5 font-medium text-slate-900">
+                                {item.name}
+                              </td>
+                              <td className="px-3 py-2.5 text-center font-bold text-emerald-600">
+                                +{item.quantity}
+                              </td>
+                              <td className="px-3 py-2.5 text-center text-slate-600">
+                                {med ? currentStock : 'ไม่พบ'}
+                              </td>
+                              <td className="px-3 py-2.5 text-center font-semibold text-slate-800">
+                                {med ? afterStock : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Optional Restock To Inventory Checkbox */}
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200 transition select-none">
+                  <input
+                    type="checkbox"
+                    checked={restockToInventory}
+                    onChange={(e) => setRestockToInventory(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="font-medium">
+                    คืนจำนวนยากลับเข้าสต็อกในคลังทันที (บวกยอดสต็อกกลับ)
+                  </span>
+                </label>
+
+                {/* Revoke Reason Input */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    เหตุผลในการยกเลิกการตัดจ่าย (ถ้ามี)
+                  </label>
+                  <input
+                    type="text"
+                    value={revokeReason}
+                    onChange={(e) => setRevokeReason(e.target.value)}
+                    placeholder="เช่น ตัดจ่ายผิดใบสั่ง, คีย์ข้อมูลผิดพลาด หรือผู้ป่วยขอยกเลิก"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 p-4 sm:p-6 pt-3 sm:pt-4 shrink-0 bg-slate-50/50 rounded-b-2xl">
+                <button
+                  type="button"
+                  onClick={handleCloseRevokeModal}
+                  disabled={isRevoking}
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+                >
+                  ปิด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmRevokeDispense()}
+                  disabled={isRevoking}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition disabled:opacity-50"
+                >
+                  {isRevoking ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>กำลังยกเลิก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>ยืนยันยกเลิกและคืนสต็อก</span>
                     </>
                   )}
                 </button>

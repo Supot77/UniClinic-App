@@ -593,6 +593,58 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(window.location.search).toContain('status=pending');
     expect(window.location.search).toContain('sort=oldest');
   });
+
+  it('shows revoke button for dispensed prescription and handles confirmation modal for medical role', async () => {
+    render(
+      <PharmacyContent
+        currentRole="medical"
+        userName="นพ. สมชาย"
+        initialTab="prescriptions"
+        initialStatus="dispensed"
+      />
+    );
+
+    // Verify dispensed patient is visible
+    expect(await screen.findByText('นางสาว อารียา สุขใจ')).toBeInTheDocument();
+    expect(screen.getByText('จ่ายยาครบถ้วนแล้ว')).toBeInTheDocument();
+
+    // Revoke button should exist for medical role
+    const revokeBtn = screen.getByRole('button', { name: /ยกเลิก\/คืนสต็อก/i });
+    expect(revokeBtn).toBeInTheDocument();
+    fireEvent.click(revokeBtn);
+
+    // Revoke confirmation modal should open
+    expect(screen.getByText('ยืนยันยกเลิกการตัดจ่ายยา (คืนสต็อก)')).toBeInTheDocument();
+    expect(screen.getByText('+10')).toBeInTheDocument();
+
+    // Confirm revoke
+    const confirmRevokeBtn = screen.getByRole('button', { name: /ยืนยันยกเลิกและคืนสต็อก/i });
+    await act(async () => {
+      fireEvent.click(confirmRevokeBtn);
+    });
+
+    // Modal should close
+    expect(screen.queryByText('ยืนยันยกเลิกการตัดจ่ายยา (คืนสต็อก)')).not.toBeInTheDocument();
+  });
+
+  it('does not show revoke button for dispensed prescription for admin role', async () => {
+    render(
+      <PharmacyContent
+        currentRole="admin"
+        userName="แอดมิน สมบัติ"
+        initialTab="prescriptions"
+        initialStatus="dispensed"
+      />
+    );
+
+    // Verify dispensed patient is visible
+    expect(await screen.findByText('นางสาว อารียา สุขใจ')).toBeInTheDocument();
+    expect(screen.getByText('จ่ายยาครบถ้วนแล้ว')).toBeInTheDocument();
+
+    // Revoke button should NOT exist for admin role (read-only)
+    expect(screen.queryByRole('button', { name: /ยกเลิก\/คืนสต็อก/i })).not.toBeInTheDocument();
+  });
 });
+
 
 
