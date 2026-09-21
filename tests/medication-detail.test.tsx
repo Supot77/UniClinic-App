@@ -111,8 +111,8 @@ describe('MedicationDetailContent Dynamic Route Component', () => {
     expect(screen.getByText('พร้อมใช้งาน')).toBeInTheDocument();
 
     // Coverage banner
-    expect(screen.getByText(/ยาในสิทธิ์ \(เบิกได้ตามสิทธิ์\)/)).toBeInTheDocument();
-    expect(screen.getByText('In-formulary')).toBeInTheDocument();
+    expect(screen.getByText(/ยาในสิทธิ์ \(เบิกได้\)/)).toBeInTheDocument();
+    expect(screen.getByText('ยาในสิทธิ์')).toBeInTheDocument();
 
     // Stock card
     expect(screen.getByText('250')).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe('MedicationDetailContent Dynamic Route Component', () => {
     expect(screen.getByText('Paracetamol 500mg per tablet')).toBeInTheDocument();
 
     // Back link
-    const backLinks = screen.getAllByRole('link', { name: /กลับหน้ารายการยา/i });
+    const backLinks = screen.getAllByRole('link', { name: /กลับไปคลังยา/i });
     expect(backLinks.length).toBeGreaterThanOrEqual(1);
     expect(backLinks[0]).toHaveAttribute('href', '/pharmacy');
   });
@@ -144,11 +144,11 @@ describe('MedicationDetailContent Dynamic Route Component', () => {
   it('allows medical role to open edit modal and edit medication', async () => {
     render(<MedicationDetailContent medicationId="med-paracetamol-1" currentRole="medical" />);
 
-    const editBtn = await screen.findByRole('button', { name: 'แก้ไขข้อมูลเวชภัณฑ์' });
+    const editBtn = await screen.findByRole('button', { name: 'แก้ไขข้อมูลยา' });
     fireEvent.click(editBtn);
 
     // Edit modal should open
-    expect(screen.getByRole('heading', { name: 'แก้ไขข้อมูลเวชภัณฑ์' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'แก้ไขข้อมูลยา' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Paracetamol')).toBeInTheDocument();
     expect(screen.getByDisplayValue('500mg')).toBeInTheDocument();
   });
@@ -156,14 +156,14 @@ describe('MedicationDetailContent Dynamic Route Component', () => {
   it('shows read-only locked status for staff_admin and admin roles', async () => {
     render(<MedicationDetailContent medicationId="med-paracetamol-1" currentRole="staff_admin" />);
 
-    expect(await screen.findByText('ดูอย่างเดียว (ล็อค)')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'แก้ไขข้อมูลเวชภัณฑ์' })).not.toBeInTheDocument();
+    expect(await screen.findByText('ดูอย่างเดียว')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'แก้ไขข้อมูลยา' })).not.toBeInTheDocument();
   });
 
   it('displays not found error alert when medication does not exist', async () => {
     render(<MedicationDetailContent medicationId="non-existent-id" currentRole="medical" />);
 
-    expect(await screen.findByText('ไม่พบข้อมูลเวชภัณฑ์')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'กลับสู่คลังยา' })).toHaveAttribute('href', '/pharmacy');
+    expect(await screen.findByText('ไม่พบข้อมูลยา')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'กลับไปคลังยา' })[0]).toHaveAttribute('href', '/pharmacy');
   });
 });
