@@ -18,14 +18,16 @@ export default async function PharmacyPage({ searchParams }: PharmacyPageProps =
   const initialSort = resolvedSearchParams?.sort === 'oldest' ? 'oldest' : 'newest';
 
   return (
-    <PharmacyContent
-      initialTab={initialTab}
-      initialStatus={initialStatus}
-      initialSort={initialSort}
-      currentRole={rawRole || role}
-      userEmail={user.email}
-      userName={user.user_metadata?.full_name}
-      userId={user.id}
-    />
+    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
+      <PharmacyContent
+        initialTab={initialTab}
+        initialStatus={initialStatus}
+        initialSort={initialSort}
+        currentRole={rawRole || role}
+        userEmail={user.email}
+        userName={user.user_metadata?.full_name}
+        userId={user.id}
+      />
+    </div>
   );
 }

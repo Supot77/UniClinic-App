@@ -198,11 +198,11 @@ export default function MedicationDetailContent({
         if (data) {
           setMedication(data as Medication);
         } else {
-          setErrorMessage('ไม่พบข้อมูลเวชภัณฑ์ในระบบ');
+          setErrorMessage('ไม่พบข้อมูลยาในระบบ');
         }
       } catch (err: unknown) {
         if (!ignore) {
-          const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลเวชภัณฑ์';
+          const msg = err instanceof Error ? err.message : 'โหลดข้อมูลยาไม่สำเร็จ';
           setErrorMessage(msg);
         }
       } finally {
@@ -271,7 +271,7 @@ export default function MedicationDetailContent({
     if (!editDraft || !medication || !canManage) return;
 
     if (!editDraft.name.trim()) {
-      setFormError('กรุณากรอกชื่อเวชภัณฑ์');
+      setFormError('กรุณากรอกชื่อยา');
       return;
     }
     if (!editDraft.category.trim()) {
@@ -316,9 +316,9 @@ export default function MedicationDetailContent({
       const updated = (data as Medication) || { ...medication, ...payload };
       setMedication(updated);
       setIsEditModalOpen(false);
-      setSuccessToast(`บันทึกข้อมูล "${updated.name}" เรียบร้อยแล้ว`);
+      setSuccessToast(`บันทึก "${updated.name}" แล้ว`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+      const msg = err instanceof Error ? err.message : 'บันทึกข้อมูลไม่สำเร็จ';
       setFormError(msg);
     } finally {
       setIsSubmitting(false);
@@ -333,11 +333,11 @@ export default function MedicationDetailContent({
           className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-strong hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>กลับหน้ารายการยา</span>
+          <span>กลับไปคลังยา</span>
         </Link>
         <div className="rounded-2xl border border-brand-border-soft bg-white p-8 text-center shadow-xs">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-sky-600 border-t-transparent mb-3" />
-          <p className="text-sm font-medium text-slate-600">กำลังโหลดรายละเอียดเวชภัณฑ์...</p>
+          <p className="text-sm font-medium text-slate-600">กำลังโหลดรายละเอียดยา…</p>
         </div>
       </main>
     );
@@ -351,7 +351,7 @@ export default function MedicationDetailContent({
           className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-strong hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>กลับหน้ารายการยา</span>
+          <span>กลับไปคลังยา</span>
         </Link>
         <div
           role="alert"
@@ -360,16 +360,16 @@ export default function MedicationDetailContent({
           <div className="inline-flex rounded-full bg-rose-100 p-3 text-rose-600">
             <AlertTriangle className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-bold text-rose-900">ไม่พบข้อมูลเวชภัณฑ์</h1>
+          <h1 className="text-xl font-bold text-rose-900">ไม่พบข้อมูลยา</h1>
           <p className="text-sm text-rose-700 max-w-md mx-auto">
-            {errorMessage || 'เวชภัณฑ์รหัสนี้อาจถูกลบหรือไม่มีอยู่ในระบบคลังยา'}
+            {errorMessage || 'รายการยานี้อาจถูกลบหรือไม่มีอยู่ในคลังยา'}
           </p>
           <div className="pt-2">
             <Link
               href="/pharmacy"
               className="inline-flex min-h-10 items-center justify-center rounded-xl bg-white border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-800 shadow-2xs hover:bg-rose-50"
             >
-              กลับสู่คลังยา
+              กลับไปคลังยา
             </Link>
           </div>
         </div>
@@ -410,7 +410,7 @@ export default function MedicationDetailContent({
           className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-strong hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>กลับหน้ารายการยา</span>
+          <span>กลับไปคลังยา</span>
         </Link>
         <nav aria-label="Breadcrumb" className="text-xs text-slate-400">
           <ol className="flex items-center gap-1.5">
@@ -436,7 +436,7 @@ export default function MedicationDetailContent({
             </div>
             <div className="space-y-1">
               <span className="text-[11px] font-bold tracking-wider text-sky-600 uppercase block">
-                รายละเอียดเวชภัณฑ์ในคลัง
+                รายละเอียดยาและเวชภัณฑ์ในคลัง
               </span>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
@@ -475,15 +475,15 @@ export default function MedicationDetailContent({
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-2xs hover:bg-sky-500 active:scale-[0.98] transition"
               >
                 <Pencil className="h-4 w-4" />
-                <span>แก้ไขข้อมูลเวชภัณฑ์</span>
+                <span>แก้ไขข้อมูลยา</span>
               </button>
             ) : (
               <span
-                title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่สามารถแก้ไขข้อมูลเวชภัณฑ์ได้"
+                title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่แก้ไขข้อมูลยาได้"
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-500 select-none"
               >
                 <Lock className="h-4 w-4 text-slate-400" />
-                <span>ดูอย่างเดียว (ล็อค)</span>
+                <span>ดูอย่างเดียว</span>
               </span>
             )}
           </div>
@@ -506,13 +506,13 @@ export default function MedicationDetailContent({
             <div>
               <span className="text-sm font-bold">
                 {isNonCovered
-                  ? 'ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)'
-                  : 'ยาในสิทธิ์ (เบิกได้ตามสิทธิ์)'}
+                  ? 'ยานอกสิทธิ์ (จ่ายนอก)'
+                  : 'ยาในสิทธิ์ (เบิกได้)'}
               </span>
               <p className="text-xs opacity-85 mt-0.5">
                 {isNonCovered
                   ? 'อยู่นอกบัญชียาหลักแห่งชาติ หรือเป็นยานำเข้า/ยาทางเลือกพิเศษ'
-                  : 'ยาตามสิทธิ์การรักษา อยู่ในบัญชียาหลักแห่งชาติ'}
+                  : 'ยาตามสิทธิ์การรักษาหรืออยู่ในบัญชียาหลักแห่งชาติ'}
               </p>
             </div>
           </div>
@@ -523,7 +523,7 @@ export default function MedicationDetailContent({
                 : 'bg-emerald-100 text-emerald-700'
             }`}
           >
-            {isNonCovered ? 'Non-covered' : 'In-formulary'}
+            {isNonCovered ? 'ยานอกสิทธิ์' : 'ยาในสิทธิ์'}
           </span>
         </div>
       </header>
@@ -540,7 +540,7 @@ export default function MedicationDetailContent({
             <div className="flex items-center justify-between">
               <h2 id="stock-status-heading" className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Package className="h-5 w-5 text-sky-600" />
-                ระดับสต็อกคงเหลือ
+                สต็อกคงเหลือ
               </h2>
               <div>
                 {stockStatus === 'sufficient' && (
@@ -582,7 +582,7 @@ export default function MedicationDetailContent({
                 </span>
               </div>
               <div className="text-right text-xs text-slate-500">
-                <span>เกณฑ์ขั้นต่ำสำหรับสั่งซื้อ: </span>
+                <span>สต็อกขั้นต่ำ: </span>
                 <strong className="font-bold text-slate-700">
                   {medication.min_stock} {medication.unit || 'หน่วย'}
                 </strong>
@@ -599,7 +599,7 @@ export default function MedicationDetailContent({
               </div>
               <div className="flex justify-between text-[11px] text-slate-400">
                 <span>0</span>
-                <span>จุดเตือน: {medication.min_stock}</span>
+                <span>จุดสั่งซื้อ: {medication.min_stock}</span>
                 <span>เป้าหมายสต็อก: {medication.min_stock * 2}+</span>
               </div>
             </div>
@@ -623,12 +623,12 @@ export default function MedicationDetailContent({
           >
             <h2 id="med-specs-heading" className="text-base font-bold text-slate-900 flex items-center gap-2">
               <FileText className="h-5 w-5 text-sky-600" />
-              ข้อมูลจำเพาะทางเภสัชกรรม
+              ข้อมูลยา
             </h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                <span className="text-[11px] font-medium text-slate-400">รูปแบบยา (Type)</span>
+                <span className="text-[11px] font-medium text-slate-400">รูปแบบยา</span>
                 <p className="text-sm font-semibold text-slate-800 mt-0.5">
                   {medication.type || '-'}
                 </p>
@@ -657,7 +657,7 @@ export default function MedicationDetailContent({
             {medication.description && (
               <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-1">
                 <span className="text-xs font-semibold text-slate-600 block">
-                  คำอธิบาย / ข้อบ่งใช้ทางการแพทย์
+                  คำอธิบายหรือข้อบ่งใช้
                 </span>
                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                   {medication.description}
@@ -669,7 +669,7 @@ export default function MedicationDetailContent({
             {medication.ingredients && (
               <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-1">
                 <span className="text-xs font-semibold text-slate-600 block">
-                  สูตรตัวยาสำคัญ (Active Ingredients)
+                  ตัวยาสำคัญ
                 </span>
                 <p className="text-sm text-slate-700 font-mono leading-relaxed">
                   {medication.ingredients}
@@ -689,15 +689,15 @@ export default function MedicationDetailContent({
                 ประวัติความเคลื่อนไหวในคลัง
               </h2>
               <span className="text-xs text-slate-400">
-                {logs.length} รายการล่าสุด
+                {logs.length} รายการ
               </span>
             </div>
 
             {isLoadingLogs ? (
-              <p className="text-xs text-slate-400 text-center py-4">กำลังโหลดประวัติสต็อก...</p>
+              <p className="text-xs text-slate-400 text-center py-4">กำลังโหลดประวัติสต็อก…</p>
             ) : logs.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
-                <p className="text-xs text-slate-400">ยังไม่มีบันทึกประวัติการตัดจ่ายหรือรับเข้าเวชภัณฑ์นี้</p>
+                <p className="text-xs text-slate-400">ยังไม่มีประวัติรับเข้าหรือจ่ายยา</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -707,7 +707,7 @@ export default function MedicationDetailContent({
                       <th className="py-2.5 px-3">วันที่/เวลา</th>
                       <th className="py-2.5 px-3">ประเภทรายการ</th>
                       <th className="py-2.5 px-3 text-right">จำนวน</th>
-                      <th className="py-2.5 px-3">เหตุผล / หมายเหตุ</th>
+                      <th className="py-2.5 px-3">เหตุผลหรือหมายเหตุ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -732,7 +732,7 @@ export default function MedicationDetailContent({
                           )}
                           {log.action === 'damage' && (
                             <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
-                              ตัดจำหน่าย/ชำรุด
+                              ตัดจำหน่ายหรือชำรุด
                             </span>
                           )}
                         </td>
@@ -766,7 +766,7 @@ export default function MedicationDetailContent({
             <div className="space-y-3.5 divide-y divide-slate-100">
               {medication.manufacturer && (
                 <div className="pt-1">
-                  <span className="text-[11px] font-medium text-slate-400">บริษัทผู้ผลิต (Manufacturer)</span>
+                  <span className="text-[11px] font-medium text-slate-400">ผู้ผลิต</span>
                   <p className="text-sm font-semibold text-slate-800 mt-0.5">
                     {medication.manufacturer}
                   </p>
@@ -774,14 +774,14 @@ export default function MedicationDetailContent({
               )}
 
               <div className="pt-3 space-y-1">
-                <span className="text-[11px] font-medium text-slate-400">วันที่ผลิต (MFG Date)</span>
+                <span className="text-[11px] font-medium text-slate-400">วันที่ผลิต</span>
                 <p className="text-sm font-medium text-slate-700">
                   {formatDisplayDate(medication.mfg_date)}
                 </p>
               </div>
 
               <div className="pt-3 space-y-1">
-                <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ (EXP Date)</span>
+                <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ</span>
                 <p
                   className={`text-sm font-bold ${
                     expired ? 'text-rose-600' : expiring ? 'text-amber-600' : 'text-slate-800'
@@ -793,7 +793,7 @@ export default function MedicationDetailContent({
                 {expired && (
                   <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-rose-50 p-2 text-xs font-bold text-rose-700 ring-1 ring-inset ring-rose-600/20">
                     <Ban className="h-4 w-4 shrink-0" />
-                    <span>เวชภัณฑ์หมดอายุแล้ว ไม่สามารถจ่ายได้</span>
+                    <span>หมดอายุแล้ว จ่ายไม่ได้</span>
                   </div>
                 )}
                 {!expired && expiring && (
@@ -812,9 +812,6 @@ export default function MedicationDetailContent({
               <ShieldCheck className="h-5 w-5 text-sky-600" />
               การจัดการเวชภัณฑ์
             </h2>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              การเปลี่ยนแปลงสต็อกหรือข้อมูลทางยาจะถูกบันทึกประวัติเพื่อการตรวจสอบย้อนกลับ (Audit Log)
-            </p>
 
             <div className="pt-2 space-y-2">
               {canManage && (
@@ -831,7 +828,7 @@ export default function MedicationDetailContent({
                 href="/pharmacy"
                 className="w-full inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
               >
-                กลับหน้ารายการยา
+                กลับไปคลังยา
               </Link>
             </div>
           </section>
@@ -843,7 +840,7 @@ export default function MedicationDetailContent({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="แก้ไขข้อมูลเวชภัณฑ์"
+          aria-label="แก้ไขข้อมูลยา"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
         >
           <div className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
@@ -852,7 +849,7 @@ export default function MedicationDetailContent({
                 <div className="rounded-xl bg-sky-50 p-2 text-sky-600">
                   <Pencil className="h-5 w-5" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-900">แก้ไขข้อมูลเวชภัณฑ์</h2>
+                <h2 className="text-lg font-bold text-slate-900">แก้ไขข้อมูลยา</h2>
               </div>
               <button
                 type="button"
@@ -875,7 +872,7 @@ export default function MedicationDetailContent({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      ชื่อเวชภัณฑ์ (Generic Name) <span className="text-rose-500">*</span>
+                      ชื่อยา / ชื่อสามัญ <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -888,7 +885,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      ขนาดยา / ความแรง (Dosage)
+                      ขนาดยา / ความแรง
                     </label>
                     <input
                       type="text"
@@ -901,7 +898,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      ชื่อทางการค้า (Trade / Brand Name)
+                      ชื่อทางการค้า / ยี่ห้อ
                     </label>
                     <input
                       type="text"
@@ -914,7 +911,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      รูปแบบยา (Type)
+                      รูปแบบยา
                     </label>
                     <select
                       value={editDraft.type}
@@ -931,7 +928,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      หน่วยนับตัดจ่าย (Unit)
+                      หน่วยจ่าย
                     </label>
                     <select
                       value={editDraft.unit}
@@ -965,7 +962,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      สิทธิ์การรักษา (Coverage)
+                      สิทธิ์การเบิกจ่าย
                     </label>
                     <select
                       value={editDraft.coverage_type}
@@ -984,7 +981,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      จำนวนสต็อกปัจจุบัน ({editDraft.unit})
+                      สต็อกปัจจุบัน ({editDraft.unit})
                     </label>
                     <input
                       type="number"
@@ -999,7 +996,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      จุดเตือนสั่งซื้อขั้นต่ำ ({editDraft.unit})
+                      สต็อกขั้นต่ำ ({editDraft.unit})
                     </label>
                     <input
                       type="number"
@@ -1017,7 +1014,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      วันหมดอายุ (EXP Date)
+                      วันหมดอายุ
                     </label>
                     <input
                       type="date"
@@ -1029,7 +1026,7 @@ export default function MedicationDetailContent({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      บริษัทผู้ผลิต (Manufacturer)
+                      ผู้ผลิต
                     </label>
                     <input
                       type="text"
@@ -1042,7 +1039,7 @@ export default function MedicationDetailContent({
 
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      คำอธิบาย / ข้อบ่งใช้
+                      คำอธิบายหรือข้อบ่งใช้
                     </label>
                     <textarea
                       rows={2}
@@ -1054,7 +1051,7 @@ export default function MedicationDetailContent({
 
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      สูตรตัวยาสำคัญ (Active Ingredients)
+                      ตัวยาสำคัญ
                     </label>
                     <textarea
                       rows={2}
@@ -1080,7 +1077,7 @@ export default function MedicationDetailContent({
                   className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-600 px-4 text-xs font-semibold text-white shadow-2xs hover:bg-sky-500 disabled:opacity-50 transition"
                 >
                   <Save className="h-4 w-4" />
-                  <span>{isSubmitting ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}</span>
+                  <span>{isSubmitting ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}</span>
                 </button>
               </div>
             </form>

@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { signIn } from '@/services/authService';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 
@@ -17,6 +17,9 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] =
     useState('');
+
+  const [showPassword, setShowPassword] =
+    useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -185,19 +188,35 @@ function LoginForm() {
             </Link>
           </div>
 
-          <input
-            id="login-password"
-            type="password"
-            required
-            autoComplete="current-password"
-            disabled={isLoading}
-            value={password}
-            onChange={(event) =>
-              setPassword(event.target.value)
-            }
-            placeholder="••••••••"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500 disabled:bg-zinc-50 disabled:text-zinc-400"
-          />
+          <div className="relative">
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              autoComplete="current-password"
+              disabled={isLoading}
+              value={password}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-zinc-200 px-4 py-3 pr-12 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500 disabled:bg-zinc-50 disabled:text-zinc-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              disabled={isLoading}
+              aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-zinc-400 transition hover:text-sky-600 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {showPassword ? (
+                <EyeOff className="size-5" aria-hidden="true" />
+              ) : (
+                <Eye className="size-5" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </div>
 
         <button

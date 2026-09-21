@@ -492,7 +492,7 @@ export default function PharmacyContent({
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดึงข้อมูลจาก Supabase';
+      const msg = err instanceof Error ? err.message : 'โหลดข้อมูลไม่สำเร็จ';
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -604,7 +604,7 @@ export default function PharmacyContent({
     } catch (err: unknown) {
       console.error('Error loading prescriptions:', err);
       setPrescriptionError(
-        err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดรายการสั่งยา'
+            err instanceof Error ? err.message : 'โหลดรายการสั่งยาไม่สำเร็จ'
       );
     } finally {
       setIsLoadingPrescriptions(false);
@@ -827,13 +827,13 @@ export default function PharmacyContent({
   const handleSaveMedication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManage) {
-      setFormError('เฉพาะแพทย์และเภสัชกรเท่านั้นที่มีสิทธิ์เพิ่มหรือแก้ไขเวชภัณฑ์');
+      setFormError('เฉพาะแพทย์และเภสัชกรเท่านั้นที่เพิ่มหรือแก้ไขรายการยาได้');
       return;
     }
     setFormError(null);
 
     if (!draft.name.trim()) {
-      setFormError('กรุณากรอกชื่อเวชภัณฑ์');
+      setFormError('กรุณากรอกชื่อยา');
       return;
     }
 
@@ -874,14 +874,14 @@ export default function PharmacyContent({
           .eq('id', editingItem.id);
 
         if (error) throw error;
-        setSuccessToast(`อัปเดตข้อมูล "${draft.name}" สำเร็จ`);
+        setSuccessToast(`อัปเดต "${draft.name}" แล้ว`);
       } else {
         const { error } = await supabase
           .from('medications')
           .insert([payload]);
 
         if (error) throw error;
-        setSuccessToast(`เพิ่มเวชภัณฑ์ "${draft.name}" เข้าสู่คลังยาสำเร็จ`);
+        setSuccessToast(`เพิ่ม "${draft.name}" แล้ว`);
       }
 
       if (!editingItem && typeof window !== 'undefined') {
@@ -918,13 +918,13 @@ export default function PharmacyContent({
         .eq('id', item.id);
 
       if (error) throw error;
-      setSuccessToast(`พักการใช้งานเวชภัณฑ์ "${item.name}" แล้ว (สามารถกู้คืนได้ทุกเมื่อ)`);
+      setSuccessToast(`พักใช้งาน "${item.name}" แล้ว`);
       setDeleteTarget(null);
       await loadMedications();
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       const msg = errObj?.message || (err instanceof Error ? err.message : 'ไม่สามารถพักการใช้งานได้');
-      alert(`เกิดข้อผิดพลาด: ${msg}`);
+      alert(`ดำเนินการไม่สำเร็จ: ${msg}`);
     } finally {
       setIsDeleting(false);
     }
@@ -943,13 +943,13 @@ export default function PharmacyContent({
         .eq('id', item.id);
 
       if (error) throw error;
-      setSuccessToast(`กู้คืนและเปิดใช้งาน "${item.name}" ในระบบแล้ว`);
+      setSuccessToast(`กู้คืน "${item.name}" แล้ว`);
       setDeleteTarget(null);
       await loadMedications();
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       const msg = errObj?.message || (err instanceof Error ? err.message : 'ไม่สามารถกู้คืนได้');
-      alert(`เกิดข้อผิดพลาด: ${msg}`);
+      alert(`ดำเนินการไม่สำเร็จ: ${msg}`);
     } finally {
       setIsDeleting(false);
     }
@@ -965,21 +965,20 @@ export default function PharmacyContent({
         .eq('id', item.id);
 
       if (error) throw error;
-      setSuccessToast(`ลบรายการ "${item.name}" ออกจากคลังยาถาวรแล้ว`);
+      setSuccessToast(`ลบ "${item.name}" ถาวรแล้ว`);
       setDeleteTarget(null);
       await loadMedications();
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       const msg = errObj?.message || (err instanceof Error ? err.message : 'ไม่สามารถลบถาวรได้');
-      alert(`เกิดข้อผิดพลาด: ${msg}`);
+      alert(`ดำเนินการไม่สำเร็จ: ${msg}`);
     } finally {
       setIsDeleting(false);
     }
   };
 
   return (
-    <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 px-2 sm:px-4 md:px-6 lg:px-8">
-      <div className="w-full max-w-[1720px] mx-auto px-1 sm:px-3 lg:px-6 py-3 sm:py-6">
+    <div className="w-full min-w-0 py-3 sm:py-6">
         {successToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-medium text-emerald-800 shadow-xl transition-all animate-in slide-in-from-bottom-3">
           <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
@@ -1002,10 +1001,6 @@ export default function PharmacyContent({
               <span className="text-xs font-bold tracking-wider text-sky-600 uppercase">
                 WU CLINIC / PHARMACY
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Supabase Live
-              </span>
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
                 currentRole === 'admin'
                   ? 'bg-purple-50 text-purple-700 ring-purple-600/20'
@@ -1014,10 +1009,10 @@ export default function PharmacyContent({
                   : 'bg-blue-50 text-blue-700 ring-blue-600/20'
               }`}>
                 {currentRole === 'admin'
-                  ? '🔒 สิทธิ์: ผู้ดูแลระบบ (Admin - ดูอย่างเดียว)'
+                  ? 'สิทธิ์: ผู้ดูแลระบบ · ดูอย่างเดียว'
                   : (currentRole === 'staff_admin' || currentRole === 'staff' || authRole === 'staff_admin')
-                  ? '🔒 สิทธิ์: เจ้าหน้าที่คลินิก (Staff - ดูอย่างเดียว)'
-                  : '🩺 สิทธิ์: บุคลากรทางการแพทย์ (Medical - จัดการยาได้)'}
+                  ? 'สิทธิ์: เจ้าหน้าที่คลินิก · ดูอย่างเดียว'
+                  : 'สิทธิ์: บุคลากรทางการแพทย์ · จัดการยาได้'}
               </span>
               {(userName || userEmail) && (
                 <span className="text-[11px] text-slate-500">
@@ -1026,10 +1021,10 @@ export default function PharmacyContent({
               )}
             </div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
-              คลังยาและเวชภัณฑ์ (Medication Inventory)
+              คลังยาและเวชภัณฑ์
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              ควบคุมสต็อกเวชภัณฑ์ เฝ้าระวังยาใกล้หมดอายุ และบันทึกข้อมูลแบบเรียลไทม์
+              ตรวจสอบสต็อกและวันหมดอายุของยาและเวชภัณฑ์
             </p>
           </div>
 
@@ -1038,7 +1033,7 @@ export default function PharmacyContent({
               type="button"
               onClick={() => void handleReloadAll()}
               disabled={isLoading || isLoadingPrescriptions}
-              title="รีเฟรชข้อมูลทั้งหมด"
+              title="รีเฟรชข้อมูล"
               className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 sm:px-3.5 text-xs sm:text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 active:scale-95 disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading || isLoadingPrescriptions ? 'animate-spin text-sky-600' : ''}`} />
@@ -1052,15 +1047,15 @@ export default function PharmacyContent({
                   className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-xs transition hover:bg-sky-700 active:scale-95"
                 >
                   <Plus className="h-4 w-4 shrink-0" />
-                  <span>นำเข้าเวชภัณฑ์ใหม่</span>
+                  <span>เพิ่มรายการยา</span>
                 </button>
               ) : (
                 <div
-                  title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่สามารถนำเข้าเวชภัณฑ์ได้ (Admin และ Staff ดูได้อย่างเดียว)"
+                  title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่เพิ่มรายการยาได้"
                   className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-slate-400 cursor-not-allowed select-none"
                 >
                   <Lock className="h-4 w-4 shrink-0 text-slate-400" />
-                  <span>นำเข้าเวชภัณฑ์ใหม่ (ล็อค)</span>
+                  <span>เพิ่มรายการยา (ดูอย่างเดียว)</span>
                 </div>
               )
             )}
@@ -1071,7 +1066,7 @@ export default function PharmacyContent({
           <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-2.5 text-xs text-amber-800">
             <Lock className="h-4 w-4 text-amber-600 shrink-0" />
             <span>
-              <strong>โหมดดูอย่างเดียว (Read-Only):</strong> บัญชีผู้ดูแลระบบ (Admin) และเจ้าหน้าที่ (Staff) ได้รับสิทธิ์ในการตรวจสอบสต็อกและรายการสั่งยาเท่านั้น หากต้องการนำเข้า แก้ไขยา หรือตัดสต็อกจ่ายยา กรุณาใช้บัญชีแพทย์หรือเภสัชกร
+              <strong>โหมดดูอย่างเดียว:</strong> ตรวจสอบสต็อกและรายการสั่งยาได้ แต่เพิ่ม แก้ไข และตัดจ่ายยาไม่ได้
             </span>
           </div>
         )}
@@ -1088,7 +1083,7 @@ export default function PharmacyContent({
             }`}
           >
             <Package className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
-            <span>คลังเวชภัณฑ์ <span className="hidden sm:inline">(Inventory)</span></span>
+            <span>คลังยาและเวชภัณฑ์</span>
             <span
               className={`ml-1 rounded-full px-2 py-0.5 text-xs ${
                 activeTab === 'inventory' ? 'bg-sky-100 text-sky-700 font-bold' : 'bg-slate-100 text-slate-600'
@@ -1108,7 +1103,7 @@ export default function PharmacyContent({
             }`}
           >
             <FileText className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
-            <span>รายการสั่งยาและตัดจ่าย <span className="hidden sm:inline">(Prescriptions & Dispensing)</span></span>
+            <span>ใบสั่งยาและการตัดจ่าย</span>
             {pendingPrescriptionsCount > 0 ? (
               <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 animate-pulse">
                 {pendingPrescriptionsCount} รอตัดจ่าย
@@ -1125,7 +1120,7 @@ export default function PharmacyContent({
           <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
             <AlertOctagon className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold">เกิดข้อผิดพลาดในการโหลดข้อมูลจาก Supabase</p>
+              <p className="font-semibold">โหลดข้อมูลไม่สำเร็จ</p>
               <p className="text-xs text-rose-600 mt-0.5">{errorMessage}</p>
             </div>
             <button
@@ -1144,14 +1139,14 @@ export default function PharmacyContent({
           {/* Summary Stat Cards - Styled identically to User Accounts page */}
           <section
             className="mb-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-8 xl:grid-cols-6 border-b border-slate-200 pb-2"
-            aria-label="สรุปสถานะเวชภัณฑ์"
+            aria-label="สรุปสถานะคลังยา"
           >
             {[
               {
                 key: 'all',
                 label: 'รายการทั้งหมด',
                 value: stats.total,
-                sub: 'ในระบบคลังยา',
+                sub: 'รายการในคลัง',
                 icon: Package,
                 iconColorActive: 'text-brand-strong',
               },
@@ -1159,7 +1154,7 @@ export default function PharmacyContent({
                 key: 'sufficient',
                 label: 'มีเพียงพอ',
                 value: stats.sufficient,
-                sub: 'พร้อมให้บริการ',
+                sub: 'พร้อมจ่าย',
                 icon: CheckCircle2,
                 iconColorActive: 'text-emerald-600',
               },
@@ -1173,9 +1168,9 @@ export default function PharmacyContent({
               },
               {
                 key: 'critical',
-                label: 'วิกฤตใกล้หมด',
+                label: 'สต็อกวิกฤต',
                 value: stats.critical,
-                sub: 'เร่งด่วนที่สุด',
+                sub: 'ต่ำกว่าระดับวิกฤต',
                 icon: AlertOctagon,
                 iconColorActive: 'text-rose-600',
               },
@@ -1183,15 +1178,15 @@ export default function PharmacyContent({
                 key: 'expiring_soon',
                 label: 'ใกล้หมดอายุ',
                 value: stats.expiringSoon,
-                sub: '≤ 90 วันข้างหน้า',
+                sub: 'ภายใน 90 วัน',
                 icon: Clock,
                 iconColorActive: 'text-violet-600',
               },
               {
                 key: 'expired',
-                label: 'หมดอายุ / ปิดใช้',
+                label: 'หมดอายุหรือพักใช้งาน',
                 value: stats.expiredOrInactive,
-                sub: 'คัดแยกออกจากคลัง',
+                sub: 'ไม่พร้อมจ่าย',
                 icon: Ban,
                 iconColorActive: 'text-slate-600',
               },
@@ -1237,7 +1232,7 @@ export default function PharmacyContent({
             {/* Table Card Header */}
             <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between bg-white">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">รายชื่อเวชภัณฑ์</h2>
+                <h2 className="text-xl font-semibold text-slate-900">รายการยาและเวชภัณฑ์</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   แสดง {filteredMedications.length} จาก {medications.length} รายการ
                 </p>
@@ -1250,7 +1245,7 @@ export default function PharmacyContent({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="ค้นหาชื่อยา, หมวดหมู่, สรรพคุณ..."
+                    placeholder="ค้นหาชื่อยา หมวดหมู่ หรือข้อบ่งใช้"
                     className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-sm text-slate-900 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft placeholder:text-slate-400"
                   />
                   {searchQuery && (
@@ -1282,7 +1277,7 @@ export default function PharmacyContent({
                   onChange={(e) => setSelectedType(e.target.value)}
                   className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
                 >
-                  <option value="all">ทุกรูปแบบ (Type)</option>
+                  <option value="all">ทุกรูปแบบยา</option>
                   {TYPE_OPTIONS.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -1296,8 +1291,8 @@ export default function PharmacyContent({
                   className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
                 >
                   <option value="all">ทุกสิทธิ์การเบิกจ่าย</option>
-                  <option value="covered">🟢 ยาในสิทธิ์ (เบิกได้)</option>
-                  <option value="non_covered">🟣 ยานอกสิทธิ์ (จ่ายนอก)</option>
+                  <option value="covered">ยาในสิทธิ์ (เบิกได้)</option>
+                  <option value="non_covered">ยานอกสิทธิ์ (จ่ายนอก)</option>
                 </select>
 
                 <select
@@ -1305,10 +1300,10 @@ export default function PharmacyContent({
                   onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                   className="h-11 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
                 >
-                  <option value="name">เรียงตาม: ชื่อ (ก-ฮ)</option>
-                  <option value="stock_asc">เรียงตาม: สต็อกน้อย → มาก</option>
-                  <option value="stock_desc">เรียงตาม: สต็อกมาก → น้อย</option>
-                  <option value="expiry">เรียงตาม: วันหมดอายุเร็วสุด</option>
+                  <option value="name">ชื่อ ก–ฮ</option>
+                  <option value="stock_asc">สต็อกจากน้อยไปมาก</option>
+                  <option value="stock_desc">สต็อกจากมากไปน้อย</option>
+                  <option value="expiry">วันหมดอายุใกล้สุด</option>
                 </select>
 
                 {(searchQuery || selectedCategory !== 'all' || selectedType !== 'all' || selectedCoverage !== 'all' || statusFilter !== 'all') && (
@@ -1331,17 +1326,17 @@ export default function PharmacyContent({
 
             <div className="sm:hidden flex items-center justify-between px-3.5 py-2 bg-slate-50 text-[11px] text-slate-500 border-b border-slate-100">
               <span>แตะแถวเพื่อดูรายละเอียด</span>
-              <span>↔ เลื่อนเพื่อดูตาราง</span>
+              <span>เลื่อนซ้าย–ขวาเพื่อดูตาราง</span>
             </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-left text-sm text-slate-600">
             <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-700 uppercase tracking-wider">
               <tr>
-                <th scope="col" className="px-5 py-4">ชื่อเวชภัณฑ์ / ขนาดยา</th>
+                <th scope="col" className="px-5 py-4">ชื่อยา/เวชภัณฑ์</th>
                 <th scope="col" className="px-4 py-4">สิทธิ์การเบิกจ่าย</th>
                 <th scope="col" className="px-4 py-4">รูปแบบ</th>
                 <th scope="col" className="px-4 py-4">หมวดหมู่</th>
-                <th scope="col" className="px-5 py-4">ระดับสต็อกคงเหลือ</th>
+                <th scope="col" className="px-5 py-4">สต็อกคงเหลือ</th>
                 <th scope="col" className="px-4 py-4">วันผลิต / หมดอายุ</th>
                 <th scope="col" className="px-4 py-4">สถานะสต็อก</th>
                 <th scope="col" className="px-4 py-4 text-right">การจัดการ</th>
@@ -1352,15 +1347,15 @@ export default function PharmacyContent({
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-slate-400">
                     <RefreshCw className="mx-auto h-6 w-6 animate-spin text-sky-600 mb-2" />
-                    <span>กำลังโหลดข้อมูลจากฐานข้อมูล Supabase...</span>
+                    <span>กำลังโหลดข้อมูล…</span>
                   </td>
                 </tr>
               ) : filteredMedications.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-slate-400">
                     <Pill className="mx-auto h-10 w-10 text-slate-300 mb-2" />
-                    <p className="text-base font-semibold text-slate-700">ไม่พบรายการเวชภัณฑ์</p>
-                    <p className="text-xs text-slate-400 mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองที่เลือกไว้</p>
+                    <p className="text-base font-semibold text-slate-700">ไม่พบรายการยาและเวชภัณฑ์</p>
+                    <p className="text-xs text-slate-400 mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรอง</p>
                   </td>
                 </tr>
               ) : (
@@ -1390,7 +1385,7 @@ export default function PharmacyContent({
                       }}
                       tabIndex={0}
                       className="transition-colors hover:bg-sky-50/50 cursor-pointer group"
-                      title="คลิกเพื่อดูรายละเอียดเวชภัณฑ์"
+                      title="ดูรายละเอียดรายการนี้"
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-start gap-3">
@@ -1419,12 +1414,12 @@ export default function PharmacyContent({
                         {isNonCovered ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
-                            ยานอกสิทธิ์ (จ่ายนอก)
+                            ยานอกสิทธิ์
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            ยาในสิทธิ์ (เบิกได้)
+                            ยาในสิทธิ์
                           </span>
                         )}
                       </td>
@@ -1495,7 +1490,7 @@ export default function PharmacyContent({
                         )}
                         {status === 'critical' && (
                           <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-1 font-bold text-rose-700 ring-1 ring-inset ring-rose-600/20">
-                            วิกฤตใกล้หมด
+                              สต็อกวิกฤต
                           </span>
                         )}
                         {status === 'expired' && (
@@ -1506,7 +1501,7 @@ export default function PharmacyContent({
                         {status === 'inactive' && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600 ring-1 ring-inset ring-slate-400/20">
                             <Ban className="h-3 w-3 text-slate-500" />
-                            พักใช้งาน (Soft-deleted)
+                            พักใช้งาน
                           </span>
                         )}
                       </td>
@@ -1517,18 +1512,18 @@ export default function PharmacyContent({
                             <button
                               type="button"
                               onClick={() => handleOpenViewingModal(item)}
-                              title="ดูรายละเอียดเวชภัณฑ์"
+                              title="ดูรายละเอียดรายการนี้"
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                             >
                               <FileText className="h-3.5 w-3.5 text-slate-400" />
                               <span>ดูข้อมูล</span>
                             </button>
                             <span
-                              title="สิทธิ์ดูอย่างเดียว: เฉพาะแพทย์และเภสัชกรเท่านั้นที่สามารถแก้ไขหรือลบยาได้"
+                              title="ดูอย่างเดียว: แพทย์และเภสัชกรเท่านั้นที่แก้ไขหรือลบยาได้"
                               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-400 select-none"
                             >
                               <Lock className="h-3.5 w-3.5 text-slate-400" />
-                              <span>ดูอย่างเดียว (ล็อค)</span>
+                              <span>ดูอย่างเดียว</span>
                             </span>
                           </div>
                         ) : (
@@ -1536,7 +1531,7 @@ export default function PharmacyContent({
                             <button
                               type="button"
                               onClick={() => handleOpenViewingModal(item)}
-                              title="ดูรายละเอียดเวชภัณฑ์"
+                              title="ดูรายละเอียดรายการนี้"
                               className="rounded-lg p-1.5 text-slate-500 hover:bg-sky-50 hover:text-sky-600 transition"
                             >
                               <FileText className="h-4 w-4" />
@@ -1546,7 +1541,7 @@ export default function PharmacyContent({
                                 <button
                                   type="button"
                                   onClick={() => void handleRestoreMedication(item)}
-                                  title="กู้คืน / เปิดใช้งานเวชภัณฑ์นี้อีกครั้ง"
+                                  title="กู้คืนรายการนี้"
                                   className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-2xs"
                                 >
                                   <RotateCcw className="h-3.5 w-3.5" />
@@ -1563,7 +1558,7 @@ export default function PharmacyContent({
                                 <button
                                   type="button"
                                   onClick={() => setDeleteTarget(item)}
-                                  title="ลบเวชภัณฑ์ออกจากฐานข้อมูลถาวร"
+                                  title="ลบรายการนี้ถาวร"
                                   className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1582,7 +1577,7 @@ export default function PharmacyContent({
                                 <button
                                   type="button"
                                   onClick={() => setDeleteTarget(item)}
-                                  title="ลบ / พักการใช้งานเวชภัณฑ์"
+                                  title="ลบหรือพักใช้งานรายการนี้"
                                   className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1629,11 +1624,8 @@ export default function PharmacyContent({
             <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                  {editingItem ? 'แก้ไขข้อมูลเวชภัณฑ์' : 'นำเข้าเวชภัณฑ์ใหม่'}
+                  {editingItem ? 'แก้ไขรายการยา' : 'เพิ่มรายการยา'}
                 </h2>
-                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                  บันทึกข้อมูลเข้าสู่ฐานข้อมูลจริงของคลินิก (Supabase)
-                </p>
               </div>
               <button
                 type="button"
@@ -1655,14 +1647,14 @@ export default function PharmacyContent({
                 <div className="flex items-center justify-between rounded-xl border border-teal-200 bg-teal-50/70 px-3.5 py-2.5 text-xs text-teal-800">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-teal-600 animate-pulse" />
-                    <span>💾 กู้คืนข้อมูลแบบร่างที่คุณเคยกรอกค้างไว้ให้อัตโนมัติ</span>
+                    <span>กู้คืนแบบร่างที่บันทึกไว้แล้ว</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleClearDraft}
                     className="font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
                   >
-                    ล้างแบบร่าง (เริ่มใหม่)
+                    ล้างแบบร่าง
                   </button>
                 </div>
               )}
@@ -1671,7 +1663,7 @@ export default function PharmacyContent({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    ชื่อยา / ชื่อสามัญ (Generic Name) *
+                    ชื่อยา / ชื่อสามัญ *
                   </label>
                   <input
                     type="text"
@@ -1684,7 +1676,7 @@ export default function PharmacyContent({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    ขนาดยา (Dosage / Strength)
+                    ขนาดยา / ความแรง
                   </label>
                   <input
                     type="text"
@@ -1700,7 +1692,7 @@ export default function PharmacyContent({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    ยี่ห้อยา / ชื่อทางการค้า (Brand Name)
+                    ยี่ห้อ / ชื่อทางการค้า
                   </label>
                   <input
                     type="text"
@@ -1712,7 +1704,7 @@ export default function PharmacyContent({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    บริษัทที่ผลิต (Manufacturer)
+                    ผู้ผลิต
                   </label>
                   <input
                     type="text"
@@ -1802,7 +1794,7 @@ export default function PharmacyContent({
               {/* Row 4: Coverage Status (สิทธิ์การเบิกจ่าย) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  สิทธิ์การเบิกจ่ายเวชภัณฑ์ (Coverage Status) *
+                  สิทธิ์การเบิกจ่าย *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <label
@@ -1849,7 +1841,7 @@ export default function PharmacyContent({
                     <div>
                       <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-900">
                         <span className="h-2 w-2 rounded-full bg-purple-500" />
-                        ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)
+                        ยานอกสิทธิ์ (จ่ายนอก)
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         ยานอกบัญชียาหลัก หรือยานำเข้า/ยาทางเลือกพิเศษ
@@ -1870,10 +1862,10 @@ export default function PharmacyContent({
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-900">
-                          ตัวช่วยคำนวณจากบรรจุภัณฑ์ตอนรับเข้า (Packaging Calculator)
+                          คำนวณจำนวนจากบรรจุภัณฑ์
                         </h4>
                         <p className="text-[11px] text-slate-500">
-                          แปลงจำนวนข้างลัง / กล่อง / กระปุก / แผง เข้าเป็นหน่วยจ่าย ({draft.unit || 'เม็ด'})
+                          แปลงจำนวนบรรจุภัณฑ์เป็นหน่วยจ่าย ({draft.unit || 'เม็ด'})
                         </p>
                       </div>
                     </div>
@@ -1882,7 +1874,7 @@ export default function PharmacyContent({
                       onClick={() => setShowPackCalculator(!showPackCalculator)}
                       className="shrink-0 whitespace-nowrap rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition shadow-2xs"
                     >
-                      {showPackCalculator ? 'ซ่อนตัวช่วย' : '📦 เปิดตัวช่วยคำนวณ'}
+                      {showPackCalculator ? 'ซ่อนตัวช่วย' : 'เปิดตัวช่วยคำนวณ'}
                     </button>
                   </div>
 
@@ -1899,7 +1891,7 @@ export default function PharmacyContent({
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          📦 บรรจุภัณฑ์ทั่วไป (กล่อง / กระปุก / แผง)
+                          บรรจุภัณฑ์ทั่วไป (กล่อง / กระปุก / แผง)
                         </button>
                         <button
                           type="button"
@@ -1910,7 +1902,7 @@ export default function PharmacyContent({
                               : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          🚛 สั่งเป็นลัง (ลัง × กล่อง × หน่วยย่อย)
+                          สั่งเป็นลัง (ลัง × กล่อง × หน่วยย่อย)
                         </button>
                       </div>
 
@@ -1950,7 +1942,7 @@ export default function PharmacyContent({
 
                           <div className="min-w-0">
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
-                              ขนาดบรรจุต่อ 1 {calcPackUnit}
+                              จำนวนต่อ 1 {calcPackUnit}
                             </label>
                             <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
@@ -1993,7 +1985,7 @@ export default function PharmacyContent({
 
                           <div className="min-w-0">
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
-                              ลังละกี่กล่อง
+                              จำนวนกล่องต่อลัง
                             </label>
                             <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
@@ -2012,7 +2004,7 @@ export default function PharmacyContent({
 
                           <div className="min-w-0">
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1 truncate">
-                              กล่องละกี่{draft.unit || 'หน่วย'}
+                              จำนวน{draft.unit || 'หน่วย'}ต่อกล่อง
                             </label>
                             <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-white overflow-hidden transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
                               <input
@@ -2038,7 +2030,7 @@ export default function PharmacyContent({
                       {calculatedStockTotal > 0 && (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-100/70 p-3 border border-sky-200">
                           <div className="text-xs">
-                            <span className="text-slate-600">คำนวณได้: </span>
+                            <span className="text-slate-600">จำนวนรวม: </span>
                             <strong className="text-sm font-bold text-sky-800">
                               {calculatedStockTotal.toLocaleString()} {draft.unit || 'เม็ด'}
                             </strong>
@@ -2053,7 +2045,7 @@ export default function PharmacyContent({
                                 onClick={() => handleApplyCalculatedStock('add')}
                                 className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-2xs"
                               >
-                                + บวกเพิ่มสต็อก ({calculatedStockTotal.toLocaleString()})
+                              + เพิ่มในสต็อก ({calculatedStockTotal.toLocaleString()})
                               </button>
                             )}
                             <button
@@ -2061,7 +2053,7 @@ export default function PharmacyContent({
                               onClick={() => handleApplyCalculatedStock('replace')}
                               className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 transition shadow-2xs"
                             >
-                              ใช้เป็นยอดสต็อกปัจจุบัน
+                              ใช้เป็นสต็อกปัจจุบัน
                             </button>
                           </div>
                         </div>
@@ -2121,7 +2113,7 @@ export default function PharmacyContent({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    วันผลิต (Manufacturing Date / MFG)
+                    วันผลิต
                   </label>
                   <input
                     type="date"
@@ -2132,7 +2124,7 @@ export default function PharmacyContent({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    วันหมดอายุ (Expiry Date / EXP)
+                    วันหมดอายุ
                   </label>
                   <input
                     type="date"
@@ -2144,7 +2136,7 @@ export default function PharmacyContent({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">คำอธิบาย / ข้อบ่งใช้</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">คำอธิบายหรือข้อบ่งใช้</label>
                 <input
                   type="text"
                   value={draft.description}
@@ -2155,7 +2147,7 @@ export default function PharmacyContent({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">ตัวยาสำคัญ (Active Ingredients)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">ตัวยาสำคัญ</label>
                 <input
                   type="text"
                   value={draft.ingredients}
@@ -2174,7 +2166,7 @@ export default function PharmacyContent({
                   className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                 />
                 <label htmlFor="is_active_checkbox" className="text-xs font-medium text-slate-700 cursor-pointer">
-                  เปิดให้พร้อมจ่ายในระบบ (Active Status)
+                  เปิดใช้งานและพร้อมจ่าย
                 </label>
               </div>
 
@@ -2195,10 +2187,10 @@ export default function PharmacyContent({
                   {isSubmitting ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>กำลังบันทึก...</span>
+                      <span>กำลังบันทึก…</span>
                     </>
                   ) : (
-                    <span>{editingItem ? 'บันทึกการแก้ไข' : 'เพิ่มเวชภัณฑ์'}</span>
+                    <span>{editingItem ? 'บันทึกการแก้ไข' : 'เพิ่มรายการยา'}</span>
                   )}
                 </button>
               </div>
@@ -2228,7 +2220,7 @@ export default function PharmacyContent({
                   </div>
                   <div>
                     <span className="text-[11px] font-bold tracking-wider text-sky-600 uppercase block mb-0.5">
-                      รายละเอียดเวชภัณฑ์
+                      รายละเอียดยาและเวชภัณฑ์
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
@@ -2272,7 +2264,7 @@ export default function PharmacyContent({
                     <div>
                       <span className="text-xs font-bold">
                         {viewingItem.coverage_type === 'non_covered'
-                          ? 'ยานอกสิทธิ์ (จ่ายนอก / จ่ายแยก)'
+                          ? 'ยานอกสิทธิ์ (จ่ายนอก)'
                           : 'ยาในสิทธิ์ (เบิกได้)'}
                       </span>
                       <p className="text-[11px] opacity-80 mt-0.5">
@@ -2287,7 +2279,7 @@ export default function PharmacyContent({
                       ? 'bg-purple-100 text-purple-700'
                       : 'bg-emerald-100 text-emerald-700'
                   }`}>
-                    {viewingItem.coverage_type === 'non_covered' ? 'Non-covered' : 'In-formulary'}
+                        {viewingItem.coverage_type === 'non_covered' ? 'ยานอกสิทธิ์' : 'ยาในสิทธิ์'}
                   </span>
                 </div>
 
@@ -2331,7 +2323,7 @@ export default function PharmacyContent({
                 <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2.5">
                   {viewingItem.manufacturer && (
                     <div>
-                      <span className="text-[11px] font-medium text-slate-400">บริษัทที่ผลิต (Manufacturer)</span>
+                    <span className="text-[11px] font-medium text-slate-400">ผู้ผลิต</span>
                       <p className="text-xs font-semibold text-slate-800 mt-0.5">
                         {viewingItem.manufacturer}
                       </p>
@@ -2339,13 +2331,13 @@ export default function PharmacyContent({
                   )}
                   <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
                     <div>
-                      <span className="text-[11px] font-medium text-slate-400">วันผลิต (MFG Date)</span>
+                        <span className="text-[11px] font-medium text-slate-400">วันผลิต</span>
                       <p className="text-xs font-medium text-slate-700 mt-0.5">
                         {formatDisplayDate(viewingItem.mfg_date)}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ (EXP Date)</span>
+                        <span className="text-[11px] font-medium text-slate-400">วันหมดอายุ</span>
                       <p className={`text-xs font-medium mt-0.5 ${
                         isExpired(viewingItem.expiry_date) ? 'text-rose-600 font-bold' : 'text-slate-700'
                       }`}>
@@ -2358,7 +2350,7 @@ export default function PharmacyContent({
                 {/* Stock Status Bar */}
                 <div className="rounded-xl border border-slate-200/80 p-3.5 space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-700">ระดับสต็อกคงเหลือ</span>
+                    <span className="font-semibold text-slate-700">สต็อกคงเหลือ</span>
                     <span className="text-slate-500">
                       คงเหลือ <strong className="text-slate-900 text-sm">{viewingItem.stock} {viewingItem.unit || 'หน่วย'}</strong>{' '}
                       (ขั้นต่ำ {viewingItem.min_stock} {viewingItem.unit || 'หน่วย'})
@@ -2396,7 +2388,7 @@ export default function PharmacyContent({
 
                 {viewingItem.ingredients && (
                   <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
-                    <span className="text-[11px] font-medium text-slate-400">ตัวยาสำคัญ (Active Ingredients)</span>
+                    <span className="text-[11px] font-medium text-slate-400">ตัวยาสำคัญ</span>
                     <p className="text-xs text-slate-700 mt-1 font-mono leading-relaxed">
                       {viewingItem.ingredients}
                     </p>
@@ -2431,14 +2423,14 @@ export default function PharmacyContent({
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                   >
                     <FileText className="h-3.5 w-3.5" />
-                    <span>เปิดหน้าเต็ม</span>
+                    <span>ดูรายละเอียดเต็มหน้า</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseViewingModal}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition shadow-2xs"
                   >
-                    ปิดหน้าต่าง
+                    ปิด
                   </button>
                 </div>
               </div>
@@ -2459,7 +2451,7 @@ export default function PharmacyContent({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    {deleteTarget.is_active ? 'ตัวเลือกลบเวชภัณฑ์' : 'ยืนยันลบเวชภัณฑ์ถาวร'}
+                    {deleteTarget.is_active ? 'เลือกวิธีลบรายการ' : 'ยืนยันการลบถาวร'}
                   </h3>
                   <p className="text-xs text-slate-500">
                     รายการ: <span className="font-semibold text-slate-700">{deleteTarget.name}</span>
@@ -2478,7 +2470,7 @@ export default function PharmacyContent({
             {deleteTarget.is_active ? (
               <div className="my-5 space-y-3">
                 <p className="text-xs text-slate-600">
-                  คุณสามารถเลือกรูปแบบการลบสำหรับเวชภัณฑ์นี้ได้ 2 รูปแบบ:
+                  เลือกรูปแบบการลบรายการ
                 </p>
 
                 {/* Option 1: Soft Delete */}
@@ -2488,11 +2480,11 @@ export default function PharmacyContent({
                       <div className="flex items-center gap-2">
                         <Ban className="h-4 w-4 text-amber-600" />
                         <span className="text-sm font-bold text-amber-900">
-                          1. พักการใช้งาน (Soft Delete - แนะนำ)
+                          1. พักใช้งาน (แนะนำ)
                         </span>
                       </div>
                       <p className="text-xs text-amber-800/80 leading-relaxed">
-                        ซ่อนรายการนี้ออกจากระบบจ่ายยา แต่เก็บประวัติไว้ในฐานข้อมูล และสามารถกดกู้คืน (Restore) ได้ทุกเมื่อ
+                        ซ่อนรายการจากการจ่ายยา แต่เก็บประวัติไว้และกู้คืนได้
                       </p>
                     </div>
                     <button
@@ -2513,11 +2505,11 @@ export default function PharmacyContent({
                       <div className="flex items-center gap-2">
                         <Trash2 className="h-4 w-4 text-rose-600" />
                         <span className="text-sm font-bold text-rose-900">
-                          2. ลบออกจากระบบถาวร (Hard Delete)
+                          2. ลบถาวร
                         </span>
                       </div>
                       <p className="text-xs text-rose-800/80 leading-relaxed">
-                        ลบข้อมูลออกจาก Supabase ทันที ไม่สามารถกู้คืนข้อมูลได้ เหมาะสำหรับรายการที่สร้างผิดพลาด
+                        ลบข้อมูลถาวรและกู้คืนไม่ได้ ใช้เมื่อต้องการลบรายการที่สร้างผิด
                       </p>
                     </div>
                     <button
@@ -2534,7 +2526,7 @@ export default function PharmacyContent({
             ) : (
               <div className="my-5 space-y-4">
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 leading-relaxed">
-                  ⚠️ รายการนี้ถูกพักการใช้งาน (Soft Deleted) ไว้อยู่แล้ว หากกดยืนยัน ข้อมูลจะถูกลบออกจากฐานข้อมูล Supabase ถาวรและไม่สามารถกู้คืนได้อีกต่อไป
+                  รายการนี้ถูกพักใช้งานอยู่แล้ว การยืนยันจะลบข้อมูลถาวรและกู้คืนไม่ได้
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-2">
                   <button
@@ -2544,7 +2536,7 @@ export default function PharmacyContent({
                     className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
-                    กู้คืนกลับมาใช้งาน
+                    กู้คืน
                   </button>
                   <div className="flex items-center gap-2">
                     <button
@@ -2584,7 +2576,6 @@ export default function PharmacyContent({
         </div>
         </ViewportPortal>
       )}
-      </div>
     </div>
   );
 }
