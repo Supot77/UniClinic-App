@@ -1,5 +1,5 @@
 import { userRoles, type AppointmentStatus, type InventoryAction, type Medication, type MedicationReminderStatus, type Notification, type UserRole } from '@/types/database';
-import { dashboardRangeLabels, type BroadcastHistoryItem, type DashboardMetric, type DashboardRange, type DashboardView, type SendBroadcastInput } from '@/features/dashboard/types';
+import { dashboardRangeLabels, type BroadcastHistoryItem, type DashboardGenderCount, type DashboardMetric, type DashboardRange, type DashboardView, type SendBroadcastInput } from '@/features/dashboard/types';
 import { ClinicMockDatabase, mockResult } from './engine';
 
 function subtractDays(date: string, days: number): string {
@@ -843,6 +843,26 @@ export function createClinicRepositories(
           role: profileRole,
           count: tables.profiles.filter((profile) => profile.role === profileRole && profile.is_active !== false).length,
         }));
+        const activeProfiles = tables.profiles.filter((profile) => profile.is_active !== false);
+        const genderLabels = {
+          male: 'ผู้ชาย',
+          female: 'ผู้หญิง',
+          unspecified: 'ไม่ระบุเพศ',
+        } as const;
+        const buildGenderCounts = (genderProfiles: typeof tables.profiles): DashboardGenderCount[] => {
+          const total = genderProfiles.length;
+          return (['male', 'female', 'unspecified'] as const).map((gender) => ({
+            gender,
+            label: genderLabels[gender],
+            count: genderProfiles.filter((profile) => (profile.gender ?? 'unspecified') === gender).length,
+            percentage: total > 0
+              ? Math.round((genderProfiles.filter((profile) => (profile.gender ?? 'unspecified') === gender).length / total) * 1000) / 10
+              : 0,
+          }));
+        };
+        const patientGenderCounts = buildGenderCounts(activeProfiles.filter((profile) => profile.role === 'patient'));
+        const doctorIds = new Set(tables.doctors.map((doctor) => doctor.id));
+        const doctorGenderCounts = buildGenderCounts(activeProfiles.filter((profile) => doctorIds.has(profile.id)));
         const metric = (value: number | string, id: string, label: string, description: string, href: string, tone: DashboardMetric['tone']): DashboardMetric => ({
           id, label, value, description, href, tone,
         });
@@ -1167,6 +1187,7 @@ export function createClinicRepositories(
               return {
                 id: reminder.id,
                 name: medication?.name ?? 'ไม่พบชื่อยา',
+                dosage: medication?.dosage || `1 ${medication?.type ?? 'ครั้ง'}`,
                 instruction: medication?.description || `รับประทานตามเวลา ${reminderTimes.join(' · ') || 'ที่กำหนด'}`,
                 reminderTimes,
                 nextDoseTime: reminderTimes.length > 0 ? nextReminderTime(reminderTimes, currentBangkokTime) : null,
@@ -1287,6 +1308,10 @@ export function createClinicRepositories(
             ),
 
           appointmentQueue,
+
+          patientGenderCounts: role === 'staff_admin' ? patientGenderCounts : undefined,
+
+          doctorGenderCounts: role === 'staff_admin' ? doctorGenderCounts : undefined,
 
           nextAppointment,
 
