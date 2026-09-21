@@ -31,7 +31,8 @@ describe('role-based dashboard requirements', () => {
 
     expect(strange.data?.metrics.find((item) => item.id === 'own-appointments')?.value).toBe(1);
     expect(strange.data?.metrics.find((item) => item.id === 'own-queue')?.value).toBe(1);
-    expect(strange.data?.metrics).toHaveLength(3);
+    expect(strange.data?.metrics).toHaveLength(4);
+    expect(strange.data?.metrics.find((item) => item.id === 'in-progress-in-range')).toBeDefined();
     expect(strange.data?.metrics.some((item) => item.id === 'unread-notifications')).toBe(false);
     expect(xavier.data?.metrics.find((item) => item.id === 'completed-in-range')?.value).toBe(1);
     expect(xavier.data?.metrics.find((item) => item.id === 'own-queue')?.value).toBe(0);

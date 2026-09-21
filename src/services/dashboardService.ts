@@ -559,6 +559,7 @@ export async function getDashboardView(
   const clinicAppointments = appointments.filter((appointment) => clinicAppointmentStatuses.includes(appointment.status));
   const servedAppointmentCount = clinicAppointments.filter((appointment) => appointment.status === 'in_progress' || appointment.status === 'completed').length;
   const queueRemaining = activeAppointments.filter((appointment) => appointment.status === 'confirmed' || appointment.status === 'in_progress').length;
+  const inProgressInRange = activeAppointments.filter((appointment) => appointment.status === 'in_progress').length;
   const completedInRange = activeAppointments.filter((appointment) => appointment.status === 'completed').length;
   const currentBangkokTime = bangkokTime();
   const statusAppointments = role === 'staff_admin'
@@ -635,6 +636,7 @@ export async function getDashboardView(
       ? [
           metric(activeAppointments.length, 'own-appointments', `นัดของฉัน${rangeSuffix}`, 'เฉพาะตารางแพทย์ที่เข้าสู่ระบบ', '/appointments', 'blue'),
           metric(queueRemaining, 'own-queue', range === 'today' ? 'คิวของฉันที่เหลือ' : 'คิวของฉันในช่วงที่เลือก', 'ยืนยันแล้วและกำลังตรวจ', '/appointments', 'amber'),
+          metric(inProgressInRange, 'in-progress-in-range', `กำลังตรวจ${rangeSuffix}`, 'นัดหมายที่กำลังตรวจ', '/appointments', 'violet'),
           metric(completedInRange, 'completed-in-range', `ตรวจเสร็จ${rangeSuffix}`, 'นับสถานะเสร็จสิ้น', '/appointments', 'emerald'),
         ]
       : [
@@ -745,7 +747,6 @@ export async function getDashboardView(
         };
       })
       .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 5)
     : [];
 
   const pendingPrescriptions = role === 'medical' && !isDoctorActor
@@ -850,7 +851,7 @@ export async function getDashboardView(
     staff_admin: { title: 'ภาพรวมงานคลินิกของผู้ดูแลระบบ', description: 'ติดตามนัดหมาย คิว แผนก และบัญชีของคลินิก' },
     medical: {
       title: 'ภาพรวมงานแพทย์',
-      description: isDoctorActor ? 'แสดงเฉพาะตารางและคิวของแพทย์ที่เข้าสู่ระบบ พร้อมข้อมูลยา' : 'ติดตามงานจ่ายยาและสถานะคลังยา',
+      description: isDoctorActor ? 'แสดงเฉพาะตารางและคิวของแพทย์ที่เข้าสู่ระบบ พร้อมข้อมูลยาที่หควรตรวจสอบ' : 'ติดตามงานจ่ายยาและสถานะคลังยา',
     },
     patient: { title: 'ภาพรวมสุขภาพของฉัน', description: 'นัดหมาย ยา การเตือน และข้อความของบัญชีนี้เท่านั้น' },
   };

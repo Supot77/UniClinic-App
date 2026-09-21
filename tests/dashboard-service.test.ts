@@ -241,6 +241,17 @@ describe('Supabase dashboard service', () => {
     expect(view.recentNotifications).toHaveLength(1);
   });
 
+  it('returns all completed patient treatment history for dashboard filtering', async () => {
+    database.medical_records.push({
+      id: 'record-older', appointment_id: 'appointment-older', patient_id: 'patient-1', doctor_id: 'medical-1',
+      diagnosis: 'older summary', treatment_notes: 'older advice', prescribed_medications: [], created_at: '2026-09-01T04:00:00.000Z',
+    });
+
+    const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
+
+    expect(view.patientTreatmentHistory?.map((record) => record.id)).toEqual(['record-1', 'record-older']);
+  });
+
   it('finds the next patient appointment after the selected date range', async () => {
     database.appointment_slots = [
       { id: 'slot-today', doctor_id: 'medical-1', slot_date: '2026-09-08', start_time: '08:00:00', max_capacity: 10, status: 'available' },
@@ -303,7 +314,7 @@ describe('Supabase dashboard service', () => {
   it('scopes a doctor dashboard to that doctor slots', async () => {
     const view = await getDashboardView('medical', 'medical-1', '2026-09-08', 'today');
 
-    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 0]);
+    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 0, 0]);
     expect(view.metrics.some((metric) => metric.id === 'unread-notifications')).toBe(false);
     expect(view.appointmentQueue).toHaveLength(1);
     expect(view.appointmentQueue[0].doctorName).toBe('แพทย์หนึ่ง');
