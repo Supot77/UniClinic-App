@@ -9,7 +9,7 @@ import { createClient } from '@/utils/supabase/client';
 
 export const inputClass = 'min-h-11 w-full rounded-xl border border-brand-border-soft bg-white px-3 py-2 text-sm text-brand-ink outline-none focus:border-brand-strong focus:ring-4 focus:ring-brand-soft disabled:bg-brand-surface';
 export const primaryButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
-export const secondaryButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-border-soft bg-white px-4 py-2 text-sm font-medium text-brand-hover transition hover:bg-brand-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
+export const secondaryButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-border-soft bg-brand-surface px-4 py-2 text-sm font-medium text-brand-ink transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
 
 export const roleSchema = z.enum(['patient', 'medical', 'staff_admin']);
 export type ClinicRole = z.infer<typeof roleSchema>;
@@ -312,9 +312,9 @@ export interface WorkspaceHeaderStat {
   tone: 'default' | 'success' | 'info' | 'warning' | 'danger';
 }
 
-export function ClinicWorkspaceShell({ role, section, error, message, busy, reload, children }: {
+export function ClinicWorkspaceShell({ role, section, error, message, busy, reload, children, wide = false }: {
   role: ClinicRole; section: 'appointments' | 'records'; error: string; message: string; busy: boolean;
-  reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[];
+  reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[]; wide?: boolean;
 }) {
   const title = role === 'patient' ? 'ภาพรวมสุขภาพของฉัน' : section === 'appointments' ? 'นัดหมายและคิวตรวจ' : 'ผลตรวจและรายการยา';
   const description = role === 'patient'
@@ -322,7 +322,7 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
     : role === 'medical'
       ? section === 'appointments' ? 'ติดตามคิวตรวจและบันทึกข้อมูลการรักษาของผู้ป่วยที่รับผิดชอบ' : 'บันทึกผลตรวจและรายการยาให้ครบถ้วนก่อนส่งต่อผู้ป่วย'
       : 'จัดการคำขอนัดและติดตามคิวของผู้รับบริการจากระบบปัจจุบัน';
-  return <section className="mx-auto w-full max-w-none space-y-5 text-brand-ink lg:relative lg:left-1/2 lg:w-[calc(100vw-4rem)] lg:max-w-[1368px] lg:-translate-x-1/2">
+  return <section className={`${wide ? 'relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8' : 'mx-auto w-full max-w-none lg:relative lg:left-1/2 lg:w-[calc(100vw-4rem)] lg:max-w-[1368px] lg:-translate-x-1/2'} space-y-5 text-brand-ink`}>
     <header className="border-b border-brand-border-soft pb-5 sm:pb-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 border-l-4 border-brand-strong pl-4 sm:pl-5">

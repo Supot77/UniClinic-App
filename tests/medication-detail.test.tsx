@@ -145,12 +145,14 @@ describe('MedicationDetailContent Dynamic Route Component', () => {
     render(<MedicationDetailContent medicationId="med-paracetamol-1" currentRole="medical" />);
 
     const editBtn = await screen.findByRole('button', { name: 'แก้ไขข้อมูลยา' });
+    expect(editBtn).toHaveClass('bg-brand-strong', 'hover:bg-brand-hover');
     fireEvent.click(editBtn);
 
     // Edit modal should open
     expect(screen.getByRole('heading', { name: 'แก้ไขข้อมูลยา' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Paracetamol')).toBeInTheDocument();
     expect(screen.getByDisplayValue('500mg')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'บันทึกการแก้ไข' })).toHaveClass('bg-brand-strong', 'hover:bg-brand-hover');
   });
 
   it('shows read-only locked status for staff_admin and admin roles', async () => {

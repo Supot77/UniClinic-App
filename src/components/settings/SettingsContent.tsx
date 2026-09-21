@@ -39,6 +39,32 @@ function OptionButton({ selected, onClick, icon, label }: {
   );
 }
 
+function OptionCard({ selected, onClick, icon, title, description }: {
+  selected: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`relative flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border px-4 py-4 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${selected ? "border-brand-strong bg-brand-soft text-brand-strong shadow-sm" : "border-[var(--settings-border)] bg-[var(--settings-option)] text-[var(--settings-muted)] hover:border-brand-border hover:text-[var(--settings-page-text)]"}`}
+    >
+      {icon}
+      <span className="text-sm font-semibold">{title}</span>
+      <span className="text-xs leading-5">{description}</span>
+      {selected && (
+        <span className="absolute right-2.5 top-2.5 flex size-4 items-center justify-center rounded-full bg-brand-strong text-white">
+          <Check className="size-3" strokeWidth={3} aria-hidden="true" />
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function SettingsContent() {
   const [theme, setTheme] = useState<Theme>("system");
   const [fontSize, setFontSize] = useState<FontSize>("normal");

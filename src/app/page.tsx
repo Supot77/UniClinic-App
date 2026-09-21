@@ -91,7 +91,7 @@ export default function Home() {
       </section>
 
       {/* Steps Section with Full-Bleed Nurse Backdrop */}
-      <section aria-labelledby="steps-heading" className="relative overflow-hidden border-y border-brand-border bg-white px-5 py-14 sm:px-8 lg:px-12 lg:py-20">
+      <section aria-labelledby="steps-heading" className="landing-steps relative overflow-hidden border-y border-brand-border bg-brand-surface px-5 py-14 sm:px-8 lg:px-12 lg:py-20">
         {/* Background Image & Directional Gradient Scrims */}
         <div className="pointer-events-none absolute inset-0 z-0">
           <Image
@@ -101,12 +101,12 @@ export default function Home() {
             className="object-cover object-[20%_center] sm:object-[20%_center] lg:object-[20%_center]"
           />
           {/* Desktop Left-to-Right Scrim: Solid white covering steps text on the left, fading to transparent on the right */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 via-30% to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-surface via-brand-surface/95 via-30% to-transparent" />
           {/* Mobile Top-to-Bottom Scrim */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white via-white/85 via-60% to-transparent lg:hidden" />
+          <div className="absolute inset-0 bg-gradient-to-b from-brand-surface via-brand-surface/85 via-60% to-transparent lg:hidden" />
           {/* Bottom & Top fades */}
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white via-white/70 to-transparent" />
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/50 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-brand-surface via-brand-surface/70 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-brand-surface/50 to-transparent" />
         </div>
 
         {/* Foreground Content */}
@@ -150,7 +150,7 @@ export default function Home() {
       </section>
 
       {/* Contact Section */}
-      <section aria-labelledby="contact-heading" className="bg-brand-ink px-5 py-12 text-white sm:px-8 lg:px-12">
+      <section aria-labelledby="contact-heading" className="landing-contact bg-brand-ink px-5 py-12 text-white sm:px-8 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-8 md:flex-row md:items-center">
           <div>
             <p className="flex items-center gap-2 text-sm text-brand-footer-text">

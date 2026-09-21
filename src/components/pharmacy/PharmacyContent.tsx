@@ -219,7 +219,6 @@ export default function PharmacyContent({
   initialStatus = 'all',
   initialSort = 'newest',
   currentRole,
-  userEmail,
   userName,
   userId,
 }: PharmacyContentProps) {
@@ -997,29 +996,6 @@ export default function PharmacyContent({
       <div className="mb-6 space-y-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
-              <span className="text-xs font-bold tracking-wider text-sky-600 uppercase">
-                WU CLINIC / PHARMACY
-              </span>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
-                currentRole === 'admin'
-                  ? 'bg-purple-50 text-purple-700 ring-purple-600/20'
-                  : (currentRole === 'staff_admin' || currentRole === 'staff' || authRole === 'staff_admin')
-                  ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20'
-                  : 'bg-blue-50 text-blue-700 ring-blue-600/20'
-              }`}>
-                {currentRole === 'admin'
-                  ? 'สิทธิ์: ผู้ดูแลระบบ · ดูอย่างเดียว'
-                  : (currentRole === 'staff_admin' || currentRole === 'staff' || authRole === 'staff_admin')
-                  ? 'สิทธิ์: เจ้าหน้าที่คลินิก · ดูอย่างเดียว'
-                  : 'สิทธิ์: บุคลากรทางการแพทย์ · จัดการยาได้'}
-              </span>
-              {(userName || userEmail) && (
-                <span className="text-[11px] text-slate-500">
-                  ({userName ? `${userName}${userEmail ? ` · ${userEmail}` : ''}` : userEmail})
-                </span>
-              )}
-            </div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
               คลังยาและเวชภัณฑ์
             </h1>
@@ -1034,7 +1010,7 @@ export default function PharmacyContent({
               onClick={() => void handleReloadAll()}
               disabled={isLoading || isLoadingPrescriptions}
               title="รีเฟรชข้อมูล"
-              className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 sm:px-3.5 text-xs sm:text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 active:scale-95 disabled:opacity-50"
+              className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-brand-border-soft bg-brand-surface px-3 sm:px-3.5 text-xs sm:text-sm font-medium text-brand-ink shadow-xs transition hover:bg-brand-soft active:scale-95 disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading || isLoadingPrescriptions ? 'animate-spin text-sky-600' : ''}`} />
               <span className="hidden sm:inline">รีเฟรช</span>
@@ -1044,7 +1020,7 @@ export default function PharmacyContent({
                 <button
                   type="button"
                   onClick={handleOpenAddModal}
-                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-xs transition hover:bg-sky-700 active:scale-95"
+                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-xs transition hover:bg-brand-hover active:scale-95"
                 >
                   <Plus className="h-4 w-4 shrink-0" />
                   <span>เพิ่มรายการยา</span>
@@ -1052,9 +1028,9 @@ export default function PharmacyContent({
               ) : (
                 <div
                   title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่เพิ่มรายการยาได้"
-                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-slate-400 cursor-not-allowed select-none"
+                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-brand-border-soft bg-brand-surface px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-brand-muted cursor-not-allowed select-none"
                 >
-                  <Lock className="h-4 w-4 shrink-0 text-slate-400" />
+                  <Lock className="h-4 w-4 shrink-0 text-brand-muted" />
                   <span>เพิ่มรายการยา (ดูอย่างเดียว)</span>
                 </div>
               )
@@ -1126,7 +1102,7 @@ export default function PharmacyContent({
             <button
               type="button"
               onClick={() => void handleReloadAll()}
-              className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-rose-700 border border-rose-200 shadow-xs hover:bg-rose-100"
+              className="rounded-lg bg-brand-surface px-3 py-1 text-xs font-semibold text-status-critical border border-status-critical/30 shadow-xs hover:bg-status-critical-bg"
             >
               ลองใหม่
             </button>
@@ -1316,7 +1292,7 @@ export default function PharmacyContent({
                       setSelectedCoverage('all');
                       setStatusFilter('all');
                     }}
-                    className="h-11 rounded-xl px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition shrink-0"
+                    className="h-11 rounded-xl px-3 text-xs font-semibold text-status-critical hover:bg-status-critical-bg transition shrink-0"
                   >
                     ล้างตัวกรอง
                   </button>
@@ -1513,7 +1489,7 @@ export default function PharmacyContent({
                               type="button"
                               onClick={() => handleOpenViewingModal(item)}
                               title="ดูรายละเอียดรายการนี้"
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                              className="inline-flex items-center gap-1 rounded-lg border border-brand-border-soft bg-brand-surface px-2.5 py-1 text-xs font-medium text-brand-ink hover:bg-brand-soft transition shadow-2xs"
                             >
                               <FileText className="h-3.5 w-3.5 text-slate-400" />
                               <span>ดูข้อมูล</span>
@@ -1542,7 +1518,7 @@ export default function PharmacyContent({
                                   type="button"
                                   onClick={() => void handleRestoreMedication(item)}
                                   title="กู้คืนรายการนี้"
-                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-2xs"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-status-success/30 bg-status-success-bg px-2.5 py-1 text-xs font-semibold text-status-success hover:bg-status-success-bg transition shadow-2xs"
                                 >
                                   <RotateCcw className="h-3.5 w-3.5" />
                                   <span>กู้คืน</span>
@@ -1551,7 +1527,7 @@ export default function PharmacyContent({
                                   type="button"
                                   onClick={() => handleOpenEditModal(item)}
                                   title="แก้ไขข้อมูล"
-                                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-sky-600 transition"
+                                  className="rounded-lg p-1.5 text-brand-body hover:bg-brand-soft hover:text-brand-strong transition"
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </button>
@@ -1559,7 +1535,7 @@ export default function PharmacyContent({
                                   type="button"
                                   onClick={() => setDeleteTarget(item)}
                                   title="ลบรายการนี้ถาวร"
-                                  className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                                  className="rounded-lg p-1.5 text-status-critical hover:bg-status-critical-bg hover:text-status-critical transition"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -1570,7 +1546,7 @@ export default function PharmacyContent({
                                   type="button"
                                   onClick={() => handleOpenEditModal(item)}
                                   title="แก้ไขข้อมูล"
-                                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-sky-600 transition"
+                                  className="rounded-lg p-1.5 text-brand-body hover:bg-brand-soft hover:text-brand-strong transition"
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </button>
@@ -1578,7 +1554,7 @@ export default function PharmacyContent({
                                   type="button"
                                   onClick={() => setDeleteTarget(item)}
                                   title="ลบหรือพักใช้งานรายการนี้"
-                                  className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                                  className="rounded-lg p-1.5 text-status-critical hover:bg-status-critical-bg hover:text-status-critical transition"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -1619,18 +1595,18 @@ export default function PharmacyContent({
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <ViewportPortal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
-            <div className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+            <div className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-brand-border-soft bg-brand-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                <h2 className="text-base sm:text-lg font-bold text-brand-ink">
                   {editingItem ? 'แก้ไขรายการยา' : 'เพิ่มรายการยา'}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-xl p-1.5 text-brand-muted hover:bg-brand-soft hover:text-brand-ink"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1638,7 +1614,7 @@ export default function PharmacyContent({
 
             <form onSubmit={handleSaveMedication} className="flex-1 overflow-y-auto p-4 sm:p-6 pt-3 sm:pt-4 space-y-4">
               {formError && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
+                <div className="rounded-xl border border-status-critical/30 bg-status-critical-bg p-3 text-xs font-medium text-status-critical">
                   {formError}
                 </div>
               )}
@@ -1872,7 +1848,7 @@ export default function PharmacyContent({
                     <button
                       type="button"
                       onClick={() => setShowPackCalculator(!showPackCalculator)}
-                      className="shrink-0 whitespace-nowrap rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition shadow-2xs"
+                      className="shrink-0 whitespace-nowrap rounded-lg border border-brand-border-soft bg-brand-surface px-3 py-1.5 text-xs font-semibold text-brand-strong hover:bg-brand-soft transition shadow-2xs"
                     >
                       {showPackCalculator ? 'ซ่อนตัวช่วย' : 'เปิดตัวช่วยคำนวณ'}
                     </button>
@@ -1887,8 +1863,8 @@ export default function PharmacyContent({
                           onClick={() => setCalcMode('standard')}
                           className={`rounded-xl px-3 py-2 text-center font-medium transition ${
                             calcMode === 'standard'
-                              ? 'bg-sky-600 text-white shadow-2xs font-semibold'
-                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                              ? 'bg-brand-strong text-white shadow-2xs font-semibold'
+                              : 'bg-brand-surface text-brand-body border border-brand-border-soft hover:bg-brand-soft'
                           }`}
                         >
                           บรรจุภัณฑ์ทั่วไป (กล่อง / กระปุก / แผง)
@@ -1898,8 +1874,8 @@ export default function PharmacyContent({
                           onClick={() => setCalcMode('carton')}
                           className={`rounded-xl px-3 py-2 text-center font-medium transition ${
                             calcMode === 'carton'
-                              ? 'bg-sky-600 text-white shadow-2xs font-semibold'
-                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                              ? 'bg-brand-strong text-white shadow-2xs font-semibold'
+                              : 'bg-brand-surface text-brand-body border border-brand-border-soft hover:bg-brand-soft'
                           }`}
                         >
                           สั่งเป็นลัง (ลัง × กล่อง × หน่วยย่อย)
@@ -2043,7 +2019,7 @@ export default function PharmacyContent({
                               <button
                                 type="button"
                                 onClick={() => handleApplyCalculatedStock('add')}
-                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-2xs"
+                                className="rounded-lg bg-status-success px-3 py-1.5 text-xs font-semibold text-white hover:bg-status-success/90 transition shadow-2xs"
                               >
                               + เพิ่มในสต็อก ({calculatedStockTotal.toLocaleString()})
                               </button>
@@ -2051,7 +2027,7 @@ export default function PharmacyContent({
                             <button
                               type="button"
                               onClick={() => handleApplyCalculatedStock('replace')}
-                              className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 transition shadow-2xs"
+                              className="rounded-lg bg-brand-strong px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-2xs"
                             >
                               ใช้เป็นสต็อกปัจจุบัน
                             </button>
@@ -2175,14 +2151,14 @@ export default function PharmacyContent({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-brand-border-soft bg-brand-surface px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-brand-ink hover:bg-brand-soft transition"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 sm:px-5 text-xs sm:text-sm font-semibold text-white hover:bg-sky-700 transition shadow-xs disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-4 sm:px-5 text-xs sm:text-sm font-semibold text-white hover:bg-brand-hover transition shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -2206,16 +2182,16 @@ export default function PharmacyContent({
           <div
             data-testid="medication-details-backdrop"
             onClick={handleCloseViewingModal}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-2xl sm:max-w-3xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+              className="relative w-full max-w-2xl sm:max-w-3xl max-h-[85vh] flex flex-col rounded-2xl border border-brand-border-soft bg-brand-surface shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
             >
               {/* Header */}
               <div className="flex items-start justify-between border-b border-slate-100 p-4 sm:p-6 pb-3 sm:pb-4 shrink-0">
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-sky-50 p-2.5 text-sky-600 shrink-0">
+                  <div className="rounded-xl bg-brand-soft p-2.5 text-brand-strong shrink-0">
                     <Pill className="h-6 w-6" />
                   </div>
                   <div>
@@ -2223,7 +2199,7 @@ export default function PharmacyContent({
                       รายละเอียดยาและเวชภัณฑ์
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                      <h2 className="text-lg sm:text-xl font-bold text-brand-ink leading-tight">
                         {viewingItem.name}
                       </h2>
                       {viewingItem.dosage && (
@@ -2242,7 +2218,7 @@ export default function PharmacyContent({
                 <button
                   type="button"
                   onClick={handleCloseViewingModal}
-                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                  className="rounded-xl p-1.5 text-brand-muted hover:bg-brand-soft hover:text-brand-ink transition"
                   title="ปิดหน้าต่าง"
                 >
                   <X className="h-5 w-5" />
@@ -2410,7 +2386,7 @@ export default function PharmacyContent({
                         handleCloseViewingModal();
                         handleOpenEditModal(itemToEdit);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-brand-border-soft bg-brand-soft px-3.5 py-2 text-xs font-semibold text-brand-strong hover:bg-brand-surface transition shadow-2xs"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                       <span>แก้ไขข้อมูล</span>
@@ -2420,7 +2396,7 @@ export default function PharmacyContent({
                     type="button"
                     onClick={() => handleNavigateToMedication(viewingItem.id)}
                     title="เปิดหน้ารายละเอียดแบบเต็มหน้าจอ"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-brand-border-soft bg-brand-surface px-3.5 py-2 text-xs font-semibold text-brand-ink hover:bg-brand-soft transition shadow-2xs"
                   >
                     <FileText className="h-3.5 w-3.5" />
                     <span>ดูรายละเอียดเต็มหน้า</span>
@@ -2428,7 +2404,7 @@ export default function PharmacyContent({
                   <button
                     type="button"
                     onClick={handleCloseViewingModal}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-brand-strong px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-2xs"
                   >
                     ปิด
                   </button>
@@ -2442,11 +2418,11 @@ export default function PharmacyContent({
       {/* Delete / Soft-delete Confirmation Modal */}
       {deleteTarget && (
         <ViewportPortal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-hidden animate-in fade-in duration-150">
-            <div className="relative w-full max-w-md max-h-[85vh] rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-hidden animate-in fade-in duration-150">
+            <div className="relative w-full max-w-md max-h-[85vh] rounded-2xl border border-brand-border-soft bg-brand-surface p-6 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className={`rounded-xl p-2 ${deleteTarget.is_active ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+                <div className={`rounded-xl p-2 ${deleteTarget.is_active ? 'bg-status-warning-bg text-status-warning' : 'bg-status-critical-bg text-status-critical'}`}>
                   <Trash2 className="h-5 w-5" />
                 </div>
                 <div>
@@ -2461,7 +2437,7 @@ export default function PharmacyContent({
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1 text-brand-muted hover:bg-brand-soft hover:text-brand-ink"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2474,16 +2450,16 @@ export default function PharmacyContent({
                 </p>
 
                 {/* Option 1: Soft Delete */}
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 transition hover:bg-amber-50">
+                <div className="rounded-xl border border-status-warning/30 bg-status-warning-bg p-4 transition hover:bg-status-warning-bg">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Ban className="h-4 w-4 text-amber-600" />
-                        <span className="text-sm font-bold text-amber-900">
+                        <Ban className="h-4 w-4 text-status-warning" />
+                        <span className="text-sm font-bold text-status-warning">
                           1. พักใช้งาน (แนะนำ)
                         </span>
                       </div>
-                      <p className="text-xs text-amber-800/80 leading-relaxed">
+                      <p className="text-xs text-status-warning/80 leading-relaxed">
                         ซ่อนรายการจากการจ่ายยา แต่เก็บประวัติไว้และกู้คืนได้
                       </p>
                     </div>
@@ -2491,7 +2467,7 @@ export default function PharmacyContent({
                       type="button"
                       disabled={isDeleting}
                       onClick={() => void handleSoftDelete(deleteTarget)}
-                      className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700 transition disabled:opacity-50"
+                      className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-status-warning px-3 text-xs font-semibold text-white hover:bg-status-warning/90 transition disabled:opacity-50"
                     >
                       {isDeleting ? 'กำลังบันทึก…' : 'พักใช้งาน'}
                     </button>
@@ -2499,16 +2475,16 @@ export default function PharmacyContent({
                 </div>
 
                 {/* Option 2: Hard Delete */}
-                <div className="rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 transition hover:bg-rose-50">
+                <div className="rounded-xl border border-status-critical/30 bg-status-critical-bg p-4 transition hover:bg-status-critical-bg">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Trash2 className="h-4 w-4 text-rose-600" />
-                        <span className="text-sm font-bold text-rose-900">
+                        <Trash2 className="h-4 w-4 text-status-critical" />
+                        <span className="text-sm font-bold text-status-critical">
                           2. ลบถาวร
                         </span>
                       </div>
-                      <p className="text-xs text-rose-800/80 leading-relaxed">
+                      <p className="text-xs text-status-critical/80 leading-relaxed">
                         ลบข้อมูลถาวรและกู้คืนไม่ได้ ใช้เมื่อต้องการลบรายการที่สร้างผิด
                       </p>
                     </div>
@@ -2516,7 +2492,7 @@ export default function PharmacyContent({
                       type="button"
                       disabled={isDeleting}
                       onClick={() => void handleHardDelete(deleteTarget)}
-                      className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 transition disabled:opacity-50"
+                      className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-status-critical px-3 text-xs font-semibold text-white hover:bg-status-critical/90 transition disabled:opacity-50"
                     >
                       {isDeleting ? 'กำลังลบ…' : 'ลบถาวร'}
                     </button>
@@ -2525,7 +2501,7 @@ export default function PharmacyContent({
               </div>
             ) : (
               <div className="my-5 space-y-4">
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 leading-relaxed">
+                <div className="rounded-xl border border-status-critical/30 bg-status-critical-bg p-3.5 text-xs text-status-critical leading-relaxed">
                   รายการนี้ถูกพักใช้งานอยู่แล้ว การยืนยันจะลบข้อมูลถาวรและกู้คืนไม่ได้
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-2">
@@ -2533,7 +2509,7 @@ export default function PharmacyContent({
                     type="button"
                     disabled={isDeleting}
                     onClick={() => void handleRestoreMedication(deleteTarget)}
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-status-success/30 bg-status-success-bg px-3.5 text-xs font-semibold text-status-success hover:bg-status-success-bg transition"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     กู้คืน
@@ -2543,7 +2519,7 @@ export default function PharmacyContent({
                       type="button"
                       disabled={isDeleting}
                       onClick={() => setDeleteTarget(null)}
-                      className="min-h-10 rounded-xl border border-slate-200 px-3.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
+                      className="min-h-10 rounded-xl border border-brand-border-soft bg-brand-surface px-3.5 text-xs font-medium text-brand-body hover:bg-brand-soft transition"
                     >
                       ยกเลิก
                     </button>
@@ -2551,7 +2527,7 @@ export default function PharmacyContent({
                       type="button"
                       disabled={isDeleting}
                       onClick={() => void handleHardDelete(deleteTarget)}
-                      className="min-h-10 rounded-xl bg-rose-600 px-4 text-xs font-semibold text-white hover:bg-rose-700 transition disabled:opacity-50"
+                      className="min-h-10 rounded-xl bg-status-critical px-4 text-xs font-semibold text-white hover:bg-status-critical/90 transition disabled:opacity-50"
                     >
                       {isDeleting ? 'กำลังลบ…' : 'ยืนยันลบถาวร'}
                     </button>
@@ -2566,7 +2542,7 @@ export default function PharmacyContent({
                   type="button"
                   disabled={isDeleting}
                   onClick={() => setDeleteTarget(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
+                  className="rounded-xl border border-brand-border-soft bg-brand-surface px-4 py-2 text-xs font-medium text-brand-body hover:bg-brand-soft transition"
                 >
                   ยกเลิก
                 </button>

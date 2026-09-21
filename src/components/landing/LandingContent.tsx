@@ -18,7 +18,7 @@ export function LandingActions() {
     <Link href={staff ? dashboardPathForRole(role) : isAuthenticated ? "/appointments" : "/login?redirect=%2Fappointments"} className={`inline-flex min-h-12 items-center justify-center gap-3 rounded-brand-button bg-brand-ink px-6 py-3 text-sm font-semibold text-white hover:bg-brand-hover ${focus}`}>
       {staff ? "ไปยังแดชบอร์ด" : "จองนัดหมาย"}<ArrowRight size={18} aria-hidden="true" />
     </Link>
-    <Link href={isAuthenticated ? "/schedules" : "/login?redirect=%2Fschedules"} className={`inline-flex min-h-12 items-center justify-center rounded-brand-button border border-brand-border-strong px-5 py-3 text-sm font-semibold hover:bg-white ${focus}`}>ดูตารางตรวจแพทย์</Link>
+    <Link href={isAuthenticated ? "/schedules" : "/login?redirect=%2Fschedules"} className={`inline-flex min-h-12 items-center justify-center rounded-brand-button border border-brand-border-strong px-5 py-3 text-sm font-semibold hover:bg-brand-soft ${focus}`}>ดูตารางตรวจแพทย์</Link>
     {isAuthenticated && role === "patient" && <Link href="/appointments" className={`inline-flex min-h-11 items-center text-sm font-medium text-brand-strong underline underline-offset-4 ${focus}`}>นัดหมายของฉัน</Link>}
   </div>;
 }
