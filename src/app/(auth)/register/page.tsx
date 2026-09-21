@@ -420,7 +420,7 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
               <p className="mt-1 text-sm text-slate-500">
                 {mode === 'staff-walk-in'
                   ? 'สร้างบัญชีให้นักศึกษาหรือบุคลากรที่เข้ารับบริการ'
-                  : 'สร้างบัญชีสำหรับเข้าใช้งาน WU Clinic'}
+                  : 'สร้างบัญชีเพื่อใช้งาน WU Clinic'}
               </p>
             </div>
           </div>
@@ -454,7 +454,7 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
           <FormSection
             number="1"
             title="ข้อมูลส่วนตัว"
-            description="ใช้สำหรับยืนยันตัวตนและข้อมูลผู้ป่วย"
+            description="สำหรับยืนยันตัวตนและบันทึกข้อมูลผู้ป่วย"
           >
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]">
               <Field
@@ -1149,7 +1149,7 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
               )}
 
               {isSubmitting
-                ? mode === 'staff-walk-in' ? 'กำลังสร้างบัญชี...' : 'กำลังสมัครสมาชิก...'
+                ? mode === 'staff-walk-in' ? 'กำลังสร้างบัญชี…' : 'กำลังสมัครสมาชิก…'
                 : mode === 'staff-walk-in' ? 'สร้างบัญชีผู้ป่วย' : 'สมัครสมาชิก'}
             </button>
           </footer>

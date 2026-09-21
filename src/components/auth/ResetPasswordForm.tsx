@@ -31,7 +31,7 @@ export default function ResetPasswordForm() {
       await updatePassword(password);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถตั้งรหัสผ่านใหม่ได้ ลิงก์อาจหมดอายุ');
+      setError(err instanceof Error ? err.message : 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ ลิงก์อาจหมดอายุ');
     } finally {
       setIsSubmitting(false);
     }
@@ -42,9 +42,9 @@ export default function ResetPasswordForm() {
       <section className="rounded-2xl border border-zinc-100 bg-white p-8 text-center shadow-xl">
         <CheckCircle2 className="mx-auto size-14 text-emerald-500" aria-hidden="true" />
         <h1 className="mt-5 text-2xl font-bold text-zinc-900">ตั้งรหัสผ่านใหม่สำเร็จ</h1>
-        <p className="mt-2 text-sm text-zinc-500">คุณสามารถใช้รหัสผ่านใหม่เข้าสู่ระบบได้แล้ว</p>
+        <p className="mt-2 text-sm text-zinc-500">ใช้รหัสผ่านใหม่เข้าสู่ระบบได้แล้ว</p>
         <Link href="/login" className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-sky-500 py-3 font-semibold text-white transition hover:bg-sky-600">
-          ไปหน้าเข้าสู่ระบบ
+          เข้าสู่ระบบ
         </Link>
       </section>
     );
@@ -77,7 +77,7 @@ export default function ResetPasswordForm() {
         </div>
         <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 font-semibold text-white transition hover:bg-sky-600 disabled:opacity-60">
           {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-          {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่'}
+          {isSubmitting ? 'กำลังบันทึก…' : 'บันทึกรหัสผ่านใหม่'}
         </button>
       </form>
     </section>

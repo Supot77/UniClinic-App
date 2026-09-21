@@ -46,7 +46,7 @@ export default function LoadingSpinner({
       {label ? (
         <span className="text-xs font-medium text-slate-600">{label}</span>
       ) : (
-        <span className="sr-only">กำลังโหลด...</span>
+        <span className="sr-only">กำลังโหลด…</span>
       )}
     </div>
   );

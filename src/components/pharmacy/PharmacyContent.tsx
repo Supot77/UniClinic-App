@@ -1931,12 +1931,12 @@ export default function PharmacyContent({
                               onChange={(e) => setCalcPackUnit(e.target.value)}
                               className="h-[38px] w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                             >
-                              <option value="กล่อง">กล่อง (Box)</option>
-                              <option value="กระปุก">กระปุก (Jar)</option>
-                              <option value="แผง">แผง (Strip)</option>
-                              <option value="แกลลอน">แกลลอน (Gallon)</option>
-                              <option value="แพ็ค">แพ็ค (Pack)</option>
-                              <option value="ลัง">ลัง (Carton)</option>
+                              <option value="กล่อง">กล่อง</option>
+                              <option value="กระปุก">กระปุก</option>
+                              <option value="แผง">แผง</option>
+                              <option value="แกลลอน">แกลลอน</option>
+                              <option value="แพ็ค">แพ็ค</option>
+                              <option value="ลัง">ลัง</option>
                             </select>
                           </div>
 
@@ -2399,7 +2399,7 @@ export default function PharmacyContent({
               {/* Footer */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 px-6 shrink-0 bg-slate-50/50 rounded-b-2xl">
                 <span className="text-[11px] text-slate-400">
-                  รหัสเวชภัณฑ์: {viewingItem.id.slice(0, 8)}...
+                  รหัสเวชภัณฑ์: {viewingItem.id.slice(0, 8)}…
                 </span>
                 <div className="flex items-center gap-2">
                   {canManage && (
@@ -2493,7 +2493,7 @@ export default function PharmacyContent({
                       onClick={() => void handleSoftDelete(deleteTarget)}
                       className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700 transition disabled:opacity-50"
                     >
-                      {isDeleting ? 'กำลังบันทึก...' : 'พักใช้งาน'}
+                      {isDeleting ? 'กำลังบันทึก…' : 'พักใช้งาน'}
                     </button>
                   </div>
                 </div>
@@ -2518,7 +2518,7 @@ export default function PharmacyContent({
                       onClick={() => void handleHardDelete(deleteTarget)}
                       className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 transition disabled:opacity-50"
                     >
-                      {isDeleting ? 'กำลังลบ...' : 'ลบถาวร'}
+                      {isDeleting ? 'กำลังลบ…' : 'ลบถาวร'}
                     </button>
                   </div>
                 </div>
@@ -2553,7 +2553,7 @@ export default function PharmacyContent({
                       onClick={() => void handleHardDelete(deleteTarget)}
                       className="min-h-10 rounded-xl bg-rose-600 px-4 text-xs font-semibold text-white hover:bg-rose-700 transition disabled:opacity-50"
                     >
-                      {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบถาวร'}
+                      {isDeleting ? 'กำลังลบ…' : 'ยืนยันลบถาวร'}
                     </button>
                   </div>
                 </div>

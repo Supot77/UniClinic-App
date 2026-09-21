@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { signIn } from '@/services/authService';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { toLoginErrorMessage } from '@/lib/userFacingErrors';
 
 function LoginForm() {
   const router = useRouter();
@@ -77,9 +78,7 @@ function LoginForm() {
       setIsRedirecting(false);
 
       setError(
-        err instanceof Error
-          ? err.message
-          : 'เข้าสู่ระบบไม่สำเร็จ ตรวจสอบอีเมลและรหัสผ่านอีกครั้ง',
+        toLoginErrorMessage(err),
       );
     }
   }
@@ -105,8 +104,7 @@ function LoginForm() {
           </h2>
 
           <p className="mt-1 max-w-xs text-sm text-zinc-500">
-            กำลังนำทางไปยังหน้าโปรไฟล์
-            กรุณารอสักครู่...
+            กำลังเปิดหน้าถัดไป…
           </p>
         </div>
       )}
@@ -166,8 +164,8 @@ function LoginForm() {
             id="login-email-help"
             className="mt-1.5 text-xs text-zinc-500"
           >
-            ผู้ป่วยใช้อีเมล @mail.wu.ac.th
-            ส่วนบุคลากรใช้อีเมลบัญชีที่ได้รับ
+            ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail.wu.ac.th
+            ส่วนบุคลากรใช้อีเมลตามบัญชีที่ผู้ดูแลระบบกำหนด
           </p>
         </div>
 
@@ -177,7 +175,7 @@ function LoginForm() {
               htmlFor="login-password"
               className="block text-sm font-medium text-zinc-700"
             >
-              Password
+              รหัสผ่าน
             </label>
 
             <Link
@@ -232,9 +230,9 @@ function LoginForm() {
           )}
 
           {isRedirecting
-            ? 'กำลังนำทางไปหน้าโปรไฟล์...'
+            ? 'กำลังเปิดหน้าถัดไป…'
             : isSubmitting
-              ? 'กำลังเข้าสู่ระบบ...'
+              ? 'กำลังเข้าสู่ระบบ…'
               : 'เข้าสู่ระบบ'}
         </button>
 
@@ -258,7 +256,7 @@ export default function LoginPage() {
       fallback={
         <LoadingSpinner
           center
-          label="กำลังโหลดหน้าเข้าสู่ระบบ..."
+          label="กำลังโหลดหน้าเข้าสู่ระบบ…"
         />
       }
     >

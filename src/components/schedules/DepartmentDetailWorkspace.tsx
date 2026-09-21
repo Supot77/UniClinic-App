@@ -43,7 +43,7 @@ export default function DepartmentDetailWorkspace({ departmentId }: { department
     return (
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8" aria-busy="true">
         <p role="status" className="rounded-xl border border-brand-border-soft bg-brand-surface px-4 py-6 text-sm text-brand-body">
-          กำลังโหลดข้อมูลแผนก...
+          กำลังโหลดข้อมูลแผนก…
         </p>
       </main>
     );
@@ -86,7 +86,7 @@ export default function DepartmentDetailWorkspace({ departmentId }: { department
         </Link>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-muted">Department detail</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-muted">รายละเอียดแผนก</p>
             <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">{department.name}</h1>
             {department.description && <p className="mt-3 max-w-2xl text-sm leading-6 text-brand-body">{department.description}</p>}
             <p className={`mt-4 text-sm font-semibold ${department.isActive ? 'text-status-success' : 'text-status-neutral'}`}>

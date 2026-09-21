@@ -675,7 +675,7 @@ export default function ProfileContent() {
                         </h2>
 
                         <p className="mt-1 text-xs text-slate-400">
-                          ข้อมูลสุขภาพที่บันทึกไว้ในระบบ
+                          ข้อมูลสุขภาพ
                         </p>
                       </div>
 
@@ -925,7 +925,6 @@ export default function ProfileContent() {
                       </h2>
                     </div>
 
-                    <span className="text-xs text-sky-600">ดูทั้งหมด ›</span>
                   </div>
 
                   <div className="p-5">
@@ -936,11 +935,11 @@ export default function ProfileContent() {
                         </div>
 
                         <p className="mt-4 text-sm font-semibold text-slate-700">
-                          ยังไม่มีประวัติการรักษาล่าสุด
+                          ยังไม่มีประวัติการรักษา
                         </p>
 
                         <p className="mt-1 text-xs text-slate-400">
-                          เมื่อมีการรักษา ข้อมูลจะแสดงที่นี่
+                          เมื่อมีข้อมูลการรักษา จะแสดงที่นี่
                         </p>
                       </div>
                     </div>

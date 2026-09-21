@@ -194,7 +194,7 @@ describe('Clinic database-backed role containers with injected offline repositor
     const diagnosis = await screen.findByRole('textbox', { name: 'ผลวินิจฉัย' });
     fireEvent.change(diagnosis, { target: { value: 'ผลทดสอบ' } });
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
-    expect(await screen.findByText('บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดอ่านได้')).toBeInTheDocument();
+    expect(await screen.findByText('บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดดูได้')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/ผลวินิจฉัย:/).parentElement).toHaveTextContent('ผลทดสอบ'));
     expect(screen.queryByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' })).not.toBeInTheDocument();
   });

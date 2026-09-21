@@ -183,9 +183,19 @@ export async function apiClient<T>(endpoint: string, options?: RequestInit): Pro
 
 เมื่อถึงเวลาเริ่มทำ ให้ทำตามลำดับนี้เพื่อไม่ให้ระบบล่ม:
 
-- [ ] **Phase 0: เตรียมเครื่องมือกลาง**
-  - [ ] สร้าง `src/lib/api-client.ts`
-  - [ ] ตั้งค่า Mock Fetch / MSW ใน `tests/setup.ts`
+- [x] **Phase 0: เตรียมเครื่องมือกลาง**
+  - [x] สร้าง `src/lib/api-client.ts`
+  - [x] ตั้งค่า Mock Fetch / MSW ใน `tests/setup.ts`
+
+### หลักฐาน Phase 0 (21 กันยายน 2569)
+
+- เพิ่ม `apiClient<T>` และ `ApiError` สำหรับเรียก API แบบ JSON, รักษา request options, แปลง non-2xx response เป็น error กลาง และรองรับ `204 No Content`
+- เพิ่ม Global Fetch Interceptor ใน `tests/setup.ts` ที่ดักเฉพาะ `/api/*`; request ที่ยังไม่มี mock handler จะตอบ `501` เพื่อป้องกัน test ยิง network จริง
+- เพิ่ม `tests/api-client.test.ts` ครอบคลุม success, header, JSON error, non-JSON error, `204` และ unconfigured API
+- ขอบเขตยังไม่รวมการสร้าง Route Handler หรือการย้าย service/repository/UI ไปใช้ API
+- Phase 0 เริ่มจากคำสั่งผู้ใช้ที่อนุญาตให้ข้าม Hard Gate; Hard Gate เดิมยังคงใช้กับ Phase 1 เป็นต้นไป
+- ตรวจแล้ว: targeted lint ผ่าน, typecheck ผ่าน, full test `37 files / 319 tests` ผ่าน และ build ผ่าน
+- Full lint ยังมี failure เดิมนอก Phase 0 ที่ `src/components/settings/SettingsContent.tsx:101` จาก `react-hooks/set-state-in-effect`
 - [ ] **Phase 1: กลุ่มข้อมูลพื้นฐาน (Low Risk)**
   - [ ] แปลง `departments` และ `doctors` เป็น `/api/departments` และ `/api/doctors`
   - [ ] ปรับ UI ใน `ScheduleWorkspace.tsx` และ `DepartmentWorkspace.tsx` ให้ใช้ Client Fetcher
@@ -215,4 +225,3 @@ export async function apiClient<T>(endpoint: string, options?: RequestInit): Pro
 - **ความเสี่ยงสูงสุด**: การหลุดของ Session Cookie เมื่อยิงข้าม Context หรือการลืมแนบ Cookie ใน Server Component
 - **แผนถอยกลับ (Rollback)**:
   - ให้คง Repository / Service Interface เดิมไว้ แล้วให้ Implementation ภายในเปลี่ยนไปเรียก `fetch()` แทน (Adapter Pattern) เพื่อให้สามารถสลับกลับมาต่อตรงผ่าน Supabase SDK ได้ทันทีหากพบปัญหาเรื่อง Latency หรือ Auth Cookie
-

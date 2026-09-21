@@ -637,7 +637,7 @@ export function createClinicRepositories(
         const revision = database.getRevision();
         return database.transaction(revision, (draft) => {
           if (input.actorRole !== 'staff_admin') {
-            return mockResult.fail<{ recipientCount: number; created: boolean }>('เฉพาะเจ้าหน้าที่/แอดมินเท่านั้นที่ส่ง Broadcast ได้', '42501');
+            return mockResult.fail<{ recipientCount: number; created: boolean }>('เฉพาะเจ้าหน้าที่และผู้ดูแลระบบเท่านั้นที่ส่งประกาศได้', '42501');
           }
           const title = input.title.trim();
           const message = input.message.trim();
