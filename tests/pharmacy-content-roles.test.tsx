@@ -573,16 +573,19 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
       />
     );
 
-    // "รอตัดจ่ายสต็อก" should be selected initially
-    const pendingBtn = await screen.findByRole('button', { name: /รอตัดจ่ายสต็อก/i });
+    // "รอตัดจ่ายยา" should be selected initially
+    const pendingBtn = await screen.findByRole('button', { name: /รอตัดจ่ายยา/i });
     expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
 
+    // Wait for prescription order data to load
+    expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
+
     // Click dispense button on pending order
-    const dispenseBtn = screen.getByRole('button', { name: /ตัดสต็อกจ่ายยา/ });
+    const dispenseBtn = screen.getByRole('button', { name: /จ่ายยาและตัดสต็อก/ });
     fireEvent.click(dispenseBtn);
 
     // Confirm dispense modal
-    const confirmBtn = screen.getByRole('button', { name: /ยืนยันการตัดสต็อกจ่ายยา/ });
+    const confirmBtn = await screen.findByRole('button', { name: /ยืนยันการจ่ายยา/ });
     await act(async () => {
       fireEvent.click(confirmBtn);
     });

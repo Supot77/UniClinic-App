@@ -393,20 +393,21 @@ export default function PrescriptionsTab({
                 logErrMsg.includes('duplicate key') ||
                 logErrMsg.includes('idx_inventory_logs_idempotency_unique');
 
-              if (isDuplicate) {
-                console.info(
-                  `[PrescriptionsTab] Item ${item.name} was already recorded in inventory_logs. Proceeding to update record.`
-                );
-              } else {
-                console.warn(
-                  `[PrescriptionsTab] Non-fatal: inventory_logs insert skipped for ${item.name}:`,
-                  logErrMsg
-                );
-              }
+            if (isDuplicate) {
+              console.info(
+                `[PrescriptionsTab] Item ${item.name} was already recorded in inventory_logs. Proceeding to update record.`
+              );
+            } else {
+              console.error(
+                `[PrescriptionsTab] Error: inventory_logs insert failed for ${item.name}:`,
+                logErrMsg
+              );
+              throw new Error(`บันทึกประวัติการจ่ายยา ${item.name} ไม่สำเร็จ: ${logErrMsg}`);
             }
           }
         }
       }
+    }
 
       // Mark prescribed_medications as dispensed in medical_records
       const nowIso = new Date().toISOString();
@@ -1138,10 +1139,10 @@ export default function PrescriptionsTab({
                       ตัดจ่ายเวชภัณฑ์ตามใบสั่ง
                     </span>
                     <h3 id="dispense-modal-title" className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
-                      ยืนยันการตัดสต็อกจ่ายยา
+                      ยืนยันการจ่ายยา
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ระบบจะตัดลดยอดคงเหลือในคลังยาและบันทึกประวัติการจ่ายยา
+                      จะตัดสต็อกและบันทึกการจ่ายยา
                     </p>
                   </div>
                 </div>
@@ -1193,7 +1194,7 @@ export default function PrescriptionsTab({
                 {/* Medications Preview Table */}
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    รายการเวชภัณฑ์ที่จะตัดสต็อก
+                    รายการยาที่จะจ่าย
                   </h4>
                   <div className="overflow-hidden rounded-xl border border-slate-200">
                     <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
@@ -1281,7 +1282,7 @@ export default function PrescriptionsTab({
                     className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                   />
                   <span className="font-medium">
-                    บันทึกสถานะตัดจ่ายแล้วเท่านั้น (ไม่หักลดจำนวนยาในคลังซ้ำ)
+                    บันทึกว่าจ่ายแล้วโดยไม่ตัดสต็อกซ้ำ
                   </span>
                 </label>
               </div>
@@ -1305,12 +1306,12 @@ export default function PrescriptionsTab({
                   {isDispensing ? (
                     <>
                       <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      <span>กำลังตัดสต็อก...</span>
+                      <span>กำลังจ่ายยา…</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>ยืนยันการตัดสต็อกจ่ายยา</span>
+                      <span>ยืนยันการจ่ายยา</span>
                     </>
                   )}
                 </button>
