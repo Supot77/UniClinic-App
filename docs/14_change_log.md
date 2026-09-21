@@ -147,3 +147,82 @@
 - **คำยืนยัน:** CRUD, medication log และ status actions ของ reminder ครบตาม scope ที่ต้องการ
 - **ขอบเขตที่ไม่เปลี่ยน:** worker, email และ automation ไม่อยู่ใน scope; ไม่อ้างว่า DB/RLS หรือ browser QA ผ่านจากคำยืนยันนี้
 - **เอกสารอ้างอิง:** [Klong owner view](owners/klong/README.md)
+
+## ปรับ dark theme tokens และ settings persistence — 21 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- ปรับ `src/app/globals.css` ให้ dark theme ใช้พื้นหลัง/foreground/surface/border ที่มืดและอ่านได้
+- remap `slate-*`, `zinc-*`, `gray-*` และ legacy brand aliases ใต้ `data-theme="dark"`
+- เพิ่ม dark override สำหรับ `bg-white`, white opacity surfaces, form controls และ hard-coded record surface ที่ตรวจพบ
+- ปรับ status tokens แยกจาก neutral เพื่อคงความหมายของ critical, warning, success, info และ neutral
+- เพิ่ม regression coverage ใน `tests/settings.test.tsx` สำหรับ light/dark/system และ remount persistence
+- อัปเดต `docs/12_visual_design_system.md`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `npm.cmd run lint` — ผ่าน
+- `npm.cmd run test` — ผ่าน 41 files / 351 tests
+- `npx.cmd --no-install vitest run tests/settings.test.tsx` — ผ่าน 2/2
+- `npm.cmd run build` — ผ่าน
+- Browser QA ที่ 360px/1280px และการตรวจ refresh/system preference ใน browser จริง — ยังไม่ยืนยัน เพราะ environment ไม่มี browser session (`browsers: []`, IAB unavailable)
+
+### Follow-up: คง palette ของ header/footer
+
+- เพิ่ม selector-level token reset ให้ `header` และ `footer` ใช้ shell palette เดิม แม้ `html[data-theme="dark"]` จะเปิดอยู่
+- ไม่เปลี่ยน dark surfaces, form controls, neutral utilities หรือ status tokens ของเนื้อหาส่วนอื่น
+
+### Follow-up: เก็บ landing dark surfaces
+
+- เปลี่ยน steps image scrims จาก hard-coded white เป็น `brand-surface` ที่ปรับตาม theme
+- เปลี่ยนปุ่มรองจาก `hover:bg-white` เป็น `hover:bg-brand-soft`
+- เพิ่ม dark contact-band override เฉพาะ `.landing-contact` และ regression assertions ใน `tests/home.test.tsx`
+
+### Follow-up: เก็บ auth และ profile backdrop
+
+- เปลี่ยน auth layout gradient จาก `to-white` เป็น `to-brand-surface`
+- เปลี่ยน profile drawer backdrop จาก `bg-slate-950/55 backdrop-blur-[1px]` เป็น `bg-black/55 backdrop-blur-sm` เพื่อให้ dark mode ไม่ได้ overlay สีอ่อนและเห็น blur ชัดขึ้น
+- เพิ่ม regression assertion ใน `tests/header.test.tsx`
+- Verification ล่าสุด: login/register/header 30/30, landing 7/7, `tsc`, lint และ build ผ่าน; full suite 350/351 โดย failure เดิมอยู่ที่ `tests/dashboard-service.test.ts` และไม่เกี่ยวกับงาน auth/profile นี้
+
+## ขยายพื้นที่หน้าผลตรวจ รายการยา และนัดหมาย — 22 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- เพิ่ม prop `wide` แบบ opt-in ใน `src/features/clinic-care.tsx` ให้ records และ appointments ใช้พื้นที่เต็ม viewport พร้อม gutter responsive เช่นเดียวกับหน้าคลังยา
+- คง workspace อื่นไว้กับ layout เดิมเพื่อจำกัดผลกระทบของการเปลี่ยนแปลง
+- เพิ่ม regression assertions ใน `tests/appointments-records-runtime-ui.test.tsx` ตรวจกรอบ `w-screen` ของ records และ appointments
+
+### Verification
+
+- `npx.cmd vitest run tests/appointments-records-runtime-ui.test.tsx tests/pharmacy-access.test.tsx` — ผ่าน 2 files / 30 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `npm.cmd run lint` — ผ่าน 0 errors, 6 warnings เดิม
+- `npm.cmd run build` — ผ่าน
+- `npm.cmd run test` — 40/41 files และ 351/352 tests ผ่าน; failure เดิมอยู่ที่ `tests/dashboard-service.test.ts` metric ของ fixture วันที่ ไม่เกี่ยวกับ records/appointments layout
+- Browser QA ที่ 360px/1280px — ยังไม่ยืนยัน เพราะ environment ไม่มี browser session (`browsers: []`, IAB unavailable)
+
+## ลดข้อความเหนือหัวข้อใหญ่หน้าคลังยา — 22 กันยายน 2569
+
+- ลบ label `WU CLINIC / PHARMACY`, badge สิทธิ์ และชื่อ/อีเมลผู้ใช้ที่อยู่เหนือหัวข้อ `คลังยาและเวชภัณฑ์`
+- คงหัวข้อหลัก คำอธิบาย และข้อความโหมดดูอย่างเดียวที่อยู่ในเนื้อหาด้านล่าง
+- `npx.cmd vitest run tests/pharmacy-content-roles.test.tsx tests/pharmacy-access.test.tsx` — ผ่าน 2 files / 25 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+
+## แก้พื้นหลังปุ่ม action ใน dark mode — 22 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- เปลี่ยนปุ่มเพิ่ม/ลด/แก้ไข/ลบใน `src/features/medical-records.tsx`, `src/components/pharmacy/PharmacyContent.tsx` และ `src/components/pharmacy/MedicationDetailContent.tsx` ให้ใช้ `brand-*` และ `status-*`
+- แก้พื้นหลัง hover, modal backdrop, ปุ่มปิด/ยกเลิก และปุ่มสถานะพักใช้งาน/ลบถาวรที่ยังใช้สี light hard-coded
+- ปรับ `secondaryButtonClass` ใน `src/features/clinic-care.tsx` ให้ใช้พื้นและข้อความที่อ่านได้ใน dark mode
+- เพิ่ม assertions ใน `tests/appointments-records-runtime-ui.test.tsx`, `tests/pharmacy-content-roles.test.tsx` และ `tests/medication-detail.test.tsx`
+
+### Verification
+
+- `npx.cmd vitest run tests/appointments-records-runtime-ui.test.tsx tests/pharmacy-content-roles.test.tsx tests/pharmacy-access.test.tsx tests/medication-detail.test.tsx` — ผ่าน 4 files / 56 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `npm.cmd run lint` — ผ่าน 0 errors, 6 warnings เดิม
+- `npm.cmd run build` — ผ่าน
+- Browser visual QA — ยังไม่ยืนยัน เพราะ environment ไม่มี browser session (`browsers: []`, IAB unavailable)

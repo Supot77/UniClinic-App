@@ -156,6 +156,7 @@ describe("Header", () => {
     render(<Header />);
 
     fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" }));
+    expect(screen.getByRole("button", { name: "ปิดเมนูบัญชี" })).toHaveClass("bg-black/55", "backdrop-blur-sm");
 
     expect(screen.getByRole("link", { name: "ประวัติการรักษา" })).toHaveAttribute("href", "/records");
     expect(screen.getByRole("link", { name: "เตือนยา" })).toHaveAttribute("href", "/reminders");

@@ -367,7 +367,7 @@ export default function MedicationDetailContent({
           <div className="pt-2">
             <Link
               href="/pharmacy"
-              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-white border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-800 shadow-2xs hover:bg-rose-50"
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-brand-surface border border-status-critical/30 px-4 py-2 text-sm font-semibold text-status-critical shadow-2xs hover:bg-status-critical-bg"
             >
               กลับไปคลังยา
             </Link>
@@ -472,7 +472,7 @@ export default function MedicationDetailContent({
               <button
                 type="button"
                 onClick={handleOpenEditModal}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-2xs hover:bg-sky-500 active:scale-[0.98] transition"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-4 py-2.5 text-sm font-semibold text-white shadow-2xs hover:bg-brand-hover active:scale-[0.98] transition"
               >
                 <Pencil className="h-4 w-4" />
                 <span>แก้ไขข้อมูลยา</span>
@@ -480,7 +480,7 @@ export default function MedicationDetailContent({
             ) : (
               <span
                 title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่แก้ไขข้อมูลยาได้"
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-500 select-none"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-brand-border-soft bg-brand-surface px-3.5 py-2 text-xs font-medium text-brand-muted select-none"
               >
                 <Lock className="h-4 w-4 text-slate-400" />
                 <span>ดูอย่างเดียว</span>
@@ -818,7 +818,7 @@ export default function MedicationDetailContent({
                 <button
                   type="button"
                   onClick={handleOpenEditModal}
-                  className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-50 px-4 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition"
+                  className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-soft px-4 text-xs font-semibold text-brand-strong hover:bg-brand-surface transition"
                 >
                   <Pencil className="h-4 w-4" />
                   <span>แก้ไขข้อมูล</span>
@@ -826,7 +826,7 @@ export default function MedicationDetailContent({
               )}
               <Link
                 href="/pharmacy"
-                className="w-full inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+                className="w-full inline-flex min-h-11 items-center justify-center rounded-xl border border-brand-border-soft bg-brand-surface px-4 text-xs font-semibold text-brand-ink hover:bg-brand-soft transition shadow-2xs"
               >
                 กลับไปคลังยา
               </Link>
@@ -841,21 +841,21 @@ export default function MedicationDetailContent({
           role="dialog"
           aria-modal="true"
           aria-label="แก้ไขข้อมูลยา"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
         >
-          <div className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border border-brand-border-soft bg-brand-surface shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-6 pb-4 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="rounded-xl bg-sky-50 p-2 text-sky-600">
+                <div className="rounded-xl bg-brand-soft p-2 text-brand-strong">
                   <Pencil className="h-5 w-5" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-900">แก้ไขข้อมูลยา</h2>
+                <h2 className="text-lg font-bold text-brand-ink">แก้ไขข้อมูลยา</h2>
               </div>
               <button
                 type="button"
                 aria-label="ปิดหน้าต่างแก้ไข"
                 onClick={() => setIsEditModalOpen(false)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                className="rounded-xl p-1.5 text-brand-muted hover:bg-brand-soft hover:text-brand-ink transition"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1063,18 +1063,18 @@ export default function MedicationDetailContent({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 p-4 sm:p-6 pt-3 shrink-0 bg-slate-50/50">
+              <div className="flex items-center justify-end gap-2.5 border-t border-brand-border-soft p-4 sm:p-6 pt-3 shrink-0 bg-brand-surface">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-brand-border-soft bg-brand-surface px-4 text-xs font-semibold text-brand-ink hover:bg-brand-soft transition"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-600 px-4 text-xs font-semibold text-white shadow-2xs hover:bg-sky-500 disabled:opacity-50 transition"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-brand-strong px-4 text-xs font-semibold text-white shadow-2xs hover:bg-brand-hover disabled:opacity-50 transition"
                 >
                   <Save className="h-4 w-4" />
                   <span>{isSubmitting ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}</span>

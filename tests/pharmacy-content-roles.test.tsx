@@ -170,14 +170,16 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   it('shows locked add button and read-only status for admin role', async () => {
     render(<PharmacyContent currentRole="admin" userName="แอดมิน สมบัติ" />);
 
-    // Check header badge
-    expect(screen.getByText(/สิทธิ์: ผู้ดูแลระบบ · ดูอย่างเดียว/)).toBeInTheDocument();
+    expect(screen.queryByText('WU CLINIC / PHARMACY')).not.toBeInTheDocument();
+    expect(screen.queryByText(/สิทธิ์: ผู้ดูแลระบบ · ดูอย่างเดียว/)).not.toBeInTheDocument();
 
     // Check read-only banner
     expect(screen.getByText(/โหมดดูอย่างเดียว/)).toBeInTheDocument();
 
     // Check locked add button
-    expect(screen.getByText('เพิ่มรายการยา (ดูอย่างเดียว)')).toBeInTheDocument();
+    const lockedAddButton = screen.getByText('เพิ่มรายการยา (ดูอย่างเดียว)');
+    expect(lockedAddButton).toBeInTheDocument();
+    expect(lockedAddButton.parentElement).toHaveClass('bg-brand-surface', 'text-brand-muted');
 
     // Check table row has read-only lock
     const lockedRows = await screen.findAllByText('ดูอย่างเดียว');
@@ -187,7 +189,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   it('shows locked add button and read-only status for staff_admin role', async () => {
     render(<PharmacyContent currentRole="staff_admin" userName="เจ้าหน้าที่ สมใจ" />);
 
-    expect(screen.getByText(/สิทธิ์: เจ้าหน้าที่คลินิก · ดูอย่างเดียว/)).toBeInTheDocument();
+    expect(screen.queryByText(/สิทธิ์: เจ้าหน้าที่คลินิก · ดูอย่างเดียว/)).not.toBeInTheDocument();
     expect(screen.getByText('เพิ่มรายการยา (ดูอย่างเดียว)')).toBeInTheDocument();
     const lockedRows = await screen.findAllByText('ดูอย่างเดียว');
     expect(lockedRows.length).toBeGreaterThan(0);
@@ -196,15 +198,18 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   it('shows active add button and manage actions for medical role', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
-    expect(screen.getByText(/สิทธิ์: บุคลากรทางการแพทย์ · จัดการยาได้/)).toBeInTheDocument();
-    expect(screen.getByText('เพิ่มรายการยา')).toBeInTheDocument();
+    expect(screen.queryByText(/สิทธิ์: บุคลากรทางการแพทย์ · จัดการยาได้/)).not.toBeInTheDocument();
+    const addMedicationButton = screen.getByRole('button', { name: 'เพิ่มรายการยา' });
+    expect(addMedicationButton).toHaveClass('bg-brand-strong', 'hover:bg-brand-hover');
     expect(screen.queryByText('เพิ่มรายการยา (ดูอย่างเดียว)')).not.toBeInTheDocument();
 
     // Active edit and delete buttons should exist
     const editButtons = await screen.findAllByTitle('แก้ไขข้อมูล');
     expect(editButtons.length).toBeGreaterThan(0);
+    expect(editButtons[0]).toHaveClass('hover:bg-brand-soft', 'hover:text-brand-strong');
     const deleteButtons = screen.getAllByTitle('ลบหรือพักใช้งานรายการนี้');
     expect(deleteButtons.length).toBeGreaterThan(0);
+    expect(deleteButtons[0]).toHaveClass('hover:bg-status-critical-bg', 'hover:text-status-critical');
   });
 
   it('switches to prescriptions tab and displays prescription details', async () => {
