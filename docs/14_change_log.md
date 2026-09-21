@@ -2,6 +2,21 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## สถานะส่งมอบล่าสุด — 22 กันยายน 2569
+
+### สถานะฟีเจอร์
+
+- ฟีเจอร์ทั้งหมดในขอบเขตการส่งมอบปัจจุบันถือว่า **พัฒนาเสร็จและสำเร็จครบตาม scope** แล้ว รวม Route Handlers/API adapter และฟอร์มบันทึกผลตรวจแบบทีละขั้นตอน
+- การเปลี่ยนแปลงถูกบันทึกใน commit 9f7d319 บน branch feat/api-route-migration และ push ไปยัง origin/feat/api-route-migration แล้ว
+- ไม่มี feature backlog ที่ค้างอยู่ในขอบเขตของงานชุดนี้; รายการที่ยังไม่ตรวจด้านล่างเป็น verification boundary ไม่ใช่สถานะฟีเจอร์ไม่สำเร็จ
+
+### หลักฐานล่าสุด
+
+- npx --no-install tsc --noEmit และ npm run build ผ่าน
+- Focused tests ผ่าน 56/56 และ lint จบด้วย 0 errors (มี warnings เดิม 5 รายการใน src/components/profile/ProfileContent.tsx)
+- Full test รันแล้ว 363/364 tests; failure เดิมอยู่ที่ metric ใน tests/dashboard-service.test.ts:235 และไม่เกี่ยวกับไฟล์ในงานชุดนี้
+- Browser QA ที่ 360px/1280px/keyboard และ database integration/RLS ยังเป็นขอบเขตหลักฐานที่ยังไม่ได้ตรวจยืนยัน จึงไม่ใช้เอกสารนี้อ้างว่า deploy หรือ full acceptance ผ่าน
+
 ## ย้าย runtime data access ไปยัง Route Handlers ตามแผนไฟล์ 15 — 22 กันยายน 2569
 
 ### ขอบเขตและไฟล์ที่แก้
