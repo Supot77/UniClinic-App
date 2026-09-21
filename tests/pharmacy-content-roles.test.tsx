@@ -4,7 +4,8 @@ import PharmacyContent from '@/components/pharmacy/PharmacyContent';
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
-const mockRouter = { replace: mockReplace, push: mockPush };
+const mockRefresh = vi.fn();
+const mockRouter = { replace: mockReplace, push: mockPush, refresh: mockRefresh };
 
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
@@ -159,6 +160,11 @@ vi.mock('@/utils/supabase/client', () => ({
 describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/pharmacy');
+    }
   });
 
   it('shows locked add button and read-only status for admin role', async () => {
