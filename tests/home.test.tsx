@@ -16,10 +16,10 @@ describe("Landing", () => {
     render(<Home />);
     expect(screen.getByRole("link", { name: "จองนัดหมาย" })).toHaveAttribute("href", "/login?redirect=%2Fappointments");
     expect(screen.getByRole("link", { name: "075-479999" })).toHaveAttribute("href", "tel:075479999");
-    expect(screen.getByText("คำขอนัดหมายต้องได้รับการยืนยันจากเจ้าหน้าที่")).toBeInTheDocument();
-    expect(screen.getByText(/เวลาจำลองสำหรับการสาธิต/)).toBeInTheDocument();
+    expect(screen.getByText("ส่งคำขอแล้ว ต้องรอเจ้าหน้าที่ยืนยันก่อนเข้ารับบริการ")).toBeInTheDocument();
+    expect(screen.getByText(/เวลาใช้สำหรับการสาธิต/)).toBeInTheDocument();
     expect(screen.queryByText("พร้อมให้บริการ")).not.toBeInTheDocument();
-    await screen.findByText(/ยังไม่มีรายการบริการที่แสดงได้/);
+    await screen.findByText(/ยังไม่มีบริการที่เปิดใช้งาน/);
   });
   it("sends patients directly to appointments", () => {
     Object.assign(state, { isAuthenticated: true, role: "patient" });
@@ -30,28 +30,28 @@ describe("Landing", () => {
   it.each(["medical", "staff_admin"])("offers the %s dashboard", (role) => {
     Object.assign(state, { isAuthenticated: true, role });
     render(<LandingActions />);
-    expect(screen.getByRole("link", { name: "ไป Dashboard" })).toHaveAttribute("href", `/dashboard/${role}`);
+    expect(screen.getByRole("link", { name: "ไปยังแดชบอร์ด" })).toHaveAttribute("href", `/dashboard/${role}`);
     expect(screen.queryByRole("link", { name: "จองนัดหมาย" })).not.toBeInTheDocument();
   });
   it("does not offer guest actions while session is loading", () => {
     state.isLoading = true;
     render(<LandingActions />);
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("กำลังตรวจสอบสถานะการเข้าสู่ระบบ");
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
   it("shows only active services", async () => {
     fetchServices.mockResolvedValue([{ id: "a", name: "บริการจริง", description: "รายละเอียด", isActive: true }, { id: "b", name: "บริการปิด", isActive: false }]);
     render(<LandingServices />);
-    expect(screen.getByRole("status")).toHaveTextContent("กำลังโหลดบริการ");
+    expect(screen.getByRole("status")).toHaveTextContent("กำลังโหลดรายการบริการ");
     await screen.findByText("บริการจริง");
     expect(screen.queryByText("บริการปิด")).not.toBeInTheDocument();
   });
   it("recovers from a catalog error on retry", async () => {
     fetchServices.mockRejectedValueOnce(new Error("offline"));
     render(<LandingServices />);
-    await screen.findByText(/โหลดรายการบริการไม่สำเร็จ/);
+    await screen.findByText(/โหลดบริการไม่สำเร็จ/);
     fetchServices.mockResolvedValueOnce([{ id: "a", name: "บริการจริง", isActive: true }]);
-    fireEvent.click(screen.getByRole("button", { name: "ลองโหลดบริการอีกครั้ง" }));
+    fireEvent.click(screen.getByRole("button", { name: "ลองอีกครั้ง" }));
     await screen.findByText("บริการจริง");
   });
 });

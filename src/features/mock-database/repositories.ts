@@ -26,6 +26,29 @@ function toBangkokDate(value: string): string {
   return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
 }
 
+function bangkokTime(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(now);
+}
+
+function isUpcomingToday(slotDate: string | undefined, startTime: string | undefined, today: string, currentTime: string): boolean {
+  if (slotDate !== today || !startTime) return false;
+  return currentTime < startTime.slice(0, 5);
+}
+
+function isUpcomingAppointment(slotDate: string | undefined, startTime: string | undefined, today: string, currentTime: string): boolean {
+  if (!slotDate || !startTime) return false;
+  if (slotDate > today) return true;
+  if (slotDate < today) return false;
+  return currentTime < startTime.slice(0, 5);
+}
+
+function nextReminderTime(reminderTimes: string[], currentTime: string): string | null {
+  const times = reminderTimes.map((time) => time.slice(0, 5)).filter(Boolean).sort();
+  return times.find((time) => time > currentTime) ?? times[0] ?? null;
+}
+
 export function createClinicRepositories(
   database: ClinicMockDatabase,
 ) {
@@ -788,6 +811,13 @@ export function createClinicRepositories(
         const rangeAppointments = scopedAppointments.filter((appointment) => isInRange(slotsById.get(appointment.slot_id)?.slot_date));
         const queueRemaining = rangeAppointments.filter((appointment) => appointment.status === 'confirmed' || appointment.status === 'in_progress').length;
         const completedInRange = rangeAppointments.filter((appointment) => appointment.status === 'completed').length;
+        const currentBangkokTime = bangkokTime();
+        const statusAppointments = range === 'today' && role !== 'staff_admin'
+          ? rangeAppointments.filter((appointment) => {
+              const slot = slotsById.get(appointment.slot_id);
+              return isUpcomingToday(slot?.slot_date, slot?.start_time, today, currentBangkokTime);
+            })
+          : rangeAppointments;
         const unreadNotifications = actor
           ? tables.notifications.filter((notification) => notification.user_id === actor.id && !notification.is_read && !notification.deleted_at && isInRange(toBangkokDate(notification.created_at))).length
           : 0;
@@ -798,8 +828,17 @@ export function createClinicRepositories(
           ? tables.medication_reminders.filter((reminder) => reminder.user_id === actor.id && reminder.status === 'active')
           : [];
         const patientMedicationIds = new Set(patientReminders.map((reminder) => reminder.medication_id));
-        const patientRangeAppointments = rangeAppointments;
-        const pendingDispensing = tables.medical_records.filter((record) => (record.prescribed_medications?.length ?? 0) > 0).length;
+        const upcomingPatientAppointmentCount = role === 'patient'
+          ? scopedAppointments.filter((appointment) => {
+              const slot = slotsById.get(appointment.slot_id);
+              return (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'in_progress')
+                && isUpcomingAppointment(slot?.slot_date, slot?.start_time, today, currentBangkokTime);
+            }).length
+          : 0;
+        const pendingDispensing = tables.medical_records.filter((record) => {
+          const medications = record.prescribed_medications ?? [];
+          return medications.length > 0 && medications.some((medication) => !medication.dispensed);
+        }).length;
         const roleCounts = userRoles.map((profileRole) => ({
           role: profileRole,
           count: tables.profiles.filter((profile) => profile.role === profileRole && profile.is_active !== false).length,
@@ -831,24 +870,6 @@ export function createClinicRepositories(
               'ยืนยันแล้วและกำลังตรวจ',
               '/appointments',
               'amber',
-            ),
-
-            metric(
-              tables.departments.length,
-              'department-workload',
-              'แผนกที่ให้บริการ',
-              'จัดการและดูภาระงานแผนก',
-              '/departments',
-              'violet',
-            ),
-
-            metric(
-              tables.profiles.length,
-              'accounts',
-              'บัญชีทั้งหมด',
-              'คลิกเพื่อดูรายชื่อและบทบาทบัญชีทั้งหมด',
-              '/staff/accounts',
-              'blue',
             ),
           ],
 
@@ -910,38 +931,17 @@ export function createClinicRepositories(
                 : 'rose',
             ),
 
-            metric(
-              isDoctorActor
-                ? unreadNotifications
-                : expired.length,
-              isDoctorActor
-                ? 'unread-notifications'
-                : 'expired',
-              isDoctorActor
-                ? 'ยังไม่ได้อ่าน'
-                : 'ยาหมดอายุ',
-              isDoctorActor
-                ? 'ข้อความของบัญชีนี้'
-                : 'แยกออกจากรายการยาใกล้หมด',
-              isDoctorActor
-                ? '/notifications'
-                : '/pharmacy',
-              isDoctorActor
-                ? 'rose'
-                : 'violet',
-            ),
+            ...(isDoctorActor ? [] : [metric(
+              expired.length,
+              'expired',
+              'ยาหมดอายุ',
+              'แยกออกจากรายการยาใกล้หมด',
+              '/pharmacy',
+              'violet',
+            )]),
           ],
 
           patient: [
-            metric(
-              patientRangeAppointments.length,
-              'my-appointments',
-              `นัดหมายของฉัน${rangeSuffix}`,
-              'ไม่รวมรายการยกเลิกและปฏิเสธ',
-              '/appointments',
-              'blue',
-            ),
-
             metric(
               patientMedicationIds.size,
               'my-medications',
@@ -952,21 +952,21 @@ export function createClinicRepositories(
             ),
 
             metric(
-              patientReminders.length,
-              'my-reminders',
-              'การเตือนที่ใช้งาน',
-              'เวลาทานยาที่ผู้ป่วยยืนยันแล้ว',
-              '/reminders',
-              'emerald',
+              upcomingPatientAppointmentCount,
+              'next-appointment',
+              'นัดหมายถัดไป',
+              'นัดหมายที่กำลังจะถึง',
+              '/appointments',
+              'blue',
             ),
 
             metric(
               unreadNotifications,
               'unread-notifications',
-              'ยังไม่ได้อ่าน',
-              'ข้อความของบัญชีนี้',
+              'การแจ้งเตือน',
+              'ข้อความของบัญชีนี้ที่ยังไม่ได้อ่าน',
               '/notifications',
-              'rose',
+              'emerald',
             ),
           ],
         };
@@ -1054,9 +1054,8 @@ export function createClinicRepositories(
             },
           );
 
-        const appointmentQueue =
-          rangeAppointments
-            .map((appointment) => {
+        const mappedAppointmentQueue =
+          rangeAppointments.map((appointment) => {
               const slot =
                 slotsById.get(
                   appointment.slot_id,
@@ -1122,13 +1121,101 @@ export function createClinicRepositories(
                   department?.name ??
                   'ไม่ระบุแผนก',
               };
+            });
+        const mappedFutureAppointments = role === 'patient'
+          ? scopedAppointments
+              .filter((appointment) => (slotsById.get(appointment.slot_id)?.slot_date ?? '') > today)
+              .map((appointment) => {
+                const slot = slotsById.get(appointment.slot_id);
+                const doctor = slot
+                  ? tables.profiles.find((profile) => profile.id === slot.doctor_id)
+                  : null;
+                const doctorRecord = slot
+                  ? tables.doctors.find((item) => item.id === slot.doctor_id)
+                  : null;
+                const department = doctorRecord
+                  ? tables.departments.find((item) => item.id === doctorRecord.department_id)
+                  : null;
+                const patient = tables.profiles.find((profile) => profile.id === (appointment.patient_id || appointment.user_id));
+                return {
+                  id: appointment.id,
+                  queueNumber: appointment.queue_number,
+                  date: slot?.slot_date ?? '',
+                  startTime: slot?.start_time?.slice(0, 5) ?? '',
+                  status: appointment.status,
+                  patientName: patient?.full_name ?? 'ไม่พบบัญชีผู้ป่วย',
+                  doctorName: doctor?.full_name ?? 'ไม่พบแพทย์',
+                  departmentName: department?.name ?? 'ไม่ระบุแผนก',
+                };
+              })
+          : [];
+        const nextAppointment = mappedAppointmentQueue
+          .concat(mappedFutureAppointments)
+          .filter((appointment) => (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'in_progress')
+            && isUpcomingAppointment(appointment.date, appointment.startTime, today, currentBangkokTime))
+          .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))[0] ?? null;
+        const appointmentQueue = mappedAppointmentQueue
+          .sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`))
+          .slice(0, 8);
+
+        const medicationById = new Map(tables.medications.map((medication) => [medication.id, medication]));
+        const patientMedications = role === 'patient'
+          ? patientReminders.map((reminder) => {
+              const medication = medicationById.get(reminder.medication_id);
+              const reminderTimes = (reminder.reminder_times ?? []).map((time) => time.slice(0, 5)).filter(Boolean).sort();
+              const reminderLogs = tables.medication_logs.filter((log) => log.reminder_id === reminder.id);
+              return {
+                id: reminder.id,
+                name: medication?.name ?? 'ไม่พบชื่อยา',
+                instruction: medication?.description || `รับประทานตามเวลา ${reminderTimes.join(' · ') || 'ที่กำหนด'}`,
+                reminderTimes,
+                nextDoseTime: reminderTimes.length > 0 ? nextReminderTime(reminderTimes, currentBangkokTime) : null,
+                endDate: reminder.end_date,
+                takenDoses: reminderLogs.filter((log) => log.status === 'taken').length,
+                totalDoses: reminderLogs.length,
+              };
             })
-            .sort((a, b) =>
-              `${b.date}${b.startTime}`.localeCompare(
-                `${a.date}${a.startTime}`,
-              ),
-            )
-            .slice(0, 8);
+          : [];
+        const patientTreatmentHistory = role === 'patient'
+          ? tables.medical_records
+              .filter((record) => record.patient_id === actor?.id)
+              .map((record) => {
+                const doctorRecord = tables.doctors.find((doctor) => doctor.id === record.doctor_id);
+                return {
+                  id: record.id,
+                  date: record.created_at,
+                  doctorName: tables.profiles.find((profile) => profile.id === record.doctor_id)?.full_name ?? 'ไม่พบแพทย์',
+                  departmentName: doctorRecord?.department_id ? tables.departments.find((department) => department.id === doctorRecord.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
+                  summary: record.diagnosis || record.treatment_notes || 'ไม่มีสรุปการรักษา',
+                  medicationCount: record.prescribed_medications?.length ?? 0,
+                };
+              })
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 5)
+          : [];
+        const pendingPrescriptions = role === 'medical' && !isDoctorActor
+          ? tables.medical_records
+              .map((record) => {
+                const medications = record.prescribed_medications ?? [];
+                const doctorRecord = tables.doctors.find((doctor) => doctor.id === record.doctor_id);
+                const dispensedCount = medications.filter((medication) => Boolean(medication.dispensed)).length;
+                return {
+                  id: record.id,
+                  patientName: tables.profiles.find((profile) => profile.id === record.patient_id)?.full_name ?? 'ไม่พบชื่อผู้ป่วย',
+                  doctorName: tables.profiles.find((profile) => profile.id === record.doctor_id)?.full_name ?? 'ไม่พบชื่อแพทย์',
+                  departmentName: doctorRecord?.department_id
+                    ? tables.departments.find((department) => department.id === doctorRecord.department_id)?.name ?? 'ไม่ระบุแผนก'
+                    : 'ไม่ระบุแผนก',
+                  date: record.created_at,
+                  diagnosis: record.diagnosis || record.treatment_notes || 'ไม่ได้ระบุอาการ',
+                  medicationCount: medications.length,
+                  dispensedCount,
+                };
+              })
+              .filter((record) => record.medicationCount > 0 && record.dispensedCount < record.medicationCount)
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 8)
+          : [];
 
         const copyByRole: Record<
           UserRole,
@@ -1191,7 +1278,7 @@ export function createClinicRepositories(
                 label,
 
                 count:
-                  rangeAppointments.filter(
+                  statusAppointments.filter(
                     (appointment) =>
                       appointment.status ===
                       status,
@@ -1200,6 +1287,14 @@ export function createClinicRepositories(
             ),
 
           appointmentQueue,
+
+          nextAppointment,
+
+          patientMedications,
+
+          patientTreatmentHistory,
+
+          pendingPrescriptions,
 
           departmentLoads,
 
@@ -1258,6 +1353,8 @@ export function createClinicRepositories(
                 )
                 .slice(0, 5)
             : [],
+
+          unreadNotificationCount: unreadNotifications,
 
           roleCounts,
         };

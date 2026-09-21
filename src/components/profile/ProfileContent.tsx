@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import { getProfile, updateMyPersonalProfile, updateMyHealthProfile } from "@/services/authService";
+import { getProfile, updateMyPersonalProfile, updateMyHealthProfile, updateMyProfileAvatar } from "@/services/authService";
 import { createClient } from "@/utils/supabase/client";
 import type {Profile,UserRole,} from "@/types/database";
 const supabase = createClient();
@@ -80,6 +80,8 @@ export default function ProfileContent() {
 
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [personalError, setPersonalError] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   // =========================================================
   // Health information edit
@@ -326,6 +328,26 @@ export default function ProfileContent() {
     return "ไม่ทราบ";
   };
 
+  async function uploadAvatar(file: File | undefined) {
+    if (!file) return;
+    setAvatarError(null);
+    setUploadingAvatar(true);
+    try {
+      const avatarUrl = await updateMyProfileAvatar(file);
+      setProfile((current) => current ? { ...current, avatar_url: avatarUrl } : current);
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  function cancelPersonalEdit() {
+    setEditingPersonal(false);
+    setPersonalError(null);
+    void loadProfile();
+  }
+
   // =========================================================
   // Page
   // =========================================================
@@ -497,13 +519,7 @@ export default function ProfileContent() {
 
                           <button
                             type="button"
-                            onClick={() => {
-                              setEditingPersonal(false);
-
-                              setPersonalError(null);
-
-                              loadProfile();
-                            }}
+                            onClick={cancelPersonalEdit}
                             disabled={savingPersonal}
                             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                           >
@@ -517,16 +533,32 @@ export default function ProfileContent() {
                         {/* Patient profile header */}
 
                         <div className="flex min-w-0 items-center gap-4 px-4 py-5 sm:gap-5 sm:px-6">
-                          <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-2xl font-semibold text-sky-600 sm:size-[86px] sm:text-[30px]">
-                            {profile?.avatar_url ? (
-                              <img
-                                src={profile.avatar_url}
-                                alt="รูปโปรไฟล์"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              (profile?.full_name?.charAt(0) ?? "?")
-                            )}
+                          <div className="relative size-16 shrink-0 sm:size-[86px]">
+                            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-sky-100 text-2xl font-semibold text-sky-600 sm:text-[30px]">
+                              {profile?.avatar_url ? (
+                                <img src={profile.avatar_url} alt="รูปโปรไฟล์" className="h-full w-full object-cover" />
+                              ) : (
+                                (profile?.full_name?.charAt(0) ?? "?")
+                              )}
+                            </div>
+                            <label
+                              htmlFor="patient-profile-avatar"
+                              aria-label="เปลี่ยนรูปโปรไฟล์"
+                              className="absolute -bottom-1 -right-1 flex size-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-sky-600 text-white shadow transition hover:bg-sky-700"
+                            >
+                              {uploadingAvatar ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
+                            </label>
+                            <input
+                              id="patient-profile-avatar"
+                              type="file"
+                              accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                              className="sr-only"
+                              disabled={uploadingAvatar}
+                              onChange={(event) => {
+                                void uploadAvatar(event.target.files?.[0]);
+                                event.target.value = "";
+                              }}
+                            />
                           </div>
 
                           <div className="min-w-0">
@@ -542,6 +574,7 @@ export default function ProfileContent() {
                               รหัสนักศึกษา:{" "}
                               {profile?.student_id || "ยังไม่ได้ระบุ"}
                             </p>
+                            {avatarError && <p role="alert" className="mt-2 text-xs text-rose-600">{avatarError}</p>}
                           </div>
                         </div>
 
@@ -1030,11 +1063,7 @@ export default function ProfileContent() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditingPersonal(false);
-                            setPersonalError(null);
-                            loadProfile();
-                          }}
+                          onClick={cancelPersonalEdit}
                           disabled={savingPersonal}
                           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                         >
@@ -1050,16 +1079,32 @@ export default function ProfileContent() {
                       <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
                         {/* Avatar */}
 
-                        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-2xl font-semibold text-sky-600 sm:size-24 sm:text-3xl">
-                          {profile?.avatar_url ? (
-                            <img
-                              src={profile.avatar_url}
-                              alt="รูปโปรไฟล์"
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            (profile?.full_name?.charAt(0) ?? "?")
-                          )}
+                        <div className="relative size-20 shrink-0 sm:size-24">
+                          <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-sky-100 text-2xl font-semibold text-sky-600 sm:text-3xl">
+                            {profile?.avatar_url ? (
+                              <img src={profile.avatar_url} alt="รูปโปรไฟล์" className="h-full w-full object-cover" />
+                            ) : (
+                              (profile?.full_name?.charAt(0) ?? "?")
+                            )}
+                          </div>
+                          <label
+                            htmlFor="account-profile-avatar"
+                            aria-label="เปลี่ยนรูปโปรไฟล์"
+                            className="absolute -bottom-1 -right-1 flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-sky-600 text-white shadow transition hover:bg-sky-700"
+                          >
+                            {uploadingAvatar ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
+                          </label>
+                          <input
+                            id="account-profile-avatar"
+                            type="file"
+                            accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                            className="sr-only"
+                            disabled={uploadingAvatar}
+                            onChange={(event) => {
+                              void uploadAvatar(event.target.files?.[0]);
+                              event.target.value = "";
+                            }}
+                          />
                         </div>
 
                         {/* Identity */}
@@ -1089,6 +1134,7 @@ export default function ProfileContent() {
                               {profile?.employee_id || "ยังไม่ได้ระบุ"}
                             </p>
                           )}
+                          {avatarError && <p role="alert" className="mt-2 text-xs text-rose-600">{avatarError}</p>}
                         </div>
                       </div>
 

@@ -35,6 +35,14 @@ type AccountAction =
   | { kind: "toggle"; profile: StaffProfileDirectoryItem; nextActive: boolean }
   | { kind: "hard-delete"; profile: StaffProfileDirectoryItem };
 
+function displayValue(value: string | null): string {
+  return value?.trim() || "ไม่ระบุ";
+}
+
+function summaryCardClass(isSelected: boolean): string {
+  return `rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${isSelected ? "border-brand-strong bg-brand-soft text-brand-strong shadow-sm" : "border-transparent text-brand-ink hover:border-brand-border-soft hover:bg-brand-page"}`;
+}
+
 interface ProfileActionsProps {
   profile: StaffProfileDirectoryItem;
   roleFilter: ProfileFilter;
@@ -93,14 +101,6 @@ function ProfileActions({
       )}
     </div>
   );
-}
-
-function displayValue(value: string | null): string {
-  return value?.trim() || "ไม่ระบุ";
-}
-
-function summaryCardClass(isSelected: boolean): string {
-  return `border-b-2 px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${isSelected ? "border-brand-strong text-brand-strong" : "border-transparent text-brand-ink hover:border-brand-border-soft"}`;
 }
 
 interface StaffProfileDirectoryProps {
@@ -298,9 +298,9 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
     accountAction?.kind === "toggle" && accountAction.nextActive;
 
   return (
-    <main className={`${patientOnly ? "flex" : "dashboard-shell mx-auto flex max-w-7xl"} flex-col gap-10 pb-10`}>
-      {!patientOnly && <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <main className="dashboard-shell flex w-full flex-col gap-10 pb-10">
+      <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
+        <div className="min-w-0">
           <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
             บัญชีผู้ใช้งานทั้งหมด
           </h1>
@@ -308,28 +308,21 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
             จัดการข้อมูลติดต่อ บทบาท และสถานะการใช้งานของบัญชีในระบบ
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <Link
-            href="/staff/accounts/new"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-strong bg-white px-4 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            เพิ่มบัญชีผู้ป่วย Walk-in
-          </Link>
-          <button
-            type="button"
-            onClick={() => void loadProfiles(true)}
-            disabled={loading || refreshing}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RefreshCw
-              className={`size-4 ${refreshing ? "animate-spin" : ""}`}
-              aria-hidden="true"
-            />{" "}
-            รีเฟรช
-          </button>
-        </div>
-      </header>}
+        <button
+          type="button"
+          onClick={() => void loadProfiles(true)}
+          disabled={loading || refreshing}
+          aria-label="รีเฟรชข้อมูลบัญชี"
+          title="รีเฟรช"
+          className="inline-flex size-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-strong px-0 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:px-4"
+        >
+          <RefreshCw
+            className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+            aria-hidden="true"
+          />
+          <span className="hidden sm:inline">รีเฟรช</span>
+        </button>
+      </header>
 
       {!patientOnly && <section
         className="grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-5"
@@ -339,13 +332,17 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
           type="button"
           onClick={() => setRoleFilter("all")}
           aria-pressed={roleFilter === "all"}
-          className={`${summaryCardClass(roleFilter === "all")} col-span-2 sm:col-span-1`}
+          className={`${summaryCardClass(roleFilter === "all")} col-span-2 text-center sm:col-span-1 sm:text-left`}
         >
-          <div className="flex items-center justify-between">
+          <div className="relative flex items-center justify-center sm:justify-between">
+            <Users
+              className="absolute left-0 size-5 text-sky-600 sm:hidden"
+              aria-hidden="true"
+            />
             <p className="text-sm text-slate-800">บัญชีทั้งหมด</p>
-            <Users className="size-5 text-sky-600" aria-hidden="true" />
+            <Users className="absolute right-0 size-5 text-sky-600 sm:static" aria-hidden="true" />
           </div>
-          <p className="mt-3 text-3xl font-bold text-slate-950">
+          <p className="mt-3 text-center text-3xl font-bold text-slate-950 sm:text-left">
             {profiles.length}
           </p>
         </button>
@@ -581,7 +578,7 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="mt-4 grid gap-2 text-sm">
                   <div className="flex min-w-0 items-center gap-2 text-brand-body">
                     <Mail
                       className="size-4 shrink-0 text-brand-muted"
@@ -591,23 +588,25 @@ export default function StaffProfileDirectory({ patientOnly = false }: StaffProf
                       {displayValue(profile.email)}
                     </span>
                   </div>
-                  <div className="flex min-w-0 items-center gap-2 text-brand-body">
-                    <Phone
-                      className="size-4 shrink-0 text-brand-muted"
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 truncate">
-                      {displayValue(profile.phone)}
-                    </span>
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 text-brand-body">
+                      <Phone
+                        className="size-4 shrink-0 text-brand-muted"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 truncate">
+                        {displayValue(profile.phone)}
+                      </span>
+                    </div>
+                    <div className="shrink-0">
+                      <ProfileActions
+                        profile={profile}
+                        roleFilter={roleFilter}
+                        onEdit={openEdit}
+                        onAction={(action) => setAccountAction(action)}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 flex justify-end border-t border-brand-border-soft pt-3">
-                  <ProfileActions
-                    profile={profile}
-                    roleFilter={roleFilter}
-                    onEdit={openEdit}
-                    onAction={(action) => setAccountAction(action)}
-                  />
                 </div>
               </article>
             ))}

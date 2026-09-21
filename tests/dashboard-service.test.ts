@@ -182,19 +182,73 @@ describe('Supabase dashboard service', () => {
       { id: 'notification-patient', user_id: 'patient-1', type: 'broadcast', title: 'ประกาศ', message: 'ข้อความ', read_at: null, deleted_at: null, created_at: '2026-09-08T03:00:00.000Z' },
       { id: 'notification-medical', user_id: 'medical-1', type: 'broadcast', title: 'ประกาศ', message: 'ข้อความ', read_at: null, deleted_at: null, created_at: '2026-09-08T03:00:00.000Z' },
     ];
-    database.medication_reminders = [{ id: 'reminder-1', user_id: 'patient-1', medication_id: 'medicine-1', status: 'active' }];
-    database.medications = [{ id: 'medicine-1', name: 'ยา A', stock: 2, min_stock: 5, expiry_date: null, is_active: true }];
-    database.medical_records = [];
+    database.medication_reminders = [{
+      id: 'reminder-1', user_id: 'patient-1', medication_id: 'medicine-1', status: 'active',
+      reminder_times: ['08:00', '18:00'], start_date: '2026-09-01', end_date: '2026-09-30',
+    }];
+    database.medications = [{ id: 'medicine-1', name: 'ยา A', description: 'รับประทานหลังอาหาร', stock: 2, min_stock: 5, expiry_date: null, is_active: true }];
+    database.medical_records = [{
+      id: 'record-1', appointment_id: 'appointment-1', patient_id: 'patient-1', doctor_id: 'medical-1',
+      diagnosis: 'ติดตามอาการ', treatment_notes: 'พักผ่อนให้เพียงพอ', prescribed_medications: [], created_at: '2026-09-08T04:00:00.000Z',
+    }];
   });
 
   it('scopes a patient dashboard to the signed-in patient data', async () => {
     const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
 
     expect(view.actor).toEqual({ id: 'patient-1', fullName: 'ผู้ป่วยหนึ่ง' });
-    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 1, 1]);
+    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 0, 1]);
     expect(view.appointmentQueue).toHaveLength(1);
     expect(view.appointmentQueue[0].patientName).toBe('ผู้ป่วยหนึ่ง');
+    expect(view.patientMedications).toEqual([expect.objectContaining({ id: 'reminder-1', name: 'ยา A', instruction: 'รับประทานหลังอาหาร', reminderTimes: ['08:00', '18:00'] })]);
+    expect(view.patientTreatmentHistory).toEqual([expect.objectContaining({ id: 'record-1', summary: 'ติดตามอาการ', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป' })]);
     expect(view.recentNotifications).toHaveLength(1);
+  });
+
+  it('finds the next patient appointment after the selected date range', async () => {
+    database.appointment_slots = [
+      { id: 'slot-today', doctor_id: 'medical-1', slot_date: '2026-09-08', start_time: '08:00:00', max_capacity: 10, status: 'available' },
+      { id: 'slot-future', doctor_id: 'medical-1', slot_date: '2026-09-10', start_time: '14:00:00', max_capacity: 10, status: 'available' },
+    ];
+    database.appointments = [
+      { id: 'appointment-today', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-today', queue_number: 1, status: 'confirmed' },
+      { id: 'appointment-future', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-future', queue_number: 2, status: 'pending' },
+    ];
+    vi.useFakeTimers({ now: new Date('2026-09-08T02:30:00.000Z') });
+
+    try {
+      const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
+      expect(view.nextAppointment).toMatchObject({ id: 'appointment-future', date: '2026-09-10', startTime: '14:00' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('counts only upcoming appointments in today status summary', async () => {
+    database.appointment_slots = [
+      { id: 'slot-past', doctor_id: 'medical-1', slot_date: '2026-09-08', start_time: '08:00:00', max_capacity: 10, status: 'available' },
+      { id: 'slot-upcoming', doctor_id: 'medical-1', slot_date: '2026-09-08', start_time: '10:00:00', max_capacity: 10, status: 'available' },
+      { id: 'slot-previous-day', doctor_id: 'medical-1', slot_date: '2026-09-07', start_time: '12:00:00', max_capacity: 10, status: 'available' },
+    ];
+    database.appointments = [
+      { id: 'appointment-past', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-past', queue_number: 1, status: 'confirmed' },
+      { id: 'appointment-upcoming', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-upcoming', queue_number: 2, status: 'pending' },
+      { id: 'appointment-previous-day', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-previous-day', queue_number: 3, status: 'completed' },
+    ];
+    vi.useFakeTimers({ now: new Date('2026-09-08T02:30:00.000Z') });
+
+    try {
+      const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
+
+      expect(view.appointmentStatuses).toEqual([
+        { status: 'pending', label: 'รอยืนยัน', count: 1 },
+        { status: 'confirmed', label: 'ยืนยันแล้ว', count: 0 },
+        { status: 'in_progress', label: 'กำลังตรวจ', count: 0 },
+        { status: 'completed', label: 'เสร็จสิ้น', count: 0 },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('filters a notification inbox by the selected date range', async () => {
@@ -212,7 +266,8 @@ describe('Supabase dashboard service', () => {
   it('scopes a doctor dashboard to that doctor slots', async () => {
     const view = await getDashboardView('medical', 'medical-1', '2026-09-08', 'today');
 
-    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 0, 1]);
+    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 0]);
+    expect(view.metrics.some((metric) => metric.id === 'unread-notifications')).toBe(false);
     expect(view.appointmentQueue).toHaveLength(1);
     expect(view.appointmentQueue[0].doctorName).toBe('แพทย์หนึ่ง');
     expect(view.departmentLoads).toEqual([]);
@@ -221,7 +276,7 @@ describe('Supabase dashboard service', () => {
   it('returns aggregate clinic data for staff_admin without diagnosis fields', async () => {
     const view = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
 
-    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 1, 3]);
+    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1]);
     expect(view.departmentLoads).toEqual([{
       departmentId: 'department-1', departmentName: 'เวชทั่วไป', appointmentCount: 1, capacity: 10,
     }]);

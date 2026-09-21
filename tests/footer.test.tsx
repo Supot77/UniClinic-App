@@ -25,17 +25,17 @@ describe("Footer", () => {
     render(<Footer />);
 
     expect(screen.getByText("WU Clinic")).toBeInTheDocument();
-    expect(screen.getByText("บริการคลินิก")).toBeInTheDocument();
+    expect(screen.getByText("สำหรับผู้ใช้ทั่วไป")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
     expect(screen.getByRole("link", { name: "เข้าสู่ระบบ" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "สมัครสมาชิก" })).toHaveAttribute("href", "/register");
 
     // Staff menus should NOT be visible to guests
     expect(screen.queryByText("สำหรับบุคลากร")).not.toBeInTheDocument();
-    expect(screen.queryByText("เมนูสำหรับแพทย์")).not.toBeInTheDocument();
-    expect(screen.queryByText("เมนูผู้ดูแลระบบ")).not.toBeInTheDocument();
+    expect(screen.queryByText("สำหรับบุคลากรทางการแพทย์")).not.toBeInTheDocument();
+    expect(screen.queryByText("สำหรับเจ้าหน้าที่")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "แดชบอร์ด" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "ภาพรวม" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "คลังยา" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "ค้นหาผู้ป่วย" })).not.toBeInTheDocument();
   });
@@ -48,16 +48,16 @@ describe("Footer", () => {
     render(<Footer />);
 
     expect(screen.getByText("สำหรับผู้ป่วย")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "นัดหมายตรวจ" })).toHaveAttribute("href", "/appointments");
-    expect(screen.getByRole("link", { name: "ตารางแพทย์" })).toHaveAttribute("href", "/schedules");
+    expect(screen.getByRole("link", { name: "นัดหมายของฉัน" })).toHaveAttribute("href", "/appointments");
+    expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
     expect(screen.getByRole("link", { name: "ประวัติการรักษา" })).toHaveAttribute("href", "/records");
-    expect(screen.getByRole("link", { name: "แจ้งเตือนทานยา" })).toHaveAttribute("href", "/reminders");
-    expect(screen.getByRole("link", { name: "โปรไฟล์ส่วนตัว" })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("link", { name: "แจ้งเตือนยา" })).toHaveAttribute("href", "/reminders");
+    expect(screen.getByRole("link", { name: "โปรไฟล์" })).toHaveAttribute("href", "/profile");
 
     // Staff menus should NOT be visible to patients
     expect(screen.queryByText("สำหรับบุคลากร")).not.toBeInTheDocument();
-    expect(screen.queryByText("เมนูสำหรับแพทย์")).not.toBeInTheDocument();
-    expect(screen.queryByText("เมนูผู้ดูแลระบบ")).not.toBeInTheDocument();
+    expect(screen.queryByText("สำหรับบุคลากรทางการแพทย์")).not.toBeInTheDocument();
+    expect(screen.queryByText("สำหรับเจ้าหน้าที่")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "คลังยา" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "ค้นหาผู้ป่วย" })).not.toBeInTheDocument();
   });
@@ -69,16 +69,16 @@ describe("Footer", () => {
 
     render(<Footer />);
 
-    expect(screen.getByText("เมนูสำหรับแพทย์")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "แดชบอร์ด" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByText("สำหรับบุคลากรทางการแพทย์")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ภาพรวม" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
     expect(screen.getByRole("link", { name: "ค้นหาผู้ป่วย" })).toHaveAttribute("href", "/patients/search");
     expect(screen.getByRole("link", { name: "คลังยา" })).toHaveAttribute("href", "/pharmacy");
-    expect(screen.getByRole("link", { name: "รายการนัดหมาย" })).toHaveAttribute("href", "/appointments");
+    expect(screen.getByRole("link", { name: "นัดหมายผู้ป่วย" })).toHaveAttribute("href", "/appointments");
 
     // Should NOT show admin-only accounts or general register
-    expect(screen.queryByText("เมนูผู้ดูแลระบบ")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "จัดการข้อมูลผู้ใช้งาน" })).not.toBeInTheDocument();
+    expect(screen.queryByText("สำหรับเจ้าหน้าที่")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "จัดการผู้ใช้งาน" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "สมัครสมาชิก" })).not.toBeInTheDocument();
   });
 
@@ -89,15 +89,15 @@ describe("Footer", () => {
 
     render(<Footer />);
 
-    expect(screen.getByText("เมนูผู้ดูแลระบบ")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "แดชบอร์ด" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: "จัดการข้อมูลผู้ใช้งาน" })).toHaveAttribute("href", "/staff/accounts");
+    expect(screen.getByText("สำหรับเจ้าหน้าที่")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ภาพรวม" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: "จัดการผู้ใช้งาน" })).toHaveAttribute("href", "/staff/accounts");
     expect(screen.getByRole("link", { name: "จัดการแผนก" })).toHaveAttribute("href", "/departments");
     expect(screen.getByRole("link", { name: "คลังยา" })).toHaveAttribute("href", "/pharmacy");
     expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
 
     // Should NOT show medical-only or guest register
-    expect(screen.queryByText("เมนูสำหรับแพทย์")).not.toBeInTheDocument();
+    expect(screen.queryByText("สำหรับบุคลากรทางการแพทย์")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "สมัครสมาชิก" })).not.toBeInTheDocument();
   });
 
@@ -114,4 +114,3 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/dashboard");
   });
 });
-

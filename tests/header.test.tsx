@@ -37,7 +37,7 @@ describe("Header", () => {
 
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getAllByText("WU Clinic")).toHaveLength(1);
-    expect(screen.getAllByText("ตารางแพทย์")).toHaveLength(1);
+    expect(screen.getAllByText("ตารางตรวจแพทย์")).toHaveLength(1);
     expect(screen.queryByText("ระบบบริการสุขภาพและนัดหมายแพทย์ มหาวิทยาลัยวลัยลักษณ์")).not.toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /จัดการแผนก/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /นัดหมาย/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /แจ้งเตือน/ })).toHaveAttribute("href", "/notifications");
-    expect(screen.queryByRole("link", { name: /เตือนยา/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /แจ้งเตือนยา/ })).not.toBeInTheDocument();
   });
 
   it("shows only doctor schedules and login for unauthenticated guests", () => {
@@ -80,10 +80,10 @@ describe("Header", () => {
 
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /ตารางแพทย์/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /ตารางตรวจแพทย์/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /ภาพรวม/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /นัดหมาย/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /เตือนยา/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /แจ้งเตือนยา/ })).not.toBeInTheDocument();
     const loginLink = screen.getByRole("link", { name: /เข้าสู่ระบบ/ });
     expect(loginLink).toBeInTheDocument();
     expect(loginLink).toHaveClass("flex");
@@ -112,7 +112,7 @@ describe("Header", () => {
     fireEvent.click(toggle);
 
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("navigation", { name: "เมนูมือถือ" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "เมนูบนมือถือ" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /เข้าสู่ระบบ/ })).toHaveLength(2);
   });
 
@@ -124,14 +124,14 @@ describe("Header", () => {
     render(<Header />);
 
     fireEvent.click(screen.getByRole("button", { name: "เปิดเมนู" }));
-    const mobileNavigation = screen.getByRole("navigation", { name: "เมนูมือถือ" });
+    const mobileNavigation = screen.getByRole("navigation", { name: "เมนูบนมือถือ" });
     fireEvent.click(within(mobileNavigation).getByRole("button", { name: /สุขภาพของฉัน/ }));
 
     expect(within(mobileNavigation).getByRole("link", { name: /ประวัติและผลการรักษา/ })).toHaveAttribute("href", "/records");
-    expect(within(mobileNavigation).getByRole("link", { name: /เตือนยา/ })).toHaveAttribute("href", "/reminders");
+    expect(within(mobileNavigation).getByRole("link", { name: /แจ้งเตือนยา/ })).toHaveAttribute("href", "/reminders");
 
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("navigation", { name: "เมนูมือถือ" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "เมนูบนมือถือ" })).not.toBeInTheDocument();
   });
 
   it("returns every authenticated role to the public home page after logout", async () => {
@@ -141,7 +141,7 @@ describe("Header", () => {
 
     render(<Header />);
 
-    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชี" }));
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" }));
     fireEvent.click(screen.getByRole("button", { name: "ออกจากระบบ" }));
 
     await waitFor(() => expect(routerState.replace).toHaveBeenCalledWith("/"));
@@ -155,7 +155,7 @@ describe("Header", () => {
 
     render(<Header />);
 
-    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชี" }));
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" }));
 
     expect(screen.getByRole("link", { name: "ประวัติการรักษา" })).toHaveAttribute("href", "/records");
     expect(screen.getByRole("link", { name: "เตือนยา" })).toHaveAttribute("href", "/reminders");
@@ -168,7 +168,7 @@ describe("Header", () => {
     authState.role = "staff_admin";
 
     render(<Header />);
-    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชี" }));
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" }));
 
     expect(screen.getByRole("link", { name: "จัดการผู้ใช้งาน" })).toHaveAttribute("href", "/staff/accounts");
     expect(screen.queryByRole("link", { name: "นัดหมาย" })).not.toBeInTheDocument();
@@ -180,7 +180,7 @@ describe("Header", () => {
     authState.role = "patient";
 
     render(<Header />);
-    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชี" }));
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" }));
     fireEvent.click(screen.getByRole("button", { name: "ความปลอดภัยและรหัสผ่าน" }));
 
     expect(screen.getByRole("heading", { name: "ความปลอดภัยและรหัสผ่าน" })).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe("Header", () => {
 
     render(<Header />);
 
-    const accountButton = screen.getByRole("button", { name: "เปิดเมนูบัญชี" });
+    const accountButton = screen.getByRole("button", { name: "เปิดเมนูบัญชีผู้ใช้" });
     expect(accountButton).toBeInTheDocument();
     expect(within(accountButton).getByText("Doctor Demo")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Doctor Demo/ })).not.toBeInTheDocument();
