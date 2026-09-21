@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { database, supabaseMock } = vi.hoisted(() => {
   const tables: Record<string, Array<Record<string, unknown>>> = {};
+  const upsertCalls: Array<{ values: unknown; options: unknown }> = [];
   const from = vi.fn((table: string) => {
     let rows = [...(tables[table] ?? [])];
     const query = {
@@ -16,11 +17,13 @@ const { database, supabaseMock } = vi.hoisted(() => {
         return query;
       }),
       limit: vi.fn((limit: number) => { rows = rows.slice(0, limit); return query; }),
+      upsert: vi.fn((values: unknown, options: unknown) => { upsertCalls.push({ values, options }); return query; }),
+      single: vi.fn(() => Promise.resolve({ data: rows[0] ?? null, error: null })),
       then: (resolve: (value: { data: typeof rows; error: null }) => unknown) => Promise.resolve({ data: rows, error: null }).then(resolve),
     };
     return query;
   });
-  return { database: tables, supabaseMock: { rpc: vi.fn(), from } };
+  return { database: tables, supabaseMock: { rpc: vi.fn(), from, upsertCalls } };
 });
 
 vi.mock('@/utils/supabase/client', () => ({ createClient: () => supabaseMock }));
@@ -32,6 +35,8 @@ import {
   getNotifications,
   getUnreadNotificationRecipients,
   getStaffProfileDirectory,
+  recordPatientMedicationTaken,
+  requestPatientAppointmentCancellation,
   sendBroadcast,
 } from '@/services/dashboardService';
 
@@ -39,6 +44,7 @@ describe('Supabase Broadcast service', () => {
   beforeEach(() => {
     supabaseMock.rpc.mockReset();
     supabaseMock.from.mockClear();
+    supabaseMock.upsertCalls.length = 0;
     for (const table of Object.keys(database)) delete database[table];
   });
 
@@ -156,16 +162,43 @@ describe('Supabase Broadcast service', () => {
       p_profile_id: 'suspended-1',
     });
   });
+
+  it('requests patient appointment cancellation through the protected PAI RPC', async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: null });
+
+    await requestPatientAppointmentCancellation('appointment-1');
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('pai_transition_appointment', {
+      p_appointment_id: 'appointment-1',
+      p_action: 'request_cancel',
+      p_reason: null,
+    });
+  });
+
+  it('upserts a manual medication taken log by its scheduled dose', async () => {
+    await recordPatientMedicationTaken('reminder-1', '2026-09-14T08:00:00+07:00');
+
+    expect(supabaseMock.from).toHaveBeenCalledWith('medication_logs');
+    expect(supabaseMock.upsertCalls).toEqual([{
+      values: expect.objectContaining({
+        reminder_id: 'reminder-1',
+        scheduled_datetime: '2026-09-14T08:00:00+07:00',
+        status: 'taken',
+      }),
+      options: { onConflict: 'reminder_id,scheduled_datetime' },
+    }]);
+  });
 });
 
 describe('Supabase dashboard service', () => {
   beforeEach(() => {
     supabaseMock.rpc.mockReset();
     supabaseMock.from.mockClear();
+    supabaseMock.upsertCalls.length = 0;
     for (const table of Object.keys(database)) delete database[table];
 
     database.profiles = [
-      { id: 'patient-1', full_name: 'ผู้ป่วยหนึ่ง', role: 'patient', is_active: true },
+      { id: 'patient-1', full_name: 'ผู้ป่วยหนึ่ง', role: 'patient', is_active: true, gender: 'male' },
       { id: 'medical-1', full_name: 'แพทย์หนึ่ง', role: 'medical', is_active: true },
       { id: 'staff-1', full_name: 'เจ้าหน้าที่หนึ่ง', role: 'staff_admin', is_active: true },
     ];
@@ -173,10 +206,12 @@ describe('Supabase dashboard service', () => {
     database.doctors = [{ id: 'medical-1', department_id: 'department-1' }];
     database.appointment_slots = [{
       id: 'slot-1', doctor_id: 'medical-1', slot_date: '2026-09-08', start_time: '09:00:00',
-      max_capacity: 10, status: 'available',
+      daily_service_offering_id: 'offering-1', max_capacity: 10, status: 'available',
     }];
+    database.daily_service_offerings = [{ id: 'offering-1', service_id: 'service-1' }];
+    database.services = [{ id: 'service-1', name: 'ตรวจโรคทั่วไป' }];
     database.appointments = [{
-      id: 'appointment-1', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-1', queue_number: 1, status: 'confirmed',
+      id: 'appointment-1', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-1', queue_number: 1, status: 'confirmed', cancel_requested_at: null,
     }];
     database.notifications = [
       { id: 'notification-patient', user_id: 'patient-1', type: 'broadcast', title: 'ประกาศ', message: 'ข้อความ', read_at: null, deleted_at: null, created_at: '2026-09-08T03:00:00.000Z' },
@@ -200,6 +235,7 @@ describe('Supabase dashboard service', () => {
     expect(view.metrics.map((metric) => metric.value)).toEqual([1, 0, 1]);
     expect(view.appointmentQueue).toHaveLength(1);
     expect(view.appointmentQueue[0].patientName).toBe('ผู้ป่วยหนึ่ง');
+    expect(view.appointmentQueue[0].serviceName).toBe('ตรวจโรคทั่วไป');
     expect(view.patientMedications).toEqual([expect.objectContaining({ id: 'reminder-1', name: 'ยา A', instruction: 'รับประทานหลังอาหาร', reminderTimes: ['08:00', '18:00'] })]);
     expect(view.patientTreatmentHistory).toEqual([expect.objectContaining({ id: 'record-1', summary: 'ติดตามอาการ', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป' })]);
     expect(view.recentNotifications).toHaveLength(1);
@@ -245,6 +281,7 @@ describe('Supabase dashboard service', () => {
         { status: 'confirmed', label: 'ยืนยันแล้ว', count: 0 },
         { status: 'in_progress', label: 'กำลังตรวจ', count: 0 },
         { status: 'completed', label: 'เสร็จสิ้น', count: 0 },
+        { status: 'cancelled', label: 'ยกเลิก', count: 0 },
       ]);
     } finally {
       vi.useRealTimers();
@@ -274,16 +311,103 @@ describe('Supabase dashboard service', () => {
   });
 
   it('returns aggregate clinic data for staff_admin without diagnosis fields', async () => {
+    vi.useFakeTimers({ now: new Date('2026-09-08T02:00:00.000Z') });
+
+    try {
+      const view = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
+
+      expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1]);
+      expect(view.departmentLoads).toEqual([expect.objectContaining({
+        departmentId: 'department-1', departmentName: 'เวชทั่วไป', appointmentCount: 1, capacity: 10,
+        patientCount: 1, doctorCount: 1, activeDoctorCount: 1, densityPercent: 10, densityStatus: 'normal',
+      })]);
+      expect(view.appointmentStatuses.map((item) => item.status)).toEqual([
+        'pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show',
+      ]);
+      expect(view.servedAppointmentCount).toBe(0);
+      expect(view.doctorStatuses).toEqual([expect.objectContaining({
+        doctorId: 'medical-1', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป', status: 'available',
+      })]);
+      expect(view.roleCounts).toEqual([
+        { role: 'patient', count: 1 }, { role: 'medical', count: 1 }, { role: 'staff_admin', count: 1 },
+      ]);
+      expect(JSON.stringify(view)).not.toContain('diagnosis');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('includes expired medication alerts from the medication table', async () => {
+    database.medications = [{
+      id: 'medicine-expired', name: 'ยาใกล้หมดอายุ', dosage: '1 เม็ด', type: 'tablet', description: null,
+      stock: 20, min_stock: 5, expiry_date: '2026-09-07', is_active: true,
+    }];
+
     const view = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
 
-    expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1]);
-    expect(view.departmentLoads).toEqual([{
-      departmentId: 'department-1', departmentName: 'เวชทั่วไป', appointmentCount: 1, capacity: 10,
-    }]);
-    expect(view.roleCounts).toEqual([
-      { role: 'patient', count: 1 }, { role: 'medical', count: 1 }, { role: 'staff_admin', count: 1 },
+    expect(view.medicationAlerts).toEqual([expect.objectContaining({
+      id: 'medicine-expired', name: 'ยาใกล้หมดอายุ', expiryDate: '2026-09-07', expired: true, lowStock: false,
+    })]);
+  });
+
+  it('derives clinic doctor availability from today activity, leave, and opening hours', async () => {
+    vi.useFakeTimers({ now: new Date('2026-09-08T04:00:00.000Z') });
+
+    try {
+      database.appointments[0].status = 'completed';
+      const completedView = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
+      expect(completedView.doctorStatuses).toEqual([expect.objectContaining({ doctorId: 'medical-1', status: 'available' })]);
+
+      database.doctor_leaves = [{ doctor_id: 'medical-1', start_date: '2026-09-08', end_date: '2026-09-08' }];
+      const leaveView = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
+      expect(leaveView.doctorStatuses).toEqual([expect.objectContaining({ doctorId: 'medical-1', status: 'away' })]);
+
+      delete database.doctor_leaves;
+      vi.setSystemTime(new Date('2026-09-08T01:00:00.000Z'));
+      const closedView = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
+      expect(closedView.doctorStatuses).toEqual([expect.objectContaining({ doctorId: 'medical-1', status: 'away' })]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows all patient appointment statuses, including older records and cancellation requests', async () => {
+    database.appointment_slots = [
+      { id: 'slot-old', doctor_id: 'medical-1', slot_date: '2025-01-10', start_time: '09:00:00', max_capacity: 10, status: 'closed' },
+      { id: 'slot-requested', doctor_id: 'medical-1', slot_date: '2026-09-20', start_time: '09:00:00', max_capacity: 10, status: 'available' },
+    ];
+    database.appointments = [
+      { id: 'appointment-old', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-old', queue_number: 1, status: 'completed', cancel_requested_at: null },
+      { id: 'appointment-requested', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-requested', queue_number: 2, status: 'confirmed', cancel_requested_at: '2026-09-09T02:00:00.000Z' },
+    ];
+
+    const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
+
+    expect(view.appointmentQueue).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'appointment-old', status: 'completed' }),
+      expect.objectContaining({ id: 'appointment-requested', status: 'confirmed', cancelRequestedAt: '2026-09-09T02:00:00.000Z' }),
+    ]));
+  });
+
+  it('summarizes active patient gender counts for staff_admin', async () => {
+    database.profiles.push(
+      { id: 'patient-2', full_name: 'ผู้ป่วยสอง', role: 'patient', is_active: true, gender: 'female' },
+      { id: 'patient-3', full_name: 'ผู้ป่วยสาม', role: 'patient', is_active: true, gender: null },
+      { id: 'patient-inactive', full_name: 'ผู้ป่วยที่ปิดใช้งาน', role: 'patient', is_active: false, gender: 'male' },
+    );
+
+    const view = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');
+
+    expect(view.patientGenderCounts).toEqual([
+      { gender: 'male', label: 'ผู้ชาย', count: 1, percentage: 33.3 },
+      { gender: 'female', label: 'ผู้หญิง', count: 1, percentage: 33.3 },
+      { gender: 'unspecified', label: 'ไม่ระบุเพศ', count: 1, percentage: 33.3 },
     ]);
-    expect(JSON.stringify(view)).not.toContain('diagnosis');
+    expect(view.doctorGenderCounts).toEqual([
+      { gender: 'male', label: 'ผู้ชาย', count: 0, percentage: 0 },
+      { gender: 'female', label: 'ผู้หญิง', count: 0, percentage: 0 },
+      { gender: 'unspecified', label: 'ไม่ระบุเพศ', count: 1, percentage: 100 },
+    ]);
   });
 
   it('rejects a dashboard role that does not match the signed-in profile', async () => {
