@@ -6,7 +6,7 @@
 - มี Supabase client แยก browser/server/middleware และมี mock adapter สำหรับ test/offline
 - มี constants กลางสำหรับ Bangkok date, clinic time blocks และ leave reasons
 - `ConfirmationModal` เป็น shared component ที่ schedule และ department workspace ใช้ยืนยันคำสั่งสำคัญ
-- Shared inventory ไม่ได้ปิดสถานะของโมดูลที่ใช้งานอยู่: PAI, Shop, pharmacy, reminders และ dashboard ต้องอ้าง owner view ของตน
+- Shared inventory ไม่ได้ปิดสถานะของโมดูลที่ใช้งานอยู่: PAI, Scheduling, pharmacy, reminders และ dashboard ต้องอ้าง owner view ของตน
 - `docs/Database_check.md` เป็น target ปัจจุบันเดียวกับ runtime ตามที่ผู้ใช้ยืนยัน; RLS เปิดในตารางหลักที่ snapshot ตรวจ แต่ยังมี policy อ้าง `admin`, `staff`, `doctor`, `pharmacist` และไม่มีตาราง `pai_appointments`, `pai_medical_records`, `broadcast_recipients`
 
 ## หลักฐาน

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MockShopRepository } from '@/features/shop/data/mockRepository';
+import { MockSchedulingRepository } from '@/features/scheduling/data/mockRepository';
 import { shiftDate } from '@/constants/dateTime';
 import { MOCK_WEEK_START } from '@/mocks/scheduleData';
 
@@ -10,9 +10,9 @@ const TEST_PAST_DATE = shiftDate(TEST_WEEK_START, -3);
 const TEST_BATCH_DATE = shiftDate(TEST_WEEK_START, 3);
 const TEST_LEAVE_DATE = shiftDate(TEST_WEEK_START, 4);
 
-describe('MockShopRepository', () => {
+describe('MockSchedulingRepository', () => {
   it('soft deletes referenced departments and hard deletes new ones', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const referenced = repository.toggleDepartment('dept-general');
     expect(referenced).toEqual({ ok: true, value: 'disabled' });
     expect(repository.snapshot().departments.find((item) => item.id === 'dept-general')?.isActive).toBe(false);
@@ -32,7 +32,7 @@ describe('MockShopRepository', () => {
   });
 
   it('does not mutate state when slot validation fails', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const before = repository.snapshot();
     const result = repository.saveSlot({
       doctorId: 'profile-stephen-strange',
@@ -47,7 +47,7 @@ describe('MockShopRepository', () => {
   });
 
   it('exposes the shared mock account catalog and rejects duplicate doctor bindings', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     expect(repository.snapshot().doctorAccounts.length).toBeGreaterThan(0);
     const before = repository.snapshot();
     const result = repository.saveDoctor({
@@ -64,7 +64,7 @@ describe('MockShopRepository', () => {
   });
 
   it('rejects edits for unknown IDs without creating records', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const before = repository.snapshot();
     expect(repository.saveDepartment({ name: 'ใหม่', code: 'NEW', description: '', room: '', tone: 'sky' }, 'missing')).toMatchObject({ ok: false });
     expect(repository.saveDoctor({
@@ -75,7 +75,7 @@ describe('MockShopRepository', () => {
   });
 
   it('rejects adding a slot for a past date', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const before = repository.snapshot();
     const serviceId = before.services[0].id;
     const result = repository.saveSlot(
@@ -99,7 +99,7 @@ describe('MockShopRepository', () => {
   });
 
   it('closes a slot without changing its booked count', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const slot = repository.snapshot().slots.find((item) => item.bookedCount > 0);
     expect(slot).toBeDefined();
     if (!slot) return;
@@ -107,7 +107,7 @@ describe('MockShopRepository', () => {
   });
 
   it('hard deletes a new doctor until a slot references it', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const result = repository.saveDoctor({
       profileId: 'profile-gregory-house', fullName: 'Gregory House', initials: 'GH', email: 'gh@test', specialty: 'วินิจฉัย', departmentId: 'dept-general', availability: 'active',
     });
@@ -118,7 +118,7 @@ describe('MockShopRepository', () => {
   });
 
   it('generates recurring slots for date range', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const generated = repository.generateSlotsForRange(TEST_WEEK_START, TEST_WEEK_START, TEST_WEEK_START);
     expect(generated).toMatchObject({ ok: true });
     const slots = repository.snapshot().slots.filter((slot) => slot.slotDate === TEST_WEEK_START);
@@ -126,7 +126,7 @@ describe('MockShopRepository', () => {
   });
 
   it('creates concrete slots for selected dates and keeps existing conflicts unchanged', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const before = repository.snapshot();
     const serviceId = before.services[0].id;
     const result = repository.createSlotBatch(
@@ -150,7 +150,7 @@ describe('MockShopRepository', () => {
   });
 
   it('skips doctor leave dates while creating batch slots', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const serviceId = repository.snapshot().services[0].id;
     expect(repository.saveDoctorLeave({ doctorId: 'profile-stephen-strange', startDate: TEST_LEAVE_DATE, endDate: TEST_LEAVE_DATE, reason: 'ประชุม' }, undefined, undefined, undefined, TEST_WEEK_START)).toMatchObject({ ok: true });
 
@@ -169,7 +169,7 @@ describe('MockShopRepository', () => {
   });
 
   it('rejects batch slot changes outside the medical doctor ownership scope', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const before = repository.snapshot();
     const result = repository.createSlotBatch(
       {
@@ -188,7 +188,7 @@ describe('MockShopRepository', () => {
   });
 
   it('does not allow overlapping weekly schedules', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const schedule = repository.snapshot().weeklySchedules.find((item) => item.doctorId === 'profile-stephen-strange' && item.weekday === 1);
     expect(schedule).toBeDefined();
     if (!schedule) return;
@@ -196,7 +196,7 @@ describe('MockShopRepository', () => {
     expect(repository.saveWeeklySchedule({ ...scheduleInput, startTime: '09:00', endTime: '10:00' })).toMatchObject({ ok: false });
   });
   it('requires an active doctor and department before saving recurring schedule', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const doctor = repository.snapshot().doctors[0];
     expect(doctor).toBeDefined();
     if (!doctor) return;
@@ -205,7 +205,7 @@ describe('MockShopRepository', () => {
   });
 
   it('prevents medical role from closing or modifying slots of another doctor', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const doctors = repository.snapshot().doctors;
     expect(doctors.length).toBeGreaterThanOrEqual(2);
     const doctor1 = doctors[0];
@@ -229,7 +229,7 @@ describe('MockShopRepository', () => {
   });
 
   it('allows medical role to toggle their own slot', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const doctor = repository.snapshot().doctors[0];
     const ownSlot = repository.snapshot().slots.find((s) => s.doctorId === doctor.id);
     expect(ownSlot).toBeDefined();
@@ -240,7 +240,7 @@ describe('MockShopRepository', () => {
   });
 
   it('does not return recommendations when doctor has no prior history', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const doctor = repository.snapshot().doctors[0];
 
     // ตอนเริ่มต้นหมอยังไม่มีประวัติ
@@ -249,7 +249,7 @@ describe('MockShopRepository', () => {
   });
 
   it('records doctor availability templates and increments usage count for repeated patterns', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const doctor = repository.snapshot().doctors[0];
 
     // บันทึกครั้งที่ 1

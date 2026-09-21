@@ -25,7 +25,7 @@
 
 ## ขอบเขตและผลกระทบ
 
-ไม่แก้ `src/features/shop/**`, `src/components/schedules/**`, routes ตาราง/แผนก, scheduleService, shared types, layout หรือ Supabase clients เดิม
+ไม่แก้ `src/features/scheduling/**`, `src/components/schedules/**`, routes ตาราง/แผนก, scheduleService, shared types, layout หรือ Supabase clients เดิม
 
 เอกสาร deployment เดิมอธิบาย migration รุ่นแรกที่สร้างตารางชื่อ `pai_*`; ข้อความนี้เป็น historical design. Migration รุ่นหลัง `21` และ `28` ชี้ PAI RPCs ไปยัง `appointments`/`medical_records` และไม่ควรสรุปว่า `pai_*` tables เป็น active schema จากเอกสารรุ่นแรก
 

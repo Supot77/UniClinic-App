@@ -3,9 +3,9 @@ import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import { MOCK_DOCTORS } from '@/mocks/scheduleData';
-import { DatabaseShopRepository } from '@/features/shop/data/databaseRepository';
-import { MockShopRepository } from '@/features/shop/data/mockRepository';
-import { validateDoctorLeave } from '@/features/shop/domain/rules';
+import { DatabaseSchedulingRepository } from '@/features/scheduling/data/databaseRepository';
+import { MockSchedulingRepository } from '@/features/scheduling/data/mockRepository';
+import { validateDoctorLeave } from '@/features/scheduling/domain/rules';
 
 const TEST_TODAY = '2026-09-13';
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/23_doctor_leaves.sql'), 'utf8');
@@ -35,9 +35,9 @@ describe('doctor leave domain rules', () => {
   });
 });
 
-describe('MockShopRepository doctor leaves', () => {
+describe('MockSchedulingRepository doctor leaves', () => {
   it('saves leave, blocks new slots, and preserves existing slots', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const doctor = repository.snapshot().doctors[0];
     const service = repository.snapshot().services[0];
     const existingSlot = repository.saveSlot(
@@ -67,7 +67,7 @@ describe('MockShopRepository doctor leaves', () => {
   });
 
   it('deletes a leave only for an authorized actor', () => {
-    const repository = new MockShopRepository();
+    const repository = new MockSchedulingRepository();
     const [owner, other] = repository.snapshot().doctors;
     const created = repository.saveDoctorLeave({ doctorId: owner.id, startDate: '2026-09-20', endDate: '2026-09-20' }, undefined, 'admin-1', 'staff_admin', TEST_TODAY);
     expect(created.ok).toBe(true);
@@ -80,7 +80,7 @@ describe('MockShopRepository doctor leaves', () => {
   });
 });
 
-describe('DatabaseShopRepository doctor leaves', () => {
+describe('DatabaseSchedulingRepository doctor leaves', () => {
   it('maps doctor leave rows and inserts a valid leave', async () => {
     const doctorId = 'a0000000-0000-0000-0000-000000000001';
     const row = {
@@ -99,7 +99,7 @@ describe('DatabaseShopRepository doctor leaves', () => {
     const mockFrom = vi.fn((table: string) => table === 'doctor_leaves'
       ? { insert: mockInsert, select: vi.fn().mockReturnValue({ order: mockOrder }) }
       : {});
-    const repo = new DatabaseShopRepository({ from: mockFrom } as unknown as SupabaseClient);
+    const repo = new DatabaseSchedulingRepository({ from: mockFrom } as unknown as SupabaseClient);
     const doctors = [{ id: doctorId, profileId: doctorId, fullName: 'นพ. สมชาย', email: '', initials: 'สช', specialty: 'ทั่วไป', departmentId: 'dept-1', availability: 'active' as const }];
 
     await expect(repo.fetchDoctorLeaves()).resolves.toEqual([{ id: row.id, doctorId, startDate: row.start_date, endDate: row.end_date, reason: row.reason, createdBy: row.created_by, createdAt: row.created_at }]);

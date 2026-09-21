@@ -28,6 +28,7 @@ export const statusLabels: Record<AppointmentStatus, string> = {
   pending: 'รออนุมัติ', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'ตรวจเสร็จ',
   cancelled: 'ยกเลิกแล้ว', no_show: 'ไม่มาตามนัด', rejected: 'ไม่อนุมัติ',
 };
+const activeAppointmentStatuses = new Set<AppointmentStatus>(['pending', 'confirmed', 'in_progress', 'completed']);
 
 export function formatAppointmentDate(date: string) {
   return new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' }).format(new Date(`${date}T12:00:00+07:00`));
@@ -137,12 +138,14 @@ function MetricCard({ icon: Icon, label, value, tone }: { icon: typeof CalendarD
 }
 
 function BookingForm({ data, busy, book, initialSlotId }: { data: ClinicSnapshot; busy: boolean; book: (id: string, reason: string) => Promise<boolean>; initialSlotId?: string }) {
-  const initialSlot = initialSlotId ? data.slots.find((slot) => slot.id === initialSlotId && slot.bookable && slot.status === 'available' && slot.booked_count < slot.max_capacity) : undefined;
+  const patientBookedSlotIds = new Set(data.appointments.filter((appointment) => appointment.user_id === data.actor.id && activeAppointmentStatuses.has(appointment.status)).map((appointment) => appointment.slot_id));
+  const isAvailableForPatient = (slot: ClinicSnapshot['slots'][number]) => slot.bookable && slot.status === 'available' && slot.booked_count < slot.max_capacity && !patientBookedSlotIds.has(slot.id);
+  const initialSlot = initialSlotId ? data.slots.find((slot) => slot.id === initialSlotId && isAvailableForPatient(slot)) : undefined;
   const [date, setDate] = useState(initialSlot?.slot_date ?? bangkokDate);
   const [department, setDepartment] = useState(initialSlot?.department ?? '');
   const [slotId, setSlotId] = useState(initialSlot?.id ?? '');
   const [reason, setReason] = useState('');
-  const slots = data.slots.filter((s) => s.slot_date === date && (!department || s.department === department) && s.bookable && s.booked_count < s.max_capacity);
+  const slots = data.slots.filter((s) => s.slot_date === date && (!department || s.department === department) && isAvailableForPatient(s));
   const selected = slots.find((s) => s.id === slotId);
   return <form className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" onSubmit={async (e) => {
     e.preventDefault();

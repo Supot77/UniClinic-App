@@ -77,6 +77,10 @@ export type StockReservationStatus =
   | 'released'
   | 'expired';
 
+export type ProfileTitle = 'นาย' | 'นาง' | 'นางสาว' | 'อื่น ๆ';
+
+export type ProfileGender = 'male' | 'female' | 'unspecified';
+
 export type EmailJobType =
   | 'dose_advance'
   | 'dose_final_repeat'
@@ -96,22 +100,44 @@ export type EmailJobStatus =
 
 export interface Profile {
   id: string;
+
   student_id: string | null;
   full_name: string;
+
+  title?: ProfileTitle | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  date_of_birth?: string | null;
+  gender?: ProfileGender | null;
+
   phone: string | null;
   emergency_phone: string | null;
+
+  emergency_contact_title?: ProfileTitle | null;
+  emergency_contact_first_name?: string | null;
+  emergency_contact_last_name?: string | null;
+  emergency_contact_relationship?: string | null;
+
   address: string | null;
+
+  allergy_status?:
+    | HealthDeclarationStatus
+    | null;
+
   allergies: string | null;
+
+  chronic_disease_status?:
+    | HealthDeclarationStatus
+    | null;
+
   chronic_diseases: string | null;
+
   role: UserRole;
   avatar_url: string | null;
 
   patient_type?: PatientType | null;
   employee_id?: string | null;
   organization?: string | null;
-
-  allergy_status?: HealthDeclarationStatus | null;
-  chronic_disease_status?: HealthDeclarationStatus | null;
 
   is_active?: boolean;
   permission_version?: number;

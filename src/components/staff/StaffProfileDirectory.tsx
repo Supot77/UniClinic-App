@@ -5,6 +5,7 @@ import {
   Mail,
   Pencil,
   Phone,
+  Plus,
   RefreshCw,
   RotateCcw,
   Save,
@@ -15,6 +16,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { roleLabels } from "@/features/dashboard/types";
 import {
@@ -38,7 +40,7 @@ function displayValue(value: string | null): string {
 }
 
 function summaryCardClass(isSelected: boolean): string {
-  return `border-b-2 px-1 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${isSelected ? "border-brand-strong text-brand-strong" : "border-transparent text-brand-ink hover:border-brand-border-soft"}`;
+  return `rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${isSelected ? "border-brand-strong bg-brand-soft text-brand-strong shadow-sm" : "border-transparent text-brand-ink hover:border-brand-border-soft hover:bg-brand-page"}`;
 }
 
 interface ProfileActionsProps {
@@ -47,7 +49,6 @@ interface ProfileActionsProps {
   onEdit: (profile: StaffProfileDirectoryItem) => void;
   onAction: (action: AccountAction) => void;
 }
-
 function ProfileActions({
   profile,
   roleFilter,
@@ -102,10 +103,14 @@ function ProfileActions({
   );
 }
 
-export default function StaffProfileDirectory() {
+interface StaffProfileDirectoryProps {
+  patientOnly?: boolean;
+}
+
+export default function StaffProfileDirectory({ patientOnly = false }: StaffProfileDirectoryProps) {
   const [profiles, setProfiles] = useState<StaffProfileDirectoryItem[]>([]);
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<ProfileFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<ProfileFilter>(patientOnly ? "patient" : "all");
   const [sortBy, setSortBy] = useState<ProfileSort>("name-th");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -293,9 +298,9 @@ export default function StaffProfileDirectory() {
     accountAction?.kind === "toggle" && accountAction.nextActive;
 
   return (
-    <main className="dashboard-shell mx-auto flex max-w-7xl flex-col gap-10 pb-10">
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <main className="dashboard-shell flex w-full flex-col gap-10 pb-10">
+      <header className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
+        <div className="min-w-0">
           <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
             บัญชีผู้ใช้งานทั้งหมด
           </h1>
@@ -307,31 +312,37 @@ export default function StaffProfileDirectory() {
           type="button"
           onClick={() => void loadProfiles(true)}
           disabled={loading || refreshing}
-          className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+          aria-label="รีเฟรชข้อมูลบัญชี"
+          title="รีเฟรช"
+          className="inline-flex size-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-strong px-0 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:px-4"
         >
           <RefreshCw
             className={`size-4 ${refreshing ? "animate-spin" : ""}`}
             aria-hidden="true"
-          />{" "}
-          รีเฟรช
+          />
+          <span className="hidden sm:inline">รีเฟรช</span>
         </button>
       </header>
 
-      <section
-        className="grid grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-8 xl:grid-cols-5"
+      {!patientOnly && <section
+        className="grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-5"
         aria-label="สรุปจำนวนบัญชี"
       >
         <button
           type="button"
           onClick={() => setRoleFilter("all")}
           aria-pressed={roleFilter === "all"}
-          className={`${summaryCardClass(roleFilter === "all")} col-span-2 sm:col-span-1`}
+          className={`${summaryCardClass(roleFilter === "all")} col-span-2 text-center sm:col-span-1 sm:text-left`}
         >
-          <div className="flex items-center justify-between">
+          <div className="relative flex items-center justify-center sm:justify-between">
+            <Users
+              className="absolute left-0 size-5 text-sky-600 sm:hidden"
+              aria-hidden="true"
+            />
             <p className="text-sm text-slate-800">บัญชีทั้งหมด</p>
-            <Users className="size-5 text-sky-600" aria-hidden="true" />
+            <Users className="absolute right-0 size-5 text-sky-600 sm:static" aria-hidden="true" />
           </div>
-          <p className="mt-3 text-3xl font-bold text-slate-950">
+          <p className="mt-3 text-center text-3xl font-bold text-slate-950 sm:text-left">
             {profiles.length}
           </p>
         </button>
@@ -376,12 +387,12 @@ export default function StaffProfileDirectory() {
             {suspendedCount}
           </p>
         </button>
-      </section>
+      </section>}
 
       <section className="overflow-hidden">
         <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-brand-ink">รายชื่อบัญชี</h2>
+            <h2 className="text-xl font-semibold text-brand-ink">{patientOnly ? "รายชื่อผู้ป่วย" : "รายชื่อบัญชี"}</h2>
             <p className="mt-1 text-sm text-brand-muted">
               แสดง {filteredProfiles.length} จาก {profiles.length} บัญชี
             </p>
@@ -400,47 +411,39 @@ export default function StaffProfileDirectory() {
                 className="h-11 w-full rounded-lg border border-brand-border-strong bg-transparent py-2.5 pl-9 pr-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
               />
             </label>
-            <div className="grid w-full min-w-0 grid-cols-2 gap-2 lg:contents">
-              <div className="min-w-0">
-                <label className="sr-only" htmlFor="role-filter">
-                  กรองตาม role
-                </label>
-                <select
-                  id="role-filter"
-                  value={roleFilter}
-                  onChange={(event) =>
-                    setRoleFilter(event.target.value as ProfileFilter)
-                  }
-                  className="h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft lg:min-w-[190px] lg:w-auto"
-                >
-                  <option value="all">บัญชีทั้งหมด</option>
-                  <option value="suspended">บัญชีที่ถูกระงับ</option>
-                  {roleOrder.map((role) => (
-                    <option key={role} value={role}>
-                      {roleLabels[role]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="min-w-0">
-                <label className="sr-only" htmlFor="profile-sort">
-                  เรียงลำดับบัญชี
-                </label>
-                <select
-                  id="profile-sort"
-                  value={sortBy}
-                  onChange={(event) =>
-                    setSortBy(event.target.value as ProfileSort)
-                  }
-                  className="h-11 w-full min-w-0 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft lg:min-w-[190px] lg:w-auto"
-                >
-                  <option value="name-th">เรียงตาม ก-ฮ</option>
-                  <option value="name-en">เรียงตาม A-Z</option>
-                  <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
-                  <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
-                </select>
-              </div>
-            </div>
+            {!patientOnly && <><label className="sr-only" htmlFor="role-filter">
+              กรองตาม role
+            </label>
+            <select
+              id="role-filter"
+              value={roleFilter}
+              onChange={(event) =>
+                setRoleFilter(event.target.value as ProfileFilter)
+              }
+              className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+            >
+              <option value="all">บัญชีทั้งหมด</option>
+              <option value="suspended">บัญชีที่ถูกระงับ</option>
+              {roleOrder.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabels[role]}
+                </option>
+              ))}
+            </select></>}
+            <label className="sr-only" htmlFor="profile-sort">
+              เรียงลำดับบัญชี
+            </label>
+            <select
+              id="profile-sort"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as ProfileSort)}
+              className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
+            >
+              <option value="name-th">เรียงตาม ก-ฮ</option>
+              <option value="name-en">เรียงตาม A-Z</option>
+              <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
+              <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
+            </select>
           </div>
         </div>
 
@@ -575,7 +578,7 @@ export default function StaffProfileDirectory() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="mt-4 grid gap-2 text-sm">
                   <div className="flex min-w-0 items-center gap-2 text-brand-body">
                     <Mail
                       className="size-4 shrink-0 text-brand-muted"
@@ -585,23 +588,25 @@ export default function StaffProfileDirectory() {
                       {displayValue(profile.email)}
                     </span>
                   </div>
-                  <div className="flex min-w-0 items-center gap-2 text-brand-body">
-                    <Phone
-                      className="size-4 shrink-0 text-brand-muted"
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 truncate">
-                      {displayValue(profile.phone)}
-                    </span>
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 text-brand-body">
+                      <Phone
+                        className="size-4 shrink-0 text-brand-muted"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 truncate">
+                        {displayValue(profile.phone)}
+                      </span>
+                    </div>
+                    <div className="shrink-0">
+                      <ProfileActions
+                        profile={profile}
+                        roleFilter={roleFilter}
+                        onEdit={openEdit}
+                        onAction={(action) => setAccountAction(action)}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 flex justify-end border-t border-brand-border-soft pt-3">
-                  <ProfileActions
-                    profile={profile}
-                    roleFilter={roleFilter}
-                    onEdit={openEdit}
-                    onAction={(action) => setAccountAction(action)}
-                  />
                 </div>
               </article>
             ))}

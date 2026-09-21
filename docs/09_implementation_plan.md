@@ -92,6 +92,6 @@
 
 ## Owner status ณ 20 กันยายน 2569
 
-รายละเอียด trace แยกตามผู้รับผิดชอบอยู่ใน [owner index](owners/README.md). สรุปคือ Shop function เสร็จและเหลือ UI polish, Feem ยังมี registration health fields/runtime validation เป็น backlog, Herb function เสร็จและเหลือ dashboard UI, ส่วน PAI/Kan/Klong ใช้สถานะเสร็จแบบรอ owner/evidence ยืนยัน
+รายละเอียด trace แยกตามผู้รับผิดชอบอยู่ใน [owner index](owners/README.md). สรุปคือ Scheduling function เสร็จและเหลือ UI polish, Feem ยังมี registration health fields/runtime validation เป็น backlog, Herb function เสร็จและเหลือ dashboard UI, ส่วน PAI/Kan/Klong ใช้สถานะเสร็จแบบรอ owner/evidence ยืนยัน
 
 ทุกโมดูลยังต้องแยก `ทำแล้วใน code` ออกจาก `ยังไม่ยืนยัน DB/RLS` และ `ยังไม่ตรวจ browser`; migration หรือ mock ใน repository ไม่ถือเป็นหลักฐานว่า environment ปัจจุบัน deploy แล้ว

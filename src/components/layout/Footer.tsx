@@ -16,7 +16,7 @@ interface FooterSection {
 
 const guestSections: FooterSection[] = [
   {
-    title: "บริการคลินิก",
+    title: "สำหรับผู้ใช้ทั่วไป",
     links: [
       { label: "ตารางตรวจแพทย์", href: "/schedules" },
       { label: "เข้าสู่ระบบ", href: "/login" },
@@ -29,34 +29,34 @@ const patientSections: FooterSection[] = [
   {
     title: "สำหรับผู้ป่วย",
     links: [
-      { label: "นัดหมายตรวจ", href: "/appointments" },
-      { label: "ตารางแพทย์", href: "/schedules" },
+      { label: "นัดหมายของฉัน", href: "/appointments" },
+      { label: "ตารางตรวจแพทย์", href: "/schedules" },
       { label: "ประวัติการรักษา", href: "/records" },
-      { label: "แจ้งเตือนทานยา", href: "/reminders" },
-      { label: "โปรไฟล์ส่วนตัว", href: "/profile" },
+      { label: "แจ้งเตือนยา", href: "/reminders" },
+      { label: "โปรไฟล์", href: "/profile" },
     ],
   },
 ];
 
 const medicalSections: FooterSection[] = [
   {
-    title: "เมนูสำหรับแพทย์",
+    title: "สำหรับบุคลากรทางการแพทย์",
     links: [
-      { label: "แดชบอร์ด", href: "/dashboard" },
+      { label: "ภาพรวม", href: "/dashboard" },
       { label: "ตารางตรวจแพทย์", href: "/schedules" },
       { label: "ค้นหาผู้ป่วย", href: "/patients/search" },
       { label: "คลังยา", href: "/pharmacy" },
-      { label: "รายการนัดหมาย", href: "/appointments" },
+      { label: "นัดหมายผู้ป่วย", href: "/appointments" },
     ],
   },
 ];
 
 const staffAdminSections: FooterSection[] = [
   {
-    title: "เมนูผู้ดูแลระบบ",
+    title: "สำหรับเจ้าหน้าที่",
     links: [
-      { label: "แดชบอร์ด", href: "/dashboard" },
-      { label: "จัดการข้อมูลผู้ใช้งาน", href: "/staff/accounts" },
+      { label: "ภาพรวม", href: "/dashboard" },
+      { label: "จัดการผู้ใช้งาน", href: "/staff/accounts" },
       { label: "จัดการแผนก", href: "/departments" },
       { label: "คลังยา", href: "/pharmacy" },
       { label: "ตารางตรวจแพทย์", href: "/schedules" },
@@ -98,7 +98,7 @@ export default function Footer() {
               <span className="text-[19px] font-semibold tracking-[-0.02em]">WU Clinic</span>
             </Link>
             <p className="mt-5 text-[15px] leading-7 text-brand-footer-text">
-              คลินิกสุขภาพมหาวิทยาลัยวลัยลักษณ์ ดูแลทุกขั้นตอนของการนัดหมายและบริการสุขภาพให้เป็นเรื่องง่าย
+              คลินิกสุขภาพมหาวิทยาลัยวลัยลักษณ์ สำหรับนัดหมายและจัดการบริการสุขภาพ
             </p>
             <div className="mt-6 space-y-3 text-[13px] text-brand-footer-text">
               <div className="flex items-center gap-2">
@@ -137,14 +137,14 @@ export default function Footer() {
               ข้อมูลสำคัญ
             </h2>
             <p className="mt-5 text-[15px] leading-7 text-brand-footer-text">
-              หากมีอาการฉุกเฉิน กรุณาติดต่อหน่วยฉุกเฉินใกล้บ้านทันที ระบบนี้ใช้สำหรับการนัดหมายและจัดการข้อมูลคลินิก
+              กรณีฉุกเฉิน ให้ติดต่อหน่วยฉุกเฉินใกล้บ้านทันที ระบบนี้ใช้สำหรับนัดหมายและจัดการข้อมูลคลินิก
             </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 pt-7 text-[13px] text-brand-footer-muted sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 WU Clinic · มหาวิทยาลัยวลัยลักษณ์</p>
-          <p>ระบบสำหรับการเรียนการสอน ข้อมูลในระบบเป็นข้อมูลสาธิต</p>
+          <p>ระบบสำหรับการเรียนการสอน ข้อมูลเป็นข้อมูลสาธิต</p>
         </div>
       </div>
     </footer>

@@ -72,6 +72,32 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByRole('button', { name: 'บริการ' })).toHaveTextContent('ทั่วไป');
     expect(screen.getByRole('button', { name: 'รอบตรวจ' })).toHaveTextContent('09:00–09:30 · แพทย์ทดสอบ');
   });
+  it('hides full slots and slots already booked by the patient while keeping another patient slot with capacity visible', async () => {
+    const seed = fixture('patient');
+    const fullSlotId = '00000000-0000-4000-8000-000000000007';
+    const ownSlotId = '00000000-0000-4000-8000-000000000008';
+    const partialSlotId = '00000000-0000-4000-8000-000000000009';
+    seed.slots = [
+      { ...seed.slots[0], id: fullSlotId, start_time: '09:00:00', max_capacity: 1, booked_count: 1 },
+      { ...seed.slots[0], id: ownSlotId, start_time: '10:00:00', end_time: '10:30:00', max_capacity: 2, booked_count: 1 },
+      { ...seed.slots[0], id: partialSlotId, start_time: '11:00:00', end_time: '11:30:00', max_capacity: 2, booked_count: 1 },
+    ];
+    seed.appointments = [{ id: '00000000-0000-4000-8000-000000000010', user_id: seed.actor.id, patient: 'ผู้ป่วยทดสอบ', slot_id: ownSlotId, queue_number: 1, reason: 'ทดสอบ', status: 'pending', cancel_requested_at: null, rejection_reason: null, has_record: false }];
+    render(<AppointmentPage role="patient" initialSlotId={partialSlotId} repository={createClinicMockRepository(seed)} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'รอบตรวจ' }));
+    expect(screen.queryByRole('option', { name: /09:00–09:30/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /10:00–10:30/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /11:00–11:30/ })).toBeInTheDocument();
+  });
+  it.each(['cancelled', 'rejected', 'no_show'] as const)('shows a slot again after the patient appointment is %s', async (status) => {
+    const seed = fixture('patient');
+    seed.appointments = [{ id: '00000000-0000-4000-8000-000000000011', user_id: seed.actor.id, patient: 'ผู้ป่วยทดสอบ', slot_id: slotId, queue_number: 1, reason: 'ทดสอบ', status, cancel_requested_at: null, rejection_reason: status === 'rejected' ? 'ทดสอบ' : null, has_record: false }];
+    render(<AppointmentPage role="patient" initialSlotId={slotId} repository={createClinicMockRepository(seed)} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'รอบตรวจ' }));
+    expect(screen.getByRole('option', { name: /09:00–09:30/ })).toBeInTheDocument();
+  });
   it('uses a compact Thai calendar for booking date while keeping the list filter separate', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-08T12:00:00+07:00'));
@@ -119,6 +145,12 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getAllByText('รออนุมัติ', { selector: 'p' })).toHaveLength(2);
     expect(screen.queryByRole('link', { name: 'ผลตรวจและรายการยา' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'จองนัดใหม่' })).not.toBeInTheDocument();
+  });
+  it('medical sees approval actions for a pending appointment in the owning doctor queue', async () => {
+    const seed = withAppointment('medical'); seed.appointments[0].status = 'pending';
+    render(<AppointmentPage role="medical" repository={createClinicMockRepository(seed)} />);
+    expect(await screen.findByRole('button', { name: 'อนุมัตินัด' })).toBeInTheDocument();
+    expect(screen.getByText('ปฏิเสธนัด', { selector: 'summary' })).toBeInTheDocument();
   });
   it('opens the whole date filter block and requires a rejection reason for staff', async () => {
     const seed = withAppointment('staff_admin'); seed.appointments[0].status = 'pending';

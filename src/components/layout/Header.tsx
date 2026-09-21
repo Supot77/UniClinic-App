@@ -51,7 +51,7 @@ const navigationByRole: Record<UserRole, NavigationGroup[]> = {
       icon: ClipboardClock,
       items: [
         { href: "/appointments", label: "นัดหมายของฉัน", icon: ClipboardClock },
-        { href: "/schedules", label: "ตารางแพทย์", icon: CalendarDays },
+        { href: "/schedules", label: "ตารางตรวจแพทย์", icon: CalendarDays },
       ],
     },
     {
@@ -60,7 +60,7 @@ const navigationByRole: Record<UserRole, NavigationGroup[]> = {
       icon: Hospital,
       items: [
         { href: "/records", label: "ประวัติและผลการรักษา", icon: ClipboardClock },
-        { href: "/reminders", label: "เตือนยา", icon: Bell },
+        { href: "/reminders", label: "แจ้งเตือนยา", icon: Bell },
       ],
     },
   ],
@@ -77,9 +77,9 @@ const navigationByRole: Record<UserRole, NavigationGroup[]> = {
     },
     {
       id: "schedule",
-      label: "ตารางปฏิบัติงาน",
+      label: "ตารางตรวจ",
       icon: CalendarDays,
-      items: [{ href: "/schedules", label: "ตารางแพทย์", icon: CalendarDays }],
+      items: [{ href: "/schedules", label: "ตารางตรวจแพทย์", icon: CalendarDays }],
     },
     {
       id: "pharmacy",
@@ -103,20 +103,20 @@ const navigationByRole: Record<UserRole, NavigationGroup[]> = {
       id: "users",
       label: "ผู้ใช้งาน",
       icon: UserSearch,
-      items: [{ href: "/staff/accounts", label: "จัดการข้อมูลผู้ใช้งาน", icon: UserSearch }],
+      items: [{ href: "/staff/accounts", label: "จัดการผู้ใช้งาน", icon: UserSearch }],
     },
     {
       id: "follow-up",
       label: "ติดตามผู้ป่วย",
       icon: Bell,
-      items: [{ href: "/reminders", label: "เตือนยา", icon: Bell }],
+      items: [{ href: "/reminders", label: "แจ้งเตือนยา", icon: Bell }],
     },
   ],
 };
 
 const guestNavigationLink: NavigationLink = {
   href: "/schedules",
-  label: "ตารางแพทย์",
+  label: "ตารางตรวจแพทย์",
   icon: CalendarDays,
 };
 
@@ -274,17 +274,17 @@ export default function Header() {
               aria-current={isActive("/notifications") ? "page" : undefined}
               aria-label={
                 isAdmin
-                  ? "แจ้งเตือน เปิดดูประกาศจากแอดมิน"
+                  ? "แจ้งเตือน ดูประกาศจากผู้ดูแลระบบ"
                   : activeUnreadCount !== null && activeUnreadCount > 0
-                  ? `แจ้งเตือน มีข้อความที่ยังไม่ได้อ่าน ${activeUnreadCount} รายการ`
-                  : "แจ้งเตือน อ่านหมดแล้ว"
+                  ? `แจ้งเตือน มี ${activeUnreadCount} รายการที่ยังไม่ได้อ่าน`
+                  : "แจ้งเตือน ไม่มีรายการค้างอ่าน"
               }
               title={
                 isAdmin
-                  ? "แจ้งเตือน (ประกาศจากแอดมิน)"
+                  ? "แจ้งเตือน (ประกาศจากผู้ดูแลระบบ)"
                   : activeUnreadCount !== null && activeUnreadCount > 0
-                  ? `แจ้งเตือน (${activeUnreadCount} ข้อความที่ยังไม่ได้อ่าน)`
-                  : "แจ้งเตือน (อ่านหมดแล้ว)"
+                  ? `แจ้งเตือน (${activeUnreadCount} รายการที่ยังไม่ได้อ่าน)`
+                  : "แจ้งเตือน (ไม่มีรายการค้างอ่าน)"
               }
               className="relative flex size-10 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
             >
@@ -321,7 +321,7 @@ export default function Header() {
               className="hidden min-h-10 items-center gap-2 rounded-full bg-brand-accent px-4 text-[13px] font-bold text-brand-ink transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:flex"
             >
               <Stethoscope className="h-4 w-4" aria-hidden="true" />
-              จองคิว
+              จองนัดหมาย
             </Link>
           )}
 
@@ -330,11 +330,11 @@ export default function Header() {
               type="button"
               onClick={() => setAccountMenuOpen(true)}
               className="flex min-h-10 items-center gap-1.5 rounded-brand-sm border border-white/10 px-2.5 sm:px-3 text-[13px] font-medium text-brand-footer-text transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-              aria-label="เปิดเมนูบัญชี"
+              aria-label="เปิดเมนูบัญชีผู้ใช้"
               aria-expanded={accountMenuOpen}
             >
               <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="hidden max-w-28 truncate sm:inline">{user?.full_name ?? "บัญชี"}</span>
+              <span className="hidden max-w-28 truncate sm:inline">{user?.full_name ?? "บัญชีผู้ใช้"}</span>
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150 ${accountMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
           ) : (
@@ -377,7 +377,7 @@ export default function Header() {
       )}
 
       {mobileMenuOpen && (
-        <nav id="mobile-navigation" aria-label="เมนูมือถือ" className="absolute inset-x-0 top-16 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-white/10 bg-brand-ink px-4 pb-5 pt-3 shadow-2xl lg:hidden">
+        <nav id="mobile-navigation" aria-label="เมนูบนมือถือ" className="absolute inset-x-0 top-16 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-white/10 bg-brand-ink px-4 pb-5 pt-3 shadow-2xl lg:hidden">
           <div className="mx-auto grid max-w-lg gap-1">
             {isAuthenticated && role ? (
               <>

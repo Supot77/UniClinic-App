@@ -12,7 +12,7 @@ import type {
   DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
-import type { ShopResult, SlotBatchInput, SlotInput } from '../domain/rules';
+import type { SchedulingResult, SlotBatchInput, SlotInput } from '../domain/rules';
 import {
   buildSlotBatchPlan,
   deriveSlotStatus,
@@ -25,7 +25,7 @@ import {
   validateSlot,
 } from '../domain/rules';
 
-export interface DatabaseShopSnapshot {
+export interface DatabaseSchedulingSnapshot {
   departments: ScheduleDepartment[];
   doctors: ScheduleDoctor[];
   services: ScheduleService[];
@@ -39,7 +39,7 @@ function isValidUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
-export class DatabaseShopRepository {
+export class DatabaseSchedulingRepository {
   private client: SupabaseClient;
 
   constructor(client: SupabaseClient) {
@@ -247,7 +247,7 @@ export class DatabaseShopRepository {
     actorId?: string,
     role?: UserRole,
     todayDate?: string,
-  ): Promise<ShopResult<DoctorLeave>> {
+  ): Promise<SchedulingResult<DoctorLeave>> {
     if (id && !isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
     const validation = validateDoctorLeave(input, existingLeaves, doctors, id, actorId, role, todayDate);
     if (!validation.ok) return validation;
@@ -292,7 +292,7 @@ export class DatabaseShopRepository {
     doctors: ScheduleDoctor[],
     actorId?: string,
     role?: UserRole,
-  ): Promise<ShopResult<DoctorLeave>> {
+  ): Promise<SchedulingResult<DoctorLeave>> {
     if (!isValidUUID(id)) return { ok: false, error: 'รหัสวันลาไม่ถูกต้องตามระบบฐานข้อมูล (ต้องเป็น UUID)' };
     const target = existingLeaves.find((leave) => leave.id === id);
     if (!target) return { ok: false, error: 'ไม่พบวันลาที่ต้องการยกเลิก' };
@@ -324,7 +324,7 @@ export class DatabaseShopRepository {
     input: Omit<ScheduleDepartment, 'id' | 'isActive'>,
     existingDepartments: ScheduleDepartment[],
     id?: string,
-  ): Promise<ShopResult<ScheduleDepartment>> {
+  ): Promise<SchedulingResult<ScheduleDepartment>> {
     const validation = validateDepartmentName(input.name, input.code, existingDepartments, id);
     if (!validation.ok) return validation;
 
@@ -377,7 +377,7 @@ export class DatabaseShopRepository {
   async toggleDepartment(
     id: string,
     currentActive: boolean,
-  ): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>> {
+  ): Promise<SchedulingResult<'deleted' | 'disabled' | 'enabled'>> {
     const nextState = !currentActive;
     const { data, error } = await this.client
       .from('departments')
@@ -399,7 +399,7 @@ export class DatabaseShopRepository {
     input: Omit<ScheduleService, 'id' | 'isActive'>,
     existingServices: ScheduleService[],
     id?: string,
-  ): Promise<ShopResult<ScheduleService>> {
+  ): Promise<SchedulingResult<ScheduleService>> {
     const code = input.code.trim().toUpperCase();
     const name = input.name.trim();
     if (!code || !name) return { ok: false, error: 'กรอกรหัสและชื่อบริการก่อนบันทึก' };
@@ -434,7 +434,7 @@ export class DatabaseShopRepository {
   async toggleService(
     id: string,
     currentActive: boolean,
-  ): Promise<ShopResult<'deleted' | 'disabled' | 'enabled'>> {
+  ): Promise<SchedulingResult<'deleted' | 'disabled' | 'enabled'>> {
     const { data, error } = await this.client
       .from('services')
       .update({ is_active: !currentActive, updated_at: new Date().toISOString() })
@@ -449,7 +449,7 @@ export class DatabaseShopRepository {
     input: Omit<ScheduleDoctor, 'id'>,
     existingDoctors: ScheduleDoctor[],
     id?: string,
-  ): Promise<ShopResult<ScheduleDoctor>> {
+  ): Promise<SchedulingResult<ScheduleDoctor>> {
     if (!input.profileId || !input.departmentId || !input.specialty?.trim()) {
       return { ok: false, error: 'เลือกบัญชีแพทย์ แผนก และกรอกความเชี่ยวชาญก่อนบันทึก' };
     }
@@ -507,7 +507,7 @@ export class DatabaseShopRepository {
   async toggleDoctor(
     id: string,
     currentAvailability: string,
-  ): Promise<ShopResult<ScheduleDoctor | 'deleted'>> {
+  ): Promise<SchedulingResult<ScheduleDoctor | 'deleted'>> {
     const nextIsActive = currentAvailability === 'inactive';
     const { data, error } = await this.client
       .from('profiles')
@@ -581,7 +581,7 @@ export class DatabaseShopRepository {
     id?: string,
     todayDate?: string,
     doctorLeaves: DoctorLeave[] = [],
-  ): Promise<ShopResult<ScheduleSlot>> {
+  ): Promise<SchedulingResult<ScheduleSlot>> {
     if (!isValidUUID(input.doctorId)) {
       return {
         ok: false,
@@ -700,7 +700,7 @@ export class DatabaseShopRepository {
     todayDate?: string,
     actorId?: string,
     role?: UserRole,
-  ): Promise<ShopResult<number>> {
+  ): Promise<SchedulingResult<number>> {
     if (!isValidUUID(input.doctorId)) {
       return { ok: false, error: 'ไอดีแพทย์ไม่ถูกต้อง (ต้องเลือกแพทย์จริงในระบบ)', field: 'doctorId' };
     }
@@ -741,7 +741,7 @@ export class DatabaseShopRepository {
     currentSlot: ScheduleSlot,
     actorId?: string,
     role?: UserRole,
-  ): Promise<ShopResult<ScheduleSlot>> {
+  ): Promise<SchedulingResult<ScheduleSlot>> {
     if (role === 'medical' && actorId && currentSlot.doctorId !== actorId) {
       return { ok: false, error: 'ไม่มีสิทธิ์จัดการรอบตรวจของแพทย์ท่านอื่น' };
     }
@@ -797,7 +797,7 @@ export class DatabaseShopRepository {
     services: ScheduleService[],
     requestedServiceId?: string,
     doctorLeaves: DoctorLeave[] = [],
-  ): Promise<ShopResult<number>> {
+  ): Promise<SchedulingResult<number>> {
     if (!startDate || !endDate || startDate > endDate) {
       return { ok: false, error: 'ช่วงวันที่สร้างรอบไม่ถูกต้อง' };
     }

@@ -2,9 +2,14 @@
 // ระบบยืนยันตัวตนและโปรไฟล์
 
 import { createClient } from '@/utils/supabase/client';
-import type { Profile, UserRole } from '@/types/database';
+import type {
+  Profile,
+  ProfileGender,
+  ProfileTitle,
+  UserRole,
+} from '@/types/database';
 
-const supabase = createClient(); 
+const supabase = createClient();
 
 export interface PersonalProfileUpdates {
   full_name: string;
@@ -38,75 +43,400 @@ export interface StaffAdminPatientUpdates {
   chronic_diseases: string | null;
 }
 
-export type AccountGroup =
-  | 'patient'
-  | 'personnel';
+export type AccountGroup = 'patient' | 'personnel';
 
-export async function signUp(email: string, password: string, fullName: string, studentId?: string, phone?: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const normalizedName = fullName.trim();
-  const normalizedStudentId = studentId?.trim() ?? '';
-  const normalizedPhone = phone?.trim() ?? '';
+export interface PatientRegistrationDetails {
+  title: ProfileTitle;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: ProfileGender;
+  patientType: 'student' | 'employee';
+  studentId?: string;
+  employeeId?: string;
+  phone: string;
 
-  if (!/^[A-Za-z\u0E00-\u0E7F]+(?:[ -][A-Za-z\u0E00-\u0E7F]+)*$/.test(normalizedName)) {
-    throw new Error('ชื่อ-นามสกุลใช้ได้เฉพาะตัวอักษรไทย อังกฤษ และช่องว่าง');
+  allergyStatus?: 'yes' | 'no' | 'unknown';
+  allergies?: string | null;
+  chronicDiseaseStatus?: 'yes' | 'no' | 'unknown';
+  chronicDiseases?: string | null;
+
+  emergencyContactTitle?: ProfileTitle;
+  emergencyContactFirstName?: string;
+  emergencyContactLastName?: string;
+  emergencyContactRelationship?: string;
+  emergencyPhone?: string;
+}
+const personNamePattern =
+  /^[A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E]+(?:[ '-][A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E]+)*$/;
+
+export async function signUp(
+  email: string,
+  password: string,
+  details: PatientRegistrationDetails,
+) {
+  const normalizedEmail =
+    email.trim().toLowerCase();
+
+  const normalizedFirstName =
+    details.firstName.trim();
+
+  const normalizedLastName =
+    details.lastName.trim();
+
+  const normalizedStudentId = details.studentId?.trim() ?? '';
+  const normalizedEmployeeId = details.employeeId?.trim() ?? '';
+
+  const normalizedPhone =
+    details.phone.trim();
+
+  const normalizedEmergencyPhone =
+    details.emergencyPhone?.trim() ?? '';
+
+  const normalizedEmergencyFirstName =
+    details.emergencyContactFirstName?.trim() ?? '';
+
+  const normalizedEmergencyLastName =
+    details.emergencyContactLastName?.trim() ?? '';
+
+  const normalizedEmergencyRelationship =
+    details.emergencyContactRelationship?.trim() ?? '';
+
+  const allergyStatus =
+    details.allergyStatus ?? 'unknown';
+
+  const chronicDiseaseStatus =
+    details.chronicDiseaseStatus ?? 'unknown';
+
+  const normalizedAllergies =
+    details.allergies?.trim() || null;
+
+  const normalizedChronicDiseases =
+    details.chronicDiseases?.trim() || null;
+
+  const fullName =
+    `${normalizedFirstName} ${normalizedLastName}`;
+
+  const validTitles: ProfileTitle[] = [
+    'นาย',
+    'นาง',
+    'นางสาว',
+    'อื่น ๆ',
+  ];
+
+  if (!validTitles.includes(details.title)) {
+    throw new Error('กรุณาเลือกคำนำหน้า');
   }
-  if (!/^\d{8}$/.test(normalizedStudentId)) {
-    throw new Error('รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก');
+
+  if (!personNamePattern.test(normalizedFirstName)) {
+    throw new Error(
+      'ชื่อใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ',
+    );
   }
-  if (!/^[^\s@]+@mail\.wu\.ac\.th$/i.test(normalizedEmail)) {
-    throw new Error('กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น');
+
+  if (!personNamePattern.test(normalizedLastName)) {
+    throw new Error(
+      'นามสกุลใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ',
+    );
   }
-  if (!/^0\d{9}$/.test(normalizedPhone)) {
-    throw new Error('เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลักและขึ้นต้นด้วย 0');
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      details.dateOfBirth,
+    ) ||
+    Number.isNaN(
+      Date.parse(`${details.dateOfBirth}T00:00:00Z`),
+    ) ||
+    details.dateOfBirth >
+      new Date().toISOString().slice(0, 10)
+  ) {
+    throw new Error('กรุณาระบุวันเกิดที่ถูกต้อง');
   }
+
+  if (
+    !['male', 'female', 'unspecified'].includes(
+      details.gender,
+    )
+  ) {
+    throw new Error('กรุณาเลือกเพศ');
+  }
+
+  if (!['student', 'employee'].includes(details.patientType)) {
+    throw new Error('กรุณาเลือกประเภทผู้ป่วย');
+  }
+
+  if (
+    details.patientType === 'student' &&
+    !/^\d{8}$/.test(normalizedStudentId)
+  ) {
+    throw new Error(
+      'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก',
+    );
+  }
+
+  if (
+    details.patientType === 'employee' &&
+    !/^\d{8}$/.test(normalizedEmployeeId)
+  ) {
+    throw new Error('รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก');
+  }
+
+  if (
+    !/^[^\s@]+@mail\.wu\.ac\.th$/i.test(
+      normalizedEmail,
+    )
+  ) {
+    throw new Error(
+      'กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น',
+    );
+  }
+
+  if (!/^0[689]\d{8}$/.test(normalizedPhone)) {
+    throw new Error(
+      'เบอร์โทรศัพท์ต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09',
+    );
+  }
+
+  if (
+    !details.emergencyContactTitle ||
+    !validTitles.includes(
+      details.emergencyContactTitle,
+    )
+  ) {
+    throw new Error(
+      'กรุณาเลือกคำนำหน้าผู้ติดต่อฉุกเฉิน',
+    );
+  }
+
+  if (
+    !personNamePattern.test(
+      normalizedEmergencyFirstName,
+    )
+  ) {
+    throw new Error(
+      'ชื่อผู้ติดต่อฉุกเฉินใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ',
+    );
+  }
+
+  if (
+    !personNamePattern.test(
+      normalizedEmergencyLastName,
+    )
+  ) {
+    throw new Error(
+      'นามสกุลผู้ติดต่อฉุกเฉินใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ',
+    );
+  }
+
+  if (
+    `${normalizedFirstName} ${normalizedLastName}`.toLocaleLowerCase() ===
+    `${normalizedEmergencyFirstName} ${normalizedEmergencyLastName}`.toLocaleLowerCase()
+  ) {
+    throw new Error('ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย');
+  }
+
+  if (!normalizedEmergencyRelationship) {
+    throw new Error(
+      'กรุณาระบุความสัมพันธ์ของผู้ติดต่อฉุกเฉิน',
+    );
+  }
+
+  if (!/^0[689]\d{8}$/.test(normalizedEmergencyPhone)) {
+    throw new Error(
+      'เบอร์โทรฉุกเฉินต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09',
+    );
+  }
+
+  if (normalizedEmergencyPhone === normalizedPhone) {
+    throw new Error('เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก');
+  }
+
+  if (
+    !['yes', 'no', 'unknown'].includes(
+      allergyStatus,
+    )
+  ) {
+    throw new Error(
+      'กรุณาเลือกข้อมูลประวัติแพ้ยา',
+    );
+  }
+
+  if (
+    allergyStatus === 'yes' &&
+    !normalizedAllergies
+  ) {
+    throw new Error(
+      'กรุณาระบุรายละเอียดการแพ้ยา',
+    );
+  }
+
+  if (
+    !['yes', 'no', 'unknown'].includes(
+      chronicDiseaseStatus,
+    )
+  ) {
+    throw new Error(
+      'กรุณาเลือกข้อมูลโรคประจำตัว',
+    );
+  }
+
+  if (
+    chronicDiseaseStatus === 'yes' &&
+    !normalizedChronicDiseases
+  ) {
+    throw new Error(
+      'กรุณาระบุรายละเอียดโรคประจำตัว',
+    );
+  }
+
   if (password.length < 8) {
-    throw new Error('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+    throw new Error(
+      'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+    );
   }
 
-  const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password });
-  if (error) throw error;
+  const { data, error } =
+    await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+    });
+
+  if (error) {
+    throw error;
+  }
 
   if (data.user) {
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: data.user.id,
-      full_name: normalizedName,
-      student_id: normalizedStudentId,
-      phone: normalizedPhone,
-      role: 'patient' as UserRole,
-    });
-    if (profileError) throw profileError;
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        full_name: fullName,
+
+        title: details.title,
+        first_name: normalizedFirstName,
+        last_name: normalizedLastName,
+        date_of_birth: details.dateOfBirth,
+        gender: details.gender,
+
+        patient_type: details.patientType,
+        student_id:
+          details.patientType === 'student' ? normalizedStudentId : null,
+        employee_id:
+          details.patientType === 'employee' ? normalizedEmployeeId : null,
+        phone: normalizedPhone,
+
+        allergy_status: allergyStatus,
+        allergies:
+          allergyStatus === 'yes'
+            ? normalizedAllergies
+            : null,
+
+        chronic_disease_status:
+          chronicDiseaseStatus,
+        chronic_diseases:
+          chronicDiseaseStatus === 'yes'
+            ? normalizedChronicDiseases
+            : null,
+
+        emergency_contact_title:
+          details.emergencyContactTitle,
+
+        emergency_contact_first_name:
+          normalizedEmergencyFirstName,
+
+        emergency_contact_last_name:
+          normalizedEmergencyLastName,
+
+        emergency_contact_relationship:
+          normalizedEmergencyRelationship,
+
+        emergency_phone:
+          normalizedEmergencyPhone,
+
+        role: 'patient' as UserRole,
+      });
+
+    if (profileError) {
+      throw profileError;
+    }
+
   }
 
   return data;
 }
 
-export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+
+
+export async function signIn(
+  email: string,
+  password: string,
+) {
+  const normalizedEmail =
+    email.trim().toLowerCase();
+
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      normalizedEmail,
+    )
+  ) {
+    throw new Error(
+      'กรุณากรอกอีเมลให้ถูกต้อง',
+    );
+  }
+
+  if (!password) {
+    throw new Error('กรุณากรอกรหัสผ่าน');
+  }
+
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+
+  if (error) {
+    throw error;
+  }
+
   return data;
 }
 
-export async function requestPasswordReset(email: string, redirectTo: string) {
+export async function requestPasswordReset(
+  email: string,
+  redirectTo: string,
+) {
   const normalizedEmail = email.trim().toLowerCase();
 
   if (!normalizedEmail) {
     throw new Error('กรุณากรอกอีเมล');
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-    redirectTo,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    normalizedEmail,
+    {
+      redirectTo,
+    },
+  );
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 }
 
 export async function updatePassword(newPassword: string) {
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw error;
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
-export async function changePassword(currentPassword: string, newPassword: string) {
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
   const {
     data: { user },
     error: userError,
@@ -116,10 +446,11 @@ export async function changePassword(currentPassword: string, newPassword: strin
     throw new Error('กรุณาเข้าสู่ระบบใหม่');
   }
 
-  const { error: verifyError } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: currentPassword,
-  });
+  const { error: verifyError } =
+    await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
 
   if (verifyError) {
     throw new Error('รหัสผ่านปัจจุบันไม่ถูกต้อง');
@@ -130,19 +461,27 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+
+  if (error) {
+    throw error;
+  }
 }
 
-export async function getProfile(userId: string): Promise<Profile | null> {
+export async function getProfile(
+  userId: string,
+): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single();
-  if (error) throw error;
+
+  if (error) {
+    throw error;
+  }
+
   return data;
 }
-
 
 async function getCurrentUserId(): Promise<string> {
   const {
@@ -158,7 +497,7 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 export async function updateMyPersonalProfile(
-  updates: PersonalProfileUpdates
+  updates: PersonalProfileUpdates,
 ): Promise<Profile> {
   const userId = await getCurrentUserId();
 
@@ -178,8 +517,7 @@ export async function updateMyPersonalProfile(
     .update({
       full_name: fullName,
       phone,
-      emergency_phone:
-        updates.emergency_phone?.trim() || null,
+      emergency_phone: updates.emergency_phone?.trim() || null,
       address: updates.address?.trim() || null,
       updated_at: new Date().toISOString(),
     })
@@ -188,53 +526,89 @@ export async function updateMyPersonalProfile(
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    throw error;
   }
 
   return data;
 }
 
+export async function updateMyProfileAvatar(file: File): Promise<string> {
+  if (!['image/png', 'image/jpeg'].includes(file.type)) {
+    throw new Error('รูปโปรไฟล์ต้องเป็นไฟล์ PNG, JPG หรือ JPEG');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB');
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) {
+    bitmap.close();
+    throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
+  }
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/png'),
+  );
+  if (!blob) throw new Error('ไม่สามารถประมวลผลรูปโปรไฟล์ได้');
+
+  const userId = await getCurrentUserId();
+  const avatarPath = `${userId}/avatar.png`;
+  const { error: uploadError } = await supabase.storage
+    .from('profile-avatars')
+    .upload(avatarPath, blob, { contentType: 'image/png', upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data: publicUrlData } = supabase.storage
+    .from('profile-avatars')
+    .getPublicUrl(avatarPath);
+  const avatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (profileError) throw profileError;
+  return avatarUrl;
+}
+
 export async function updateMyHealthProfile(
-  updates: HealthProfileUpdates
+  updates: HealthProfileUpdates,
 ): Promise<Profile> {
   const userId = await getCurrentUserId();
 
-  const allergyDetail = updates.allergies?.trim() || null;
-  const chronicDetail =
-    updates.chronic_diseases?.trim() || null;
+  const allergies =
+    updates.allergy_status === 'yes'
+      ? updates.allergies?.trim() || null
+      : null;
 
-  if (
-    updates.allergy_status === 'yes' &&
-    !allergyDetail
-  ) {
-    throw new Error(
-      'กรุณากรอกรายละเอียดประวัติแพ้ยา'
-    );
+  const chronicDiseases =
+    updates.chronic_disease_status === 'yes'
+      ? updates.chronic_diseases?.trim() || null
+      : null;
+
+  if (updates.allergy_status === 'yes' && !allergies) {
+    throw new Error('กรุณาระบุข้อมูลการแพ้ยา');
   }
 
   if (
     updates.chronic_disease_status === 'yes' &&
-    !chronicDetail
+    !chronicDiseases
   ) {
-    throw new Error(
-      'กรุณากรอกรายละเอียดโรคประจำตัว'
-    );
+    throw new Error('กรุณาระบุข้อมูลโรคประจำตัว');
   }
 
   const { data, error } = await supabase
     .from('profiles')
     .update({
       allergy_status: updates.allergy_status,
-      allergies:
-        updates.allergy_status === 'yes'
-          ? allergyDetail
-          : null,
-      chronic_disease_status:
-        updates.chronic_disease_status,
-      chronic_diseases:
-        updates.chronic_disease_status === 'yes'
-          ? chronicDetail
-          : null,
+      allergies,
+      chronic_disease_status: updates.chronic_disease_status,
+      chronic_diseases: chronicDiseases,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
@@ -242,11 +616,193 @@ export async function updateMyHealthProfile(
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    throw error;
   }
 
   return data;
 }
+
+export async function updatePatientByStaff(
+  patientId: string,
+  updates: StaffAdminPatientUpdates,
+): Promise<Profile> {
+  const fullName = updates.full_name.trim();
+  const phone = updates.phone.trim();
+  const studentId = updates.student_id?.trim() || null;
+  const employeeId = updates.employee_id?.trim() || null;
+  const organization = updates.organization?.trim() || null;
+
+  if (!patientId) {
+    throw new Error('ไม่พบรหัสผู้ป่วย');
+  }
+
+  if (!fullName) {
+    throw new Error('กรุณากรอกชื่อ-นามสกุล');
+  }
+
+  if (!phone) {
+    throw new Error('กรุณากรอกเบอร์โทรศัพท์');
+  }
+
+  if (updates.patient_type === 'student' && !studentId) {
+    throw new Error('กรุณากรอกรหัสนักศึกษา');
+  }
+
+  if (updates.patient_type === 'employee' && !employeeId) {
+    throw new Error('กรุณากรอกรหัสบุคลากร');
+  }
+
+  const allergies =
+    updates.allergy_status === 'yes'
+      ? updates.allergies?.trim() || null
+      : null;
+
+  const chronicDiseases =
+    updates.chronic_disease_status === 'yes'
+      ? updates.chronic_diseases?.trim() || null
+      : null;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      full_name: fullName,
+      phone,
+      emergency_phone: updates.emergency_phone?.trim() || null,
+      address: updates.address?.trim() || null,
+      patient_type: updates.patient_type,
+      student_id:
+        updates.patient_type === 'student' ? studentId : null,
+      employee_id:
+        updates.patient_type === 'employee' ? employeeId : null,
+      organization,
+      allergy_status: updates.allergy_status,
+      allergies,
+      chronic_disease_status: updates.chronic_disease_status,
+      chronic_diseases: chronicDiseases,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', patientId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getAccounts(
+  group: AccountGroup = 'patient',
+): Promise<Profile[]> {
+  let query = supabase
+    .from('profiles')
+    .select('*')
+    .order('full_name', { ascending: true });
+
+  if (group === 'patient') {
+    query = query.eq('role', 'patient');
+  } else {
+    query = query.in('role', ['medical', 'staff_admin']);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function getPatients(): Promise<Profile[]> {
+  return getAccounts('patient');
+}
+
+export async function getPatientById(
+  patientId: string,
+): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', patientId)
+    .eq('role', 'patient')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function suspendAccount(
+  accountId: string,
+): Promise<Profile> {
+  if (!accountId) {
+    throw new Error('ไม่พบรหัสบัญชี');
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      is_suspended: true,
+      suspended_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', accountId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function restoreAccount(
+  accountId: string,
+): Promise<Profile> {
+  if (!accountId) {
+    throw new Error('ไม่พบรหัสบัญชี');
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      is_suspended: false,
+      suspended_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', accountId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteAccountPermanently(
+  accountId: string,
+): Promise<void> {
+  if (!accountId) {
+    throw new Error('ไม่พบรหัสบัญชี');
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', accountId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 async function requireStaffAdmin(): Promise<string> {
   const {
     data: { user },
@@ -257,12 +813,11 @@ async function requireStaffAdmin(): Promise<string> {
     throw new Error('กรุณาเข้าสู่ระบบใหม่');
   }
 
-  const { data: profile, error: profileError } =
-    await supabase
-      .from('profiles')
-      .select('role, is_active')
-      .eq('id', user.id)
-      .single();
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single();
 
   if (profileError || !profile) {
     throw new Error('ไม่พบข้อมูลบัญชีผู้ใช้งาน');
@@ -270,7 +825,7 @@ async function requireStaffAdmin(): Promise<string> {
 
   if (profile.role !== 'staff_admin') {
     throw new Error(
-      'เฉพาะสตาฟแอดมินเท่านั้นที่แก้ข้อมูลผู้ป่วยได้'
+      'เฉพาะสตาฟแอดมินเท่านั้นที่แก้ข้อมูลผู้ป่วยได้',
     );
   }
 
@@ -293,12 +848,11 @@ async function requirePatientDirectoryAccess(): Promise<
     throw new Error('กรุณาเข้าสู่ระบบใหม่');
   }
 
-  const { data: profile, error: profileError } =
-    await supabase
-      .from('profiles')
-      .select('role, is_active')
-      .eq('id', user.id)
-      .single();
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .single();
 
   if (profileError || !profile) {
     throw new Error('ไม่พบข้อมูลบัญชีผู้ใช้งาน');
@@ -319,7 +873,7 @@ async function requirePatientDirectoryAccess(): Promise<
 }
 
 export async function getPatientForStaffAdmin(
-  patientId: string
+  patientId: string,
 ): Promise<Profile> {
   await requireStaffAdmin();
 
@@ -345,150 +899,11 @@ export async function getPatientForStaffAdmin(
 
 export async function staffAdminUpdatePatient(
   patientId: string,
-  updates: StaffAdminPatientUpdates
+  updates: StaffAdminPatientUpdates,
 ): Promise<Profile> {
   await requireStaffAdmin();
 
-  const fullName = updates.full_name.trim();
-  const phone = updates.phone.trim();
-
-  if (!patientId) {
-    throw new Error('ไม่พบรหัสบัญชีผู้ป่วย');
-  }
-
-  if (!fullName) {
-    throw new Error('กรุณากรอกชื่อ-นามสกุล');
-  }
-
-  if (!phone) {
-    throw new Error('กรุณากรอกเบอร์โทรศัพท์');
-  }
-
-  if (
-    updates.patient_type !== 'student' &&
-    updates.patient_type !== 'employee'
-  ) {
-    throw new Error('ประเภทผู้ป่วยไม่ถูกต้อง');
-  }
-
-  const studentId = updates.student_id?.trim() || null;
-  const employeeId = updates.employee_id?.trim() || null;
-  const organization =
-    updates.organization?.trim() || null;
-
-  if (
-    updates.patient_type === 'student' &&
-    !studentId
-  ) {
-    throw new Error('กรุณากรอกรหัสนักศึกษา');
-  }
-
-  if (
-    updates.patient_type === 'employee' &&
-    !employeeId
-  ) {
-    throw new Error('กรุณากรอกรหัสบุคลากร');
-  }
-
-  if (
-    updates.patient_type === 'employee' &&
-    !organization
-  ) {
-    throw new Error('กรุณากรอกหน่วยงาน');
-  }
-
-  const allergies = updates.allergies?.trim() || null;
-  const chronicDiseases =
-    updates.chronic_diseases?.trim() || null;
-
-  if (
-    updates.allergy_status === 'yes' &&
-    !allergies
-  ) {
-    throw new Error(
-      'กรุณากรอกรายละเอียดประวัติแพ้ยา'
-    );
-  }
-
-  if (
-    updates.chronic_disease_status === 'yes' &&
-    !chronicDiseases
-  ) {
-    throw new Error(
-      'กรุณากรอกรายละเอียดโรคประจำตัว'
-    );
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({
-      full_name: fullName,
-      phone,
-      emergency_phone:
-        updates.emergency_phone?.trim() || null,
-      address: updates.address?.trim() || null,
-
-      patient_type: updates.patient_type,
-
-      student_id:
-        updates.patient_type === 'student'
-          ? studentId
-          : null,
-
-      employee_id:
-        updates.patient_type === 'employee'
-          ? employeeId
-          : null,
-
-      organization:
-        updates.patient_type === 'employee'
-          ? organization
-          : null,
-
-      allergy_status: updates.allergy_status,
-
-      allergies:
-        updates.allergy_status === 'yes'
-          ? allergies
-          : null,
-
-      chronic_disease_status:
-        updates.chronic_disease_status,
-
-      chronic_diseases:
-        updates.chronic_disease_status === 'yes'
-          ? chronicDiseases
-          : null,
-
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', patientId)
-    .eq('role', 'patient')
-    .select()
-    .single();
-
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error(
-        'รหัสนักศึกษาหรือรหัสบุคลากรนี้ถูกใช้งานแล้ว'
-      );
-    }
-
-    throw new Error(error.message);
-  }
-
-  return data;
-}
-
-export async function resetPassword(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
-  if (error) throw error;
-}
-
-export interface SearchPatientsResult {
-  patients: Profile[];
-  hasMore: boolean;
-  totalCount: number;
+  return updatePatientByStaff(patientId, updates);
 }
 
 export interface SearchProfilesResult {
@@ -497,57 +912,22 @@ export interface SearchProfilesResult {
   totalCount: number;
 }
 
-export async function searchPatients(
-  query: string = '',
-  page: number = 0,
-  pageSize: number = 10
-): Promise<SearchPatientsResult> {
-  const trimmed = query.trim();
-  const from = page * pageSize;
-  const to = from + pageSize - 1;
-
-  let req = supabase
-    .from('profiles')
-    .select('*', { count: 'exact' })
-    .eq('role', 'patient')
-    .order('created_at', { ascending: false })
-    .range(from, to);
-
-  if (trimmed) {
-    req = req.or(`full_name.ilike.%${trimmed}%,student_id.ilike.%${trimmed}%,phone.ilike.%${trimmed}%`);
-  }
-
-  const { data, count, error } = await req;
-  if (error) throw error;
-
-  const total = count ?? 0;
-  const patients = data ?? [];
-  const hasMore = from + patients.length < total;
-
-  return {
-    patients,
-    hasMore,
-    totalCount: total,
-  };
-}
-
 export async function searchProfilesByGroup(
   group: AccountGroup,
   query: string = '',
   page: number = 0,
-  pageSize: number = 10
+  pageSize: number = 10,
 ): Promise<SearchProfilesResult> {
-  const actorRole =
-  await requirePatientDirectoryAccess();
+  const actorRole = await requirePatientDirectoryAccess();
 
-if (
-  group === 'personnel' &&
-  actorRole !== 'staff_admin'
-) {
-  throw new Error(
-    'เฉพาะสตาฟแอดมินเท่านั้นที่ดูข้อมูลบุคลากรได้'
-  );
-}
+  if (
+    group === 'personnel' &&
+    actorRole !== 'staff_admin'
+  ) {
+    throw new Error(
+      'เฉพาะสตาฟแอดมินเท่านั้นที่ดูข้อมูลบุคลากรได้',
+    );
+  }
 
   const normalizedQuery = query.trim();
   const from = page * pageSize;
@@ -562,10 +942,10 @@ if (
   if (group === 'patient') {
     request = request.eq('role', 'patient');
   } else {
-    request = request.in(
-      'role',
-      ['medical', 'staff_admin']
-    );
+    request = request.in('role', [
+      'medical',
+      'staff_admin',
+    ]);
   }
 
   if (normalizedQuery) {
@@ -575,7 +955,7 @@ if (
         `student_id.ilike.%${normalizedQuery}%`,
         `employee_id.ilike.%${normalizedQuery}%`,
         `phone.ilike.%${normalizedQuery}%`,
-      ].join(',')
+      ].join(','),
     );
   }
 
@@ -591,21 +971,6 @@ if (
   return {
     profiles,
     totalCount,
-    hasMore:
-      from + profiles.length < totalCount,
+    hasMore: from + profiles.length < totalCount,
   };
-}
-
-export async function getPatients(): Promise<Profile[]> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'patient')
-    .order('full_name', { ascending: true });
-
-  if (error) {
-    console.warn('Error fetching patients from Supabase profiles:', error);
-    return [];
-  }
-  return data ?? [];
 }

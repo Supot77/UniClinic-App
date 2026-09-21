@@ -10,6 +10,7 @@ import type {
   Doctor,
   MedicalRecord,
   Medication,
+  MedicationLog,
   MedicationReminder,
   Notification,
   NotificationType,
@@ -239,9 +240,10 @@ type DashboardAppointment = Pick<Appointment, 'id' | 'slot_id' | 'queue_number' 
   patient_id?: string;
   user_id?: string;
 };
-type DashboardMedication = Pick<Medication, 'id' | 'name' | 'stock' | 'min_stock' | 'expiry_date' | 'is_active'>;
-type DashboardReminder = Pick<MedicationReminder, 'id' | 'user_id' | 'medication_id' | 'status'>;
-type DashboardMedicalRecord = Pick<MedicalRecord, 'id' | 'prescribed_medications'>;
+type DashboardMedication = Pick<Medication, 'id' | 'name' | 'type' | 'description' | 'stock' | 'min_stock' | 'expiry_date' | 'is_active'>;
+type DashboardReminder = Pick<MedicationReminder, 'id' | 'user_id' | 'medication_id' | 'reminder_times' | 'start_date' | 'end_date' | 'status'>;
+type DashboardMedicationLog = Pick<MedicationLog, 'id' | 'reminder_id' | 'scheduled_datetime' | 'actual_datetime' | 'status'>;
+type DashboardMedicalRecord = Pick<MedicalRecord, 'id' | 'appointment_id' | 'patient_id' | 'doctor_id' | 'diagnosis' | 'treatment_notes' | 'prescribed_medications' | 'created_at'>;
 
 const activeAppointmentStatuses: AppointmentStatus[] = ['pending', 'confirmed', 'in_progress', 'completed', 'no_show'];
 
@@ -251,12 +253,41 @@ function subtractDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 function toBangkokDate(value: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(new Date(value));
   const dateParts = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+}
+
+function bangkokTime(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(now);
+}
+
+function isUpcomingToday(slotDate: string | undefined, startTime: string | undefined, today: string, currentTime: string): boolean {
+  if (slotDate !== today || !startTime) return false;
+  return currentTime < startTime.slice(0, 5);
+}
+
+function isUpcomingAppointment(slotDate: string | undefined, startTime: string | undefined, today: string, currentTime: string): boolean {
+  if (!slotDate || !startTime) return false;
+  if (slotDate > today) return true;
+  if (slotDate < today) return false;
+  return currentTime < startTime.slice(0, 5);
+}
+
+function nextReminderTime(reminderTimes: string[], currentTime: string): string | null {
+  const times = reminderTimes.map((time) => time.slice(0, 5)).filter(Boolean).sort();
+  return times.find((time) => time > currentTime) ?? times[0] ?? null;
 }
 
 function throwQueryError(label: string, error: { message: string } | null): void {
@@ -329,8 +360,20 @@ export async function getDashboardView(
 ): Promise<DashboardView> {
   const rangeDays: Record<DashboardRange, number> = { today: 1, '7d': 7, '30d': 30 };
   const startDate = subtractDays(today, rangeDays[range] - 1);
+  const futureAppointmentEndDate = addDays(today, 365);
 
-  const [profilesResult, departmentsResult, doctorsResult, slotsResult, notifications] = await Promise.all([
+  const futureSlotsPromise = role === 'patient'
+    ? supabase
+      .from('appointment_slots')
+      .select('id, doctor_id, slot_date, start_time, max_capacity, status')
+      .gte('slot_date', today)
+      .lte('slot_date', futureAppointmentEndDate)
+      .order('slot_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(365)
+    : Promise.resolve({ data: [] as DashboardSlot[], error: null });
+
+  const [profilesResult, departmentsResult, doctorsResult, slotsResult, futureSlotsResult, notifications] = await Promise.all([
     supabase.from('profiles').select('id, full_name, role, is_active'),
     supabase.from('departments').select('id, name, is_active'),
     supabase.from('doctors').select('id, department_id'),
@@ -339,6 +382,7 @@ export async function getDashboardView(
       .select('id, doctor_id, slot_date, start_time, max_capacity, status')
       .gte('slot_date', startDate)
       .lte('slot_date', today),
+    futureSlotsPromise,
     getNotifications(actorId, 100),
   ]);
 
@@ -346,11 +390,13 @@ export async function getDashboardView(
   throwQueryError('โหลดแผนกไม่สำเร็จ', departmentsResult.error);
   throwQueryError('โหลดข้อมูลแพทย์ไม่สำเร็จ', doctorsResult.error);
   throwQueryError('โหลดรอบตรวจไม่สำเร็จ', slotsResult.error);
+  throwQueryError('โหลดนัดหมายถัดไปไม่สำเร็จ', futureSlotsResult.error);
 
   const profiles = (profilesResult.data ?? []) as DashboardProfile[];
   const departments = (departmentsResult.data ?? []) as DashboardDepartment[];
   const doctors = (doctorsResult.data ?? []) as DashboardDoctor[];
   const allRangeSlots = (slotsResult.data ?? []) as DashboardSlot[];
+  const futureSlots = (futureSlotsResult.data ?? []) as DashboardSlot[];
   const actor = profiles.find((profile) => profile.id === actorId);
 
   if (!actor || actor.role !== role || actor.is_active === false) {
@@ -364,6 +410,7 @@ export async function getDashboardView(
   const scopedSlotIds = scopedSlots.map((slot) => slot.id);
 
   let appointments: DashboardAppointment[] = [];
+  let futureAppointments: DashboardAppointment[] = [];
   if (scopedSlotIds.length > 0) {
     let appointmentQuery = supabase
       .from('appointments')
@@ -375,14 +422,29 @@ export async function getDashboardView(
     appointments = (appointmentResult.data ?? []) as DashboardAppointment[];
   }
 
-  const medicationPromise = role === 'patient'
-    ? Promise.resolve({ data: [] as DashboardMedication[], error: null })
-    : supabase.from('medications').select('id, name, stock, min_stock, expiry_date, is_active');
+  const futureSlotIds = futureSlots
+    .map((slot) => slot.id)
+    .filter((slotId) => !scopedSlotIds.includes(slotId));
+  if (role === 'patient' && futureSlotIds.length > 0) {
+    const futureAppointmentResult = await supabase
+      .from('appointments')
+      .select('id, patient_id, slot_id, queue_number, status')
+      .in('slot_id', futureSlotIds)
+      .eq('patient_id', actorId);
+    throwQueryError('โหลดนัดหมายถัดไปไม่สำเร็จ', futureAppointmentResult.error);
+    futureAppointments = (futureAppointmentResult.data ?? []) as DashboardAppointment[];
+  }
+
+  const medicationPromise = supabase
+    .from('medications')
+    .select('id, name, type, description, stock, min_stock, expiry_date, is_active');
   const reminderPromise = role === 'patient'
-    ? supabase.from('medication_reminders').select('id, user_id, medication_id, status').eq('user_id', actorId)
+    ? supabase.from('medication_reminders').select('id, user_id, medication_id, reminder_times, start_date, end_date, status').eq('user_id', actorId)
     : Promise.resolve({ data: [] as DashboardReminder[], error: null });
   const medicalRecordPromise = role === 'medical' && !isDoctorActor
-    ? supabase.from('medical_records').select('id, prescribed_medications')
+    ? supabase.from('medical_records').select('id, appointment_id, patient_id, doctor_id, diagnosis, treatment_notes, prescribed_medications, created_at')
+    : role === 'patient'
+      ? supabase.from('medical_records').select('id, appointment_id, patient_id, doctor_id, diagnosis, treatment_notes, prescribed_medications, created_at').eq('patient_id', actorId)
     : Promise.resolve({ data: [] as DashboardMedicalRecord[], error: null });
 
   const [medicationsResult, remindersResult, medicalRecordsResult] = await Promise.all([
@@ -397,9 +459,27 @@ export async function getDashboardView(
   const medications = (medicationsResult.data ?? []) as DashboardMedication[];
   const reminders = (remindersResult.data ?? []) as DashboardReminder[];
   const medicalRecords = (medicalRecordsResult.data ?? []) as DashboardMedicalRecord[];
+  let medicationLogs: DashboardMedicationLog[] = [];
+  const activeReminderIds = reminders.filter((reminder) => reminder.status === 'active').map((reminder) => reminder.id);
+  if (role === 'patient' && activeReminderIds.length > 0) {
+    const medicationLogsResult = await supabase
+      .from('medication_logs')
+      .select('id, reminder_id, scheduled_datetime, actual_datetime, status')
+      .in('reminder_id', activeReminderIds)
+      .order('scheduled_datetime', { ascending: true });
+    throwQueryError('โหลดประวัติการทานยาไม่สำเร็จ', medicationLogsResult.error);
+    medicationLogs = (medicationLogsResult.data ?? []) as DashboardMedicationLog[];
+  }
   const activeAppointments = appointments.filter((appointment) => activeAppointmentStatuses.includes(appointment.status));
   const queueRemaining = activeAppointments.filter((appointment) => appointment.status === 'confirmed' || appointment.status === 'in_progress').length;
   const completedInRange = activeAppointments.filter((appointment) => appointment.status === 'completed').length;
+  const currentBangkokTime = bangkokTime();
+  const statusAppointments = range === 'today' && role !== 'staff_admin'
+    ? activeAppointments.filter((appointment) => {
+        const slot = scopedSlots.find((candidate) => candidate.id === appointment.slot_id);
+        return isUpcomingToday(slot?.slot_date, slot?.start_time, today, currentBangkokTime);
+      })
+    : activeAppointments;
   const rangeNotifications = notifications.filter((notification) => {
     const notificationDate = toBangkokDate(notification.created_at);
     return notificationDate >= startDate && notificationDate <= today;
@@ -410,7 +490,18 @@ export async function getDashboardView(
   const expired = activeMedications.filter((medication) => Boolean(medication.expiry_date && medication.expiry_date < today));
   const activeReminders = reminders.filter((reminder) => reminder.status === 'active');
   const patientMedicationIds = new Set(activeReminders.map((reminder) => reminder.medication_id));
-  const pendingDispensing = medicalRecords.filter((record) => (record.prescribed_medications?.length ?? 0) > 0).length;
+  const slotsForUpcoming = [...scopedSlots, ...futureSlots];
+  const upcomingPatientAppointmentCount = role === 'patient'
+    ? [...activeAppointments, ...futureAppointments].filter((appointment) => {
+        const slot = slotsForUpcoming.find((candidate) => candidate.id === appointment.slot_id);
+        return (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'in_progress')
+          && isUpcomingAppointment(slot?.slot_date, slot?.start_time, today, currentBangkokTime);
+      }).length
+    : 0;
+  const pendingDispensing = medicalRecords.filter((record) => {
+    const medications = record.prescribed_medications ?? [];
+    return medications.length > 0 && medications.some((medication) => !medication.dispensed);
+  }).length;
   const activeProfiles = profiles.filter((profile) => profile.is_active !== false);
   const rangeSuffix = range === 'today' ? dashboardRangeLabels[range] : ` ${dashboardRangeLabels[range]}`;
   const metric = (value: number | string, id: string, label: string, description: string, href: string, tone: DashboardMetric['tone']): DashboardMetric => ({
@@ -421,36 +512,31 @@ export async function getDashboardView(
     staff_admin: [
       metric(activeAppointments.length, 'appointments-in-range', `นัดหมาย${rangeSuffix}`, 'ไม่รวมรายการยกเลิกและปฏิเสธ', '/appointments', 'blue'),
       metric(queueRemaining, 'remaining-queue', range === 'today' ? 'คิวที่เหลือ' : 'คิวในช่วงที่เลือก', 'ยืนยันแล้วและกำลังตรวจ', '/appointments', 'amber'),
-      metric(departments.filter((department) => department.is_active !== false).length, 'department-workload', 'แผนกที่ให้บริการ', 'ดูภาระงานแยกตามแผนก', '/departments', 'violet'),
-      metric(activeProfiles.length, 'accounts', 'บัญชีทั้งหมด', 'ดูรายชื่อและข้อมูลติดต่อแยกตาม role', '/staff/accounts', 'blue'),
     ],
     medical: isDoctorActor
       ? [
           metric(activeAppointments.length, 'own-appointments', `นัดของฉัน${rangeSuffix}`, 'เฉพาะตารางแพทย์ที่เข้าสู่ระบบ', '/appointments', 'blue'),
           metric(queueRemaining, 'own-queue', range === 'today' ? 'คิวของฉันที่เหลือ' : 'คิวของฉันในช่วงที่เลือก', 'ยืนยันแล้วและกำลังตรวจ', '/appointments', 'amber'),
           metric(completedInRange, 'completed-in-range', `ตรวจเสร็จ${rangeSuffix}`, 'นับสถานะเสร็จสิ้น', '/appointments', 'emerald'),
-          metric(unreadNotifications, 'unread-notifications', 'ยังไม่ได้อ่าน', 'ข้อความของบัญชีนี้', '/notifications', 'rose'),
         ]
       : [
           metric(activeAppointments.length, 'appointments-in-range', `นัดหมาย${rangeSuffix}`, 'ข้อมูลนัดที่บันทึกแล้ว', '/appointments', 'blue'),
           metric(pendingDispensing, 'pending-dispensing', 'รอจ่ายยา', 'ใบสั่งยาที่มีรายการยา', '/pharmacy', 'amber'),
           metric(lowStock.length, 'low-stock', 'ยาใกล้หมด', 'สต๊อกต่ำกว่าหรือเท่าจุดสั่งซื้อ', '/pharmacy', 'rose'),
           metric(expired.length, 'expired', 'ยาหมดอายุ', 'แยกออกจากรายการยาใกล้หมด', '/pharmacy', 'violet'),
-        ],
+    ],
     patient: [
-      metric(activeAppointments.length, 'my-appointments', `การนัดหมายของฉัน${rangeSuffix}`, 'ไม่รวมรายการยกเลิกและปฏิเสธ', '/appointments', 'blue'),
       metric(patientMedicationIds.size, 'my-medications', 'ยาที่กำลังใช้', 'นับจากรายการเตือนยาที่ใช้งาน', '/reminders', 'violet'),
-      metric(activeReminders.length, 'my-reminders', 'การเตือนที่ใช้งาน', 'เวลาทานยาที่ผู้ป่วยยืนยันแล้ว', '/reminders', 'emerald'),
-      metric(unreadNotifications, 'unread-notifications', 'ยังไม่ได้อ่าน', 'ข้อความของบัญชีนี้', '/notifications', 'rose'),
+      metric(upcomingPatientAppointmentCount, 'next-appointment', 'นัดหมายถัดไป', 'นัดหมายที่กำลังจะถึง', '/appointments', 'blue'),
+      metric(unreadNotifications, 'unread-notifications', 'การแจ้งเตือน', 'ข้อความของบัญชีนี้ที่ยังไม่ได้อ่าน', '/notifications', 'emerald'),
     ],
   };
 
-  const slotsById = new Map(scopedSlots.map((slot) => [slot.id, slot]));
+  const slotsById = new Map([...scopedSlots, ...futureSlots].map((slot) => [slot.id, slot]));
   const doctorsById = new Map(doctors.map((doctor) => [doctor.id, doctor]));
   const departmentsById = new Map(departments.map((department) => [department.id, department]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
-  const appointmentQueue = activeAppointments
-    .map((appointment) => {
+  const mapAppointment = (appointment: DashboardAppointment) => {
       const slot = slotsById.get(appointment.slot_id);
       const doctor = slot ? doctorsById.get(slot.doctor_id) : undefined;
       return {
@@ -465,9 +551,80 @@ export async function getDashboardView(
           ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก'
           : 'ไม่ระบุแผนก',
       };
-    })
+    };
+  const mappedAppointmentQueue = activeAppointments.map(mapAppointment);
+  const mappedFutureAppointments = futureAppointments
+    .filter((appointment) => activeAppointmentStatuses.includes(appointment.status))
+    .map(mapAppointment);
+  const nextAppointment = [...mappedAppointmentQueue, ...mappedFutureAppointments]
+    .filter((appointment) => (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'in_progress')
+      && isUpcomingAppointment(appointment.date, appointment.startTime, today, currentBangkokTime))
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))[0] ?? null;
+  const appointmentQueue = mappedAppointmentQueue
     .sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`))
     .slice(0, 8);
+
+  const medicationById = new Map(medications.map((medication) => [medication.id, medication]));
+  const patientMedications = role === 'patient'
+    ? activeReminders
+      .filter((reminder) => reminder.start_date <= today && (!reminder.end_date || reminder.end_date >= today))
+      .map((reminder) => {
+        const medication = medicationById.get(reminder.medication_id);
+        const reminderTimes = (reminder.reminder_times ?? []).map((time) => time.slice(0, 5)).filter(Boolean).sort();
+        const reminderLogs = medicationLogs.filter((log) => log.reminder_id === reminder.id);
+        return {
+          id: reminder.id,
+          name: medication?.name ?? 'ไม่พบชื่อยา',
+          instruction: medication?.description || `รับประทานตามเวลา ${reminderTimes.join(' · ') || 'ที่กำหนด'}`,
+          reminderTimes,
+          nextDoseTime: reminderTimes.length > 0 ? nextReminderTime(reminderTimes, currentBangkokTime) : null,
+          endDate: reminder.end_date,
+          takenDoses: reminderLogs.filter((log) => log.status === 'taken').length,
+          totalDoses: reminderLogs.length,
+        };
+      })
+    : [];
+  const patientTreatmentHistory = role === 'patient'
+    ? medicalRecords
+      .filter((record) => record.patient_id === actorId)
+      .map((record) => {
+        const doctor = doctorsById.get(record.doctor_id);
+        return {
+          id: record.id,
+          date: record.created_at,
+          doctorName: profilesById.get(record.doctor_id)?.full_name ?? 'ไม่พบแพทย์',
+          departmentName: doctor?.department_id ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
+          summary: record.diagnosis || record.treatment_notes || 'ไม่มีสรุปการรักษา',
+          medicationCount: record.prescribed_medications?.length ?? 0,
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 5)
+    : [];
+
+  const pendingPrescriptions = role === 'medical' && !isDoctorActor
+    ? medicalRecords
+      .map((record) => {
+        const medications = record.prescribed_medications ?? [];
+        const dispensedCount = medications.filter((medication) => Boolean(medication.dispensed)).length;
+        const doctor = doctorsById.get(record.doctor_id);
+        return {
+          id: record.id,
+          patientName: profilesById.get(record.patient_id)?.full_name ?? 'ไม่พบชื่อผู้ป่วย',
+          doctorName: profilesById.get(record.doctor_id)?.full_name ?? 'ไม่พบชื่อแพทย์',
+          departmentName: doctor?.department_id
+            ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก'
+            : 'ไม่ระบุแผนก',
+          date: record.created_at,
+          diagnosis: record.diagnosis || record.treatment_notes || 'ไม่ได้ระบุอาการ',
+          medicationCount: medications.length,
+          dispensedCount,
+        };
+      })
+      .filter((record) => record.medicationCount > 0 && record.dispensedCount < record.medicationCount)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 8)
+    : [];
 
   const departmentLoads = role === 'staff_admin'
     ? departments
@@ -505,10 +662,14 @@ export async function getDashboardView(
     appointmentStatuses: (['pending', 'confirmed', 'in_progress', 'completed'] as AppointmentStatus[]).map((status) => ({
       status,
       label: status === 'pending' ? 'รอยืนยัน' : status === 'confirmed' ? 'ยืนยันแล้ว' : status === 'in_progress' ? 'กำลังตรวจ' : 'เสร็จสิ้น',
-      count: activeAppointments.filter((appointment) => appointment.status === status).length,
+      count: statusAppointments.filter((appointment) => appointment.status === status).length,
     })),
     appointmentQueue,
+    nextAppointment,
+    patientMedications,
+    patientTreatmentHistory,
     departmentLoads,
+    pendingPrescriptions,
     medicationAlerts: activeMedications
       .filter((medication) => medication.stock <= medication.min_stock || Boolean(medication.expiry_date && medication.expiry_date < today))
       .map((medication) => ({
@@ -521,6 +682,7 @@ export async function getDashboardView(
         expired: Boolean(medication.expiry_date && medication.expiry_date < today),
       })),
     recentNotifications: rangeNotifications.slice(0, 5),
+    unreadNotificationCount: unreadNotifications,
     roleCounts: role === 'staff_admin'
       ? (['patient', 'medical', 'staff_admin'] as UserRole[]).map((profileRole) => ({
           role: profileRole,
