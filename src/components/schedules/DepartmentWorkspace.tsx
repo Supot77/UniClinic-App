@@ -15,7 +15,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import { useShop } from '@/features/shop/context/ShopProvider';
+import { useScheduling } from '@/features/scheduling/context/SchedulingProvider';
 import ConfirmationModal, { type ConfirmationModalRequest } from '@/components/common/ConfirmationModal';
 import Toast from '@/components/common/Toast';
 import StaffProfileDirectory from '@/components/staff/StaffProfileDirectory';
@@ -25,7 +25,7 @@ import type {
   ScheduleDoctor,
   DoctorLeave,
 } from '@/types/schedule';
-import { getBangkokToday, isDoctorOnLeave } from '@/features/shop/domain/rules';
+import { getBangkokToday, isDoctorOnLeave } from '@/features/scheduling/domain/rules';
 import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
 
 const inputClass =
@@ -88,7 +88,7 @@ export default function DepartmentWorkspace() {
     saveDoctor: persistDoctor,
     toggleDoctor: persistDoctorToggle,
     deleteDoctorLeave: persistDoctorLeaveDelete,
-  } = useShop();
+  } = useScheduling();
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('departments');
   const [search, setSearch] = useState('');

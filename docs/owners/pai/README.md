@@ -16,7 +16,7 @@
 
 ## Dependency และ handoff
 
-รับ slot contract จาก shop และส่ง `appointmentId`, `patientId`, `doctorId`, สถานะตรวจ และ prescription ไปยัง pharmacy
+รับ slot contract จาก scheduling และส่ง `appointmentId`, `patientId`, `doctorId`, สถานะตรวจ และ prescription ไปยัง pharmacy
 
 ## เอกสารอ้างอิง
 

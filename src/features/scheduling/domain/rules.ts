@@ -9,7 +9,7 @@ import type {
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
 
-export type ShopResult<T> =
+export type SchedulingResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: string; field?: string };
 
@@ -41,8 +41,8 @@ export interface SlotBatchPlan {
   skippedConflictCount: number;
 }
 
-const success = <T>(value: T): ShopResult<T> => ({ ok: true, value });
-const failure = <T>(error: string, field?: string): ShopResult<T> => ({ ok: false, error, field });
+const success = <T>(value: T): SchedulingResult<T> => ({ ok: true, value });
+const failure = <T>(error: string, field?: string): SchedulingResult<T> => ({ ok: false, error, field });
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_PATTERN = /^(\d{2}):(\d{2})$/;
@@ -118,7 +118,7 @@ export function validateSlot(
   bookedCount = 0,
   todayDate?: string,
   doctorLeaves: DoctorLeave[] = [],
-): ShopResult<SlotInput> {
+): SchedulingResult<SlotInput> {
   if (!input.doctorId || !input.serviceId || !input.slotDate || !input.startTime || !input.endTime) {
     return failure('กรอกแพทย์ บริการ วันที่ และเวลาให้ครบ');
   }
@@ -194,7 +194,7 @@ export function validateDoctorLeave(
   actorId?: string,
   role?: UserRole,
   todayDate?: string,
-): ShopResult<DoctorLeaveInput> {
+): SchedulingResult<DoctorLeaveInput> {
   if (!input.doctorId || !input.startDate || !input.endDate) {
     return failure('เลือกแพทย์และกรอกช่วงวันลาให้ครบ', 'doctorId');
   }
@@ -233,7 +233,7 @@ export function validateDoctorLeavePermission(
   doctors: ScheduleDoctor[],
   actorId?: string,
   role?: UserRole,
-): ShopResult<true> {
+): SchedulingResult<true> {
   if (!role) return success(true);
   if (role === 'staff_admin') return success(true);
   const doctor = doctors.find((item) => item.id === doctorId);
@@ -248,7 +248,7 @@ export function validateSlotPermission(
   doctors: ScheduleDoctor[],
   actorId?: string,
   role?: UserRole,
-): ShopResult<true> {
+): SchedulingResult<true> {
   if (!role || role === 'staff_admin') return success(true);
   const doctor = doctors.find((item) => item.id === doctorId);
   if (role === 'medical' && actorId && doctor && (doctor.id === actorId || doctor.profileId === actorId)) {
@@ -278,7 +278,7 @@ export function buildSlotBatchPlan(
   services: ScheduleService[],
   todayDate?: string,
   doctorLeaves: DoctorLeave[] = [],
-): ShopResult<SlotBatchPlan> {
+): SchedulingResult<SlotBatchPlan> {
   if (!input.doctorId || !input.serviceId || input.dates.length === 0 || input.timeBlocks.length === 0) {
     return failure('กรอกแพทย์ บริการ วันที่ และช่วงเวลาให้ครบ');
   }
@@ -360,7 +360,7 @@ export function validateDepartmentName(
   code: string | undefined,
   departments: ScheduleDepartment[],
   editingId?: string,
-): ShopResult<true> {
+): SchedulingResult<true> {
   if (!name.trim()) return failure('กรอกชื่อแผนกก่อนบันทึก', 'name');
   const normalized = name.trim().toLocaleLowerCase('th');
   if (departments.some((item) => item.id !== editingId && item.name.trim().toLocaleLowerCase('th') === normalized)) {

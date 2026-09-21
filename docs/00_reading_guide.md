@@ -51,7 +51,7 @@
 
 คำว่า “ตกลงแล้ว” หมายถึงทีมยืนยันขอบเขตหรือกติกา คำว่า “แผน” หมายถึงงานที่ควรทำต่อ และคำว่า “พัฒนา/ตรวจรับแล้ว” ต้องมีหลักฐานจากโค้ดหรือคำสั่งตรวจจริง เอกสารนี้ไม่เปลี่ยนสถานะของงานเพียงเพราะมีการเขียนรายละเอียดเพิ่ม
 
-ส่วน `as-built` ในเอกสาร 02, 03, 11 และ [owner views](owners/README.md) เป็นผลจากการอ่าน repository ณ 2026-09-20: PAI นัดหมาย/ผลตรวจเป็น active route, Shop มี schedule/department/leave/slot path และ shared confirmation, ส่วน pharmacy, reminders และ dashboard ยังมี path ที่ต้องแยกตาม source และตรวจ integration. ต้องตรวจ migration target, RLS และ flow บนฐานจริงแยกต่างหาก
+ส่วน `as-built` ในเอกสาร 02, 03, 11 และ [owner views](owners/README.md) เป็นผลจากการอ่าน repository ณ 2026-09-20: PAI นัดหมาย/ผลตรวจเป็น active route, Scheduling มี schedule/department/leave/slot path และ shared confirmation, ส่วน pharmacy, reminders และ dashboard ยังมี path ที่ต้องแยกตาม source และตรวจ integration. ต้องตรวจ migration target, RLS และ flow บนฐานจริงแยกต่างหาก
 
 ## คำศัพท์ที่ต้องใช้ให้ตรงกัน
 

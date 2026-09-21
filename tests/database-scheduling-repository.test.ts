@@ -1,21 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { DatabaseShopRepository } from '@/features/shop/data/databaseRepository';
+import { DatabaseSchedulingRepository } from '@/features/scheduling/data/databaseRepository';
 
-describe('DatabaseShopRepository', () => {
+describe('DatabaseSchedulingRepository', () => {
   it('surfaces service catalog errors when requested by the landing page', async () => {
     const error = new Error('Catalog unavailable');
     const client = { from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({
       order: vi.fn().mockResolvedValue({ data: null, error }),
     }) }) } as unknown as SupabaseClient;
-    await expect(new DatabaseShopRepository(client).fetchServices(true)).rejects.toBe(error);
+    await expect(new DatabaseSchedulingRepository(client).fetchServices(true)).rejects.toBe(error);
   });
 
   it('distinguishes an empty catalog from a failed request', async () => {
     const client = { from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({
       order: vi.fn().mockResolvedValue({ data: [], error: null }),
     }) }) } as unknown as SupabaseClient;
-    await expect(new DatabaseShopRepository(client).fetchServices(true)).resolves.toEqual([]);
+    await expect(new DatabaseSchedulingRepository(client).fetchServices(true)).resolves.toEqual([]);
   });
 
   it('maps database department rows to ScheduleDepartment domain models', async () => {
@@ -38,7 +38,7 @@ describe('DatabaseShopRepository', () => {
     });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
     const departments = await repo.fetchDepartments();
 
     expect(departments.length).toBe(1);
@@ -73,7 +73,7 @@ describe('DatabaseShopRepository', () => {
     });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
     const doctors = await repo.fetchDoctors();
 
     expect(doctors.length).toBe(1);
@@ -104,7 +104,7 @@ describe('DatabaseShopRepository', () => {
     });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
     const doctors = await repo.fetchDoctors();
 
     expect(doctors.length).toBe(1);
@@ -120,7 +120,7 @@ describe('DatabaseShopRepository', () => {
 
   it('validates department input before querying database', async () => {
     const mockClient = { from: vi.fn() } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     // ชื่อว่างเปล่า ต้องคืน error ทันทีโดยไม่ยิง Supabase
     const emptyResult = await repo.saveDepartment({ name: '', description: '' }, []);
@@ -139,7 +139,7 @@ describe('DatabaseShopRepository', () => {
 
   it('validates doctor input before inserting into doctors table', async () => {
     const mockClient = { from: vi.fn() } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     const invalidResult = await repo.saveDoctor(
       {
@@ -168,7 +168,7 @@ describe('DatabaseShopRepository', () => {
     const mockFrom = vi.fn().mockReturnValue({ update: mockUpdate });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     // ปิดใช้งานแผนกเดิมที่เปิดอยู่ (currentActive: true -> nextState: false)
     const result = await repo.toggleDepartment('dept-1', true);
@@ -197,7 +197,7 @@ describe('DatabaseShopRepository', () => {
     const mockFrom = vi.fn().mockReturnValue({ update: mockUpdate });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     // ปิดใช้งานแพทย์ (active -> nextIsActive: false)
     const result = await repo.toggleDoctor('doc-1', 'active');
@@ -231,7 +231,7 @@ describe('DatabaseShopRepository', () => {
     });
 
     const mockClient = { rpc: mockRpc } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
     const slots = await repo.fetchSlots();
 
     expect(slots.length).toBe(1);
@@ -253,7 +253,7 @@ describe('DatabaseShopRepository', () => {
 
   it('validates slot before inserting into database', async () => {
     const mockClient = { from: vi.fn() } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     const validDoctorId = 'a0000000-0000-0000-0000-000000000001';
 
@@ -322,7 +322,7 @@ describe('DatabaseShopRepository', () => {
       : { insert: mockInsert });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     const result = await repo.saveSlot(
       {
@@ -352,7 +352,7 @@ describe('DatabaseShopRepository', () => {
     const validDoctorId = 'a0000000-0000-0000-0000-000000000001';
     const mockRpc = vi.fn().mockResolvedValue({ data: 2, error: null });
     const mockClient = { rpc: mockRpc } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     const result = await repo.createSlotBatch(
       {
@@ -381,7 +381,7 @@ describe('DatabaseShopRepository', () => {
 
   it('rejects saving a slot for a past date', async () => {
     const mockClient = {} as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
     const validDoctorId = 'a0000000-0000-0000-0000-000000000001';
     const result = await repo.saveSlot(
       {
@@ -425,7 +425,7 @@ describe('DatabaseShopRepository', () => {
     const mockFrom = vi.fn().mockReturnValue({ update: mockUpdate });
 
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
-    const repo = new DatabaseShopRepository(mockClient);
+    const repo = new DatabaseSchedulingRepository(mockClient);
 
     const currentSlot = {
       id: 'slot-1',
