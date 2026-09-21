@@ -205,6 +205,7 @@ interface RawInventoryLog {
 }
 
 interface PharmacyContentProps {
+  initialTab?: 'inventory' | 'prescriptions';
   currentRole?: string;
   userEmail?: string;
   userName?: string;
@@ -212,6 +213,7 @@ interface PharmacyContentProps {
 }
 
 export default function PharmacyContent({
+  initialTab = 'inventory',
   currentRole,
   userEmail,
   userName,
@@ -229,25 +231,7 @@ export default function PharmacyContent({
   const effectiveRole = currentRole || authRole || 'medical';
   const isAdminOrStaff = effectiveRole === 'admin' || effectiveRole === 'staff_admin' || effectiveRole === 'staff';
   const canManage = !isAdminOrStaff;
-  const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions'>(() => {
-    if (typeof window === 'undefined') return 'inventory';
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tabParam = urlParams.get('tab');
-      if (tabParam === 'prescriptions' || tabParam === 'inventory') {
-        return tabParam;
-      }
-      const saved =
-        sessionStorage.getItem('clinic_pharmacy_active_tab') ||
-        localStorage.getItem('clinic_pharmacy_active_tab');
-      if (saved === 'prescriptions' || saved === 'inventory') {
-        return saved;
-      }
-    } catch {
-      // ignore storage access restrictions
-    }
-    return 'inventory';
-  });
+  const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions'>(initialTab);
 
   const handleSelectTab = (tab: 'inventory' | 'prescriptions') => {
     setActiveTab(tab);
