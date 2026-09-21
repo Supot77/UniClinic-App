@@ -20,15 +20,25 @@ describe('Clinic database-backed role containers with injected offline repositor
     render(<AppointmentPage role="medical" repository={createClinicMockRepository(seed)} />);
     expect(await screen.findByText('เบอร์โทรผู้ป่วย: ไม่ได้ระบุ')).toBeInTheDocument();
   });
+  it('uses the same full-viewport workspace frame for appointments', async () => {
+    render(<AppointmentPage role="medical" repository={createClinicMockRepository(withAppointment('medical'))} />);
+    const workspace = (await screen.findByRole('heading', { name: 'นัดหมายและคิวตรวจ' })).closest('section');
+    expect(workspace).toHaveClass('w-screen', 'left-1/2', '-translate-x-1/2');
+  });
   it('saves and displays the prescribed dose, meal, times and duration', async () => {
     const repo = createClinicMockRepository(withAppointment());
     render(<MedicalRecordsPage repository={repo} />);
+    const workspace = (await screen.findByRole('heading', { name: 'ผลตรวจและรายการยา' })).closest('section');
+    expect(workspace).toHaveClass('w-screen', 'left-1/2', '-translate-x-1/2');
     fireEvent.change(await screen.findByLabelText('ผลวินิจฉัย'), { target: { value: 'ผลทดสอบ' } });
     fireEvent.change(screen.getByLabelText('ส่วนสูง (ซม.)'), { target: { value: '170' } });
     fireEvent.change(screen.getByLabelText('น้ำหนัก (กก.)'), { target: { value: '65.5' } });
     fireEvent.change(screen.getByLabelText('ความดันโลหิต (mmHg)'), { target: { value: '120/80' } });
     fireEvent.change(screen.getByLabelText('ชีพจร (ครั้ง/นาที)'), { target: { value: '72' } });
-    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรายการยา' }));
+    const addMedicationButton = screen.getByRole('button', { name: 'เพิ่มรายการยา' });
+    expect(addMedicationButton).toHaveClass('bg-brand-surface', 'text-brand-ink', 'hover:bg-brand-soft');
+    fireEvent.click(addMedicationButton);
+    expect(screen.getByRole('button', { name: 'ลบยารายการที่ 1' })).toHaveClass('text-status-critical', 'hover:bg-status-critical-bg');
     fireEvent.click(screen.getByRole('button', { name: 'ยารายการที่ 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'ยาทดสอบ · เม็ด' }));
     fireEvent.change(screen.getByLabelText('ขนาดยาต่อครั้ง (ระบุหน่วย)'), { target: { value: '2 เม็ด' } });

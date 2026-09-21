@@ -270,7 +270,7 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
     { label: 'จบตรวจแล้ว', value: stats.completed, tone: 'success' },
   ] : [];
 
-  return <ClinicWorkspaceShell {...state} role={role} section="appointments" stats={headerStats}>
+  return <ClinicWorkspaceShell {...state} role={role} section="appointments" stats={headerStats} wide>
     {state.loading ? <ClinicPageLoading /> : data && <div className={role === 'patient' ? 'space-y-8' : 'space-y-5'}>
       {role === 'patient' && <BookingForm data={data} busy={state.busy} initialSlotId={initialSlotId} book={(id, reason) => state.run((repository) => repository.book(id, reason), 'จองนัดสำเร็จ รอเจ้าหน้าที่อนุมัติ')} />}
       <section className="overflow-visible rounded-[1.75rem]">

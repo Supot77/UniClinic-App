@@ -31,7 +31,7 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('heading', { name: 'เข้าสู่ระบบ' })).toBeInTheDocument();
     expect(screen.getByLabelText('อีเมล')).toHaveAttribute('placeholder', 'name@example.com');
-    expect(screen.getByText(/ผู้ป่วยใช้อีเมล @mail\.wu\.ac\.th/)).toBeInTheDocument();
+    expect(screen.getByText(/ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail\.wu\.ac\.th/)).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'แสดงรหัสผ่าน' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ลืมรหัสผ่าน?' })).toHaveAttribute('href', '/forgot-password');

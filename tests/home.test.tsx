@@ -19,6 +19,8 @@ describe("Landing", () => {
     expect(screen.getByText("ส่งคำขอแล้ว ต้องรอเจ้าหน้าที่ยืนยันก่อนเข้ารับบริการ")).toBeInTheDocument();
     expect(screen.getByText(/เวลาใช้สำหรับการสาธิต/)).toBeInTheDocument();
     expect(screen.queryByText("พร้อมให้บริการ")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ขั้นตอนการจองนัดหมาย" }).closest("section")).toHaveClass("landing-steps", "bg-brand-surface");
+    expect(screen.getByRole("heading", { name: "ศูนย์การแพทย์มหาวิทยาลัยวลัยลักษณ์" }).closest("section")).toHaveClass("landing-contact");
     await screen.findByText(/ยังไม่มีบริการที่เปิดใช้งาน/);
   });
   it("sends patients directly to appointments", () => {

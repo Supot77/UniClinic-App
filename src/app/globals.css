@@ -337,35 +337,225 @@ body,
 }
 
 html[data-theme="dark"] {
-  color-scheme: light;
-  --background: #e7efed;
-  --foreground: #102f3d;
-  --theme-brand-ink: #102f3d;
-  --theme-brand-hover: #174858;
-  --theme-brand-page: #dce8e5;
-  --theme-brand-soft: #d4e8e3;
-  --theme-brand-surface: #e7efed;
-  --theme-brand-muted: #667c80;
-  --theme-brand-body: #36545d;
-  --theme-brand-border-soft: #cfddda;
-  --theme-brand-border-strong: #9fbeb8;
-  --settings-page-bg: #e7efed;
-  --settings-page-text: #102f3d;
-  --settings-card: #f3f7f6;
-  --settings-option: #edf3f1;
-  --settings-border: #cfddda;
-  --settings-muted: #667c80;
+  color-scheme: dark;
+  --background: #0e2026;
+  --foreground: #edf7f4;
+  --primary: #2ab8ad;
+  --primary-dark: #0d2d31;
+  --primary-mid: #2b6368;
+  --primary-accent: #8ce7dc;
+  --surface-light: #16343a;
+  --surface-white: #172f35;
+  --text-muted: #9bb8b5;
+  --border-soft: #2a474d;
+  --emerald: #5ee0a1;
+  --theme-brand-ink: #edf7f4;
+  --theme-brand-hover: #126e6b;
+  --theme-brand-page: #10252b;
+  --theme-brand-soft: #1b3b3e;
+  --theme-brand-surface: #152f35;
+  --theme-brand-muted: #8eadaa;
+  --theme-brand-body: #c2d8d4;
+  --theme-brand-border-soft: #2a474d;
+  --theme-brand-border-strong: #4a7778;
+  --settings-page-bg: #0e2026;
+  --settings-page-text: #edf7f4;
+  --settings-card: #152f35;
+  --settings-option: #1b3b3e;
+  --settings-border: #2a474d;
+  --settings-muted: #9bb8b5;
+
+  /* Static theme values need the same dark contrast as the semantic tokens. */
+  --color-brand: #2ab8ad;
+  --color-brand-strong: #0f8f87;
+  --color-brand-accent: #8ce7dc;
+  --color-brand-footer-text: #c8e4e0;
+  --color-brand-footer-muted: #9bb8b5;
+  --color-brand-border: #4a7778;
+  --color-status-critical: #ffb4ab;
+  --color-status-critical-bg: #4a2020;
+  --color-status-warning: #f3c76f;
+  --color-status-warning-bg: #46351a;
+  --color-status-success: #86efac;
+  --color-status-success-bg: #123e2a;
+  --color-status-info: #73ded3;
+  --color-status-info-bg: #143d3b;
+  --color-status-neutral: #b5c8c6;
+  --color-status-neutral-bg: #24363a;
+
+  /* Keep existing neutral utility class names useful on dark surfaces. */
+  --color-slate-50: #10252b;
+  --color-slate-100: #172e34;
+  --color-slate-200: #24434a;
+  --color-slate-300: #31565b;
+  --color-slate-400: #668689;
+  --color-slate-500: #8eaaab;
+  --color-slate-600: #b1c6c4;
+  --color-slate-700: #d2e1de;
+  --color-slate-800: #e4f0ed;
+  --color-slate-900: #eff8f5;
+  --color-slate-950: #f7fcfa;
+  --color-zinc-50: #10252b;
+  --color-zinc-100: #172e34;
+  --color-zinc-200: #24434a;
+  --color-zinc-300: #31565b;
+  --color-zinc-400: #668689;
+  --color-zinc-500: #8eaaab;
+  --color-zinc-600: #b1c6c4;
+  --color-zinc-700: #d2e1de;
+  --color-zinc-800: #e4f0ed;
+  --color-zinc-900: #eff8f5;
+  --color-zinc-950: #f7fcfa;
+  --color-gray-50: #10252b;
+  --color-gray-100: #172e34;
+  --color-gray-200: #24434a;
+  --color-gray-300: #31565b;
+  --color-gray-400: #668689;
+  --color-gray-500: #8eaaab;
+  --color-gray-600: #b1c6c4;
+  --color-gray-700: #d2e1de;
+  --color-gray-800: #e4f0ed;
+  --color-gray-900: #eff8f5;
+  --color-gray-950: #f7fcfa;
+
+  /* Legacy color families are brand aliases in this app, so their light
+     surface utilities must not reintroduce white cards in dark mode. */
+  --color-sky-50: #102b30;
+  --color-sky-100: #16383b;
+  --color-sky-200: #245257;
+  --color-sky-300: #32716f;
+  --color-sky-400: #4dc7bb;
+  --color-sky-500: #2ab8ad;
+  --color-sky-600: #0f9b92;
+  --color-sky-700: #73ded3;
+  --color-sky-800: #a7ebe3;
+  --color-sky-900: #d1f6f1;
+  --color-sky-950: #e7fbf8;
+  --color-blue-50: #102b30;
+  --color-blue-100: #16383b;
+  --color-blue-200: #245257;
+  --color-blue-300: #32716f;
+  --color-blue-400: #4dc7bb;
+  --color-blue-500: #2ab8ad;
+  --color-blue-600: #0f9b92;
+  --color-blue-700: #73ded3;
+  --color-blue-800: #a7ebe3;
+  --color-blue-900: #d1f6f1;
+  --color-blue-950: #e7fbf8;
+  --color-teal-50: #102b30;
+  --color-teal-100: #16383b;
+  --color-teal-200: #245257;
+  --color-teal-300: #32716f;
+  --color-teal-400: #4dc7bb;
+  --color-teal-500: #2ab8ad;
+  --color-teal-600: #0f9b92;
+  --color-teal-700: #73ded3;
+  --color-teal-800: #a7ebe3;
+  --color-teal-900: #d1f6f1;
+  --color-teal-950: #e7fbf8;
+  --color-cyan-50: #102b30;
+  --color-cyan-100: #16383b;
+  --color-cyan-200: #245257;
+  --color-cyan-300: #32716f;
+  --color-cyan-400: #4dc7bb;
+  --color-cyan-500: #2ab8ad;
+  --color-cyan-600: #0f9b92;
+  --color-cyan-700: #73ded3;
+  --color-cyan-800: #a7ebe3;
+  --color-cyan-900: #d1f6f1;
+  --color-cyan-950: #e7fbf8;
+  --color-indigo-50: #102b30;
+  --color-indigo-100: #16383b;
+  --color-indigo-200: #245257;
+  --color-indigo-300: #32716f;
+  --color-indigo-400: #4dc7bb;
+  --color-indigo-500: #2ab8ad;
+  --color-indigo-600: #0f9b92;
+  --color-indigo-700: #73ded3;
+  --color-indigo-800: #a7ebe3;
+  --color-indigo-900: #d1f6f1;
+  --color-indigo-950: #e7fbf8;
+  --color-violet-50: #102b30;
+  --color-violet-100: #16383b;
+  --color-violet-200: #245257;
+  --color-violet-300: #32716f;
+  --color-violet-400: #4dc7bb;
+  --color-violet-500: #2ab8ad;
+  --color-violet-600: #0f9b92;
+  --color-violet-700: #73ded3;
+  --color-violet-800: #a7ebe3;
+  --color-violet-900: #d1f6f1;
+  --color-violet-950: #e7fbf8;
 }
 
-html[data-theme="dark"] .bg-white {
-  background-color: #f3f7f6;
+/* Existing hard-coded white surfaces should inherit the dark card surface. */
+html[data-theme="dark"] [class~="bg-white"],
+html[data-theme="dark"] [class~="!bg-white"] {
+  background-color: var(--theme-brand-surface) !important;
+}
+
+/* Preserve intentional translucent header/footer overlays, but remap opaque
+   white opacity utilities used by cards, empty states, and controls. */
+html[data-theme="dark"] [class~="bg-white/40"] {
+  background-color: rgb(21 47 53 / 0.4);
+}
+
+html[data-theme="dark"] [class~="bg-white/60"] {
+  background-color: rgb(21 47 53 / 0.6);
+}
+
+html[data-theme="dark"] [class~="bg-white/65"] {
+  background-color: rgb(21 47 53 / 0.65);
+}
+
+html[data-theme="dark"] [class~="bg-white/70"] {
+  background-color: rgb(21 47 53 / 0.7);
+}
+
+html[data-theme="dark"] [class~="bg-white/95"] {
+  background-color: rgb(21 47 53 / 0.95);
+}
+
+html[data-theme="dark"] [class~="bg-[#fbfdfc]"] {
+  background-color: var(--theme-brand-surface) !important;
+}
+
+/* Keep the established light-mode shell palette for the global header/footer. */
+html[data-theme="dark"] body > header,
+html[data-theme="dark"] body > footer {
+  --color-brand-ink: #102f3d;
+  --color-brand-hover: #174858;
+  --color-brand-soft: #e2f5f1;
+  --color-brand-accent: #83d6c6;
+  --color-brand-footer-text: #b6ced0;
+  --color-brand-footer-muted: #88a7aa;
+  --color-brand-border: #9bcfc5;
+  --color-brand-border-soft: #e8efed;
+  --color-brand-border-strong: #a9c9c4;
+}
+
+/* Landing contact keeps a dark band while the global shell stays unchanged. */
+html[data-theme="dark"] .landing-contact {
+  --color-brand-ink: #0d2d31;
 }
 
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
 html[data-theme="dark"] textarea {
-  background-color: #f7faf9;
-  color: #102f3d;
+  background-color: var(--theme-brand-surface);
+  border-color: var(--theme-brand-border-strong);
+  color: var(--theme-brand-ink);
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: var(--theme-brand-muted);
+}
+
+html[data-theme="dark"] select option {
+  background-color: var(--theme-brand-surface);
+  color: var(--theme-brand-ink);
 }
 
 html[data-font-size="large"] {
