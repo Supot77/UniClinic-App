@@ -810,6 +810,7 @@ export function createClinicRepositories(
         });
         const rangeAppointments = scopedAppointments.filter((appointment) => isInRange(slotsById.get(appointment.slot_id)?.slot_date));
         const queueRemaining = rangeAppointments.filter((appointment) => appointment.status === 'confirmed' || appointment.status === 'in_progress').length;
+        const inProgressInRange = rangeAppointments.filter((appointment) => appointment.status === 'in_progress').length;
         const completedInRange = rangeAppointments.filter((appointment) => appointment.status === 'completed').length;
         const currentBangkokTime = bangkokTime();
         const statusAppointments = range === 'today' && role !== 'staff_admin'
@@ -929,6 +930,15 @@ export function createClinicRepositories(
                 : '/pharmacy',
               'amber',
             ),
+
+            ...(isDoctorActor ? [metric(
+              inProgressInRange,
+              'in-progress-in-range',
+              `กำลังตรวจ${rangeSuffix}`,
+              'นัดหมายที่กำลังตรวจ',
+              '/appointments',
+              'violet',
+            )] : []),
 
             metric(
               isDoctorActor
