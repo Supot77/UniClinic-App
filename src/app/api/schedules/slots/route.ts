@@ -56,7 +56,7 @@ export async function GET(request: Request) {
   if (doctorId && !parseUuid(doctorId)) return Response.json({ error: 'รหัสแพทย์ไม่ถูกต้อง' }, { status: 400 });
   if (serviceId && !parseUuid(serviceId)) return Response.json({ error: 'รหัสบริการไม่ถูกต้อง' }, { status: 400 });
   if (date && !parseDate(date)) return Response.json({ error: 'วันที่ไม่ถูกต้อง' }, { status: 400 });
-  let query = auth.supabase.from('appointment_slots').select('*, offering:daily_service_offerings(service_id, offering_date, is_active), doctor:doctors(id, profile:profiles(id, full_name), department:departments(id, name))').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
+  let query = auth.supabase.from('appointment_slots').select('*, offering:daily_service_offerings(service_id, offering_date, is_active), doctor:doctors(id, profile:profiles(id, title, first_name, last_name), department:departments(id, name))').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
   if (doctorId) query = query.eq('doctor_id', doctorId);
   if (date) query = query.eq('slot_date', date);
   if (serviceId) query = query.eq('daily_service_offerings.service_id', serviceId);

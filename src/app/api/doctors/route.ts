@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data: doctors, error: doctorError } = await auth.supabase
     .from('doctors')
-    .select('id, specialty, department_id, license_number, created_at, updated_at')
+    .select('id, specialty, department_id, created_at, updated_at')
     .order('created_at', { ascending: false });
   if (doctorError) return errorResponse(doctorError, 'โหลดรายชื่อแพทย์ไม่สำเร็จ');
 
@@ -17,7 +17,7 @@ export async function GET() {
   const ids = rows.map((doctor) => doctor.id);
   const departmentIds = rows.map((doctor) => doctor.department_id).filter((id): id is string => Boolean(id));
   const [{ data: profiles, error: profileError }, { data: departments, error: departmentError }] = await Promise.all([
-    ids.length ? auth.supabase.from('profiles').select('id, full_name, role, is_active').in('id', ids) : Promise.resolve({ data: [], error: null }),
+    ids.length ? auth.supabase.from('profiles').select('id, title, first_name, last_name, role, is_active').in('id', ids) : Promise.resolve({ data: [], error: null }),
     departmentIds.length ? auth.supabase.from('departments').select('id, name').in('id', departmentIds) : Promise.resolve({ data: [], error: null }),
   ]);
   if (profileError) return errorResponse(profileError, 'โหลดข้อมูลแพทย์ไม่สำเร็จ');
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (departmentError) return errorResponse(departmentError, 'ตรวจสอบแผนกไม่สำเร็จ');
   if (!department || department.is_active !== true) return Response.json({ error: 'ต้องเลือกแผนกที่เปิดใช้งานอยู่' }, { status: 400 });
-  const { data, error } = await auth.supabase.from('doctors').insert({ id: profileId, specialty, department_id: departmentId }).select('id, specialty, department_id, license_number, created_at, updated_at').single();
+  const { data, error } = await auth.supabase.from('doctors').insert({ id: profileId, specialty, department_id: departmentId }).select('id, specialty, department_id, created_at, updated_at').single();
   if (error) return errorResponse(error, 'เพิ่มข้อมูลแพทย์ไม่สำเร็จ');
   return Response.json(data, { status: 201 });
 }

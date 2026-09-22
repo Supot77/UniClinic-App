@@ -23,7 +23,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!Object.keys(doctorUpdates).length && body.is_active === undefined) return Response.json({ error: 'ไม่มีข้อมูลสำหรับแก้ไข' }, { status: 400 });
   let doctor = null;
   if (Object.keys(doctorUpdates).length) {
-    const result = await auth.supabase.from('doctors').update({ ...doctorUpdates, updated_at: new Date().toISOString() }).eq('id', id).select('id, specialty, department_id, license_number, created_at, updated_at').single();
+    const result = await auth.supabase.from('doctors').update({ ...doctorUpdates, updated_at: new Date().toISOString() }).eq('id', id).select('id, specialty, department_id, created_at, updated_at').single();
     if (result.error) return errorResponse(result.error, 'แก้ไขข้อมูลแพทย์ไม่สำเร็จ');
     doctor = result.data;
   }

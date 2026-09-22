@@ -26,7 +26,11 @@ CREATE TABLE public.medications (
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
   student_id text UNIQUE,
-  full_name text NOT NULL,
+  title text,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  date_of_birth date,
+  gender text,
   phone text,
   emergency_phone text,
   address text,

@@ -15,6 +15,33 @@ const departmentsRlsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migr
 const staffDirectoryUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/12_staff_profile_directory.sql'), 'utf8');
 const serviceOfferingMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/13_services_and_daily_offerings.sql'), 'utf8');
 const publicServicesSlotsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/17_allow_public_view_services_and_slots.sql'), 'utf8');
+const structuredNameMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/33_remove_full_name.sql'), 'utf8');
+
+const structuredNameSources = [
+  'supabase/migrations/01_schema.sql',
+  'supabase/migrations/12_staff_profile_directory.sql',
+  'supabase/migrations/13_pai_manual_appointments_records.sql',
+  'supabase/migrations/16_pai_workspace_rejection_reason.sql',
+  'supabase/migrations/18_protect_profile_permissions.sql',
+  'supabase/migrations/20_staff_profile_directory_created_at.sql',
+  'supabase/migrations/21_fix_pai_workspace_target_tables.sql',
+  'supabase/migrations/23_notification_sender_lookup.sql',
+  'supabase/migrations/24_unread_notification_recipients.sql',
+  'supabase/migrations/25_notification_time_filters.sql',
+  'supabase/migrations/28_medical_record_vitals.sql',
+  'supabase/migrations/29_profile_registration_identity.sql',
+  'src/app/api/appointments/route.ts',
+  'src/app/api/appointments/[id]/route.ts',
+  'src/app/api/doctors/route.ts',
+  'src/app/api/doctors/accounts/route.ts',
+  'src/app/api/medical-records/route.ts',
+  'src/app/api/medical-records/[id]/route.ts',
+  'src/app/api/medications/inventory/route.ts',
+  'src/app/api/schedules/slots/route.ts',
+  'src/app/api/schedules/slots/[id]/route.ts',
+  'src/features/clinic-care.tsx',
+  'src/features/scheduling/data/apiRepository.ts',
+].map((path) => ({ path, source: readFileSync(resolve(process.cwd(), path), 'utf8') }));
 
 const normalizedTables = [
   'reschedule_proposals',
@@ -29,6 +56,13 @@ const normalizedTables = [
 ] as const;
 
 describe('normalized transaction migration', () => {
+  it('uses structured profile names throughout runtime queries and the migration chain', () => {
+    for (const file of structuredNameSources) {
+      expect(file.source, file.path).not.toContain('full_name');
+    }
+    expect(structuredNameMigration).toContain('DROP COLUMN IF EXISTS full_name');
+  });
+
   it('persists TypeScript contract fields in the base and additive schemas', () => {
     const contractFields = [
       'patient_type text',

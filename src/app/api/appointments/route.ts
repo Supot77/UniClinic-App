@@ -6,7 +6,7 @@ type AppointmentInput = { slotId?: string; slot_id?: string; reason?: string };
 export async function GET() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth.response;
-  const select = 'id, patient_id, slot_id, queue_number, reason, status, cancel_requested_at, rejection_reason, created_at, updated_at, slot:appointment_slots(id, doctor_id, slot_date, start_time, end_time, max_capacity, booked_count, status, doctor:doctors(id, specialty, department_id, profile:profiles(id, full_name), department:departments(id, name))), patient:profiles(id, full_name, phone)';
+  const select = 'id, patient_id, slot_id, queue_number, reason, status, cancel_requested_at, rejection_reason, created_at, updated_at, slot:appointment_slots(id, doctor_id, slot_date, start_time, end_time, max_capacity, booked_count, status, doctor:doctors(id, specialty, department_id, profile:profiles(id, title, first_name, last_name), department:departments(id, name))), patient:profiles(id, title, first_name, last_name, phone)';
   let query = auth.supabase.from('appointments').select(select).order('created_at', { ascending: false });
   if (auth.actor.role === 'patient') query = query.eq('patient_id', auth.actor.id);
   const { data, error } = await query;

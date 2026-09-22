@@ -105,4 +105,33 @@ describe('API Route Handlers', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([]);
   });
+
+  it('builds doctor account display names from structured profile fields', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'staff-1' } }, error: null });
+    const profiles = builder({
+      data: [{
+        id: 'doctor-1',
+        title: 'นาย',
+        first_name: 'สมชาย',
+        last_name: 'ใจดี',
+        role: 'medical',
+        is_active: true,
+      }],
+      error: null,
+    });
+    profiles.single.mockResolvedValueOnce({ data: { id: 'staff-1', role: 'staff_admin', is_active: true }, error: null });
+    builders.profiles = profiles;
+
+    const response = await getDoctorAccounts();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([{
+      profileId: 'doctor-1',
+      fullName: 'นาย สมชาย ใจดี',
+      email: '',
+    }]);
+    expect(profiles.select).toHaveBeenNthCalledWith(2, 'id, title, first_name, last_name, role, is_active');
+    expect(profiles.order).toHaveBeenCalledWith('first_name', { ascending: true });
+    expect(profiles.order).toHaveBeenCalledWith('last_name', { ascending: true });
+  });
 });

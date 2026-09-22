@@ -34,7 +34,7 @@
 
 3. **Table `profiles`** (ความสัมพันธ์):
    - `id` (uuid, PK, FK → `auth.users.id`)
-   - `full_name` (text)
+   - `title`, `first_name`, `last_name` (ข้อมูลชื่อแบบแยกฟิลด์)
    - `role` (`'patient' | 'medical' | 'staff_admin'`)
    - `is_active` (boolean)
 
@@ -76,7 +76,7 @@ CREATE POLICY "Staff/Admin can update profiles active status"
 
 1. **ดึงข้อมูล (Fetch)**:
    - `departments`: ดึงจาก `departments` เรียงตาม `name ASC`
-   - `doctors`: ดึงจาก `doctors` พร้อม Join `profile:profiles!doctors_id_fkey(id, full_name, role, is_active)`
+   - `doctors`: ดึงจาก `doctors` พร้อม Join `profile:profiles!doctors_id_fkey(id, title, first_name, last_name, role, is_active)` แล้วประกอบชื่อสำหรับแสดงผลที่ repository
    - `doctorAccounts`: ดึงจาก `profiles` ที่ `role = 'medical'` และ `is_active = true` สำหรับให้เจ้าหน้าที่เลือกผูกเป็นแพทย์
 2. **จัดการแผนก (`saveDepartment` / `toggleDepartment`)**:
    - สร้างใหม่: `INSERT INTO departments (name, description, is_active)`

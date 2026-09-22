@@ -13,7 +13,7 @@ SET search_path = public, pg_temp
 AS $function$
   SELECT
     notification.id,
-    profile.full_name,
+    concat_ws(' ', nullif(btrim(profile.title), ''), nullif(btrim(profile.first_name), ''), nullif(btrim(profile.last_name), '')),
     profile.role::text
   FROM public.notifications AS notification
   JOIN public.broadcasts AS broadcast

@@ -77,7 +77,7 @@ CREATE OR REPLACE FUNCTION public.get_unread_notification_recipients(
 RETURNS TABLE(
   notification_id uuid,
   user_id uuid,
-  full_name text,
+  display_name text,
   role text,
   title text,
   created_at timestamp with time zone
@@ -90,7 +90,7 @@ AS $function$
   SELECT
     notification.id,
     notification.user_id,
-    profile.full_name,
+    concat_ws(' ', nullif(btrim(profile.title), ''), nullif(btrim(profile.first_name), ''), nullif(btrim(profile.last_name), '')),
     profile.role::text,
     notification.title,
     notification.created_at
