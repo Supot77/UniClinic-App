@@ -27,6 +27,7 @@ import {
   buildSlotBatchPlan,
   validateDoctorLeave,
   validateDoctorLeavePermission,
+  validateSlotEditWindow,
   validateSlotPermission,
   validateSlot,
   type SchedulingResult,
@@ -176,6 +177,8 @@ export class MockSchedulingRepository implements SchedulingRepository {
   saveSlot(input: SlotInput, id?: string, todayDate?: string): SchedulingResult<ScheduleSlot> {
     const existing = id ? this.state.slots.find((item) => item.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
+    const editWindow = validateSlotEditWindow(existing, input, todayDate);
+    if (!editWindow.ok) return editWindow;
     const bookedCount = existing?.bookedCount ?? 0;
     const valid = validateSlot(input, this.state.slots, this.state.doctors, this.state.services, id, bookedCount, todayDate, this.state.doctorLeaves);
     if (!valid.ok) return valid;

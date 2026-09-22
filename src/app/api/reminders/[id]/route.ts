@@ -4,17 +4,21 @@ import { errorResponse, isResponse, parseDate, parseUuid, readJson } from '../..
 type ReminderInput = { reminderTimes?: string[]; reminder_times?: string[]; startDate?: string; start_date?: string; endDate?: string | null; end_date?: string | null; status?: string };
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiAuth(['patient']);
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const id = parseUuid((await context.params).id);
   if (!id) return Response.json({ error: 'รหัสรายการเตือนยาไม่ถูกต้อง' }, { status: 400 });
-  const { data, error } = await auth.supabase.from('medication_reminders').select('*, medication:medications(*)').eq('id', id).eq('user_id', auth.actor.id).single();
+  let query = auth.supabase.from('medication_reminders').select('*, medication:medications(*)').eq('id', id);
+  if (auth.actor.role === 'patient') {
+    query = query.eq('user_id', auth.actor.id);
+  }
+  const { data, error } = await query.single();
   if (error) return errorResponse(error, 'โหลดรายการเตือนยาไม่สำเร็จ');
   return Response.json(data);
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiAuth(['patient']);
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const id = parseUuid((await context.params).id);
   if (!id) return Response.json({ error: 'รหัสรายการเตือนยาไม่ถูกต้อง' }, { status: 400 });
@@ -41,17 +45,25 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     updates.status = body.status;
   }
   if (!Object.keys(updates).length) return Response.json({ error: 'ไม่มีข้อมูลสำหรับแก้ไข' }, { status: 400 });
-  const { data, error } = await auth.supabase.from('medication_reminders').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', auth.actor.id).select('*, medication:medications(*)').single();
+  let query = auth.supabase.from('medication_reminders').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (auth.actor.role === 'patient') {
+    query = query.eq('user_id', auth.actor.id);
+  }
+  const { data, error } = await query.select('*, medication:medications(*)').single();
   if (error) return errorResponse(error, 'แก้ไขรายการเตือนยาไม่สำเร็จ');
   return Response.json(data);
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiAuth(['patient']);
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const id = parseUuid((await context.params).id);
   if (!id) return Response.json({ error: 'รหัสรายการเตือนยาไม่ถูกต้อง' }, { status: 400 });
-  const { error } = await auth.supabase.from('medication_reminders').delete().eq('id', id).eq('user_id', auth.actor.id);
+  let query = auth.supabase.from('medication_reminders').delete().eq('id', id);
+  if (auth.actor.role === 'patient') {
+    query = query.eq('user_id', auth.actor.id);
+  }
+  const { error } = await query;
   if (error) return errorResponse(error, 'ลบรายการเตือนยาไม่สำเร็จ');
   return new Response(null, { status: 204 });
 }

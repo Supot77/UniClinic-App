@@ -354,6 +354,10 @@ export async function signIn(
     throw error;
   }
 
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('login_welcome_toast', 'true');
+  }
+
   return data;
 }
 
