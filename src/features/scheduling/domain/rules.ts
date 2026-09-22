@@ -84,6 +84,19 @@ export function isSlotExpired(
   return effectiveTime >= startTime;
 }
 
+export function validateSlotEditWindow(
+  existing: ScheduleSlot | undefined,
+  next: Pick<SlotInput, 'slotDate' | 'startTime'>,
+  currentDate?: string,
+  currentTime?: string,
+): SchedulingResult<true> {
+  if (!existing) return success(true);
+  if (isSlotExpired(next.slotDate, next.startTime, currentDate, currentTime)) {
+    return failure('แก้ไขไม่ได้ เพราะรอบตรวจเริ่มไปแล้ว');
+  }
+  return success(true);
+}
+
 export interface SlotTimingContext {
   slotDate: string;
   startTime: string;

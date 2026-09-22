@@ -71,16 +71,13 @@ describe('Department and doctor workspace', () => {
     expect(screen.getByRole('heading', { name: 'ไม่พบแพทย์' })).toBeInTheDocument();
   });
 
-  it('includes a patient management tab in the departments workspace', () => {
+  it('keeps the departments workspace limited to departments and doctors', () => {
     render(<DepartmentWorkspace />);
 
-    const patientsTab = screen.getByRole('tab', { name: 'ผู้ป่วย' });
-    expect(patientsTab).toHaveAttribute('aria-selected', 'false');
-    fireEvent.click(patientsTab);
-
-    expect(patientsTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('heading', { name: 'รายชื่อผู้ป่วย' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'เพิ่มแพทย์' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^แผนก/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^แพทย์/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'ผู้ป่วย' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'รายชื่อผู้ป่วย' })).not.toBeInTheDocument();
   });
 
   it('saves a department through the existing contract and closes the drawer', async () => {
@@ -93,6 +90,27 @@ describe('Department and doctor workspace', () => {
     expect(await screen.findByText('เพิ่มแผนกแล้ว')).toBeInTheDocument();
     expect(scheduling.saveDepartment).toHaveBeenCalledWith({ name: 'อายุรกรรม', description: 'โรคของผู้ใหญ่' }, undefined);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows save progress and ignores duplicate department saves while the request is pending', async () => {
+    let resolveSave: (value: { ok: true; value: { id: string } }) => void = () => undefined;
+    scheduling.saveDepartment.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve as typeof resolveSave;
+    }));
+    render(<DepartmentWorkspace />);
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มแผนก' }));
+
+    const saveButton = screen.getByRole('button', { name: 'บันทึกข้อมูลแผนก' });
+    fireEvent.click(saveButton);
+
+    const pendingButton = await screen.findByRole('button', { name: 'กำลังบันทึก…' });
+    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(pendingButton);
+    expect(scheduling.saveDepartment).toHaveBeenCalledTimes(1);
+
+    resolveSave({ ok: true, value: { id: 'new' } });
+    expect(await screen.findByText('เพิ่มแผนกแล้ว')).toBeInTheDocument();
   });
 
   it('preserves the edited department draft when validation fails', async () => {

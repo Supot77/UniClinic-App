@@ -2,7 +2,11 @@
 
 ## การเปลี่ยนแปลงล่าสุด
 
-- สถานะส่งต่อ: **code/function เสร็จ เหลือ UI polish เล็กน้อย** ตามข้อมูลเจ้าของโมดูล; รอบนี้ไม่แก้ Scheduling code
+- สถานะส่งต่อ: **code/function เสร็จ; เพิ่ม UI progress กันกดซ้ำแล้ว**
+- รอบที่ปิดด้วยมือก่อนเวลาเริ่มยังแก้ไขได้และคงสถานะปิด; หลังเวลาเริ่ม backend ปฏิเสธการแก้ไข
+- หน้าจัดการแผนก/แพทย์เหลือเฉพาะรายการแผนกและแพทย์ ไม่มีแท็บบัญชีผู้ป่วย
+- `ScheduleWorkspace` แสดง spinner/disable/`aria-busy` ระหว่างบันทึกบริการ, slot, batch slot และวันลา; `DepartmentWorkspace` ใช้ busy state เดิมกับการบันทึกและการยืนยันเปลี่ยนสถานะ
+- CTA `จอง` ในมุมมองรายวันแสดงจนกว่ารอบจะเป็น `closed`; รอบเต็มแสดงเป็น disabled เพื่อไม่ส่งผู้ใช้ไป flow ที่จองไม่ได้
 - `0a3aa2d` เพิ่ม `ConfirmationModal` แทน `window.confirm` ในการเปิด/ปิดแผนก แพทย์ slot และยกเลิกวันลา
 - Confirmation แยกช่วงเตรียม request กับ async confirm action และแสดง busy state
 - `medical` จัดการวันลาของตนเอง; `staff_admin` จัดการของแพทย์ทุกคน; `patient` ไม่มี action วันลา
@@ -10,18 +14,19 @@
 
 ## หลักฐานล่าสุดที่มีบันทึก
 
-- targeted schedule tests: 25/25
+- focused scheduling/department/loading tests: 45/45
 - typecheck: ผ่าน
-- lint: 0 errors / 7 warnings เดิม
-- build: ผ่าน และพบ `/departments/[departmentId]`
-- full test: 272/273; failure เดิมอยู่ `tests/pharmacy-content-roles.test.tsx:380`
+- targeted lint: 0 errors / 0 warnings
+- production build: ผ่าน
+- `git diff --check`: ผ่าน
+- Browser guest `/schedules`: โหลดและแสดง narrow/mobile layout; `/departments` ถูก route guard ส่งไป login
 
 ## ข้อจำกัด
 
 - หลักฐานข้างต้นมาจาก change log ก่อนงานเอกสารนี้; ยังไม่ได้รัน quality gate ใหม่จากการแก้เอกสาร
 - ยังไม่ตรวจ database integration/RLS บน development/staging
 - `docs/Database_check.md` พบ RLS ของ departments/doctors/slots เปิดอยู่ แต่บาง policy ยังอ้าง `admin`, `staff`, `doctor`; ยังไม่ถือว่าตรง canonical role จนกว่าจะยืนยัน target และ policy cleanup
-- ยังไม่ตรวจ Chrome 360px/1280px และ keyboard
+- ยังไม่ยืนยัน authenticated Chrome 360px/1280px, keyboard flow และ loading state จาก browser session จริง
 
 ## Handoff
 

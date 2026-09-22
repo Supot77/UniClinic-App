@@ -12,13 +12,11 @@ import {
   Search,
   Stethoscope,
   Trash2,
-  UsersRound,
   X,
 } from 'lucide-react';
 import { useScheduling } from '@/features/scheduling/context/SchedulingProvider';
 import ConfirmationModal, { type ConfirmationModalRequest } from '@/components/common/ConfirmationModal';
 import Toast from '@/components/common/Toast';
-import StaffProfileDirectory from '@/components/staff/StaffProfileDirectory';
 import type {
   DoctorAvailability,
   ScheduleDepartment,
@@ -32,7 +30,7 @@ const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
-type WorkspaceTab = 'departments' | 'doctors' | 'patients';
+type WorkspaceTab = 'departments' | 'doctors';
 
 function formatLeaveDate(dateValue: string) {
   const [year, month, day] = dateValue.split('-').map(Number);
@@ -358,24 +356,21 @@ export default function DepartmentWorkspace() {
     <div className="min-w-0 space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-5">
         <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">จัดการแผนกและแพทย์</h1>
-        {activeTab !== 'patients' && (
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => (activeTab === 'departments' ? openDepartmentForm() : openDoctorForm())}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-5 text-sm font-semibold text-white shadow-brand-button transition hover:-translate-y-0.5 hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {activeTab === 'departments' ? 'เพิ่มแผนก' : 'เพิ่มแพทย์'}
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={isLoading}
+          onClick={() => (activeTab === 'departments' ? openDepartmentForm() : openDoctorForm())}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-5 text-sm font-semibold text-white shadow-brand-button transition hover:-translate-y-0.5 hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {activeTab === 'departments' ? 'เพิ่มแผนก' : 'เพิ่มแพทย์'}
+        </button>
       </header>
 
       <div className="flex items-end gap-1.5 sm:gap-2 border-b-2 border-brand-border-soft pt-3" role="tablist" aria-label="เลือกข้อมูลที่ต้องการจัดการ">
         {([
           ['departments', 'แผนก', departments.length, Building2],
           ['doctors', 'แพทย์', doctors.length, Stethoscope],
-          ['patients', 'ผู้ป่วย', null, UsersRound],
         ] as const).map(([tab, label, count, Icon]) => {
           const isActive = activeTab === tab;
           return (
@@ -391,12 +386,12 @@ export default function DepartmentWorkspace() {
               onKeyDown={(event) => {
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                 event.preventDefault();
-                const tabs: WorkspaceTab[] = ['departments', 'doctors', 'patients'];
+                const tabs: WorkspaceTab[] = ['departments', 'doctors'];
                 const currentIndex = tabs.indexOf(tab);
                 const nextTab = event.key === 'Home'
                   ? 'departments'
                   : event.key === 'End'
-                    ? 'patients'
+                    ? 'doctors'
                     : tabs[(currentIndex + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
                 changeTab(nextTab);
                 document.getElementById(`${nextTab}-tab`)?.focus();
@@ -423,8 +418,7 @@ export default function DepartmentWorkspace() {
         })}
       </div>
 
-      {activeTab !== 'patients' && (
-        <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
+      <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
         <label className="grid w-full gap-2 text-sm text-brand-body sm:w-80">
           <span>{activeTab === 'departments' ? 'ค้นหาแผนก' : 'ค้นหาแพทย์'}</span>
           <span className="relative">
@@ -451,7 +445,6 @@ export default function DepartmentWorkspace() {
           แสดงรายการที่ปิดใช้งาน
         </label>
       </section>
-      )}
       <Toast message={notice} onDismiss={() => setNotice('')} />
       <ConfirmationModal
         request={confirmation}
@@ -609,11 +602,6 @@ export default function DepartmentWorkspace() {
           )}
         </section>
       )}
-      {activeTab === 'patients' && (
-        <section id="patients-panel" role="tabpanel" aria-labelledby="patients-tab" className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
-          <StaffProfileDirectory patientOnly />
-        </section>
-      )}
       {/* Slide-over Drawer: Department */}
       {departmentDrawerOpen && (
         <div ref={drawerRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="department-drawer-title" role="dialog" aria-modal="true">
@@ -692,6 +680,7 @@ export default function DepartmentWorkspace() {
                 <button
                   type="button"
                   disabled={isSaving}
+                  aria-busy={isSaving}
                   onClick={saveDepartment}
                   className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
                 >
@@ -847,6 +836,7 @@ export default function DepartmentWorkspace() {
                 <button
                   type="button"
                   disabled={isSaving}
+                  aria-busy={isSaving}
                   onClick={saveDoctor}
                   className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
                 >
