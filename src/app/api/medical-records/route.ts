@@ -17,13 +17,20 @@ function validPhysicalExam(body: RecordInput): string | null {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireApiAuth(['patient', 'medical']);
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const url = new URL(request.url);
   const appointmentId = url.searchParams.get('appointmentId');
   if (appointmentId && !parseUuid(appointmentId)) return Response.json({ error: 'รหัสนัดหมายไม่ถูกต้อง' }, { status: 400 });
-  let query = auth.supabase.from('medical_records').select('*, appointment:appointments(id, patient_id, slot_id, status), patient:profiles!medical_records_patient_id_fkey(id, title, first_name, last_name), doctor:doctors!medical_records_doctor_id_fkey(id, profile:profiles(id, title, first_name, last_name))').order('created_at', { ascending: false });
+  const patientId = url.searchParams.get('patientId');
+  if (patientId && !parseUuid(patientId)) return Response.json({ error: 'รหัสผู้ป่วยไม่ถูกต้อง' }, { status: 400 });
+  let query = auth.supabase.from('medical_records').select('*, appointment:appointments(id, patient_id, slot_id, status), patient:profiles!medical_records_patient_id_fkey(id, title, first_name, last_name, phone, student_id), doctor:doctors!medical_records_doctor_id_fkey(id, profile:profiles(id, title, first_name, last_name))').order('created_at', { ascending: false });
   if (appointmentId) query = query.eq('appointment_id', appointmentId);
+  if (auth.actor.role === 'patient') {
+    query = query.eq('patient_id', auth.actor.id);
+  } else if (patientId) {
+    query = query.eq('patient_id', patientId);
+  }
   const { data, error } = await query;
   if (error) return errorResponse(error, 'โหลดประวัติการตรวจไม่สำเร็จ');
   return Response.json(data ?? []);
