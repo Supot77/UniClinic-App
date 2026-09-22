@@ -12,7 +12,7 @@ BEGIN
        OR nullif(btrim(last_name), '') IS NULL
   ) THEN
     RAISE EXCEPTION
-      'profiles contains users without first_name and last_name; migrate those rows explicitly before removing full_name';
+      'profiles contains users without first_name and last_name; migrate those rows explicitly before enforcing structured profile names';
   END IF;
 END
 $migration$;
@@ -352,7 +352,7 @@ END;
 $$;
 
 ALTER TABLE public.profiles
-  DROP COLUMN full_name;
+  DROP COLUMN IF EXISTS full_name;
 
 NOTIFY pgrst, 'reload schema';
 COMMIT;

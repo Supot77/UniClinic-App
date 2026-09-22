@@ -1,5 +1,5 @@
--- Add structured identity fields for patient registration.
--- Keep full_name for backward compatibility with existing pages and RPCs.
+-- Add structured identity fields for patient registration to upgraded databases.
+-- Fresh databases already receive these columns from 01_schema.sql.
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS title text,

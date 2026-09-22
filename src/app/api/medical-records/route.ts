@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const appointmentId = url.searchParams.get('appointmentId');
   if (appointmentId && !parseUuid(appointmentId)) return Response.json({ error: 'รหัสนัดหมายไม่ถูกต้อง' }, { status: 400 });
-  let query = auth.supabase.from('medical_records').select('*, appointment:appointments(id, patient_id, slot_id, status), patient:profiles!medical_records_patient_id_fkey(id, full_name), doctor:doctors!medical_records_doctor_id_fkey(id, profile:profiles(id, full_name))').order('created_at', { ascending: false });
+  let query = auth.supabase.from('medical_records').select('*, appointment:appointments(id, patient_id, slot_id, status), patient:profiles!medical_records_patient_id_fkey(id, title, first_name, last_name), doctor:doctors!medical_records_doctor_id_fkey(id, profile:profiles(id, title, first_name, last_name))').order('created_at', { ascending: false });
   if (appointmentId) query = query.eq('appointment_id', appointmentId);
   const { data, error } = await query;
   if (error) return errorResponse(error, 'โหลดประวัติการตรวจไม่สำเร็จ');

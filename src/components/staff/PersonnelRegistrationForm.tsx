@@ -22,7 +22,8 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
     event.preventDefault();
     setError(null);
     setSuccess(null);
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const password = String(form.get('password') ?? '');
     if (password !== String(form.get('confirmPassword') ?? '')) {
       setError('รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
@@ -55,7 +56,7 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? 'สร้างบัญชีไม่สำเร็จ');
-      event.currentTarget.reset();
+      formElement.reset();
       setSuccess(`สร้างบัญชี${kind === 'doctor' ? 'แพทย์' : 'เจ้าหน้าที่'}เรียบร้อยแล้ว`);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'สร้างบัญชีไม่สำเร็จ');

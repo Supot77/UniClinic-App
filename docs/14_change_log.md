@@ -2,6 +2,25 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## ปรับชื่อโปรไฟล์แบบแยกฟิลด์ให้ครบทุก runtime และ migration — 22 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- แก้ Route Handlers ของ doctors, appointments, schedules, medical records และ inventory ให้ดึง `title`, `first_name`, `last_name` แทนคอลัมน์ชื่อแบบรวมที่ถูกยกเลิก
+- ปรับ `ApiSchedulingRepository` และ clinic-care adapter ให้ประกอบชื่อด้วย `formatProfileName()` โดยคง `fullName` เฉพาะเป็น display property ภายใน TypeScript/UI
+- ปรับ migration ตั้งแต่ `01_schema.sql` ถึง migration ที่นิยาม staff directory, PAI workspace และ notification RPC ให้ฐานใหม่ใช้ structured profile names ตั้งแต่เริ่มต้น; migration 33 คงคำสั่ง `DROP COLUMN IF EXISTS` สำหรับอัปเกรดฐานเดิมอย่างปลอดภัย
+- ปรับ `docs/SQL.md`, `docs/Database_check.md` และ design เดิมของ departments/doctors ให้ตรงกับ schema ปัจจุบัน
+- เพิ่ม regression tests ที่ป้องกัน runtime query และ migration chain กลับไปอ้างคอลัมน์ชื่อแบบรวมอีก
+
+### Verification
+
+- focused API/schema/runtime tests — ผ่าน 4 files / 61 tests
+- full test suite — ผ่าน 42 files / 366 tests
+- TypeScript `tsc --noEmit` — ผ่าน
+- `npm.cmd run build` — ผ่าน รวม Route Handlers และ 42 static pages
+- `npm.cmd run lint` — ผ่าน 0 errors; เหลือ warnings เดิม 5 รายการใน `ProfileContent.tsx`
+- ยังไม่ได้รัน migration ซ้ำกับ remote database และยังไม่ได้ทดสอบ authenticated browser session หลังแก้; ต้องยืนยันแยกก่อนถือว่า deployment acceptance ผ่าน
+
 ## สถานะส่งมอบล่าสุด — 22 กันยายน 2569
 
 ### สถานะฟีเจอร์

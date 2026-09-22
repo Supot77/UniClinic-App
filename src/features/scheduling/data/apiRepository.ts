@@ -1,4 +1,5 @@
 import { apiClient, ApiError } from '@/lib/api-client';
+import { formatProfileName } from '@/lib/profileName';
 import type {
   DailyServiceOffering, DoctorAccountOption, ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot, DoctorLeave, DoctorLeaveInput,
 } from '@/types/schedule';
@@ -6,7 +7,8 @@ import type { SchedulingResult, SlotBatchInput, SlotInput } from '../domain/rule
 
 type ApiDepartment = { id: string; name: string; description: string | null; is_active: boolean };
 type ApiService = { id: string; code: string; name: string; description: string | null; is_active: boolean };
-type ApiDoctor = { id: string; specialty: string | null; department_id: string | null; profile?: { id: string; full_name: string; role: string; is_active: boolean } | Array<{ id: string; full_name: string; role: string; is_active: boolean }> | null; department?: { id: string; name: string } | null };
+type ApiProfileName = { id?: string; title?: string | null; first_name?: string | null; last_name?: string | null; role?: string; is_active?: boolean };
+type ApiDoctor = { id: string; specialty: string | null; department_id: string | null; profile?: ApiProfileName | ApiProfileName[] | null; department?: { id: string; name: string } | null };
 type ApiSlot = { id: string; doctor_id: string; daily_service_offering_id?: string; service_id?: string; slot_date: string; start_time: string; end_time: string; max_capacity: number; booked_count: number; status: string; offering?: { service_id: string } | Array<{ service_id: string }> | null };
 type ApiLeave = { id: string; doctor_id: string; start_date: string; end_date: string; reason: string | null; created_by: string | null; created_at: string | null };
 
@@ -45,7 +47,7 @@ export class ApiSchedulingRepository {
     const rows = await apiClient<ApiDoctor[]>('/api/doctors');
     return rows.map((row) => {
       const profile = single(row.profile);
-      const fullName = profile?.full_name?.trim() || 'ไม่ระบุชื่อ';
+      const fullName = formatProfileName(profile) || 'ไม่ระบุชื่อ';
       return { id: row.id, profileId: row.id, fullName, email: '', initials: initials(fullName), specialty: row.specialty ?? '', departmentId: row.department_id ?? '', availability: profile?.is_active === false ? 'inactive' : 'active', hasHistory: true };
     });
   }

@@ -1,6 +1,6 @@
 all table?
 
-> Snapshot นี้เป็นหลักฐานก่อนรัน `supabase/migrations/33_remove_full_name.sql` จึงยังอาจแสดง `full_name` จากฐานเดิมอยู่ หลัง migration สำเร็จ ให้ยึด `docs/03_database_design_and_er.md` และโครงสร้างใน migration 33 เป็นสัญญาณล่าสุด
+> Snapshot นี้ปรับให้ตรงกับสัญญาปัจจุบันหลัง migration 33: โปรไฟล์เก็บ `title`, `first_name` และ `last_name` เป็นข้อมูลหลัก ส่วนชื่อสำหรับแสดงผลต้องประกอบที่ขอบเขตแอปหรือ RPC
 ## Table `medications`
 
 ### Columns
@@ -508,7 +508,6 @@ part3
 | notifications        | broadcast_id                   | uuid                     | uuid        | YES         |
 | profiles             | id                             | uuid                     | uuid        | NO          |
 | profiles             | student_id                     | text                     | text        | YES         |
-| profiles             | full_name                      | text                     | text        | NO          |
 | profiles             | phone                          | text                     | text        | YES         |
 | profiles             | emergency_phone                | text                     | text        | YES         |
 | profiles             | address                        | text                     | text        | YES         |
@@ -526,8 +525,8 @@ part3
 | profiles             | is_active                      | boolean                  | bool        | NO          |
 | profiles             | permission_version             | integer                  | int4        | NO          |
 | profiles             | title                          | text                     | text        | YES         |
-| profiles             | first_name                     | text                     | text        | YES         |
-| profiles             | last_name                      | text                     | text        | YES         |
+| profiles             | first_name                     | text                     | text        | NO          |
+| profiles             | last_name                      | text                     | text        | NO          |
 | profiles             | date_of_birth                  | date                     | date        | YES         |
 | profiles             | gender                         | text                     | text        | YES         |
 | profiles             | emergency_contact_title        | text                     | text        | YES         |

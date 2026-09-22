@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
   const medicationId = new URL(request.url).searchParams.get('medicationId');
   if (medicationId && !parseUuid(medicationId)) return Response.json({ error: 'รหัสยาไม่ถูกต้อง' }, { status: 400 });
-  let query = auth.supabase.from('inventory_logs').select('*, medication:medications(name), pharmacist:profiles(full_name)').order('created_at', { ascending: false });
+  let query = auth.supabase.from('inventory_logs').select('*, medication:medications(name), pharmacist:profiles(title, first_name, last_name)').order('created_at', { ascending: false });
   if (medicationId) query = query.eq('medication_id', medicationId);
   const { data, error } = await query;
   if (error) return errorResponse(error, 'โหลดประวัติคลังยาไม่สำเร็จ');

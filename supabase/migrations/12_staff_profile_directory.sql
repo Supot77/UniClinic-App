@@ -4,7 +4,10 @@
 CREATE OR REPLACE FUNCTION public.get_staff_profile_directory()
 RETURNS TABLE(
   id uuid,
-  full_name text,
+  display_name text,
+  title text,
+  first_name text,
+  last_name text,
   email text,
   phone text,
   role text,
@@ -29,14 +32,17 @@ BEGIN
   RETURN QUERY
   SELECT
     profile.id::uuid,
-    profile.full_name::text,
+    concat_ws(' ', nullif(btrim(profile.title), ''), nullif(btrim(profile.first_name), ''), nullif(btrim(profile.last_name), ''))::text,
+    profile.title::text,
+    profile.first_name::text,
+    profile.last_name::text,
     account.email::text,
     profile.phone::text,
     profile.role::text,
     profile.is_active::boolean
   FROM public.profiles AS profile
   JOIN auth.users AS account ON account.id = profile.id
-  ORDER BY profile.role, profile.full_name;
+  ORDER BY profile.role, profile.first_name, profile.last_name;
 END
 $function$;
 

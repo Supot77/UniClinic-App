@@ -196,7 +196,7 @@ BEGIN
   SELECT coalesce(jsonb_agg(jsonb_build_object(
     'id', a.id,
     'user_id', a.patient_id,
-    'patient', p.full_name,
+    'patient', concat_ws(' ', nullif(btrim(p.title), ''), nullif(btrim(p.first_name), ''), nullif(btrim(p.last_name), '')),
     'slot_id', a.slot_id,
     'queue_number', a.queue_number,
     'reason', a.reason,
@@ -213,7 +213,7 @@ BEGIN
   SELECT coalesce(jsonb_agg(jsonb_build_object(
     'id', s.id,
     'doctor_id', s.doctor_id,
-    'doctor', p.full_name,
+    'doctor', concat_ws(' ', nullif(btrim(p.title), ''), nullif(btrim(p.first_name), ''), nullif(btrim(p.last_name), '')),
     'department', coalesce(dep.name, 'ไม่ระบุบริการ'),
     'slot_date', s.slot_date,
     'start_time', s.start_time,
@@ -243,8 +243,8 @@ BEGIN
     'appointment_id', r.appointment_id,
     'patient_id', r.patient_id,
     'doctor_id', r.doctor_id,
-    'patient', p.full_name,
-    'doctor', d.full_name,
+    'patient', concat_ws(' ', nullif(btrim(p.title), ''), nullif(btrim(p.first_name), ''), nullif(btrim(p.last_name), '')),
+    'doctor', concat_ws(' ', nullif(btrim(d.title), ''), nullif(btrim(d.first_name), ''), nullif(btrim(d.last_name), '')),
     'diagnosis', r.diagnosis,
     'treatment_notes', r.treatment_notes,
     'prescribed_medications', r.prescribed_medications,

@@ -35,7 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!auth.ok) return auth.response;
   const id = await idOf(context);
   if (!id) return Response.json({ error: 'รหัสรอบตรวจไม่ถูกต้อง' }, { status: 400 });
-  const { data, error } = await auth.supabase.from('appointment_slots').select('*, offering:daily_service_offerings(service_id, offering_date, is_active), doctor:doctors(id, profile:profiles(id, full_name), department:departments(id, name))').eq('id', id).single();
+  const { data, error } = await auth.supabase.from('appointment_slots').select('*, offering:daily_service_offerings(service_id, offering_date, is_active), doctor:doctors(id, profile:profiles(id, title, first_name, last_name), department:departments(id, name))').eq('id', id).single();
   if (error) return errorResponse(error, 'โหลดรอบตรวจไม่สำเร็จ');
   return Response.json(data);
 }

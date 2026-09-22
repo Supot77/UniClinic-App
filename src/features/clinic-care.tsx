@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, FileHeart, RefreshCw, X } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { formatProfileName, type ProfileNameFields } from '@/lib/profileName';
 
 export const inputClass = 'min-h-11 w-full rounded-xl border border-brand-border-soft bg-white px-3 py-2 text-sm text-brand-ink outline-none focus:border-brand-strong focus:ring-4 focus:ring-brand-soft disabled:bg-brand-surface';
 export const primaryButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
@@ -186,18 +187,18 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
   type ApiSlot = {
     id: string; doctor_id: string; slot_date: string; start_time: string; end_time: string;
     max_capacity: number; booked_count: number; status: string;
-    doctor?: { profile?: { full_name?: string | null } | null; department?: { name?: string | null } | null } | null;
+    doctor?: { profile?: ProfileNameFields | null; department?: { name?: string | null } | null } | null;
   };
   type ApiAppointment = {
     id: string; patient_id: string; slot_id: string; queue_number: number | null; reason: string | null;
     status: ClinicSnapshot['appointments'][number]['status']; cancel_requested_at: string | null; rejection_reason: string | null;
-    slot?: ApiSlot | null; patient?: { full_name?: string | null; phone?: string | null } | null;
+    slot?: ApiSlot | null; patient?: (ProfileNameFields & { phone?: string | null }) | null;
   };
   type ApiRecord = {
     id: string; appointment_id: string; patient_id: string; doctor_id: string; diagnosis: string | null;
     treatment_notes: string | null; prescribed_medications: ClinicSnapshot['records'][number]['prescribed_medications'];
     created_at: string; height_cm?: number | null; weight_kg?: number | null; blood_pressure?: string | null; pulse_bpm?: number | null;
-    appointment?: { status?: string | null } | null; patient?: { full_name?: string | null } | null; doctor?: { full_name?: string | null; profile?: { full_name?: string | null } | null } | null;
+    appointment?: { status?: string | null } | null; patient?: ProfileNameFields | null; doctor?: { profile?: ProfileNameFields | null } | null;
   };
 
   const isFutureSlot = (slot: ApiSlot) => {
@@ -219,7 +220,7 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
       const slotRows = slots.map((slot) => ({
         id: slot.id,
         doctor_id: slot.doctor_id,
-        doctor: slot.doctor?.profile?.full_name ?? 'ไม่ระบุแพทย์',
+        doctor: formatProfileName(slot.doctor?.profile) || 'ไม่ระบุแพทย์',
         department: slot.doctor?.department?.name ?? 'ไม่ระบุแผนก',
         slot_date: slot.slot_date,
         start_time: slot.start_time,
@@ -236,7 +237,7 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
         appointments: appointments.map((appointment) => ({
           id: appointment.id,
           user_id: appointment.patient_id,
-          patient: appointment.patient?.full_name ?? 'ไม่ระบุชื่อ',
+          patient: formatProfileName(appointment.patient) || 'ไม่ระบุชื่อ',
           slot_id: appointment.slot_id,
           patient_phone: appointment.patient?.phone ?? null,
           queue_number: appointment.queue_number,
@@ -251,8 +252,8 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
           appointment_id: record.appointment_id,
           patient_id: record.patient_id,
           doctor_id: record.doctor_id,
-          patient: record.patient?.full_name ?? 'ไม่ระบุชื่อ',
-          doctor: record.doctor?.full_name ?? record.doctor?.profile?.full_name ?? 'ไม่ระบุแพทย์',
+          patient: formatProfileName(record.patient) || 'ไม่ระบุชื่อ',
+          doctor: formatProfileName(record.doctor?.profile) || 'ไม่ระบุแพทย์',
           diagnosis: record.diagnosis,
           treatment_notes: record.treatment_notes,
           prescribed_medications: record.prescribed_medications,

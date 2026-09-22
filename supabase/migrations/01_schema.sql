@@ -27,7 +27,11 @@ CREATE TABLE IF NOT EXISTS public.medications (
 CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid NOT NULL,
   student_id text UNIQUE,
-  full_name text NOT NULL,
+  title text,
+  first_name text,
+  last_name text,
+  date_of_birth date,
+  gender text,
   phone text,
   emergency_phone text,
   address text,

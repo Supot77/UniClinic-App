@@ -100,69 +100,45 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!dbRepo) return;
-    try {
-      const [deptList, docList, serviceList, offeringList, accountList, slotList, doctorLeaveList] = await Promise.all([
-        dbRepo.fetchDepartments(),
-        dbRepo.fetchDoctors(),
-        dbRepo.fetchServices(),
-        dbRepo.fetchDailyServiceOfferings(),
-        dbRepo.fetchDoctorAccounts(),
-        dbRepo.fetchSlots(),
-        dbRepo.fetchDoctorLeaves(),
-      ]);
+    const results = await Promise.allSettled([
+      dbRepo.fetchDepartments(),
+      dbRepo.fetchDoctors(),
+      dbRepo.fetchServices(),
+      dbRepo.fetchDailyServiceOfferings(),
+      dbRepo.fetchDoctorAccounts(),
+      dbRepo.fetchSlots(),
+      dbRepo.fetchDoctorLeaves(),
+    ]);
 
-      setSnapshot({
-        departments: deptList,
-        doctors: docList,
-        services: serviceList,
-        dailyServiceOfferings: offeringList,
-        slots: slotList,
-        doctorLeaves: doctorLeaveList,
-        doctorAccounts: accountList,
-        weeklySchedules: [],
-      });
-    } catch (err) {
-      console.warn('SchedulingProvider refresh error:', err);
-    }
+    const read = <T,>(result: PromiseSettledResult<T>, fallback: T, resource: string): T => {
+      if (result.status === 'fulfilled') return result.value;
+      console.warn(`SchedulingProvider ${resource} load error:`, result.reason);
+      return fallback;
+    };
+
+    setSnapshot((current) => ({
+      departments: read(results[0], current.departments, 'departments'),
+      doctors: read(results[1], current.doctors, 'doctors'),
+      services: read(results[2], current.services, 'services'),
+      dailyServiceOfferings: read(results[3], current.dailyServiceOfferings, 'daily service offerings'),
+      doctorAccounts: read(results[4], current.doctorAccounts, 'doctor accounts'),
+      slots: read(results[5], current.slots, 'slots'),
+      doctorLeaves: read(results[6], current.doctorLeaves, 'doctor leaves'),
+      weeklySchedules: current.weeklySchedules,
+    }));
   }, [dbRepo]);
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
-      if (dbRepo) {
-        try {
-          const [deptList, docList, serviceList, offeringList, accountList, slotList, doctorLeaveList] = await Promise.all([
-            dbRepo.fetchDepartments(),
-            dbRepo.fetchDoctors(),
-            dbRepo.fetchServices(),
-            dbRepo.fetchDailyServiceOfferings(),
-            dbRepo.fetchDoctorAccounts(),
-            dbRepo.fetchSlots(),
-            dbRepo.fetchDoctorLeaves(),
-          ]);
-          if (isMounted) {
-            setSnapshot({
-              departments: deptList,
-              doctors: docList,
-              services: serviceList,
-              dailyServiceOfferings: offeringList,
-              slots: slotList,
-              doctorLeaves: doctorLeaveList,
-              doctorAccounts: accountList,
-              weeklySchedules: [],
-            });
-          }
-        } catch (err) {
-          console.warn('SchedulingProvider initial load error:', err);
-        }
-      }
+      await refresh();
       if (isMounted) setIsLoading(false);
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [dbRepo]);
+  }, [refresh]);
 
   useEffect(() => {
     if (!dbRepo) return;

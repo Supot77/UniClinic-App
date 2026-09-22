@@ -79,12 +79,12 @@ CREATE OR REPLACE FUNCTION public.pai_workspace() RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE v_role text:=public.pai_actor_role(); v_appointments jsonb; v_slots jsonb; v_records jsonb; v_medications jsonb;
 BEGIN
-  SELECT coalesce(jsonb_agg(jsonb_build_object('id',a.id,'user_id',a.patient_id,'patient',p.full_name,'slot_id',a.slot_id,
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',a.id,'user_id',a.patient_id,'patient',concat_ws(' ', nullif(btrim(p.title), ''), nullif(btrim(p.first_name), ''), nullif(btrim(p.last_name), '')),'slot_id',a.slot_id,
     'queue_number',a.queue_number,'reason',a.reason,'status',a.status,'cancel_requested_at',a.cancel_requested_at,'rejection_reason',a.rejection_reason,
     'has_record',EXISTS(SELECT 1 FROM public.medical_records r WHERE r.appointment_id=a.id)) ORDER BY s.slot_date,s.start_time,a.queue_number),'[]') INTO v_appointments
   FROM public.appointments a JOIN public.appointment_slots s ON s.id=a.slot_id JOIN public.profiles p ON p.id=a.patient_id
   WHERE public.pai_can_read_appointment(a.patient_id,a.slot_id);
-  SELECT coalesce(jsonb_agg(jsonb_build_object('id',s.id,'doctor_id',s.doctor_id,'doctor',p.full_name,'department',coalesce(dep.name,'ไม่ระบุแผนก'),
+  SELECT coalesce(jsonb_agg(jsonb_build_object('id',s.id,'doctor_id',s.doctor_id,'doctor',concat_ws(' ', nullif(btrim(p.title), ''), nullif(btrim(p.first_name), ''), nullif(btrim(p.last_name), '')),'department',coalesce(dep.name,'ไม่ระบุแผนก'),
     'slot_date',s.slot_date,'start_time',s.start_time,'end_time',s.end_time,'max_capacity',s.max_capacity,
     'booked_count',greatest(s.booked_count,0)+(SELECT count(*) FROM public.appointments a WHERE a.slot_id=s.id AND a.status NOT IN ('cancelled','rejected','no_show')),
     'status',s.status,'bookable',coalesce(s.status='available' AND p.is_active AND p.role='medical' AND dep.is_active AND
@@ -93,7 +93,7 @@ BEGIN
   WHERE (v_role='patient' AND s.slot_date>=(now() AT TIME ZONE 'Asia/Bangkok')::date) OR (v_role='medical' AND s.doctor_id=auth.uid()) OR v_role='staff_admin'
     OR EXISTS(SELECT 1 FROM public.appointments a WHERE a.slot_id=s.id AND a.patient_id=auth.uid());
   SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'appointment_id',r.appointment_id,'patient_id',r.patient_id,'doctor_id',r.doctor_id,
-    'patient',p.full_name,'doctor',d.full_name,'diagnosis',r.diagnosis,'treatment_notes',r.treatment_notes,'prescribed_medications',r.prescribed_medications,
+    'patient',concat_ws(' ', nullif(btrim(p.title), ''), nullif(btrim(p.first_name), ''), nullif(btrim(p.last_name), '')),'doctor',concat_ws(' ', nullif(btrim(d.title), ''), nullif(btrim(d.first_name), ''), nullif(btrim(d.last_name), '')),'diagnosis',r.diagnosis,'treatment_notes',r.treatment_notes,'prescribed_medications',r.prescribed_medications,
     'height_cm',r.height_cm,'weight_kg',r.weight_kg,'blood_pressure',r.blood_pressure,'pulse_bpm',r.pulse_bpm,
     'created_at',r.created_at,'completed',a.status='completed') ORDER BY r.created_at DESC),'[]') INTO v_records
   FROM public.medical_records r JOIN public.profiles p ON p.id=r.patient_id JOIN public.profiles d ON d.id=r.doctor_id JOIN public.appointments a ON a.id=r.appointment_id

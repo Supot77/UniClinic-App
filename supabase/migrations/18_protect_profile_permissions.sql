@@ -1,7 +1,9 @@
 -- Let active staff administrators edit accounts from /staff/accounts.
 CREATE OR REPLACE FUNCTION public.staff_admin_update_profile(
   p_profile_id uuid,
-  p_full_name text,
+  p_title text,
+  p_first_name text,
+  p_last_name text,
   p_phone text,
   p_role text,
   p_is_active boolean
@@ -30,8 +32,13 @@ BEGIN
     RAISE EXCEPTION 'ไม่สามารถเปลี่ยน Role หรือปิดบัญชีของตนเองได้';
   END IF;
 
-  IF nullif(btrim(p_full_name), '') IS NULL THEN
-    RAISE EXCEPTION 'กรุณากรอกชื่อ-นามสกุล';
+  IF nullif(btrim(p_first_name), '') IS NULL
+     OR nullif(btrim(p_last_name), '') IS NULL THEN
+    RAISE EXCEPTION 'กรุณากรอกชื่อและนามสกุล';
+  END IF;
+
+  IF p_title IS NOT NULL AND p_title NOT IN ('นาย', 'นาง', 'นางสาว', 'อื่น ๆ') THEN
+    RAISE EXCEPTION 'คำนำหน้าชื่อไม่ถูกต้อง';
   END IF;
 
   IF p_role NOT IN ('patient', 'medical', 'staff_admin') THEN
@@ -39,7 +46,9 @@ BEGIN
   END IF;
 
   UPDATE public.profiles
-  SET full_name = btrim(p_full_name),
+  SET title = nullif(btrim(p_title), ''),
+      first_name = btrim(p_first_name),
+      last_name = btrim(p_last_name),
       phone = nullif(btrim(p_phone), ''),
       role = p_role,
       is_active = p_is_active,
@@ -53,5 +62,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.staff_admin_update_profile(uuid, text, text, text, boolean) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.staff_admin_update_profile(uuid, text, text, text, boolean) TO authenticated;
+REVOKE ALL ON FUNCTION public.staff_admin_update_profile(uuid, text, text, text, text, text, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.staff_admin_update_profile(uuid, text, text, text, text, text, boolean) TO authenticated;
