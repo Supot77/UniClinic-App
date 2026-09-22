@@ -305,14 +305,14 @@ describe('registration validation', () => {
       },
     });
 
-    fireEvent.change(
-      screen.getByLabelText(/วันเดือนปีเกิด/),
-      {
-        target: {
-          value: '2004-01-15',
-        },
-      },
-    );
+    fireEvent.click(screen.getByLabelText('วันเดือนปีเกิด'));
+    fireEvent.change(screen.getByLabelText('เลือกเดือนเกิด'), {
+      target: { value: '0' },
+    });
+    fireEvent.change(screen.getByLabelText('กรอกปีเกิด ค.ศ.'), {
+      target: { value: '2004' },
+    });
+    fireEvent.click(screen.getByLabelText('เลือกวันที่ 15'));
 
     fireEvent.change(
       screen.getByLabelText(/^เพศ /),

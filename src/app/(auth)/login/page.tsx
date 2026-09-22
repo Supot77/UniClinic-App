@@ -75,7 +75,7 @@ function LoginForm() {
       const redirect =
         searchParams.get('redirect');
 
-      router.push(redirect || '/profile');
+      router.push(redirect || '/dashboard');
       router.refresh();
     } catch (err) {
       if (typeof window !== 'undefined') {

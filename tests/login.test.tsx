@@ -67,7 +67,7 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getByText('เข้าสู่ระบบสำเร็จ')).toBeInTheDocument();
       expect(within(screen.getByRole('status')).getByText('กำลังเปิดหน้าถัดไป…')).toBeInTheDocument();
-      expect(routerState.push).toHaveBeenCalledWith('/profile');
+      expect(routerState.push).toHaveBeenCalledWith('/dashboard');
       expect(routerState.refresh).toHaveBeenCalled();
     });
   });

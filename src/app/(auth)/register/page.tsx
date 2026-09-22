@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   CheckCircle2,
+  CalendarDays,
   Eye,
   EyeOff,
   Loader2,
@@ -40,6 +41,11 @@ type FieldErrors = Partial<Record<FieldName, string>>;
 
 const personNamePattern =
   /^[A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E]+(?:[ '-][A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E]+)*$/;
+
+const birthMonths = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
 
 const initialForm: RegistrationForm = {
   title: '',
@@ -229,9 +235,10 @@ export function validateRegistration(
 
 interface RegisterPageProps {
   mode?: 'self-service' | 'staff-walk-in' | 'patient' | string;
+  embedded?: boolean;
 }
 
-export default function RegisterPage({ mode = 'self-service' }: RegisterPageProps = {}) {
+export default function RegisterPage({ mode = 'self-service', embedded = false }: RegisterPageProps = {}) {
   const router = useRouter();
 
   const [form, setForm] =
@@ -241,6 +248,9 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
     useState<FieldErrors>({});
 
   const [error, setError] =
+    useState<string | null>(null);
+
+  const [success, setSuccess] =
     useState<string | null>(null);
 
   const [showPassword, setShowPassword] =
@@ -282,6 +292,7 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
   ) {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
 
     const errors = validateRegistration(form);
     setFieldErrors(errors);
@@ -367,10 +378,15 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
         });
         const result = (await response.json()) as { error?: string };
         if (!response.ok) throw new Error(result.error || 'สร้างบัญชีผู้ป่วยไม่สำเร็จ');
-        router.push('/staff/accounts?created=true');
+        setForm(initialForm);
+        setFieldErrors({});
+        setSuccess('สร้างบัญชีผู้ป่วยสำเร็จแล้ว');
       } else {
         await signUp(form.email.trim().toLowerCase(), form.password, details);
         await signOut();
+        setSuccess('สมัครสมาชิกสำเร็จแล้ว กำลังไปหน้าเข้าสู่ระบบ');
+        setIsSubmitting(false);
+        await new Promise((resolve) => setTimeout(resolve, 700));
         router.replace('/login?registered=true');
       }
     } catch (err) {
@@ -402,9 +418,19 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
   };
 
   return (
-    <main className="relative left-1/2 w-screen -translate-x-1/2 bg-slate-50/70 py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-        <header className="mb-8 flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-end sm:justify-between">
+    <main className={embedded ? 'w-full' : 'relative left-1/2 w-screen -translate-x-1/2 bg-slate-50/70 py-8 sm:py-12'}>
+      {(isSubmitting || success) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-live="assertive">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
+            {success ? <CheckCircle2 className="mx-auto size-16 text-emerald-500" aria-hidden="true" /> : <Loader2 className="mx-auto size-14 animate-spin text-teal-600" aria-hidden="true" />}
+            <h2 className="mt-5 text-xl font-bold text-slate-900">{success || (mode === 'staff-walk-in' ? 'กำลังสร้างบัญชีผู้ป่วย…' : 'กำลังสมัครสมาชิก…')}</h2>
+            <p className="mt-2 text-sm text-slate-500">{success ? 'ระบบบันทึกข้อมูลเรียบร้อยแล้ว' : 'กรุณารอสักครู่และอย่าปิดหน้านี้'}</p>
+            {success && mode === 'staff-walk-in' && <button type="button" onClick={() => setSuccess(null)} className="mt-6 w-full rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white hover:bg-teal-700">ตกลง</button>}
+          </div>
+        </div>
+      )}
+      <div className={embedded ? 'w-full' : 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8'}>
+        {!embedded && <header className="mb-8 flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-lg shadow-teal-600/20">
               <UserPlus
@@ -435,12 +461,12 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
               เข้าสู่ระบบ
             </Link>
           </p>}
-        </header>
+        </header>}
 
         <form
           onSubmit={handleSubmit}
           noValidate
-          className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+          className={embedded ? 'overflow-hidden bg-white' : 'overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm'}
         >
           {error && (
             <p
@@ -547,25 +573,12 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
                 label="วันเดือนปีเกิด"
                 error={fieldErrors.dateOfBirth}
               >
-                <input
+                <EasyDatePicker
                   id="date-of-birth"
-                  type="date"
-                  required
-                  min="1900-01-01"
-                  max={new Date()
-                    .toISOString()
-                    .slice(0, 10)}
                   value={form.dateOfBirth}
-                  onChange={(event) =>
-                    updateField(
-                      'dateOfBirth',
-                      event.target.value,
-                    )
-                  }
+                  onChange={(value) => updateField('dateOfBirth', value)}
                   disabled={isSubmitting}
-                  className={inputClass(
-                    'dateOfBirth',
-                  )}
+                  hasError={Boolean(fieldErrors.dateOfBirth)}
                 />
               </Field>
 
@@ -1190,6 +1203,109 @@ function FormSection({
 
       <div className="space-y-4">{children}</div>
     </section>
+  );
+}
+
+function EasyDatePicker({
+  id, value, onChange, disabled, hasError,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  hasError?: boolean;
+}) {
+  const today = new Date();
+  const selected = value ? new Date(`${value}T00:00:00`) : null;
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(selected?.getMonth() ?? today.getMonth());
+  const [year, setYear] = useState(selected?.getFullYear() ?? today.getFullYear() - 20);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const formattedValue = selected
+    ? selected.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '';
+
+  function chooseDay(day: number) {
+    const picked = new Date(year, month, day);
+    if (picked > today) return;
+    onChange(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <button
+        id={id}
+        type="button"
+        aria-label="วันเดือนปีเกิด"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        disabled={disabled}
+        className={`flex w-full items-center justify-between rounded-xl border bg-white px-4 py-3 text-left text-sm outline-none transition focus:ring-2 focus:ring-teal-500/20 ${
+          hasError ? 'border-red-400' : 'border-slate-200 focus:border-teal-600'
+        }`}
+      >
+        <span className={formattedValue ? 'text-slate-900' : 'text-slate-400'}>
+          {formattedValue || 'เลือกวันเกิด'}
+        </span>
+        <CalendarDays className="h-5 w-5 text-slate-500" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+          <div className="mb-4 grid grid-cols-[1.4fr_1fr] gap-2">
+            <select
+              aria-label="เลือกเดือนเกิด"
+              value={month}
+              onChange={(event) => setMonth(Number(event.target.value))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600"
+            >
+              {birthMonths.map((name, index) => (
+                <option key={name} value={index}>{name}</option>
+              ))}
+            </select>
+            <input
+              aria-label="กรอกปีเกิด ค.ศ."
+              type="number"
+              min={1900}
+              max={today.getFullYear()}
+              value={year}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                if (nextYear >= 1900 && nextYear <= today.getFullYear()) setYear(nextYear);
+              }}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-600"
+            />
+          </div>
+          <div className="mb-2 grid grid-cols-7 text-center text-xs font-medium text-slate-500">
+            {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((day) => <span key={day}>{day}</span>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: firstWeekday }).map((_, index) => <span key={`blank-${index}`} />)}
+            {Array.from({ length: daysInMonth }, (_, index) => index + 1).map((day) => {
+              const date = new Date(year, month, day);
+              const isFuture = date > today;
+              const isSelected = selected?.getFullYear() === year && selected.getMonth() === month && selected.getDate() === day;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  aria-label={`เลือกวันที่ ${day}`}
+                  disabled={isFuture}
+                  onClick={() => chooseDay(day)}
+                  className={`aspect-square rounded-lg text-sm transition ${
+                    isSelected ? 'bg-teal-600 font-semibold text-white' :
+                    isFuture ? 'cursor-not-allowed text-slate-300' : 'text-slate-700 hover:bg-teal-50 hover:text-teal-700'
+                  }`}
+                >{day}</button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-center text-xs text-slate-500">พ.ศ. {year + 543} (ค.ศ. {year})</p>
+        </div>
+      )}
+    </div>
   );
 }
 

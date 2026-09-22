@@ -325,22 +325,13 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-          <Link
-            href="/staff/accounts/new"
+          {canCreatePersonnel && <Link
+            href="/staff/accounts/personnel/new"
             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover sm:flex-none"
           >
             <Plus className="size-4" aria-hidden="true" />
-            <span>เพิ่มบัญชีผู้ป่วย</span>
-          </Link>
-          {canCreatePersonnel && (
-            <Link
-              href="/staff/accounts/personnel/new"
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-brand-strong bg-white px-4 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft sm:flex-none"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              <span>เพิ่มบัญชีบุคลากร</span>
-            </Link>
-          )}
+            <span>สร้างบัญชี</span>
+          </Link>}
           <button
             type="button"
             onClick={() => void loadProfiles(true)}

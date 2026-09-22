@@ -26,7 +26,7 @@ const strongPasswordPattern = /^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/;
 export function normalizePersonnelInput(input: PersonnelRegistrationInput): PersonnelRegistrationInput {
   return {
     ...input,
-    title: input.kind === 'staff' ? 'อื่น ๆ' : input.title,
+    title: input.title,
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     employeeId: input.employeeId.trim(),
@@ -43,6 +43,7 @@ export function normalizePersonnelInput(input: PersonnelRegistrationInput): Pers
 export function validatePersonnelInput(input: PersonnelRegistrationInput): string | null {
   if (!['doctor', 'staff'].includes(input.kind)) return 'ประเภทบัญชีไม่ถูกต้อง';
   if (input.kind === 'doctor' && !['นายแพทย์', 'แพทย์หญิง', 'ดร.'].includes(input.title)) return 'กรุณาเลือกคำนำหน้าแพทย์';
+  if (input.kind === 'staff' && !['นาย', 'นาง', 'นางสาว', 'ดร.'].includes(input.title)) return 'กรุณาเลือกคำนำหน้าเจ้าหน้าที่';
   if (!namePattern.test(input.firstName) || !namePattern.test(input.lastName)) {
     return 'ชื่อและนามสกุลต้องเป็นตัวอักษรไทยหรืออังกฤษ';
   }
