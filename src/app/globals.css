@@ -1,29 +1,219 @@
-/* Font loaded via next/font/google in layout.tsx */
+/* Font loaded via next/font/google in layout.tsx; shared by all routes. */
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0a2540;
+  --background: #f5faf8;
+  --foreground: #102f3d;
 
   /* Clinical Color Tokens */
-  --primary: #0ea5e9;
-  --primary-dark: #0a2540;
-  --primary-mid: #0d3b6e;
-  --primary-accent: #38bdf8;
-  --surface-light: #f8fafb;
+  --primary: #1fa39a;
+  --primary-dark: #102f3d;
+  --primary-mid: #174858;
+  --primary-accent: #83d6c6;
+  --surface-light: #eaf5f2;
   --surface-white: #ffffff;
-  --text-muted: #6b7280;
-  --border-soft: #e5e7eb;
+  --text-muted: #49636b;
+  --border-soft: #e8efed;
   --emerald: #10b981;
+  --theme-brand-ink: #102f3d;
+  --theme-brand-hover: #174858;
+  --theme-brand-page: #eaf5f2;
+  --theme-brand-soft: #e2f5f1;
+  --theme-brand-surface: #f5faf8;
+  --theme-brand-muted: #7b9093;
+  --theme-brand-body: #49636b;
+  --theme-brand-border-soft: #e8efed;
+  --theme-brand-border-strong: #a9c9c4;
+}
+
+/* Shared brand utilities. Keep status colors (error/warning/success) separate. */
+@theme {
+  --font-sans: var(--font-clinic);
+  --color-brand: #1fa39a;
+  --color-brand-strong: #087f78;
+  --color-brand-ink: var(--theme-brand-ink);
+  --color-brand-hover: var(--theme-brand-hover);
+  --color-brand-page: var(--theme-brand-page);
+  --color-brand-soft: var(--theme-brand-soft);
+  --color-brand-surface: var(--theme-brand-surface);
+  --color-brand-muted: var(--theme-brand-muted);
+  --color-brand-body: var(--theme-brand-body);
+  --color-brand-accent: #83d6c6;
+  --color-brand-footer-text: #b6ced0;
+  --color-brand-footer-muted: #88a7aa;
+  --color-brand-border: #9bcfc5;
+  --color-brand-border-soft: var(--theme-brand-border-soft);
+  --color-brand-border-strong: var(--theme-brand-border-strong);
+  --color-status-critical: #b42318;
+  --color-status-critical-bg: #fff1f0;
+  --color-status-warning: #a16207;
+  --color-status-warning-bg: #fff7d6;
+  --color-status-success: #15803d;
+  --color-status-success-bg: #dcfce7;
+  --color-status-info: #087f78;
+  --color-status-info-bg: #e2f5f1;
+  --color-status-neutral: #49636b;
+  --color-status-neutral-bg: #f1f5f4;
+  --radius-brand-sm: 9px;
+  --radius-brand-button: 13px;
+  --radius-brand-card: 17px;
+  --radius-brand-hero: 34px;
+  --shadow-brand-button: 0 12px 28px rgba(16, 47, 61, 0.18);
+  --shadow-brand-hero: 0 24px 70px rgba(28, 74, 75, 0.16);
+
+  /* Compatibility for existing modules using the former sky brand palette. */
+  --color-sky-50: #f5faf8;
+  --color-sky-100: #e2f5f1;
+  --color-sky-200: #9bcfc5;
+  --color-sky-300: #83d6c6;
+  --color-sky-400: #1fa39a;
+  --color-sky-500: #087f78;
+  --color-sky-600: #087f78;
+  --color-sky-700: #174858;
+  --color-sky-800: #174858;
+  --color-sky-900: #102f3d;
+  --color-sky-950: #102f3d;
+
+  /* Shared neutral surfaces. Existing slate/zinc/gray utilities now follow brand UI. */
+  --color-slate-50: #f5faf8;
+  --color-slate-100: #eef6f3;
+  --color-slate-200: #dbe9e5;
+  --color-slate-300: #c2d7d2;
+  --color-slate-400: #88a7aa;
+  --color-slate-500: #7b9093;
+  --color-slate-600: #49636b;
+  --color-slate-700: #174858;
+  --color-slate-800: #102f3d;
+  --color-slate-900: #102f3d;
+  --color-slate-950: #102f3d;
+  --color-zinc-50: #f5faf8;
+  --color-zinc-100: #eef6f3;
+  --color-zinc-200: #e8efed;
+  --color-zinc-300: #d4e3df;
+  --color-zinc-400: #88a7aa;
+  --color-zinc-500: #7b9093;
+  --color-zinc-600: #49636b;
+  --color-zinc-700: #174858;
+  --color-zinc-800: #102f3d;
+  --color-zinc-900: #102f3d;
+  --color-zinc-950: #102f3d;
+  --color-gray-50: #f5faf8;
+  --color-gray-100: #eef6f3;
+  --color-gray-200: #e8efed;
+  --color-gray-300: #d4e3df;
+  --color-gray-400: #88a7aa;
+  --color-gray-500: #7b9093;
+  --color-gray-600: #49636b;
+  --color-gray-700: #174858;
+  --color-gray-800: #102f3d;
+  --color-gray-900: #102f3d;
+  --color-gray-950: #102f3d;
+
+  /* Blue-family utilities are legacy brand aliases; status colors stay explicit. */
+  --color-blue-50: #eaf5f2;
+  --color-blue-100: #e2f5f1;
+  --color-blue-200: #9bcfc5;
+  --color-blue-300: #83d6c6;
+  --color-blue-400: #1fa39a;
+  --color-blue-500: #1fa39a;
+  --color-blue-600: #087f78;
+  --color-blue-700: #087f78;
+  --color-blue-800: #174858;
+  --color-blue-900: #102f3d;
+  --color-blue-950: #102f3d;
+  --color-teal-50: #eaf5f2;
+  --color-teal-100: #e2f5f1;
+  --color-teal-200: #9bcfc5;
+  --color-teal-300: #83d6c6;
+  --color-teal-400: #1fa39a;
+  --color-teal-500: #1fa39a;
+  --color-teal-600: #087f78;
+  --color-teal-700: #087f78;
+  --color-teal-800: #174858;
+  --color-teal-900: #102f3d;
+  --color-teal-950: #102f3d;
+  --color-cyan-50: #eaf5f2;
+  --color-cyan-100: #e2f5f1;
+  --color-cyan-200: #9bcfc5;
+  --color-cyan-300: #83d6c6;
+  --color-cyan-400: #1fa39a;
+  --color-cyan-500: #1fa39a;
+  --color-cyan-600: #087f78;
+  --color-cyan-700: #087f78;
+  --color-cyan-800: #174858;
+  --color-cyan-900: #102f3d;
+  --color-cyan-950: #102f3d;
+  --color-indigo-50: #eaf5f2;
+  --color-indigo-100: #e2f5f1;
+  --color-indigo-200: #9bcfc5;
+  --color-indigo-300: #83d6c6;
+  --color-indigo-400: #1fa39a;
+  --color-indigo-500: #1fa39a;
+  --color-indigo-600: #087f78;
+  --color-indigo-700: #087f78;
+  --color-indigo-800: #174858;
+  --color-indigo-900: #102f3d;
+  --color-indigo-950: #102f3d;
+  --color-violet-50: #eaf5f2;
+  --color-violet-100: #e2f5f1;
+  --color-violet-200: #9bcfc5;
+  --color-violet-300: #83d6c6;
+  --color-violet-400: #1fa39a;
+  --color-violet-500: #1fa39a;
+  --color-violet-600: #087f78;
+  --color-violet-700: #087f78;
+  --color-violet-800: #174858;
+  --color-violet-900: #102f3d;
+  --color-violet-950: #102f3d;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-clinic, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+/* Branded scrolling surfaces. Keep thumb contrast and hit area usable across routes. */
+html,
+body,
+* {
+  scrollbar-color: var(--border-soft) var(--surface-light);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface-light);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid var(--surface-light);
+  border-radius: 999px;
+  background: var(--border-soft);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--surface-light);
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Tight headline */
@@ -60,20 +250,20 @@ body {
 
 /* Frosted glass */
 .frosted-glass {
-  background-color: rgba(248, 250, 251, 0.85);
+  background-color: rgba(234, 245, 242, 0.85);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
 .frosted-glass-dark {
-  background-color: rgba(10, 37, 64, 0.85);
+  background-color: rgba(16, 47, 61, 0.85);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
 /* Gradient text utility */
 .gradient-text-sky {
-  background-image: linear-gradient(90deg, #38bdf8, #a5f3fc);
+  background-image: linear-gradient(90deg, var(--primary-accent), #a5f3fc);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -98,14 +288,14 @@ body {
 
 /* Hero primary button */
 .clinic-btn-primary {
-  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
-  color: #0a2540;
-  box-shadow: 0 4px 24px rgba(56,189,248,0.40);
+  background: linear-gradient(135deg, var(--primary-accent) 0%, var(--primary) 100%);
+  color: var(--primary-dark);
+  box-shadow: 0 4px 24px rgba(16,47,61,0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .clinic-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(56,189,248,0.55);
+  box-shadow: 0 8px 32px rgba(16,47,61,0.24);
 }
 .clinic-btn-primary:active {
   transform: translateY(0) scale(0.97);
@@ -125,6 +315,16 @@ body {
   transform: translateY(-1px);
 }
 
+/* Hero booking button - matches doctor schedule button color */
+.landing-booking-btn {
+  background-color: transparent;
+  border: 1px solid var(--theme-brand-border-strong);
+  color: var(--theme-brand-ink);
+}
+.landing-booking-btn:hover {
+  background-color: var(--theme-brand-soft);
+}
+
 /* Service card */
 .clinic-service-card {
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
@@ -134,3 +334,306 @@ body {
   box-shadow: 0 12px 40px rgba(0,0,0,0.12);
   transform: translateY(-4px);
 }
+
+
+/* Settings theme tokens */
+:root {
+  --settings-page-bg: var(--background);
+  --settings-page-text: var(--primary-dark);
+  --settings-card: #ffffff;
+  --settings-option: #ffffff;
+  --settings-border: var(--border-soft);
+  --settings-muted: var(--text-muted);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0e2026;
+  --foreground: #edf7f4;
+  --primary: #2ab8ad;
+  --primary-dark: #0d2d31;
+  --primary-mid: #2b6368;
+  --primary-accent: #8ce7dc;
+  --surface-light: #16343a;
+  --surface-white: #172f35;
+  --text-muted: #9bb8b5;
+  --border-soft: #2a474d;
+  --emerald: #5ee0a1;
+  --theme-brand-ink: #edf7f4;
+  --theme-brand-hover: #126e6b;
+  --theme-brand-page: #10252b;
+  --theme-brand-soft: #1b3b3e;
+  --theme-brand-surface: #152f35;
+  --theme-brand-muted: #8eadaa;
+  --theme-brand-body: #c2d8d4;
+  --theme-brand-border-soft: #2a474d;
+  --theme-brand-border-strong: #4a7778;
+  --settings-page-bg: #0e2026;
+  --settings-page-text: #edf7f4;
+  --settings-card: #152f35;
+  --settings-option: #1b3b3e;
+  --settings-border: #2a474d;
+  --settings-muted: #9bb8b5;
+
+  /* Static theme values need the same dark contrast as the semantic tokens. */
+  --color-brand: #2ab8ad;
+  --color-brand-strong: #0f8f87;
+  --color-brand-accent: #8ce7dc;
+  --color-brand-footer-text: #c8e4e0;
+  --color-brand-footer-muted: #9bb8b5;
+  --color-brand-border: #4a7778;
+  --color-status-critical: #ffb4ab;
+  --color-status-critical-bg: #4a2020;
+  --color-status-warning: #f3c76f;
+  --color-status-warning-bg: #46351a;
+  --color-status-success: #86efac;
+  --color-status-success-bg: #123e2a;
+  --color-status-info: #73ded3;
+  --color-status-info-bg: #143d3b;
+  --color-status-neutral: #b5c8c6;
+  --color-status-neutral-bg: #24363a;
+
+  /* Keep existing neutral utility class names useful on dark surfaces. */
+  --color-slate-50: #10252b;
+  --color-slate-100: #172e34;
+  --color-slate-200: #24434a;
+  --color-slate-300: #31565b;
+  --color-slate-400: #668689;
+  --color-slate-500: #8eaaab;
+  --color-slate-600: #b1c6c4;
+  --color-slate-700: #d2e1de;
+  --color-slate-800: #e4f0ed;
+  --color-slate-900: #eff8f5;
+  --color-slate-950: #f7fcfa;
+  --color-zinc-50: #10252b;
+  --color-zinc-100: #172e34;
+  --color-zinc-200: #24434a;
+  --color-zinc-300: #31565b;
+  --color-zinc-400: #668689;
+  --color-zinc-500: #8eaaab;
+  --color-zinc-600: #b1c6c4;
+  --color-zinc-700: #d2e1de;
+  --color-zinc-800: #e4f0ed;
+  --color-zinc-900: #eff8f5;
+  --color-zinc-950: #f7fcfa;
+  --color-gray-50: #10252b;
+  --color-gray-100: #172e34;
+  --color-gray-200: #24434a;
+  --color-gray-300: #31565b;
+  --color-gray-400: #668689;
+  --color-gray-500: #8eaaab;
+  --color-gray-600: #b1c6c4;
+  --color-gray-700: #d2e1de;
+  --color-gray-800: #e4f0ed;
+  --color-gray-900: #eff8f5;
+  --color-gray-950: #f7fcfa;
+
+  /* Legacy color families are brand aliases in this app, so their light
+     surface utilities must not reintroduce white cards in dark mode. */
+  --color-sky-50: #102b30;
+  --color-sky-100: #16383b;
+  --color-sky-200: #245257;
+  --color-sky-300: #32716f;
+  --color-sky-400: #4dc7bb;
+  --color-sky-500: #2ab8ad;
+  --color-sky-600: #0f9b92;
+  --color-sky-700: #73ded3;
+  --color-sky-800: #a7ebe3;
+  --color-sky-900: #d1f6f1;
+  --color-sky-950: #e7fbf8;
+  --color-blue-50: #102b30;
+  --color-blue-100: #16383b;
+  --color-blue-200: #245257;
+  --color-blue-300: #32716f;
+  --color-blue-400: #4dc7bb;
+  --color-blue-500: #2ab8ad;
+  --color-blue-600: #0f9b92;
+  --color-blue-700: #73ded3;
+  --color-blue-800: #a7ebe3;
+  --color-blue-900: #d1f6f1;
+  --color-blue-950: #e7fbf8;
+  --color-teal-50: #102b30;
+  --color-teal-100: #16383b;
+  --color-teal-200: #245257;
+  --color-teal-300: #32716f;
+  --color-teal-400: #4dc7bb;
+  --color-teal-500: #2ab8ad;
+  --color-teal-600: #0f9b92;
+  --color-teal-700: #73ded3;
+  --color-teal-800: #a7ebe3;
+  --color-teal-900: #d1f6f1;
+  --color-teal-950: #e7fbf8;
+  --color-cyan-50: #102b30;
+  --color-cyan-100: #16383b;
+  --color-cyan-200: #245257;
+  --color-cyan-300: #32716f;
+  --color-cyan-400: #4dc7bb;
+  --color-cyan-500: #2ab8ad;
+  --color-cyan-600: #0f9b92;
+  --color-cyan-700: #73ded3;
+  --color-cyan-800: #a7ebe3;
+  --color-cyan-900: #d1f6f1;
+  --color-cyan-950: #e7fbf8;
+  --color-indigo-50: #102b30;
+  --color-indigo-100: #16383b;
+  --color-indigo-200: #245257;
+  --color-indigo-300: #32716f;
+  --color-indigo-400: #4dc7bb;
+  --color-indigo-500: #2ab8ad;
+  --color-indigo-600: #0f9b92;
+  --color-indigo-700: #73ded3;
+  --color-indigo-800: #a7ebe3;
+  --color-indigo-900: #d1f6f1;
+  --color-indigo-950: #e7fbf8;
+  --color-violet-50: #102b30;
+  --color-violet-100: #16383b;
+  --color-violet-200: #245257;
+  --color-violet-300: #32716f;
+  --color-violet-400: #4dc7bb;
+  --color-violet-500: #2ab8ad;
+  --color-violet-600: #0f9b92;
+  --color-violet-700: #73ded3;
+  --color-violet-800: #a7ebe3;
+  --color-violet-900: #d1f6f1;
+  --color-violet-950: #e7fbf8;
+}
+
+/* Existing hard-coded white surfaces should inherit the dark card surface. */
+html[data-theme="dark"] [class~="bg-white"],
+html[data-theme="dark"] [class~="!bg-white"] {
+  background-color: var(--theme-brand-surface) !important;
+}
+
+/* Preserve intentional translucent header/footer overlays, but remap opaque
+   white opacity utilities used by cards, empty states, and controls. */
+html[data-theme="dark"] [class~="bg-white/40"] {
+  background-color: rgb(21 47 53 / 0.4);
+}
+
+html[data-theme="dark"] [class~="bg-white/60"] {
+  background-color: rgb(21 47 53 / 0.6);
+}
+
+html[data-theme="dark"] [class~="bg-white/65"] {
+  background-color: rgb(21 47 53 / 0.65);
+}
+
+html[data-theme="dark"] [class~="bg-white/70"] {
+  background-color: rgb(21 47 53 / 0.7);
+}
+
+html[data-theme="dark"] [class~="bg-white/95"] {
+  background-color: rgb(21 47 53 / 0.95);
+}
+
+html[data-theme="dark"] [class~="bg-[#fbfdfc]"] {
+  background-color: var(--theme-brand-surface) !important;
+}
+
+/* Keep the established light-mode shell palette for the global header/footer. */
+html[data-theme="dark"] body > header,
+html[data-theme="dark"] body > footer {
+  --color-brand-ink: #102f3d;
+  --color-brand-hover: #174858;
+  --color-brand-soft: #e2f5f1;
+  --color-brand-accent: #83d6c6;
+  --color-brand-footer-text: #b6ced0;
+  --color-brand-footer-muted: #88a7aa;
+  --color-brand-border: #9bcfc5;
+  --color-brand-border-soft: #e8efed;
+  --color-brand-border-strong: #a9c9c4;
+}
+
+/* Landing contact keeps a dark band while the global shell stays unchanged. */
+html[data-theme="dark"] .landing-contact {
+  --color-brand-ink: #0d2d31;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: var(--theme-brand-surface);
+  border-color: var(--theme-brand-border-strong);
+  color: var(--theme-brand-ink);
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: var(--theme-brand-muted);
+}
+
+/* Booking controls keep their light surfaces in the dark appointment form.
+   Use a dark local palette so date/service/slot values stay legible. */
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control {
+  background-color: #ffffff !important;
+  border-color: #8fb9b6 !important;
+  color: #16343a !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-ink {
+  color: #16343a !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-muted,
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-slate-400 {
+  color: #49636b !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control svg {
+  color: #087f78 !important;
+}
+
+html[data-theme="dark"] select option {
+  background-color: var(--theme-brand-surface);
+  color: var(--theme-brand-ink);
+}
+
+html[data-font-size="large"] {
+  font-size: 106.25%;
+}
+
+/* Toast entrance and gradual fade-out animation */
+@keyframes toastFadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+@keyframes toastFadeInOutTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+[role="status"]:hover,
+[role="status"]:focus-within {
+  animation-play-state: paused !important;
+}
+

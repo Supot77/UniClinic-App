@@ -1,0 +1,52 @@
+import type {
+  DoctorAccountOption,
+  DailyServiceOffering,
+  ScheduleDepartment,
+  ScheduleDoctor,
+  ScheduleService,
+  ScheduleSlot,
+  DoctorWeeklySchedule,
+  DoctorAvailabilityTemplate,
+  DoctorLeave,
+  DoctorLeaveInput,
+} from '@/types/schedule';
+import type { UserRole } from '@/types/database';
+import type { SchedulingResult, SlotBatchInput, SlotInput } from './rules';
+
+export interface SchedulingSnapshot {
+  departments: ScheduleDepartment[];
+  doctors: ScheduleDoctor[];
+  services: ScheduleService[];
+  dailyServiceOfferings: DailyServiceOffering[];
+  slots: ScheduleSlot[];
+  doctorAccounts: DoctorAccountOption[];
+  weeklySchedules: DoctorWeeklySchedule[];
+  doctorLeaves: DoctorLeave[];
+  availabilityTemplates?: DoctorAvailabilityTemplate[];
+}
+
+/**
+ * Boundary consumed by the UI. SchedulingProvider composes the database adapter for
+ * configured runtime sessions and keeps this mock implementation for tests/offline demos.
+ */
+export interface SchedulingRepository {
+  snapshot(): SchedulingSnapshot;
+  saveDepartment(
+    input: Omit<ScheduleDepartment, 'id' | 'isActive'>,
+    id?: string,
+  ): SchedulingResult<ScheduleDepartment>;
+  toggleDepartment(id: string): SchedulingResult<'deleted' | 'disabled' | 'enabled'>;
+  saveService(input: Omit<ScheduleService, 'id' | 'isActive'>, id?: string): SchedulingResult<ScheduleService>;
+  toggleService(id: string): SchedulingResult<'deleted' | 'disabled' | 'enabled'>;
+  saveDoctor(input: Omit<ScheduleDoctor, 'id'>, id?: string): SchedulingResult<ScheduleDoctor>;
+  toggleDoctor(id: string): SchedulingResult<ScheduleDoctor | 'deleted'>;
+  saveDoctorLeave(input: DoctorLeaveInput, id?: string, actorId?: string, role?: UserRole, todayDate?: string): SchedulingResult<DoctorLeave>;
+  deleteDoctorLeave(id: string, actorId?: string, role?: UserRole): SchedulingResult<DoctorLeave>;
+  saveSlot(input: SlotInput, id?: string, todayDate?: string): SchedulingResult<ScheduleSlot>;
+  createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): SchedulingResult<number>;
+  toggleSlot(id: string, actorId?: string, role?: UserRole): SchedulingResult<ScheduleSlot>;
+  saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): SchedulingResult<DoctorWeeklySchedule>;
+  generateSlotsForRange(startDate: string, endDate: string, today: string, serviceId?: string): SchedulingResult<number>;
+  getDoctorTemplates(doctorId: string): DoctorAvailabilityTemplate[];
+  saveDoctorTemplate(input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>): SchedulingResult<DoctorAvailabilityTemplate>;
+}

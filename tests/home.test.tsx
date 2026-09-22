@@ -1,0 +1,59 @@
+﻿import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import Home from "@/app/page";
+import { LandingActions, LandingServices } from "@/components/landing/LandingContent";
+const state = vi.hoisted(() => ({ isAuthenticated: false, isLoading: false, role: null as string | null }));
+const fetchServices = vi.hoisted(() => vi.fn());
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => state }));
+vi.mock("@/services/landingService", () => ({ fetchLandingServices: fetchServices }));
+
+beforeEach(() => {
+  Object.assign(state, { isAuthenticated: false, isLoading: false, role: null });
+  fetchServices.mockReset().mockResolvedValue([]);
+});
+describe("Landing", () => {
+  it("preserves the guest booking destination and shows confirmed contact copy", async () => {
+    render(<Home />);
+    expect(screen.getByRole("link", { name: "จองนัดหมาย" })).toHaveAttribute("href", "/login?redirect=%2Fappointments");
+    expect(screen.getByRole("link", { name: "075-479999" })).toHaveAttribute("href", "tel:075479999");
+    expect(screen.getByText("ส่งคำขอแล้ว ต้องรอเจ้าหน้าที่ยืนยันก่อนเข้ารับบริการ")).toBeInTheDocument();
+    expect(screen.getByText(/เวลาใช้สำหรับการสาธิต/)).toBeInTheDocument();
+    expect(screen.queryByText("พร้อมให้บริการ")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ขั้นตอนการจองนัดหมาย" }).closest("section")).toHaveClass("landing-steps", "bg-brand-surface");
+    expect(screen.getByRole("heading", { name: "ศูนย์การแพทย์มหาวิทยาลัยวลัยลักษณ์" }).closest("section")).toHaveClass("landing-contact");
+    await screen.findByText(/ยังไม่มีบริการที่เปิดใช้งาน/);
+  });
+  it("sends patients directly to appointments", () => {
+    Object.assign(state, { isAuthenticated: true, role: "patient" });
+    render(<LandingActions />);
+    expect(screen.getByRole("link", { name: "จองนัดหมาย" })).toHaveAttribute("href", "/appointments");
+    expect(screen.getByRole("link", { name: "นัดหมายของฉัน" })).toHaveAttribute("href", "/appointments");
+  });
+  it.each(["medical", "staff_admin"])("offers the %s dashboard", (role) => {
+    Object.assign(state, { isAuthenticated: true, role });
+    render(<LandingActions />);
+    expect(screen.getByRole("link", { name: "ไปยังแดชบอร์ด" })).toHaveAttribute("href", `/dashboard/${role}`);
+    expect(screen.queryByRole("link", { name: "จองนัดหมาย" })).not.toBeInTheDocument();
+  });
+  it("does not offer guest actions while session is loading", () => {
+    state.isLoading = true;
+    render(<LandingActions />);
+    expect(screen.getByRole("status")).toHaveTextContent("กำลังตรวจสอบสถานะการเข้าสู่ระบบ");
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+  it("shows only active services", async () => {
+    fetchServices.mockResolvedValue([{ id: "a", name: "บริการจริง", description: "รายละเอียด", isActive: true }, { id: "b", name: "บริการปิด", isActive: false }]);
+    render(<LandingServices />);
+    expect(screen.getByRole("status")).toHaveTextContent("กำลังโหลดรายการบริการ");
+    await screen.findByText("บริการจริง");
+    expect(screen.queryByText("บริการปิด")).not.toBeInTheDocument();
+  });
+  it("recovers from a catalog error on retry", async () => {
+    fetchServices.mockRejectedValueOnce(new Error("offline"));
+    render(<LandingServices />);
+    await screen.findByText(/โหลดบริการไม่สำเร็จ/);
+    fetchServices.mockResolvedValueOnce([{ id: "a", name: "บริการจริง", isActive: true }]);
+    fireEvent.click(screen.getByRole("button", { name: "ลองใหม่" }));
+    await screen.findByText("บริการจริง");
+  });
+});

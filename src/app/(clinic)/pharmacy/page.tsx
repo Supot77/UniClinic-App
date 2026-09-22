@@ -1,18 +1,35 @@
-'use client';
+import { requireRole } from '@/lib/requireRole';
+import PharmacyContent from '@/components/pharmacy/PharmacyContent';
 
-export default function PharmacyPage() {
+interface PharmacyPageProps {
+  searchParams?: Promise<{ tab?: string; status?: string; sort?: string }>;
+}
+
+export default async function PharmacyPage({ searchParams }: PharmacyPageProps = {}) {
+  // อนุญาตเฉพาะ medical (แพทย์/เภสัชกร) และ staff_admin / admin (เจ้าหน้าที่/ผู้ดูแลระบบ)
+  // บุคคลที่ยังไม่ล็อกอินจะถูก redirect ไป /login และผู้ป่วย (patient) จะถูก redirect ไป /dashboard
+  const { user, role, rawRole } = await requireRole(['medical', 'staff_admin', 'admin']);
+  const metadata = user.user_metadata as { title?: string; first_name?: string; last_name?: string };
+  const userName = [metadata.title, metadata.first_name, metadata.last_name].filter(Boolean).join(' ') || undefined;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialTab = resolvedSearchParams?.tab === 'prescriptions' ? 'prescriptions' : 'inventory';
+  const validStatuses = ['all', 'pending', 'dispensed', 'insufficient'] as const;
+  const initialStatus = validStatuses.includes(resolvedSearchParams?.status as (typeof validStatuses)[number])
+    ? (resolvedSearchParams!.status as (typeof validStatuses)[number])
+    : 'all';
+  const initialSort = resolvedSearchParams?.sort === 'oldest' ? 'oldest' : 'newest';
+
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-900">คลังยาและเวชภัณฑ์</h1>
-        <p className="text-zinc-500 mt-1">จัดการยาในคลัง ตรวจสอบสต๊อก จ่ายยา บันทึก Inventory Logs</p>
-      </div>
-      <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-8">
-        <p className="text-zinc-500">หน้านี้อยู่ระหว่างการพัฒนา — CRUD ยา, จ่ายยาตัดสต๊อก, ประวัติ Inventory Logs</p>
-        <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
-          <p className="text-sm text-purple-700">📋 รับผิดชอบโดย: <strong>กัญจน์</strong></p>
-        </div>
-      </div>
+    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
+      <PharmacyContent
+        initialTab={initialTab}
+        initialStatus={initialStatus}
+        initialSort={initialSort}
+        currentRole={rawRole || role}
+        userEmail={user.email}
+        userName={userName}
+        userId={user.id}
+      />
     </div>
   );
 }

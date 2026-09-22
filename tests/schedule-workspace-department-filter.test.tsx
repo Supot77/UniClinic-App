@@ -1,0 +1,662 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import ScheduleWorkspace, { getNextAvailableTimeSlot } from '@/components/schedules/ScheduleWorkspace';
+import type { DoctorLeave, ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot } from '@/types/schedule';
+
+const mockDepartments: ScheduleDepartment[] = [
+  { id: 'dept-general', name: 'เวชปฏิบัติทั่วไป', description: 'ตรวจโรคทั่วไป', isActive: true },
+  { id: 'dept-dental', name: 'ทันตกรรม', description: 'แผนกทันตกรรม', isActive: false },
+  { id: 'dept-psychiatry', name: 'จิตเวช', description: 'แผนกจิตเวช', isActive: true },
+  { id: 'dept-pharmacy', name: 'เภสัชกรรม', description: 'แผนกเภสัชกรรม', isActive: true },
+];
+
+const mockServices: ScheduleService[] = [
+  { id: 'service-general', code: 'GEN', name: 'ตรวจโรคทั่วไป', description: 'บริการตรวจโรคทั่วไป', isActive: true },
+  { id: 'service-dental', code: 'DEN', name: 'ตรวจสุขภาพช่องปาก', description: 'บริการทันตกรรม', isActive: false },
+  { id: 'service-psychiatry', code: 'PSY', name: 'ประเมินสุขภาพจิต', description: 'บริการจิตเวช', isActive: true },
+  { id: 'service-pharmacy', code: 'PHA', name: 'ให้คำปรึกษาการใช้ยา', description: 'บริการเภสัชกรรม', isActive: true },
+];
+
+const mockDoctors: ScheduleDoctor[] = [
+  {
+    id: 'doc-1',
+    profileId: 'prof-1',
+    fullName: 'นพ. สมชาย ใจดี',
+    initials: 'SJ',
+    email: 'somchai@wu.ac.th',
+    specialty: 'เวชปฏิบัติทั่วไป',
+    departmentId: 'dept-general',
+    availability: 'active',
+  },
+  {
+    id: 'doc-2',
+    profileId: 'prof-2',
+    fullName: 'ทพ. สมศักดิ์ ฟันสวย',
+    initials: 'SF',
+    email: 'somsak@wu.ac.th',
+    specialty: 'ทันตกรรม',
+    departmentId: 'dept-dental',
+    availability: 'active',
+  },
+  {
+    id: 'doc-3',
+    profileId: 'prof-3',
+    fullName: 'พญ. สมใจ สายชิล',
+    initials: 'SS',
+    email: 'somjai@wu.ac.th',
+    specialty: 'จิตเวช',
+    departmentId: 'dept-psychiatry',
+    availability: 'active',
+  },
+];
+
+const mockSlots: ScheduleSlot[] = [
+  {
+    id: 'slot-1',
+    doctorId: 'doc-1',
+    serviceOfferingId: 'offering-1',
+    serviceId: 'service-general',
+    slotDate: '2026-09-08',
+    startTime: '09:00',
+    endTime: '12:00',
+    maxCapacity: 10,
+    bookedCount: 2,
+    status: 'available',
+  },
+  {
+    id: 'slot-2',
+    doctorId: 'doc-2',
+    serviceOfferingId: 'offering-2',
+    serviceId: 'service-dental',
+    slotDate: '2026-09-08',
+    startTime: '13:00',
+    endTime: '16:00',
+    maxCapacity: 5,
+    bookedCount: 0,
+    status: 'available',
+  },
+  {
+    id: 'slot-3',
+    doctorId: 'doc-3',
+    serviceOfferingId: 'offering-3',
+    serviceId: 'service-psychiatry',
+    slotDate: '2026-09-08',
+    startTime: '09:00',
+    endTime: '12:00',
+    maxCapacity: 5,
+    bookedCount: 0,
+    status: 'closed',
+  },
+];
+
+const schedulingState = vi.hoisted(() => ({
+  departments: [] as ScheduleDepartment[],
+  services: [] as ScheduleService[],
+  dailyServiceOfferings: [],
+  doctors: [] as ScheduleDoctor[],
+  slots: [] as ScheduleSlot[],
+  doctorLeaves: [] as DoctorLeave[],
+  isLoading: false,
+  refresh: vi.fn(),
+  saveSlot: vi.fn(),
+  toggleSlot: vi.fn(),
+  createSlotBatch: vi.fn(),
+  saveService: vi.fn(),
+  toggleService: vi.fn(),
+  saveDoctorLeave: vi.fn(),
+  deleteDoctorLeave: vi.fn(),
+}));
+
+vi.mock('@/features/scheduling/context/SchedulingProvider', () => ({
+  useScheduling: () => schedulingState,
+}));
+
+describe('ScheduleWorkspace Service Filter', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-08T12:00:00Z'));
+    schedulingState.departments = [...mockDepartments];
+    schedulingState.services = [...mockServices];
+    schedulingState.doctors = [...mockDoctors];
+    schedulingState.slots = [...mockSlots];
+    schedulingState.doctorLeaves = [];
+    schedulingState.isLoading = false;
+  });
+
+  it('only shows service options for active services that have open slots', () => {
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    const serviceSelect = screen.getByRole('combobox', { name: 'กรองบริการ' });
+    expect(serviceSelect).toBeInTheDocument();
+
+    expect(screen.getByRole('option', { name: 'ทุกบริการ' })).toBeInTheDocument();
+
+    expect(screen.getByRole('option', { name: 'ตรวจโรคทั่วไป' })).toBeInTheDocument();
+
+    expect(screen.queryByRole('option', { name: 'ตรวจสุขภาพช่องปาก' })).not.toBeInTheDocument();
+
+    expect(screen.queryByRole('option', { name: 'ประเมินสุขภาพจิต' })).not.toBeInTheDocument();
+
+    expect(screen.queryByRole('option', { name: 'ให้คำปรึกษาการใช้ยา' })).not.toBeInTheDocument();
+  });
+
+  it('filters doctor select options when a service is selected', () => {
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    const serviceSelect = screen.getByRole('combobox', { name: 'กรองบริการ' });
+    fireEvent.change(serviceSelect, { target: { value: 'service-general' } });
+
+    // After filtering by "ตรวจโรคทั่วไป", only doc-1 is available under doctor options
+    expect(screen.getByRole('option', { name: 'นพ. สมชาย ใจดี' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'พญ. สมใจ สายชิล' })).not.toBeInTheDocument();
+  });
+
+  it('only displays "ทุกบริการ" when no service has open slots', () => {
+    // Set all slots to closed
+    schedulingState.slots = mockSlots.map((s) => ({ ...s, status: 'closed' as const }));
+
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    const serviceSelect = screen.getByRole('combobox', { name: 'กรองบริการ' });
+    expect(serviceSelect).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'ทุกบริการ' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'ตรวจโรคทั่วไป' })).not.toBeInTheDocument();
+  });
+
+  it('displays ScheduleSkeleton when scheduling data is loading', () => {
+    schedulingState.isLoading = true;
+
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    expect(screen.getByLabelText('กำลังโหลดตารางตรวจแพทย์')).toBeInTheDocument();
+  });
+
+  it('shows service save progress and ignores duplicate saves while the request is pending', async () => {
+    let resolveSave: (value: { ok: true; value: ScheduleService }) => void = () => undefined;
+    schedulingState.saveService.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve as typeof resolveSave;
+    }));
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มบริการ' }));
+
+    const saveButton = screen.getByRole('button', { name: 'บันทึกบริการ' });
+    fireEvent.click(saveButton);
+
+    const pendingButton = await screen.findByRole('button', { name: 'กำลังบันทึก…' });
+    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(pendingButton);
+    expect(schedulingState.saveService).toHaveBeenCalledTimes(1);
+
+    resolveSave({ ok: true, value: mockServices[0] });
+    expect(await screen.findByText('เพิ่มบริการแล้ว')).toBeInTheDocument();
+  });
+
+  it('prevents adding slots for past dates in the schedule workspace', () => {
+    schedulingState.isLoading = false;
+    schedulingState.slots = [];
+
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    // Click global "เพิ่มรอบตรวจ" button
+    const addSlotButton = screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' });
+    fireEvent.click(addSlotButton);
+
+    // Date input should have min attribute set to today
+    const dateInput = screen.getByLabelText('วันที่');
+    expect(dateInput).toHaveAttribute('min');
+    expect(dateInput.getAttribute('min')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('mounts slot modal at document body so it is centered on the viewport', () => {
+    const { container } = render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'สร้างรอบตรวจใหม่' });
+    expect(dialog.parentElement).toBe(document.body);
+    expect(container.querySelector('[role="dialog"]')).not.toBeInTheDocument();
+  });
+
+  it('previews and submits a multi-day morning schedule for selected weekdays', async () => {
+    schedulingState.slots = [];
+    schedulingState.createSlotBatch.mockResolvedValueOnce({ ok: true, value: 14 });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างรอบหลายวัน' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับสร้างรอบหลายวัน' }), { target: { value: 'doc-1' } });
+    fireEvent.change(screen.getByLabelText('วันที่เริ่ม'), { target: { value: '2026-09-14' } });
+    fireEvent.change(screen.getByLabelText('วันที่สิ้นสุด'), { target: { value: '2026-09-15' } });
+
+    expect(await screen.findByText('ตัวอย่างที่จะสร้าง: 14 รอบ ใน 2 วัน')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างรอบตรวจ' }));
+
+    await waitFor(() => expect(schedulingState.createSlotBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        doctorId: 'doc-1',
+        dates: ['2026-09-14', '2026-09-15'],
+        timeBlocks: expect.arrayContaining([
+          expect.objectContaining({ startTime: '08:30', endTime: '09:00', maxCapacity: 1 }),
+        ]),
+      }),
+      '2026-09-08',
+      'admin-1',
+      'staff_admin',
+    ));
+  });
+
+  it('copies time blocks from the most recent source day without copying bookings', async () => {
+    schedulingState.slots = [{ ...mockSlots[0], slotDate: '2026-09-07', bookedCount: 2, maxCapacity: 5 }];
+    schedulingState.createSlotBatch.mockResolvedValueOnce({ ok: true, value: 1 });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'คัดลอกรอบจากวันก่อน' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับสร้างรอบหลายวัน' }), { target: { value: 'doc-1' } });
+    expect(screen.getByText(/09:00.*12:00.*5 คน/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('วันที่ต้องการสร้าง'), { target: { value: '2026-09-10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างรอบตรวจ' }));
+
+    await waitFor(() => expect(schedulingState.createSlotBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dates: ['2026-09-10'],
+        timeBlocks: [{ startTime: '09:00', endTime: '12:00', maxCapacity: 5 }],
+      }),
+      '2026-09-08',
+      'admin-1',
+      'staff_admin',
+    ));
+  });
+
+  it('getNextAvailableTimeSlot calculates adjacent time and skips lunch break', () => {
+    // Case 1: no slots
+    expect(getNextAvailableTimeSlot([], 'doc-1', '2026-09-08')).toEqual({
+      startTime: '08:30',
+      endTime: '09:00',
+    });
+
+    // Case 2: slot ending at 09:30
+    const slotA: ScheduleSlot = {
+      id: 'slot-a',
+      doctorId: 'doc-1',
+      serviceOfferingId: 'offering-1',
+      serviceId: 'service-general',
+      slotDate: '2026-09-08',
+      startTime: '09:00',
+      endTime: '09:30',
+      maxCapacity: 5,
+      bookedCount: 0,
+      status: 'available',
+    };
+    expect(getNextAvailableTimeSlot([slotA], 'doc-1', '2026-09-08')).toEqual({
+      startTime: '09:30',
+      endTime: '10:00',
+    });
+
+    // Case 3: slot ending at 12:00 (lunch break 12:00–13:00) -> jumps to 13:00–13:30
+    const slotLunch: ScheduleSlot = {
+      id: 'slot-lunch',
+      doctorId: 'doc-1',
+      serviceOfferingId: 'offering-1',
+      serviceId: 'service-general',
+      slotDate: '2026-09-08',
+      startTime: '11:30',
+      endTime: '12:00',
+      maxCapacity: 5,
+      bookedCount: 0,
+      status: 'available',
+    };
+    expect(getNextAvailableTimeSlot([slotLunch], 'doc-1', '2026-09-08')).toEqual({
+      startTime: '13:00',
+      endTime: '13:30',
+    });
+  });
+
+  it('auto-fills next available time when doctor already has slots on the same day', () => {
+    schedulingState.isLoading = false;
+    schedulingState.slots = [
+      {
+        id: 'slot-existing',
+        doctorId: 'doc-1',
+        serviceOfferingId: 'offering-1',
+        serviceId: 'service-general',
+        slotDate: '2026-09-08',
+        startTime: '08:30',
+        endTime: '09:00',
+        maxCapacity: 5,
+        bookedCount: 0,
+        status: 'available',
+      },
+    ];
+
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    // Click global "เพิ่มรอบตรวจ" button
+    const addSlotButton = screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' });
+    fireEvent.click(addSlotButton);
+
+    // Select doctor doc-1
+    const doctorSelect = screen.getByRole('combobox', { name: 'แพทย์' });
+    fireEvent.change(doctorSelect, { target: { value: 'doc-1' } });
+
+    // Ensure slotDate is 2026-09-08
+    const dateInput = screen.getByLabelText('วันที่');
+    fireEvent.change(dateInput, { target: { value: '2026-09-08' } });
+
+    // Time should be auto-filled to 09:00 - 09:30
+    const startTimeInput = screen.getByLabelText('เวลาเริ่ม');
+    const endTimeInput = screen.getByLabelText('เวลาสิ้นสุด');
+    expect(startTimeInput).toHaveValue('09:00');
+    expect(endTimeInput).toHaveValue('09:30');
+  });
+
+  it('double-clicks a week day into day view and exposes booking for an available future slot', () => {
+    schedulingState.slots = [
+      ...mockSlots,
+      { ...mockSlots[0], id: 'slot-future', slotDate: '2026-09-10', bookedCount: 0, status: 'available' },
+    ];
+
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
+
+    expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'จอง' })).toHaveAttribute('href', '/appointments?slotId=slot-future');
+  });
+
+  it('keeps booking visible for a full slot until the slot is closed', () => {
+    schedulingState.slots = [
+      { ...mockSlots[0], id: 'slot-full', slotDate: '2026-09-10', bookedCount: mockSlots[0].maxCapacity, status: 'full' },
+      { ...mockSlots[0], id: 'slot-closed', slotDate: '2026-09-10', bookedCount: 0, status: 'closed' },
+    ];
+
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    fireEvent.change(screen.getByLabelText('กรองสถานะ'), { target: { value: 'all' } });
+    fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
+
+    expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'จองไม่ได้ รอบตรวจเต็มแล้ว' })).toBeDisabled();
+    expect(screen.queryByRole('link', { name: 'จอง' })).not.toBeInTheDocument();
+  });
+
+  it('displays full and closed badges separately on the timetable', () => {
+    schedulingState.slots = [
+      { ...mockSlots[0], id: 'slot-past', slotDate: '2026-09-08', startTime: '09:00', bookedCount: 0, status: 'available' },
+      { ...mockSlots[0], id: 'slot-full', slotDate: '2026-09-10', startTime: '10:00', bookedCount: 5, maxCapacity: 5, status: 'available' },
+    ];
+
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    fireEvent.change(screen.getByLabelText('กรองสถานะ'), { target: { value: 'all' } });
+    const entries = screen.getAllByRole('article').filter((entry) => entry.querySelector('h3'));
+    expect(entries.some((entry) => within(entry).queryByText('เต็ม'))).toBe(true);
+    expect(entries.some((entry) => within(entry).queryByText('ปิดรอบ'))).toBe(true);
+  });
+
+  it('shows available status by default', () => {
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+    const statusSelect = screen.getByLabelText('กรองสถานะ');
+    expect(statusSelect).toHaveValue('available');
+  });
+
+  it('opens day view from the visible day action and preserves patient booking', () => {
+    schedulingState.slots = [{ ...mockSlots[0], slotDate: '2026-09-10' }];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจ' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'ดูรายวัน 10 ก.ย.' })[0]);
+
+    expect(screen.getByLabelText('มุมมองปฏิทิน')).toHaveValue('day');
+    expect(screen.getByRole('link', { name: 'จอง' })).toHaveAttribute('href', '/appointments?slotId=slot-1');
+  });
+
+  it('opens day view using the date header keyboard action', () => {
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'เปิดตารางตรวจวันที่ 10 ก.ย.' }), { key: 'Enter' });
+    expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
+    expect(screen.getByText('ไม่พบรอบตรวจตามตัวกรอง ลองเปลี่ยนวันหรือสถานะ')).toBeInTheDocument();
+  });
+
+  it('defaults doctor filter to own account for medical role and excludes edit actions for another doctor', () => {
+    schedulingState.slots = [
+      { ...mockSlots[0], slotDate: '2026-09-10' },
+      { ...mockSlots[0], id: 'other-slot', doctorId: 'doc-3', slotDate: '2026-09-10', startTime: '13:00', endTime: '14:00' },
+    ];
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+    expect(screen.queryByRole('button', { name: 'ตารางของฉัน' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ภาพรวมคลินิก' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('กรองแพทย์')).toHaveValue('doc-1');
+    fireEvent.change(screen.getByLabelText('กรองแพทย์'), { target: { value: 'all' } });
+    expect(screen.getByLabelText('กรองแพทย์')).toHaveValue('all');
+    expect(screen.getAllByRole('button', { name: 'แก้ไขรอบ 09:00' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'แก้ไขรอบ 13:00' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the creation form and draft visible when saving fails', async () => {
+    schedulingState.slots = [];
+    schedulingState.saveSlot.mockResolvedValueOnce({ ok: false, error: 'เวลารอบตรวจทับกัน' });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์' }), { target: { value: 'doc-1' } });
+    fireEvent.change(screen.getByLabelText('วันที่'), { target: { value: '2026-09-10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรอบตรวจ' }));
+
+    expect(await screen.findByText('เวลารอบตรวจทับกัน')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('วันที่')).toHaveValue('2026-09-10');
+    expect(schedulingState.slots).toEqual([]);
+  });
+
+  it('renders month view with clean weekday headers and navigates month by month', () => {
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
+
+    const monthCalendar = screen.getByLabelText('ปฏิทินรายเดือน');
+    expect(monthCalendar).toBeInTheDocument();
+
+    ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'].forEach((day) => {
+      expect(within(monthCalendar).getByText(day)).toBeInTheDocument();
+    });
+
+    // Verify month navigation
+    fireEvent.click(screen.getByLabelText('ช่วงถัดไป'));
+    expect(screen.getByLabelText('ปฏิทินรายเดือน')).toBeInTheDocument();
+  });
+
+  it('hides slot creation on Saturday and Sunday in week, day, and month views', () => {
+    schedulingState.slots = [];
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 12 ก.ย.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 13 ก.ย.' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'day' } });
+    for (let index = 0; index < 5; index += 1) {
+      fireEvent.click(screen.getByLabelText('ช่วงถัดไป'));
+    }
+
+    expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
+    expect(screen.getByText('คลินิกปิดวันหยุด ไม่สามารถเพิ่มรอบตรวจได้')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันนี้' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 12 ก.ย.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'เพิ่มรอบตรวจวันที่ 13 ก.ย.' })).not.toBeInTheDocument();
+  });
+
+  it('shows leave chips and blocks medical creation on a leave date', () => {
+    schedulingState.doctorLeaves = [{ id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' }];
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+
+    expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('แพทย์มีวันลา ไม่สามารถเพิ่มรอบตรวจได้').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('คลินิกปิดวันหยุด ไม่สามารถเพิ่มรอบตรวจได้').length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('มุมมองปฏิทิน'), { target: { value: 'month' } });
+    expect(screen.getAllByText('ลาตรวจ: นพ. สมชาย ใจดี').length).toBeGreaterThan(0);
+  });
+
+  it('rejects a new slot date on Saturday or Sunday before persistence', () => {
+    schedulingState.slots = [];
+    schedulingState.saveSlot.mockClear();
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' }));
+    fireEvent.change(screen.getByLabelText('วันที่'), { target: { value: '2026-09-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรอบตรวจ' }));
+
+    expect(screen.getByText('เพิ่มรอบตรวจได้เฉพาะวันจันทร์–ศุกร์')).toBeInTheDocument();
+    expect(schedulingState.saveSlot).not.toHaveBeenCalled();
+  });
+
+  it('previews affected slots before saving a leave', async () => {
+    schedulingState.saveDoctorLeave.mockResolvedValueOnce({ ok: true, value: { id: 'leave-new' } });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกวันลาแพทย์' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับวันลา' }), { target: { value: 'doc-1' } });
+    fireEvent.change(screen.getByLabelText('วันที่เริ่มลา'), { target: { value: '2026-09-08' } });
+    fireEvent.change(screen.getByLabelText('วันที่สิ้นสุด'), { target: { value: '2026-09-08' } });
+
+    expect(screen.getByText('มีรอบตรวจเดิมค้างอยู่ 1 รอบในช่วงวันดังกล่าว')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกวันลา' }));
+    expect(await screen.findByText('บันทึกวันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง')).toBeInTheDocument();
+    expect(schedulingState.saveDoctorLeave).toHaveBeenCalledWith({ doctorId: 'doc-1', startDate: '2026-09-08', endDate: '2026-09-08', reason: '' }, undefined, 'admin-1', 'staff_admin');
+  });
+
+  it('opens an existing leave from the calendar and saves edits', async () => {
+    schedulingState.doctorLeaves = [{ id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' }];
+    schedulingState.saveDoctorLeave.mockResolvedValueOnce({ ok: true, value: schedulingState.doctorLeaves[0] });
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขวันลา นพ. สมชาย ใจดี' })[0]);
+
+    expect(screen.getByRole('heading', { name: 'แก้ไขวันลาแพทย์' })).toBeInTheDocument();
+    expect(screen.getByLabelText('เหตุผลการลา')).toHaveValue('ประชุมวิชาการ');
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+
+    expect(await screen.findByText('แก้ไขวันลาแพทย์แล้ว รอบตรวจเดิมยังคงอยู่เพื่อให้จัดการด้วยตนเอง')).toBeInTheDocument();
+    expect(schedulingState.saveDoctorLeave).toHaveBeenCalledWith(
+      { doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' },
+      'leave-1',
+      'prof-1',
+      'medical',
+    );
+  });
+
+  it('cancels an existing leave from its edit modal', async () => {
+    const leave = { id: 'leave-1', doctorId: 'doc-1', startDate: '2026-09-10', endDate: '2026-09-12', reason: 'ประชุมวิชาการ' };
+    schedulingState.doctorLeaves = [leave];
+    schedulingState.deleteDoctorLeave.mockResolvedValueOnce({ ok: true, value: leave });
+
+    render(<ScheduleWorkspace role="medical" actorId="prof-1" />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขวันลา นพ. สมชาย ใจดี' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา' }));
+
+    const confirmation = screen.getByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' });
+    expect(confirmation.parentElement?.parentElement).toBe(document.body);
+    expect(schedulingState.deleteDoctorLeave).not.toHaveBeenCalled();
+    expect(within(confirmation).getByText('ยกเลิกวันลาของ นพ. สมชาย ใจดี ช่วง 10 ก.ย.–12 ก.ย.? รอบตรวจเดิมจะไม่เปลี่ยนแปลง')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'แก้ไขวันลาแพทย์' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกวันลา' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'ยืนยันการยกเลิกวันลา' })).getByRole('button', { name: 'ยกเลิกวันลา' }));
+
+    expect(await screen.findByText('ยกเลิกวันลาของ นพ. สมชาย ใจดี แล้ว')).toBeInTheDocument();
+    expect(schedulingState.deleteDoctorLeave).toHaveBeenCalledWith('leave-1', 'prof-1', 'medical');
+  });
+
+  it('opens a confirmation modal before toggling a slot and leaves state unchanged on cancel', async () => {
+    schedulingState.slots = [{ ...mockSlots[0], slotDate: '2026-09-10' }];
+    schedulingState.toggleSlot.mockResolvedValueOnce({ ok: true, value: 'closed' });
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'ปิดรอบตรวจ' })[0]);
+    const confirmation = screen.getByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' });
+    expect(schedulingState.toggleSlot).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'ยกเลิก' }));
+    expect(screen.queryByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' })).not.toBeInTheDocument();
+    expect(schedulingState.toggleSlot).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'ปิดรอบตรวจ' })[0]);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'ยืนยันการปิดรอบตรวจ' })).getByRole('button', { name: 'ปิดรอบตรวจ' }));
+    await waitFor(() => expect(schedulingState.toggleSlot).toHaveBeenCalledWith('slot-1', 'admin-1', 'staff_admin'));
+  });
+
+  it('navigates to the week that has matching doctor slots when current week has none', async () => {
+    // doc-2 has a slot in current week (2026-09-08), doc-1 only has a slot in next week (2026-09-15)
+    schedulingState.slots = [
+      { ...mockSlots[0], id: 'slot-doc1-next-week', doctorId: 'doc-1', slotDate: '2026-09-15' },
+      { ...mockSlots[1], id: 'slot-doc2-this-week', doctorId: 'doc-2', slotDate: '2026-09-08' },
+    ];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    // Filter by doc-1
+    const doctorSelect = screen.getByRole('combobox', { name: 'กรองแพทย์' });
+    fireEvent.change(doctorSelect, { target: { value: 'doc-1' } });
+
+    // Current week (2026-09-07) has no slots for doc-1
+    expect(screen.getByText('สัปดาห์นี้ไม่พบรอบตรวจตามตัวกรอง')).toBeInTheDocument();
+
+    const jumpButton = screen.getByRole('button', { name: /ไปยังสัปดาห์ที่มีรอบตรวจ/ });
+    expect(jumpButton).toBeInTheDocument();
+
+    // Click to jump
+    fireEvent.click(jumpButton);
+
+    // Should navigate to next week and show doc-1's slot
+    expect(await screen.findByText(/ไปยังสัปดาห์ที่มีรอบตรวจ/)).toBeInTheDocument();
+    expect(screen.getByText('พบ 1 รอบตามตัวกรอง')).toBeInTheDocument();
+  });
+
+  it('shows reset filter button when no matching slots exist in the system and resets properly', async () => {
+    // Only doc-1 has slots
+    schedulingState.slots = [
+      { ...mockSlots[0], id: 'slot-doc1', doctorId: 'doc-1', slotDate: '2026-09-08' },
+    ];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    // Filter by doc-3 (who has no slots anywhere)
+    const doctorSelect = screen.getByRole('combobox', { name: 'กรองแพทย์' });
+    fireEvent.change(doctorSelect, { target: { value: 'doc-3' } });
+
+    // Should display notice with reset button
+    expect(screen.getAllByText('ไม่พบรอบตรวจตามตัวกรอง').length).toBeGreaterThan(0);
+    const resetButton = screen.getByRole('button', { name: 'ล้างตัวกรอง' });
+    expect(resetButton).toBeInTheDocument();
+
+    // Click reset
+    fireEvent.click(resetButton);
+
+    // Filters reset to 'all' and slots become visible again
+    expect(doctorSelect).toHaveValue('all');
+    expect(await screen.findByText('ล้างตัวกรองแล้ว')).toBeInTheDocument();
+    expect(screen.getByText('พบ 1 รอบตามตัวกรอง')).toBeInTheDocument();
+  });
+
+  it('branches today button functionality and label according to calendar view', async () => {
+    schedulingState.slots = [...mockSlots];
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    const viewSelect = screen.getByRole('combobox', { name: 'มุมมองปฏิทิน' });
+
+    // 1. Week view (default): button displays "สัปดาห์นี้"
+    const weekTodayButton = screen.getByRole('button', { name: 'ไปยังสัปดาห์ปัจจุบัน' });
+    expect(weekTodayButton).toHaveTextContent('สัปดาห์นี้');
+    fireEvent.click(weekTodayButton);
+    expect(await screen.findByText('ไปยังสัปดาห์ปัจจุบันแล้ว')).toBeInTheDocument();
+
+    // 2. Day view: switch to day view, button displays "วันนี้"
+    fireEvent.change(viewSelect, { target: { value: 'day' } });
+    const dayTodayButton = screen.getByRole('button', { name: 'ไปยังวันนี้' });
+    expect(dayTodayButton).toHaveTextContent('วันนี้');
+    fireEvent.click(dayTodayButton);
+    expect(await screen.findByText(/ไปยังวันนี้แล้ว/)).toBeInTheDocument();
+
+    // 3. Month view: switch to month view, button displays "เดือนนี้"
+    fireEvent.change(viewSelect, { target: { value: 'month' } });
+    const monthTodayButton = screen.getByRole('button', { name: 'ไปยังเดือนปัจจุบัน' });
+    expect(monthTodayButton).toHaveTextContent('เดือนนี้');
+    fireEvent.click(monthTodayButton);
+    expect(await screen.findByText('ไปยังเดือนปัจจุบันแล้ว')).toBeInTheDocument();
+  });
+});

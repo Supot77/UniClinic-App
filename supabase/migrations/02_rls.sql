@@ -1,3 +1,13 @@
+-- Function to bypass infinite recursion in RLS
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS text
+LANGUAGE sql STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $func
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$func;
+
 -- Row Level Security Policies
 -- Enable RLS on all tables
 
@@ -23,10 +33,7 @@ CREATE POLICY "Users can view own profile"
 CREATE POLICY "Staff/Admin can view all profiles"
   ON public.profiles FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('staff', 'doctor', 'pharmacist', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
 CREATE POLICY "Users can update own profile"
@@ -47,10 +54,7 @@ CREATE POLICY "Authenticated users can view departments"
 CREATE POLICY "Staff/Admin can manage departments"
   ON public.departments FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('staff', 'admin')
-    )
+    public.get_user_role() = 'staff_admin'
   );
 
 -- ========================================
@@ -70,10 +74,7 @@ CREATE POLICY "Authenticated users can view slots"
 CREATE POLICY "Staff/Admin can manage slots"
   ON public.appointment_slots FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('staff', 'admin')
-    )
+    public.get_user_role() = 'staff_admin'
   );
 
 -- ========================================
@@ -81,32 +82,26 @@ CREATE POLICY "Staff/Admin can manage slots"
 -- ========================================
 CREATE POLICY "Patients can view own appointments"
   ON public.appointments FOR SELECT
-  USING (user_id = auth.uid());
+  USING (patient_id = auth.uid());
 
-CREATE POLICY "Staff/Doctor can view all appointments"
+CREATE POLICY "Staff/Medical can view all appointments"
   ON public.appointments FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('staff', 'doctor', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
 CREATE POLICY "Patients can create appointments"
   ON public.appointments FOR INSERT
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (patient_id = auth.uid());
 
 CREATE POLICY "Patients can update own appointments"
   ON public.appointments FOR UPDATE
-  USING (user_id = auth.uid());
+  USING (patient_id = auth.uid());
 
-CREATE POLICY "Staff can update any appointment"
+CREATE POLICY "Staff/Medical can update any appointment"
   ON public.appointments FOR UPDATE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('staff', 'doctor', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
 -- ========================================
@@ -116,50 +111,38 @@ CREATE POLICY "Patients can view own medical records"
   ON public.medical_records FOR SELECT
   USING (patient_id = auth.uid());
 
-CREATE POLICY "Doctors can view and create medical records"
+CREATE POLICY "Medical can view and create medical records"
   ON public.medical_records FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('doctor', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
 -- ========================================
 -- MEDICATIONS (read by all authenticated, write by pharmacist/admin)
 -- ========================================
-CREATE POLICY "Authenticated users can view medications"
+CREATE POLICY "Anyone can view medications"
   ON public.medications FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING (true);
 
-CREATE POLICY "Pharmacist/Admin can manage medications"
+CREATE POLICY "Medical/Staff/Admin can manage medications"
   ON public.medications FOR ALL
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('pharmacist', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
 -- ========================================
 -- INVENTORY_LOGS
 -- ========================================
-CREATE POLICY "Pharmacist/Admin can view inventory logs"
+CREATE POLICY "Medical/Staff/Admin can view inventory logs"
   ON public.inventory_logs FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('pharmacist', 'staff', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
-CREATE POLICY "Pharmacist can create inventory logs"
+CREATE POLICY "Medical can create inventory logs"
   ON public.inventory_logs FOR INSERT
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('pharmacist', 'admin')
-    )
+    public.get_user_role() IN ('medical', 'staff_admin')
   );
 
 -- ========================================
@@ -208,3 +191,4 @@ CREATE POLICY "Users can update own notifications"
 CREATE POLICY "System can create notifications"
   ON public.notifications FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL);
+

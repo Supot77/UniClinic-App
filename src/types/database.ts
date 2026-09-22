@@ -1,33 +1,147 @@
-// Types generated from Supabase SQL schema
-// ตรงกับ SQL.md — 11 ตาราง
+// Persisted contract for the Supabase schema and additive migrations.
 
-export type UserRole = 'patient' | 'staff' | 'doctor' | 'pharmacist' | 'admin';
+export const userRoles = [
+  'patient',
+  'medical',
+  'staff_admin',
+] as const;
 
-export type AppointmentStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'rejected';
+export type UserRole = (typeof userRoles)[number];
 
-export type SlotStatus = 'available' | 'full' | 'closed';
+export type AppointmentStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
+  | 'rejected';
 
-export type MedicationReminderStatus = 'active' | 'completed' | 'paused';
+export type SlotStatus =
+  | 'available'
+  | 'full'
+  | 'closed';
 
-export type MedicationLogStatus = 'pending' | 'taken' | 'missed';
+export type MedicationReminderStatus =
+  | 'pending_confirmation'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
+  | 'paused';
 
-export type NotificationType = 'reminder' | 'appointment' | 'broadcast' | 'system';
+export type MedicationLogStatus =
+  | 'pending'
+  | 'taken'
+  | 'missed';
 
-export type InventoryAction = 'add' | 'dispense' | 'adjust' | 'damage';
+export type NotificationType =
+  | 'reminder'
+  | 'appointment'
+  | 'broadcast'
+  | 'system';
+
+export type InventoryAction =
+  | 'add'
+  | 'dispense'
+  | 'adjust'
+  | 'damage';
+
+export type PatientType =
+  | 'student'
+  | 'employee';
+
+export type HealthDeclarationStatus =
+  | 'yes'
+  | 'no'
+  | 'unknown';
+
+export type RescheduleProposalStatus =
+  | 'pending'
+  | 'accepted'
+  | 'alternative_selected'
+  | 'auto_confirmed'
+  | 'rejected'
+  | 'expired'
+  | 'withdrawn'
+  | 'superseded';
+
+export type PrescriptionItemStatus =
+  | 'active'
+  | 'partially_dispensed'
+  | 'dispensed'
+  | 'cancelled';
+
+export type StockReservationStatus =
+  | 'active'
+  | 'consumed'
+  | 'released'
+  | 'expired';
+
+export type ProfileTitle = 'นาย' | 'นาง' | 'นางสาว' | 'อื่น ๆ';
+
+export type ProfileGender = 'male' | 'female' | 'unspecified';
+
+export type EmailJobType =
+  | 'dose_advance'
+  | 'dose_final_repeat'
+  | 'staff_override'
+  | 'appointment'
+  | 'backorder_ready';
+
+export type EmailJobStatus =
+  | 'pending'
+  | 'processing'
+  | 'sent'
+  | 'failed'
+  | 'cancelled'
+  | 'skipped_paused';
 
 // ----- Table Interfaces -----
 
 export interface Profile {
   id: string;
+
   student_id: string | null;
-  full_name: string;
+
+  title?: ProfileTitle | null;
+  first_name: string;
+  last_name: string;
+  date_of_birth?: string | null;
+  gender?: ProfileGender | null;
+
   phone: string | null;
   emergency_phone: string | null;
+
+  emergency_contact_title?: ProfileTitle | null;
+  emergency_contact_first_name?: string | null;
+  emergency_contact_last_name?: string | null;
+  emergency_contact_relationship?: string | null;
+
   address: string | null;
+
+  allergy_status?:
+    | HealthDeclarationStatus
+    | null;
+
   allergies: string | null;
+
+  chronic_disease_status?:
+    | HealthDeclarationStatus
+    | null;
+
   chronic_diseases: string | null;
+
   role: UserRole;
   avatar_url: string | null;
+
+  patient_type?: PatientType | null;
+  employee_id?: string | null;
+  organization?: string | null;
+  staff_position?: string | null;
+
+  is_active?: boolean;
+  permission_version?: number;
+
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +150,29 @@ export interface Department {
   id: string;
   name: string;
   description: string | null;
+  is_active?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Service {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DailyServiceOffering {
+  id: string;
+  service_id: string;
+  doctor_id: string;
+  offering_date: string;
+  is_active: boolean;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +181,7 @@ export interface Doctor {
   id: string; // FK → profiles.id
   specialty: string | null;
   department_id: string | null; // FK → departments.id
+  license_number?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +189,7 @@ export interface Doctor {
 export interface AppointmentSlot {
   id: string;
   doctor_id: string; // FK → doctors.id
+  daily_service_offering_id?: string; // FK → daily_service_offerings.id; legacy fixtures may omit it
   slot_date: string; // DATE
   start_time: string; // TIME
   end_time: string; // TIME
@@ -63,11 +202,14 @@ export interface AppointmentSlot {
 
 export interface Appointment {
   id: string;
-  user_id: string; // FK → profiles.id (patient)
+  patient_id: string; // FK → profiles.id (patient)
+  user_id?: string; // Compatibility alias for existing mock data
   slot_id: string; // FK → appointment_slots.id
-  queue_number: number | null;
-  reason: string | null;
+  queue_number: number; // NOT NULL CHECK (queue_number > 0)
+  reason: string; // NOT NULL CHECK (length >= 1)
   status: AppointmentStatus;
+  cancel_requested_at?: string | null;
+  rejection_reason?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -79,25 +221,42 @@ export interface PrescribedMedication {
   frequency: string;
   duration_days: number;
   quantity: number;
+  dispensed?: boolean;
+  dispensed_at?: string | null;
+  dispensed_by?: string | null;
 }
 
 export interface MedicalRecord {
   id: string;
-  appointment_id: string; // FK → appointments.id
+  appointment_id: string; // FK → appointments.id (UNIQUE)
   patient_id: string; // FK → profiles.id
   doctor_id: string; // FK → doctors.id
-  diagnosis: string | null;
-  treatment_notes: string | null;
-  prescribed_medications: PrescribedMedication[] | null; // JSONB
+  diagnosis: string; // NOT NULL CHECK (length >= 1)
+  treatment_notes: string; // NOT NULL DEFAULT ''
+  prescribed_medications: PrescribedMedication[]; // JSONB array, NOT NULL DEFAULT '[]'
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  blood_pressure?: string | null;
+  pulse_bpm?: number | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string; // Table does not have updated_at column in latest schema
 }
+
+export type MedicationCoverageType = 'covered' | 'non_covered';
 
 export interface Medication {
   id: string;
   name: string;
+  dosage?: string | null; // ขนาดยา เช่น 1000mg, 250mg, 500mg
+  brand_name?: string | null; // ยี่ห้อยา เช่น Sara, Tylenol, Panadol
   type: string; // เม็ด, แคปซูล, น้ำ
+  unit?: string | null; // หน่วยจ่ายย่อยสุด เช่น เม็ด, แคปซูล, ขวด, หลอด, ไวอัล, ซอง
+  pack_unit?: string | null; // หน่วยบรรจุใหญ่ เช่น ลัง, กล่อง, กระปุก, แผง, แกลลอน
+  pack_size?: number | null; // อัตราส่วนบรรจุ (จำนวนหน่วยย่อยต่อแพ็ค)
   category: string;
+  coverage_type?: MedicationCoverageType | null; // 'covered' = ในสิทธิ์ (เบิกได้), 'non_covered' = นอกสิทธิ์ (จ่ายนอก)
+  manufacturer?: string | null; // บริษัทที่ผลิต เช่น องค์การเภสัชกรรม (GPO)
+  mfg_date?: string | null; // วันผลิต (DATE)
   stock: number;
   min_stock: number;
   expiry_date: string | null; // DATE
@@ -115,6 +274,9 @@ export interface InventoryLog {
   action: InventoryAction;
   quantity: number;
   reason: string | null;
+  dispensing_item_id?: string | null;
+  performed_by?: string | null;
+  idempotency_key?: string | null;
   created_at: string;
 }
 
@@ -126,6 +288,12 @@ export interface MedicationReminder {
   start_date: string; // DATE
   end_date: string | null; // DATE
   status: MedicationReminderStatus;
+  dispensing_item_id?: string | null;
+  created_by?: string | null;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  locked_at?: string | null;
+  email_pause_until?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -136,6 +304,8 @@ export interface MedicationLog {
   scheduled_datetime: string; // TIMESTAMPTZ
   actual_datetime: string | null; // TIMESTAMPTZ
   status: MedicationLogStatus;
+  record_deadline?: string | null;
+  revision?: number;
   created_at: string;
   updated_at: string;
 }
@@ -147,31 +317,176 @@ export interface Notification {
   title: string;
   message: string;
   is_read: boolean;
+  event_key?: string | null;
+  broadcast_id?: string | null;
+  read_at?: string | null;
+  deleted_at?: string | null;
+  created_at: string;
+  sender_name?: string | null;
+  sender_role?: UserRole | null;
+}
+
+export interface UnreadNotificationRecipient {
+  notification_id: string;
+  user_id: string;
+  display_name: string;
+  role: UserRole;
+  title: string;
+  created_at: string;
+}
+
+export interface RescheduleProposal {
+  id: string;
+  appointment_id: string;
+  old_slot_id: string;
+  proposed_slot_id: string;
+  proposed_by: string;
+  sent_at: string;
+  response_deadline: string;
+  reservation_expires_at: string | null;
+  status: RescheduleProposalStatus;
+  responded_at: string | null;
+  responded_by: string | null;
+  version: number;
+  request_key: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrescriptionItem {
+  id: string;
+  medical_record_id: string;
+  medication_id: string;
+  prescribed_quantity: number;
+  cancelled_quantity: number;
+  unit: string;
+  dosage: string;
+  frequency: string;
+  duration_days: number | null;
+  instructions: string | null;
+  status: PrescriptionItemStatus;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DispensingEvent {
+  id: string;
+  patient_id: string;
+  dispensed_by: string;
+  dispensed_at: string;
+  reason: string | null;
+  idempotency_key: string;
+  created_at: string;
+}
+
+export interface DispensingItem {
+  id: string;
+  dispensing_event_id: string;
+  prescription_item_id: string;
+  quantity: number;
+  partial_reason: string | null;
+  created_at: string;
+}
+
+export interface StockReservation {
+  id: string;
+  prescription_item_id: string;
+  medication_id: string;
+  quantity: number;
+  confirmed_by: string;
+  confirmed_at: string;
+  status: StockReservationStatus;
+  consumed_at: string | null;
+  released_at: string | null;
+  release_reason: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrescriptionChange {
+  id: string;
+  prescription_item_id: string;
+  from_version: number;
+  to_version: number;
+  before_value: Record<string, unknown>;
+  after_value: Record<string, unknown>;
+  reason: string;
+  changed_by: string;
+  created_at: string;
+}
+
+export interface MedicationLogChange {
+  id: string;
+  medication_log_id: string;
+  before_status: MedicationLogStatus;
+  after_status: MedicationLogStatus;
+  before_actual_datetime: string | null;
+  after_actual_datetime: string | null;
+  reason: string;
+  changed_by: string;
+  created_at: string;
+}
+
+export interface EmailJob {
+  id: string;
+  recipient_id: string;
+  medication_log_id: string | null;
+  job_type: EmailJobType;
+  scheduled_at: string;
+  status: EmailJobStatus;
+  attempt_count: number;
+  last_attempt_at: string | null;
+  sent_at: string | null;
+  provider_message_id: string | null;
+  last_error: string | null;
+  requested_by: string | null;
+  request_reason: string | null;
+  idempotency_key: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Broadcast {
+  id: string;
+  sent_by: string;
+  title: string;
+  message: string;
+  notification_type: NotificationType;
+  audience: Record<string, unknown>;
+  request_key: string;
+  sent_at: string;
   created_at: string;
 }
 
 // ----- Joined / Extended Types -----
 
-export interface DoctorWithProfile extends Doctor {
+export interface DoctorWithProfile
+  extends Doctor {
   profile?: Profile;
   department?: Department;
 }
 
-export interface AppointmentSlotWithDoctor extends AppointmentSlot {
+export interface AppointmentSlotWithDoctor
+  extends AppointmentSlot {
   doctor?: DoctorWithProfile;
 }
 
-export interface AppointmentWithDetails extends Appointment {
+export interface AppointmentWithDetails
+  extends Appointment {
   slot?: AppointmentSlotWithDoctor;
   patient?: Profile;
 }
 
-export interface MedicalRecordWithDetails extends MedicalRecord {
+export interface MedicalRecordWithDetails
+  extends MedicalRecord {
   appointment?: Appointment;
   patient?: Profile;
   doctor?: DoctorWithProfile;
 }
 
-export interface MedicationReminderWithMedication extends MedicationReminder {
+export interface MedicationReminderWithMedication
+  extends MedicationReminder {
   medication?: Medication;
 }

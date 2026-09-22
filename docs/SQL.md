@@ -1,5 +1,11 @@
--- คำแนะนำ: รันสคริปต์นี้ใน Supabase SQL Editor (ไปที่ Database > SQL Editor > New query)
--- รันจากบนลงล่างตามลำดับนี้เลย ลำดับตารางถูกต้องตาม Foreign Key dependency แล้ว
+# SQL ฐานเดิมสำหรับอ้างอิง
+
+ปรับปรุง 5 กันยายน 2569 (2026-09-05) — ข้อกำหนดสำหรับพัฒนา ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+
+SQL ด้านล่างเป็นฐานเก่าก่อนข้อสรุปการเลื่อนนัด แบ่งจ่าย กันยาและเตือนใหม่ **ไม่ใช่ migration สำหรับข้อสรุปล่าสุด และไม่ควรคัดลอกไปรันเพื่ออัปเดตฐานปัจจุบัน** ดู [03](03_database_design_and_er.md) และ [09](09_implementation_plan.md) ก่อนออกแบบ migration ภายหลัง
+
+```sql
+-- SQL เดิม เก็บเพื่ออ้างอิงประวัติเท่านั้น
 
 CREATE TABLE public.medications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -20,7 +26,11 @@ CREATE TABLE public.medications (
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
   student_id text UNIQUE,
-  full_name text NOT NULL,
+  title text,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  date_of_birth date,
+  gender text,
   phone text,
   emergency_phone text,
   address text,
@@ -142,11 +152,10 @@ CREATE TABLE public.medication_logs (
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  type text NOT NULL,
   title text NOT NULL,
   message text NOT NULL,
-  is_read boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+```

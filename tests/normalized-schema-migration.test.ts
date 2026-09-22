@@ -1,0 +1,208 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const migrationPath = resolve(process.cwd(), 'supabase/migrations/03_normalized_transactions.sql');
+const baseSchema = readFileSync(resolve(process.cwd(), 'supabase/migrations/01_schema.sql'), 'utf8');
+const migration = readFileSync(migrationPath, 'utf8');
+const broadcastTypeUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/04_broadcast_notification_type.sql'), 'utf8');
+const broadcastRecipientUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/05_simplify_broadcast_recipients.sql'), 'utf8');
+const roleUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/06_consolidate_roles.sql'), 'utf8');
+const contractFieldsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/07_add_contract_fields.sql'), 'utf8');
+const patientSearchRlsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/08_allow_medical_patient_search.sql'), 'utf8');
+const doctorProfilesRlsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/10_allow_view_doctor_profiles.sql'), 'utf8');
+const departmentsRlsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/11_allow_public_view_departments.sql'), 'utf8');
+const staffDirectoryUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/12_staff_profile_directory.sql'), 'utf8');
+const serviceOfferingMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/13_services_and_daily_offerings.sql'), 'utf8');
+const publicServicesSlotsUpgrade = readFileSync(resolve(process.cwd(), 'supabase/migrations/17_allow_public_view_services_and_slots.sql'), 'utf8');
+const structuredNameMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/33_remove_full_name.sql'), 'utf8');
+
+const structuredNameSources = [
+  'supabase/migrations/01_schema.sql',
+  'supabase/migrations/12_staff_profile_directory.sql',
+  'supabase/migrations/13_pai_manual_appointments_records.sql',
+  'supabase/migrations/16_pai_workspace_rejection_reason.sql',
+  'supabase/migrations/18_protect_profile_permissions.sql',
+  'supabase/migrations/20_staff_profile_directory_created_at.sql',
+  'supabase/migrations/21_fix_pai_workspace_target_tables.sql',
+  'supabase/migrations/23_notification_sender_lookup.sql',
+  'supabase/migrations/24_unread_notification_recipients.sql',
+  'supabase/migrations/25_notification_time_filters.sql',
+  'supabase/migrations/28_medical_record_vitals.sql',
+  'supabase/migrations/29_profile_registration_identity.sql',
+  'src/app/api/appointments/route.ts',
+  'src/app/api/appointments/[id]/route.ts',
+  'src/app/api/doctors/route.ts',
+  'src/app/api/doctors/accounts/route.ts',
+  'src/app/api/medical-records/route.ts',
+  'src/app/api/medical-records/[id]/route.ts',
+  'src/app/api/medications/inventory/route.ts',
+  'src/app/api/schedules/slots/route.ts',
+  'src/app/api/schedules/slots/[id]/route.ts',
+  'src/features/clinic-care.tsx',
+  'src/features/scheduling/data/apiRepository.ts',
+].map((path) => ({ path, source: readFileSync(resolve(process.cwd(), path), 'utf8') }));
+
+const normalizedTables = [
+  'reschedule_proposals',
+  'prescription_items',
+  'dispensing_events',
+  'dispensing_items',
+  'stock_reservations',
+  'prescription_changes',
+  'medication_log_changes',
+  'email_jobs',
+  'broadcasts',
+] as const;
+
+describe('normalized transaction migration', () => {
+  it('uses structured profile names throughout runtime queries and the migration chain', () => {
+    for (const file of structuredNameSources) {
+      expect(file.source, file.path).not.toContain('full_name');
+    }
+    expect(structuredNameMigration).toContain('DROP COLUMN IF EXISTS full_name');
+  });
+
+  it('persists TypeScript contract fields in the base and additive schemas', () => {
+    const contractFields = [
+      'patient_type text',
+      'employee_id text',
+      'organization text',
+      'allergy_status text',
+      'chronic_disease_status text',
+      'is_active boolean',
+      'permission_version integer',
+      'dispensing_item_id uuid',
+      'performed_by uuid',
+      'idempotency_key text',
+      'created_by uuid',
+      'confirmed_by uuid',
+      'confirmed_at timestamp with time zone',
+      'locked_at timestamp with time zone',
+      'email_pause_until timestamp with time zone',
+      'record_deadline timestamp with time zone',
+      'revision integer',
+      'event_key text',
+      'broadcast_id uuid',
+      'read_at timestamp with time zone',
+      'deleted_at timestamp with time zone',
+    ];
+
+    for (const field of contractFields) {
+      expect(baseSchema).toContain(field);
+      expect(contractFieldsUpgrade).toContain(`ADD COLUMN IF NOT EXISTS ${field}`);
+    }
+  });
+
+  it('keeps the contract-field migration additive and outside the mock runtime', () => {
+    expect(contractFieldsUpgrade).not.toMatch(/^\s*(DROP|TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+    expect(contractFieldsUpgrade).not.toMatch(/service_role|\.env\.local/i);
+  });
+
+  it('consolidates legacy roles and constrains new profiles to the three active roles', () => {
+    expect(roleUpgrade).toContain("WHEN 'doctor' THEN 'medical'");
+    expect(roleUpgrade).toContain("WHEN 'pharmacist' THEN 'medical'");
+    expect(roleUpgrade).toContain("WHEN 'staff' THEN 'staff_admin'");
+    expect(roleUpgrade).toContain("WHEN 'admin' THEN 'staff_admin'");
+    expect(roleUpgrade).toContain("CHECK (role IN ('patient', 'medical', 'staff_admin'))");
+  });
+
+  it('allows medical users to read patient profiles in existing databases', () => {
+    expect(patientSearchRlsUpgrade).toContain('DROP POLICY IF EXISTS "Staff/Admin can view all profiles"');
+    expect(patientSearchRlsUpgrade).toContain("public.get_user_role() IN ('staff_admin', 'medical')");
+    expect(patientSearchRlsUpgrade).not.toMatch(/^\s*(TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+  });
+
+  it('allows patients and public to view doctor profiles and doctor records', () => {
+    expect(doctorProfilesRlsUpgrade).toContain('DROP POLICY IF EXISTS "Anyone can view medical profiles"');
+    expect(doctorProfilesRlsUpgrade).toContain("role = 'medical'");
+    expect(doctorProfilesRlsUpgrade).toContain('EXISTS (SELECT 1 FROM public.doctors WHERE doctors.id = profiles.id)');
+    expect(doctorProfilesRlsUpgrade).toContain('CREATE POLICY "Anyone can view doctors"');
+    expect(doctorProfilesRlsUpgrade).not.toMatch(/^\s*(TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+  });
+
+  it('allows public and unauthenticated users to view departments', () => {
+    expect(departmentsRlsUpgrade).toContain('DROP POLICY IF EXISTS "Authenticated users can view departments"');
+    expect(departmentsRlsUpgrade).toContain('DROP POLICY IF EXISTS "Anyone can view departments"');
+    expect(departmentsRlsUpgrade).toContain('CREATE POLICY "Anyone can view departments"');
+    expect(departmentsRlsUpgrade).toContain('USING (true)');
+    expect(departmentsRlsUpgrade).not.toMatch(/^\s*(TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+  });
+
+  it('exposes the account directory only through an active staff_admin RPC', () => {
+    expect(staffDirectoryUpgrade).toContain('CREATE OR REPLACE FUNCTION public.get_staff_profile_directory()');
+    expect(staffDirectoryUpgrade).toContain("actor.role = 'staff_admin'");
+    expect(staffDirectoryUpgrade).toContain('actor.is_active IS DISTINCT FROM false');
+    expect(staffDirectoryUpgrade).toContain('JOIN auth.users AS account');
+    expect(staffDirectoryUpgrade).toContain('GRANT EXECUTE ON FUNCTION public.get_staff_profile_directory() TO authenticated');
+    expect(staffDirectoryUpgrade).not.toMatch(/^\s*(DROP|TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+  });
+
+  it('creates every approved transaction table and enables default-deny RLS', () => {
+    for (const table of normalizedTables) {
+      expect(migration).toMatch(new RegExp(`CREATE TABLE IF NOT EXISTS public\\.${table} \\(`));
+      expect(migration).toContain(`ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY;`);
+    }
+  });
+
+  it('contains the required integrity and idempotency contracts', () => {
+    expect(migration).toContain("response_deadline = sent_at + interval '24 hours'");
+    expect(migration).toContain('prescribed_quantity > 0');
+    expect(migration).toContain('quantity > 0');
+    expect(migration).toContain('idempotency_key text NOT NULL UNIQUE');
+    expect(migration).toContain('UNIQUE (broadcast_id, user_id)');
+    expect(migration).toContain('UNIQUE (dispensing_event_id, prescription_item_id)');
+    expect(migration).toContain('ON DELETE RESTRICT');
+  });
+
+  it('is additive and contains no data mutation or seed commands', () => {
+    expect(migration).not.toMatch(/^\s*(DROP|TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+    expect(migration).not.toMatch(/service_role|\.env\.local/i);
+  });
+
+  it('keeps legacy JSONB while declaring normalized prescription storage', () => {
+    expect(migration).not.toMatch(/DROP\s+COLUMN\s+prescribed_medications/i);
+    expect(migration).toContain('CREATE TABLE IF NOT EXISTS public.prescription_items');
+  });
+
+  it('stores the Broadcast topic for new and existing databases', () => {
+    expect(migration).toContain("notification_type text NOT NULL DEFAULT 'broadcast'");
+    expect(migration).toContain('broadcasts_notification_type_check');
+    expect(broadcastTypeUpgrade).toContain('ADD COLUMN IF NOT EXISTS notification_type');
+    expect(broadcastTypeUpgrade).toContain('broadcasts_notification_type_check');
+    expect(broadcastTypeUpgrade).not.toMatch(/^\s*(DROP|TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+  });
+
+  it('stores frozen Broadcast recipients directly in notifications', () => {
+    expect(migration).not.toContain('CREATE TABLE IF NOT EXISTS public.broadcast_recipients');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS broadcast_id uuid');
+    expect(migration).toContain('UNIQUE (broadcast_id, user_id)');
+    expect(migration).toContain("NOT (audience ? 'userIds')");
+    expect(broadcastRecipientUpgrade).toContain('SET broadcast_id = recipient.broadcast_id');
+    expect(broadcastRecipientUpgrade).toContain('DROP TABLE IF EXISTS public.broadcast_recipients');
+  });
+
+  it('models services and daily offerings as the bookable unit', () => {
+    expect(serviceOfferingMigration).toContain('CREATE TABLE IF NOT EXISTS public.services');
+    expect(serviceOfferingMigration).toContain('CREATE TABLE IF NOT EXISTS public.daily_service_offerings');
+    expect(serviceOfferingMigration).toContain('ADD COLUMN IF NOT EXISTS daily_service_offering_id uuid');
+    expect(serviceOfferingMigration).toContain('UNIQUE (service_id, doctor_id, offering_date)');
+    expect(serviceOfferingMigration).toContain('FOREIGN KEY (daily_service_offering_id, doctor_id, slot_date)');
+    expect(serviceOfferingMigration).toContain('ALTER TABLE public.services ENABLE ROW LEVEL SECURITY');
+    expect(serviceOfferingMigration).toContain('ALTER TABLE public.daily_service_offerings ENABLE ROW LEVEL SECURITY');
+    expect(serviceOfferingMigration).toContain('CREATE POLICY "Authenticated users can view active service slots"');
+    expect(serviceOfferingMigration).toContain('offering.is_active');
+    expect(serviceOfferingMigration).toContain('service.is_active');
+    expect(serviceOfferingMigration).not.toMatch(/service_role|\.env\.local/i);
+  });
+
+  it('allows public and unauthenticated users to view active services, offerings, and slots', () => {
+    expect(publicServicesSlotsUpgrade).toContain('DROP POLICY IF EXISTS "Authenticated users can view services"');
+    expect(publicServicesSlotsUpgrade).toContain('CREATE POLICY "Anyone can view active services"');
+    expect(publicServicesSlotsUpgrade).toContain('CREATE POLICY "Anyone can view active daily service offerings"');
+    expect(publicServicesSlotsUpgrade).toContain('CREATE POLICY "Anyone can view active service slots"');
+    expect(publicServicesSlotsUpgrade).toContain('is_active');
+    expect(publicServicesSlotsUpgrade).not.toMatch(/^\s*(TRUNCATE|DELETE|UPDATE|INSERT)\b/im);
+    expect(publicServicesSlotsUpgrade).not.toMatch(/service_role|\.env\.local/i);
+  });
+});

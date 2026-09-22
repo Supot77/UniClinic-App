@@ -1,0 +1,116 @@
+<mxfile host="app.diagrams.net" modified="2026-09-13T20:05:00.000Z" agent="Mozilla/5.0" version="21.0.0" type="device">
+  <diagram id="medication-reminders-use-case" name="Medication Reminders Use Case">
+    <mxGraphModel dx="1280" dy="820" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="#18181b" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- System Boundary -->
+        <mxCell id="boundary" value="Medication Reminders Module" style="shape=swimlane;startSize=30;fillColor=#18181b;strokeColor=#52525b;strokeWidth=1.5;fontColor=#f4f4f5;fontStyle=1;fontSize=13;fontFamily=Helvetica;rounded=0;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="270" y="70" width="580" height="630" as="geometry" />
+        </mxCell>
+
+        <!-- Use Cases inside boundary -->
+        <mxCell id="uc1" value="แสดงรายการยาและรอบเวลา&#xa;(FR-REM-01)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#27272a;strokeColor=#d4d4d8;strokeWidth=1.2;fontColor=#ffffff;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="boundary">
+          <mxGeometry x="50" y="50" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc2" value="สั่งจ่ายและตั้งเตือนยา&#xa;(FR-REM-02)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#27272a;strokeColor=#d4d4d8;strokeWidth=1.2;fontColor=#ffffff;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="boundary">
+          <mxGeometry x="50" y="150" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc3" value="แก้ไขและลบรายการยา&#xa;(FR-REM-03)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#27272a;strokeColor=#d4d4d8;strokeWidth=1.2;fontColor=#ffffff;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="boundary">
+          <mxGeometry x="50" y="270" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc4" value="พัก/เปิดเตือนยา&#xa;(FR-REM-04)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#27272a;strokeColor=#d4d4d8;strokeWidth=1.2;fontColor=#ffffff;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="boundary">
+          <mxGeometry x="50" y="390" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc5" value="ค้นหาและกรองสถานะ&#xa;(FR-REM-05)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#27272a;strokeColor=#d4d4d8;strokeWidth=1.2;fontColor=#ffffff;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="boundary">
+          <mxGeometry x="50" y="510" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Included Sub-Use Case -->
+        <mxCell id="uc_allergy" value="ตรวจสอบประวัติการแพ้ยา&#xa;(Check Allergy Warning)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#27272a;strokeColor=#d4d4d8;strokeWidth=1.2;fontColor=#ffffff;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="boundary">
+          <mxGeometry x="340" y="200" width="190" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- <<include>> relationships -->
+        <mxCell id="inc1" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="html=1;verticalAlign=bottom;labelBackgroundColor=none;endArrow=open;endFill=0;dashed=1;strokeColor=#e4e4e7;strokeWidth=1.2;fontColor=#e4e4e7;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="boundary" source="uc2" target="uc_allergy">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="280" y="190" as="sourcePoint" />
+            <mxPoint x="340" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="inc2" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="html=1;verticalAlign=bottom;labelBackgroundColor=none;endArrow=open;endFill=0;dashed=1;strokeColor=#e4e4e7;strokeWidth=1.2;fontColor=#e4e4e7;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="boundary" source="uc3" target="uc_allergy">
+          <mxGeometry width="160" relative="1" as="geometry">
+            <mxPoint x="280" y="290" as="sourcePoint" />
+            <mxPoint x="340" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Actors -->
+        <mxCell id="actor_patient" value="ผู้ป่วย (Patient)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#f4f4f5;strokeWidth=1.5;fontColor=#f4f4f5;fontSize=12;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="110" y="340" width="40" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actor_medical" value="บุคลากรทางการแพทย์&#xa;(Medical)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#f4f4f5;strokeWidth=1.5;fontColor=#f4f4f5;fontSize=12;fontFamily=Helvetica;align=center;" vertex="1" parent="1">
+          <mxGeometry x="940" y="200" width="40" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actor_staff" value="เจ้าหน้าที่/แอดมิน&#xa;(staff_admin)" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#f4f4f5;strokeWidth=1.5;fontColor=#f4f4f5;fontSize=12;fontFamily=Helvetica;align=center;" vertex="1" parent="1">
+          <mxGeometry x="940" y="470" width="40" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Associations: Patient (Only 3 lines: uc1, uc4, uc5) -->
+        <mxCell id="edge_pat_1" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_patient" target="uc1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_pat_4" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_patient" target="uc4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_pat_5" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_patient" target="uc5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Associations: Medical (5 lines: uc1, uc2, uc3, uc4, uc5) -->
+        <mxCell id="edge_med_1" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_medical" target="uc1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_med_2" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_medical" target="uc2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_med_3" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_medical" target="uc3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_med_4" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_medical" target="uc4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_med_5" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_medical" target="uc5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Associations: Staff/Admin (5 lines: uc1, uc2, uc3, uc4, uc5) -->
+        <mxCell id="edge_stf_1" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_staff" target="uc1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_stf_2" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_staff" target="uc2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_stf_3" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_staff" target="uc3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_stf_4" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_staff" target="uc4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_stf_5" style="endArrow=none;html=1;strokeColor=#d4d4d8;strokeWidth=1.2;" edge="1" parent="1" source="actor_staff" target="uc5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+
