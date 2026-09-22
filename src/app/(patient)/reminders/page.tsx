@@ -165,9 +165,7 @@ function mapReminderToDisplay(reminder: MedicationReminderWithMedication, custom
   const dosage = (med as unknown as { dosage?: string })?.dosage ?? `1 ${med?.type ?? 'เม็ด'}`;
   const mealTiming = customTiming || getMealTimingForMed(med?.name, med?.category, med?.description);
   const times = (reminder.reminder_times || []).map((t) => formatTimeToThai(t, mealTiming));
-  const instruction = reminder.status === 'paused'
-    ? `รับทาน ครั้งละ ${dosage} · ${mealTiming} · ยาหยุดชั่วคราว`
-    : `รับทาน ครั้งละ ${dosage} · ${mealTiming} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
+  const instruction = `รับทาน ครั้งละ ${dosage} · ${mealTiming} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
 
   return {
     id: reminder.id,
@@ -276,9 +274,9 @@ export default function RemindersPage() {
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // State ค้นหาและกรองสถานะรายการยา (ทั้งหมด / เปิดเตือน / หยุดชั่วคราว)
+  // State ค้นหาและกรองสถานะรายการยา (ทั้งหมด / เปิดเตือน)
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'paused'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
 
   // ---------------------------------------------------------------------------
   // 3. State สำหรับ Modal หน้าต่างการทำงานต่างๆ (Modals State)
@@ -362,7 +360,6 @@ export default function RemindersPage() {
 
   // คำนวณจำนวนรายการยาตามสถานะเพื่อแสดงในแท็บ Badge
   const activeCount = useMemo(() => medicationList.filter((m) => m.isActive).length, [medicationList]);
-  const pausedCount = useMemo(() => medicationList.filter((m) => !m.isActive).length, [medicationList]);
 
   // กรองรายการยาตามคำค้นหา (ชื่อยา, หมวดหมู่, มื้ออาหาร, ขนาดยา) และแท็บสถานะ
   const filteredMedications = useMemo(() => {
@@ -377,8 +374,7 @@ export default function RemindersPage() {
 
       const matchesStatus =
         filterStatus === 'all' ||
-        (filterStatus === 'active' && med.isActive) ||
-        (filterStatus === 'paused' && !med.isActive);
+        (filterStatus === 'active' && med.isActive);
 
       return matchesSearch && matchesStatus;
     });
@@ -399,12 +395,9 @@ export default function RemindersPage() {
         );
         if (!matchPatient && !matchDoctor && !matchMed) return false;
       }
-      if (filterStatus === 'paused') {
-        return false;
-      }
       return true;
     });
-  }, [patientOrders, searchQuery, filterStatus]);
+  }, [patientOrders, searchQuery]);
 
   // ---------------------------------------------------------------------------
   // 4. การดึงข้อมูลรายการยาและการแจ้งเตือน (Data Fetching)
@@ -518,17 +511,14 @@ export default function RemindersPage() {
     setMedicationList((prev) =>
       prev.map((m) => {
         if (m.id !== id) return m;
-        const updatedInstruction = nextActive
-          ? m.dosageInstruction.replace(' · ยาหยุดชั่วคราว', '')
-          : (m.dosageInstruction.includes('· ยาหยุดชั่วคราว') ? m.dosageInstruction : `${m.dosageInstruction} · ยาหยุดชั่วคราว`);
-        return { ...m, isActive: nextActive, dosageInstruction: updatedInstruction };
+        return { ...m, isActive: nextActive };
       })
     );
 
     showNotice(
       nextActive
         ? `เปิดการแจ้งเตือน "${item.name}" แล้ว`
-        : `หยุดการแจ้งเตือน "${item.name}" ชั่วคราวแล้ว`
+        : `ปิดการแจ้งเตือน "${item.name}" แล้ว`
     );
 
     // บันทึกสถานะใหม่ลงฐานข้อมูล Supabase ผ่าน API เท่านั้น
@@ -777,9 +767,7 @@ export default function RemindersPage() {
     const formattedTimes = sortedTimes.map((t) => formatTimeToThai(t, editMealTiming));
     const dosage = (chosenMed as unknown as { dosage?: string })?.dosage ?? `1 ${chosenMed?.type ?? 'เม็ด'}`;
     const desc = (chosenMed as unknown as { description?: string })?.description ? ` (${(chosenMed as unknown as { description?: string }).description})` : '';
-    const newInstruction = !editingItem.isActive
-      ? `รับทาน ครั้งละ ${dosage} · ${editMealTiming} · ยาหยุดชั่วคราว`
-      : `รับทาน ครั้งละ ${dosage} · ${editMealTiming} · วันละ ${sortedTimes.length} ครั้ง${desc}`;
+    const newInstruction = `รับทาน ครั้งละ ${dosage} · ${editMealTiming} · วันละ ${sortedTimes.length} ครั้ง${desc}`;
 
     updateMealTimingOverride(editingItem.id, editMealTiming);
 
@@ -942,7 +930,7 @@ export default function RemindersPage() {
 
         {/* === แถบเลือกกรองสถานะ และช่องค้นหารายการยา (Status Tabs & Search) === */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border-soft pb-1.5">
-          {/* แท็บสถานะการเตือนยา (ทั้งหมด / เปิดเตือน / หยุดชั่วคราว) */}
+          {/* แท็บสถานะการเตือนยา (ทั้งหมด / เปิดเตือน) */}
           <div
             className="flex flex-wrap items-center gap-2"
             role="tablist"
@@ -951,7 +939,6 @@ export default function RemindersPage() {
             {([
               ['all', 'ทั้งหมด', patientOrders.length > 0 ? patientOrders.length : medicationList.length],
               ['active', 'เปิดเตือน', patientOrders.length > 0 ? patientOrders.length : activeCount],
-              ['paused', 'หยุดชั่วคราว', patientOrders.length > 0 ? 0 : pausedCount],
             ] as const).map(([tab, label, count]) => {
               const isSelected = filterStatus === tab;
               return (
@@ -967,11 +954,11 @@ export default function RemindersPage() {
                   onKeyDown={(e) => {
                     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
                     e.preventDefault();
-                    const tabs: ('all' | 'active' | 'paused')[] = ['all', 'active', 'paused'];
+                    const tabs: ('all' | 'active')[] = ['all', 'active'];
                     const currentIndex = tabs.indexOf(tab);
-                    let nextTab: 'all' | 'active' | 'paused';
+                    let nextTab: 'all' | 'active';
                     if (e.key === 'Home') nextTab = 'all';
-                    else if (e.key === 'End') nextTab = 'paused';
+                    else if (e.key === 'End') nextTab = 'active';
                     else if (e.key === 'ArrowRight') nextTab = tabs[(currentIndex + 1) % tabs.length];
                     else nextTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
                     setFilterStatus(nextTab);
@@ -1311,12 +1298,6 @@ export default function RemindersPage() {
                               : 'bg-cyan-50 text-cyan-900 border-cyan-300'
                           }`}>
                             {med.mealTiming}
-                          </span>
-                        )}
-                        {/* ป้ายสถานะหยุดยาชั่วคราว */}
-                        {!med.isActive && (
-                          <span className="text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full">
-                            หยุดชั่วคราว
                           </span>
                         )}
                       </div>
