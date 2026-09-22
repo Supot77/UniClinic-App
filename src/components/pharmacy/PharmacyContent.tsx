@@ -26,6 +26,7 @@ import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import type { Medication, MedicationCoverageType } from '@/types/database';
+import { formatProfileName } from '@/lib/profileName';
 import PrescriptionsTab, {
   type PrescribedMedItem,
   type PrescriptionOrder,
@@ -189,7 +190,9 @@ interface RawMedicalRecord {
 
 interface RawProfile {
   id: string;
-  full_name: string | null;
+  title: string | null;
+  first_name: string;
+  last_name: string;
   phone: string | null;
   student_id: string | null;
 }
@@ -201,7 +204,7 @@ interface RawInventoryLog {
   reason: string | null;
   idempotency_key: string | null;
   created_at: string;
-  pharmacist?: { full_name?: string | null } | null;
+  pharmacist?: { title?: string | null; first_name?: string | null; last_name?: string | null } | null;
 }
 
 interface PharmacyContentProps {
@@ -523,7 +526,7 @@ export default function PharmacyContent({
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, full_name, phone, student_id')
+          .select('id, title, first_name, last_name, phone, student_id')
           .in('id', userIds);
 
         if (profilesData) {
@@ -535,7 +538,7 @@ export default function PharmacyContent({
 
       const { data: logsData } = await supabase
         .from('inventory_logs')
-        .select('id, medication_id, quantity, reason, idempotency_key, created_at, pharmacist:profiles(full_name)')
+        .select('id, medication_id, quantity, reason, idempotency_key, created_at, pharmacist:profiles(title, first_name, last_name)')
         .eq('action', 'dispense');
 
       const dispenseLogs = (logsData || []) as RawInventoryLog[];
@@ -566,12 +569,12 @@ export default function PharmacyContent({
                 lastDispensedAt = m.dispensed_at;
                 const dispUser = m.dispensed_by ? profilesMap.get(m.dispensed_by) : null;
                 pharmacistName =
-                  dispUser?.full_name || match?.pharmacist?.full_name || pharmacistName;
+                  formatProfileName(dispUser) || formatProfileName(match?.pharmacist) || pharmacistName;
               }
             } else if (match) {
               if (!lastDispensedAt || new Date(match.created_at) > new Date(lastDispensedAt)) {
                 lastDispensedAt = match.created_at;
-                pharmacistName = match.pharmacist?.full_name || pharmacistName;
+                pharmacistName = formatProfileName(match.pharmacist) || pharmacistName;
               }
             }
           }
@@ -584,10 +587,10 @@ export default function PharmacyContent({
           appointment_id: r.appointment_id,
           patient_id: r.patient_id,
           doctor_id: r.doctor_id,
-          patient_name: patientProfile?.full_name || 'ผู้ป่วยไม่ระบุนาม',
+          patient_name: formatProfileName(patientProfile) || 'ผู้ป่วยไม่ระบุนาม',
           patient_phone: patientProfile?.phone || null,
           patient_student_id: patientProfile?.student_id || null,
-          doctor_name: doctorProfile?.full_name || 'แพทย์ไม่ระบุนาม',
+          doctor_name: formatProfileName(doctorProfile) || 'แพทย์ไม่ระบุนาม',
           diagnosis: r.diagnosis || 'ไม่ได้ระบุ',
           treatment_notes: r.treatment_notes || '',
           prescribed_medications: meds,

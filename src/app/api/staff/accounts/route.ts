@@ -84,7 +84,6 @@ export async function POST(request: Request) {
   const d = body.details;
   const { error: profileError } = await admin.from('profiles').insert({
     id: created.user.id,
-    full_name: `${d.firstName.trim()} ${d.lastName.trim()}`,
     title: d.title,
     first_name: d.firstName.trim(),
     last_name: d.lastName.trim(),

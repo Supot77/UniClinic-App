@@ -10,6 +10,7 @@ import type {
   ScheduleSlot,
   DoctorWeeklySchedule,
 } from '@/types/schedule';
+import { formatProfileName } from '@/lib/profileName';
 
 export const MOCK_WEEK_START = getCurrentWeekMonday();
 
@@ -54,9 +55,9 @@ export const MOCK_DOCTORS: ScheduleDoctor[] = clinicMockTables.doctors.map((doct
   return {
     id: doctor.id,
     profileId: doctor.id,
-    fullName: `นพ. ${doctorProfile.full_name}`,
-    initials: initials(doctorProfile.full_name),
-    email: `${doctorProfile.full_name.toLowerCase().replaceAll(' ', '.')}.doctor@clinic-demo.test`,
+    fullName: formatProfileName(doctorProfile),
+    initials: initials(formatProfileName(doctorProfile)),
+    email: `${formatProfileName(doctorProfile).toLowerCase().replaceAll(' ', '.')}.doctor@clinic-demo.test`,
     specialty: doctor.specialty ?? 'ยังไม่ระบุ',
     departmentId: doctor.department_id ?? '',
     availability: doctor.id === 'profile-shuri-udaku' ? 'on_leave' : 'active',

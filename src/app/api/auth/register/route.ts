@@ -55,7 +55,6 @@ export async function POST(request: Request) {
   const chronicStatus = details.chronicDiseaseStatus ?? 'unknown';
   const { error: profileError } = await supabase.from('profiles').insert({
     id: data.user.id,
-    full_name: `${details.firstName!.trim()} ${details.lastName!.trim()}`,
     title: details.title,
     first_name: details.firstName!.trim(),
     last_name: details.lastName!.trim(),

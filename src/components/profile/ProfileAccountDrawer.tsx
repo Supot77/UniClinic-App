@@ -8,7 +8,6 @@ import PasswordSecurityCard from '@/components/profile/PasswordSecurityCard';
 
 interface ProfileAccountDrawerProps {
   open: boolean;
-  fullName?: string;
   role: UserRole | null;
   onClose: () => void;
   onSignOut: () => void;

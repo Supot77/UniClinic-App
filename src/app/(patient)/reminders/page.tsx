@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useClinicMockDatabase } from '@/features/mock-database/ClinicMockProvider';
 import { useAuth } from '@/hooks/useAuth';
+import { formatProfileName } from '@/lib/profileName';
 import {
   getReminders,
   createReminder,
@@ -193,7 +194,7 @@ export default function RemindersPage() {
       if (patients && patients.length > 0) {
         const mapped: PatientOption[] = patients.map((p) => ({
           id: p.id,
-          name: p.full_name || 'ไม่ระบุชื่อ',
+          name: formatProfileName(p) || 'ไม่ระบุชื่อ',
           studentId: p.student_id || '-',
           allergies: p.allergies || null,
           phone: p.phone || undefined,
@@ -214,7 +215,7 @@ export default function RemindersPage() {
         if (patientProfiles.length > 0) {
           const mapped: PatientOption[] = patientProfiles.map((p) => ({
             id: p.id,
-            name: p.full_name || 'ไม่ระบุชื่อ',
+            name: formatProfileName(p) || 'ไม่ระบุชื่อ',
             studentId: p.student_id || '-',
             allergies: p.allergies || null,
             phone: p.phone || undefined,
@@ -324,7 +325,7 @@ export default function RemindersPage() {
       if (user) {
         return [{
           id: user.id,
-          name: currentUserProfile?.full_name || user.full_name || user.email || 'ฉัน (บัญชีปัจจุบัน)',
+          name: formatProfileName(currentUserProfile) || user.displayName || user.email || 'ฉัน (บัญชีปัจจุบัน)',
           studentId: currentUserProfile?.student_id || (user as unknown as { student_id?: string }).student_id || 'บัญชีฉัน',
           allergies: currentUserProfile?.allergies || (user as unknown as { allergies?: string | null }).allergies || null,
           phone: currentUserProfile?.phone || (user as unknown as { phone?: string }).phone,

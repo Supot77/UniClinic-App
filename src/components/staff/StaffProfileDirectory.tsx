@@ -26,7 +26,7 @@ import {
   updateStaffProfile,
   type StaffProfileDirectoryItem,
 } from "@/services/dashboardService";
-import type { UserRole } from "@/types/database";
+import type { ProfileTitle, UserRole } from "@/types/database";
 import Toast from "@/components/common/Toast";
 
 const roleOrder: UserRole[] = ["patient", "medical", "staff_admin"];
@@ -126,7 +126,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
   const [editingProfile, setEditingProfile] =
     useState<StaffProfileDirectoryItem | null>(null);
   const [editForm, setEditForm] = useState({
-    fullName: "",
+    title: null as ProfileTitle | null,
+    firstName: "",
+    lastName: "",
     phone: "",
     role: "patient" as UserRole,
   });
@@ -139,7 +141,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
   function openEdit(profile: StaffProfileDirectoryItem) {
     setEditingProfile(profile);
     setEditForm({
-      fullName: profile.fullName,
+      title: profile.title,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
       phone: profile.phone ?? "",
       role: profile.role,
     });
@@ -154,8 +158,8 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
 
   async function handleSave() {
     if (!editingProfile) return;
-    if (!editForm.fullName.trim()) {
-      setSaveError("กรุณากรอกชื่อ-นามสกุล");
+    if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
+      setSaveError("กรุณากรอกชื่อและนามสกุล");
       return;
     }
 
@@ -163,7 +167,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
     setSaveError(null);
     try {
       await updateStaffProfile(editingProfile.id, {
-        fullName: editForm.fullName.trim(),
+        title: editForm.title,
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
         phone: editForm.phone.trim() || null,
         role: editForm.role,
         isActive: editingProfile.isActive,
@@ -270,7 +276,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
         await deleteStaffProfile(profile.id);
       } else {
         await updateStaffProfile(profile.id, {
-          fullName: profile.fullName,
+          title: profile.title,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
           phone: profile.phone,
           role: profile.role,
           isActive: accountAction.nextActive,
@@ -757,15 +765,34 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
 
             <div className="mt-6 grid gap-4">
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                ชื่อ-นามสกุล
+                คำนำหน้า
+                <select
+                  value={editForm.title ?? ""}
+                  onChange={(event) => setEditForm((form) => ({ ...form, title: (event.target.value || null) as ProfileTitle | null }))}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                >
+                  <option value="">ไม่ระบุ</option>
+                  <option value="นาย">นาย</option>
+                  <option value="นาง">นาง</option>
+                  <option value="นางสาว">นางสาว</option>
+                  <option value="อื่น ๆ">อื่น ๆ</option>
+                </select>
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                ชื่อ
                 <input
-                  value={editForm.fullName}
-                  onChange={(event) =>
-                    setEditForm((form) => ({
-                      ...form,
-                      fullName: event.target.value,
-                    }))
-                  }
+                  required
+                  value={editForm.firstName}
+                  onChange={(event) => setEditForm((form) => ({ ...form, firstName: event.target.value }))}
+                  className="rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                นามสกุล
+                <input
+                  required
+                  value={editForm.lastName}
+                  onChange={(event) => setEditForm((form) => ({ ...form, lastName: event.target.value }))}
                   className="rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                 />
               </label>

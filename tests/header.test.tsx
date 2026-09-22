@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Header from "@/components/layout/Header";
 
 const authState = vi.hoisted(() => ({
-  user: null as null | { id?: string; full_name: string },
+  user: null as null | { id?: string; displayName: string },
   isAuthenticated: false,
   isLoading: false,
   role: null as string | null,
@@ -42,7 +42,7 @@ describe("Header", () => {
   });
 
   it("keeps every main route reachable while editing in demo mode", () => {
-    authState.user = { full_name: "Admin Demo" };
+    authState.user = { displayName: "Admin Demo" };
     authState.isAuthenticated = true;
     authState.role = "staff_admin";
 
@@ -60,7 +60,7 @@ describe("Header", () => {
   });
 
   it("shows Dashboard to patients while hiding restricted admin links", () => {
-    authState.user = { full_name: "Patient Demo" };
+    authState.user = { displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
 
@@ -91,7 +91,7 @@ describe("Header", () => {
   });
 
   it("shows patient search to medical users", () => {
-    authState.user = { full_name: "Doctor Demo" };
+    authState.user = { displayName: "Doctor Demo" };
     authState.isAuthenticated = true;
     authState.role = "medical";
 
@@ -117,7 +117,7 @@ describe("Header", () => {
   });
 
   it("keeps grouped links keyboard and touch reachable on mobile", () => {
-    authState.user = { full_name: "Patient Demo" };
+    authState.user = { displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
 
@@ -135,7 +135,7 @@ describe("Header", () => {
   });
 
   it("returns every authenticated role to the public home page after logout", async () => {
-    authState.user = { full_name: "Admin Demo" };
+    authState.user = { displayName: "Admin Demo" };
     authState.isAuthenticated = true;
     authState.role = "staff_admin";
 
@@ -149,7 +149,7 @@ describe("Header", () => {
   });
 
   it("keeps account shortcuts on routes available to the current role", () => {
-    authState.user = { full_name: "Patient Demo" };
+    authState.user = { displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
 
@@ -164,7 +164,7 @@ describe("Header", () => {
   });
 
   it("links staff account management in the drawer to staff accounts", () => {
-    authState.user = { full_name: "Admin Demo" };
+    authState.user = { displayName: "Admin Demo" };
     authState.isAuthenticated = true;
     authState.role = "staff_admin";
 
@@ -176,7 +176,7 @@ describe("Header", () => {
   });
 
   it("opens password security inside the account drawer", () => {
-    authState.user = { full_name: "Patient Demo" };
+    authState.user = { displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
 
@@ -193,7 +193,7 @@ describe("Header", () => {
   });
 
   it("renders a unified profile menu trigger button without a duplicate hamburger on the right", () => {
-    authState.user = { full_name: "Doctor Demo" };
+    authState.user = { displayName: "Doctor Demo" };
     authState.isAuthenticated = true;
     authState.role = "medical";
 
@@ -210,7 +210,7 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/");
     unmount();
 
-    authState.user = { full_name: "Patient Demo" };
+    authState.user = { displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
 
@@ -219,7 +219,7 @@ describe("Header", () => {
   });
 
   it("renders an unread count badge with exact number when unread notifications exist", async () => {
-    authState.user = { id: "user-123", full_name: "Patient Demo" };
+    authState.user = { id: "user-123", displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
     dashboardState.getUnreadCount.mockResolvedValue(5);
@@ -233,7 +233,7 @@ describe("Header", () => {
   });
 
   it("renders a green dot indicator when all notifications have been read", async () => {
-    authState.user = { id: "user-123", full_name: "Patient Demo" };
+    authState.user = { id: "user-123", displayName: "Patient Demo" };
     authState.isAuthenticated = true;
     authState.role = "patient";
     dashboardState.getUnreadCount.mockResolvedValue(0);

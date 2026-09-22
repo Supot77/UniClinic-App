@@ -40,6 +40,16 @@ import {
   sendBroadcast,
 } from '@/services/dashboardService';
 
+const profileRow = (id: string, firstName: string, lastName: string, role: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  title: null,
+  first_name: firstName,
+  last_name: lastName,
+  role,
+  is_active: true,
+  ...extra,
+});
+
 describe('Supabase Broadcast service', () => {
   beforeEach(() => {
     supabaseMock.rpc.mockReset();
@@ -132,7 +142,10 @@ describe('Supabase Broadcast service', () => {
     supabaseMock.rpc.mockResolvedValue({
       data: [{
         id: 'patient-1',
-        full_name: 'ผู้ป่วยหนึ่ง',
+        display_name: 'ผู้ป่วยหนึ่ง',
+        title: null,
+        first_name: 'ผู้ป่วย',
+        last_name: 'หนึ่ง',
         email: 'patient@example.com',
         phone: '0812345678',
         created_at: '2026-09-08T03:00:00.000Z',
@@ -144,6 +157,9 @@ describe('Supabase Broadcast service', () => {
 
     await expect(getStaffProfileDirectory()).resolves.toEqual([{
       id: 'patient-1',
+      title: null,
+      firstName: 'ผู้ป่วย',
+      lastName: 'หนึ่ง',
       fullName: 'ผู้ป่วยหนึ่ง',
       email: 'patient@example.com',
       phone: '0812345678',
@@ -198,9 +214,9 @@ describe('Supabase dashboard service', () => {
     for (const table of Object.keys(database)) delete database[table];
 
     database.profiles = [
-      { id: 'patient-1', full_name: 'ผู้ป่วยหนึ่ง', role: 'patient', is_active: true, gender: 'male' },
-      { id: 'medical-1', full_name: 'แพทย์หนึ่ง', role: 'medical', is_active: true },
-      { id: 'staff-1', full_name: 'เจ้าหน้าที่หนึ่ง', role: 'staff_admin', is_active: true },
+      profileRow('patient-1', 'ผู้ป่วย', 'หนึ่ง', 'patient', { gender: 'male' }),
+      profileRow('medical-1', 'แพทย์', 'หนึ่ง', 'medical'),
+      profileRow('staff-1', 'เจ้าหน้าที่', 'หนึ่ง', 'staff_admin'),
     ];
     database.departments = [{ id: 'department-1', name: 'เวชทั่วไป', is_active: true }];
     database.doctors = [{ id: 'medical-1', department_id: 'department-1' }];
@@ -231,13 +247,13 @@ describe('Supabase dashboard service', () => {
   it('scopes a patient dashboard to the signed-in patient data', async () => {
     const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
 
-    expect(view.actor).toEqual({ id: 'patient-1', fullName: 'ผู้ป่วยหนึ่ง' });
+    expect(view.actor).toEqual({ id: 'patient-1', fullName: 'ผู้ป่วย หนึ่ง' });
     expect(view.metrics.map((metric) => metric.value)).toEqual([1, 0, 1]);
     expect(view.appointmentQueue).toHaveLength(1);
-    expect(view.appointmentQueue[0].patientName).toBe('ผู้ป่วยหนึ่ง');
+    expect(view.appointmentQueue[0].patientName).toBe('ผู้ป่วย หนึ่ง');
     expect(view.appointmentQueue[0].serviceName).toBe('ตรวจโรคทั่วไป');
     expect(view.patientMedications).toEqual([expect.objectContaining({ id: 'reminder-1', name: 'ยา A', instruction: 'รับประทานหลังอาหาร', reminderTimes: ['08:00', '18:00'] })]);
-    expect(view.patientTreatmentHistory).toEqual([expect.objectContaining({ id: 'record-1', summary: 'ติดตามอาการ', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป' })]);
+    expect(view.patientTreatmentHistory).toEqual([expect.objectContaining({ id: 'record-1', summary: 'ติดตามอาการ', doctorName: 'แพทย์ หนึ่ง', departmentName: 'เวชทั่วไป' })]);
     expect(view.recentNotifications).toHaveLength(1);
   });
 
@@ -317,7 +333,7 @@ describe('Supabase dashboard service', () => {
     expect(view.metrics.map((metric) => metric.value)).toEqual([1, 1, 0, 0]);
     expect(view.metrics.some((metric) => metric.id === 'unread-notifications')).toBe(false);
     expect(view.appointmentQueue).toHaveLength(1);
-    expect(view.appointmentQueue[0].doctorName).toBe('แพทย์หนึ่ง');
+    expect(view.appointmentQueue[0].doctorName).toBe('แพทย์ หนึ่ง');
     expect(view.departmentLoads).toEqual([]);
   });
 
@@ -337,7 +353,7 @@ describe('Supabase dashboard service', () => {
       ]);
       expect(view.servedAppointmentCount).toBe(0);
       expect(view.doctorStatuses).toEqual([expect.objectContaining({
-        doctorId: 'medical-1', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป', status: 'available',
+        doctorId: 'medical-1', doctorName: 'แพทย์ หนึ่ง', departmentName: 'เวชทั่วไป', status: 'available',
       })]);
       expect(view.roleCounts).toEqual([
         { role: 'patient', count: 1 }, { role: 'medical', count: 1 }, { role: 'staff_admin', count: 1 },
@@ -402,9 +418,9 @@ describe('Supabase dashboard service', () => {
 
   it('summarizes active patient gender counts for staff_admin', async () => {
     database.profiles.push(
-      { id: 'patient-2', full_name: 'ผู้ป่วยสอง', role: 'patient', is_active: true, gender: 'female' },
-      { id: 'patient-3', full_name: 'ผู้ป่วยสาม', role: 'patient', is_active: true, gender: null },
-      { id: 'patient-inactive', full_name: 'ผู้ป่วยที่ปิดใช้งาน', role: 'patient', is_active: false, gender: 'male' },
+      profileRow('patient-2', 'ผู้ป่วย', 'สอง', 'patient', { gender: 'female' }),
+      profileRow('patient-3', 'ผู้ป่วย', 'สาม', 'patient', { gender: null }),
+      profileRow('patient-inactive', 'ผู้ป่วยที่ปิดใช้งาน', 'บัญชี', 'patient', { is_active: false, gender: 'male' }),
     );
 
     const view = await getDashboardView('staff_admin', 'staff-1', '2026-09-08', 'today');

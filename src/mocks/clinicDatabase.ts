@@ -23,14 +23,17 @@ const mockSlotDate = (daysFromMonday: number) => shiftDate(MOCK_WEEK_START, days
 
 function profile(
   id: string,
-  fullName: string,
+  displayName: string,
   role: UserRole,
   studentId: string | null = null,
 ): Profile {
+  const [firstName, ...lastNameParts] = displayName.trim().split(/\s+/);
   return {
     id,
     student_id: studentId,
-    full_name: fullName,
+    title: null,
+    first_name: firstName || 'ไม่ระบุ',
+    last_name: lastNameParts.join(' ') || 'ไม่ระบุ',
     phone: '080-000-0000',
     emergency_phone: null,
     address: 'มหาวิทยาลัยวลัยลักษณ์',

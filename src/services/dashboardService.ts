@@ -16,6 +16,7 @@ import type {
   Notification,
   NotificationType,
   Profile,
+  ProfileTitle,
   Service,
   UnreadNotificationRecipient,
   UserRole,
@@ -28,6 +29,7 @@ import {
   type DashboardView,
 } from '@/features/dashboard/types';
 import { CLINIC_TIME_BLOCKS } from '@/constants/dateTime';
+import { formatProfileName } from '@/lib/profileName';
 
 const supabase = createClient();
 
@@ -80,6 +82,9 @@ export interface MedicationDashboardData {
 
 export interface StaffProfileDirectoryItem {
   id: string;
+  title: ProfileTitle | null;
+  firstName: string;
+  lastName: string;
   fullName: string;
   email: string | null;
   phone: string | null;
@@ -234,14 +239,17 @@ export async function getStaffProfileDirectory(): Promise<StaffProfileDirectoryI
   const { data, error } = await supabase.rpc('get_staff_profile_directory');
   if (error) {
     if (error.code === 'PGRST202') {
-      throw new Error('ยังไม่ได้ติดตั้ง RPC get_staff_profile_directory กรุณารัน supabase/migrations/12_staff_profile_directory.sql ใน Supabase SQL Editor');
+      throw new Error('ยังไม่ได้ติดตั้ง RPC get_staff_profile_directory กรุณารัน supabase/migrations/33_remove_full_name.sql ใน Supabase SQL Editor');
     }
     throw new Error(error.message);
   }
 
   return ((data ?? []) as Array<{
     id: string;
-    full_name: string;
+    display_name: string;
+    title: ProfileTitle | null;
+    first_name: string;
+    last_name: string;
     email: string | null;
     phone: string | null;
     role: UserRole;
@@ -249,7 +257,10 @@ export async function getStaffProfileDirectory(): Promise<StaffProfileDirectoryI
     created_at?: string | null;
   }>).map((profile) => ({
     id: profile.id,
-    fullName: profile.full_name,
+    title: profile.title,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    fullName: profile.display_name,
     email: profile.email,
     phone: profile.phone,
     role: profile.role,
@@ -258,7 +269,7 @@ export async function getStaffProfileDirectory(): Promise<StaffProfileDirectoryI
   }));
 }
 
-type DashboardProfile = Pick<Profile, 'id' | 'full_name' | 'role' | 'is_active' | 'gender'>;
+type DashboardProfile = Pick<Profile, 'id' | 'title' | 'first_name' | 'last_name' | 'role' | 'is_active' | 'gender'>;
 type DashboardPatientProfile = Pick<Profile, 'phone' | 'patient_type' | 'student_id' | 'employee_id' | 'allergy_status' | 'allergies' | 'chronic_disease_status' | 'chronic_diseases'>;
 type DashboardDepartment = Pick<Department, 'id' | 'name' | 'is_active'>;
 type DashboardDoctor = Pick<Doctor, 'id' | 'department_id'>;
@@ -440,7 +451,7 @@ export async function getDashboardView(
     : Promise.resolve({ data: [] as DashboardDoctorLeave[], error: null });
 
   const [profilesResult, departmentsResult, doctorsResult, slotsResult, futureSlotsResult, notifications, patientProfileResult, patientServiceOfferingsResult, patientServicesResult, doctorLeavesResult] = await Promise.all([
-    supabase.from('profiles').select('id, full_name, role, is_active, gender'),
+    supabase.from('profiles').select('id, title, first_name, last_name, role, is_active, gender'),
     supabase.from('departments').select('id, name, is_active'),
     supabase.from('doctors').select('id, department_id'),
     supabase
@@ -668,8 +679,8 @@ export async function getDashboardView(
         startTime: slot?.start_time?.slice(0, 5) ?? '',
         status: appointment.status,
         cancelRequestedAt: appointment.cancel_requested_at ?? null,
-        patientName: profilesById.get(appointment.patient_id ?? appointment.user_id ?? '')?.full_name ?? 'ไม่พบบัญชีผู้ป่วย',
-        doctorName: slot ? profilesById.get(slot.doctor_id)?.full_name ?? 'ไม่พบแพทย์' : 'ไม่พบแพทย์',
+        patientName: formatProfileName(profilesById.get(appointment.patient_id ?? appointment.user_id ?? '')) || 'ไม่พบบัญชีผู้ป่วย',
+        doctorName: slot ? formatProfileName(profilesById.get(slot.doctor_id)) || 'ไม่พบแพทย์' : 'ไม่พบแพทย์',
         departmentName: doctor?.department_id
           ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก'
           : 'ไม่ระบุแผนก',
@@ -738,7 +749,7 @@ export async function getDashboardView(
         return {
           id: record.id,
           date: record.created_at,
-          doctorName: profilesById.get(record.doctor_id)?.full_name ?? 'ไม่พบแพทย์',
+          doctorName: formatProfileName(profilesById.get(record.doctor_id)) || 'ไม่พบแพทย์',
           departmentName: doctor?.department_id ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
           summary: record.diagnosis || record.treatment_notes || 'ไม่มีสรุปการรักษา',
           advice: record.treatment_notes || '',
@@ -757,8 +768,8 @@ export async function getDashboardView(
         const doctor = doctorsById.get(record.doctor_id);
         return {
           id: record.id,
-          patientName: profilesById.get(record.patient_id)?.full_name ?? 'ไม่พบชื่อผู้ป่วย',
-          doctorName: profilesById.get(record.doctor_id)?.full_name ?? 'ไม่พบชื่อแพทย์',
+          patientName: formatProfileName(profilesById.get(record.patient_id)) || 'ไม่พบชื่อผู้ป่วย',
+          doctorName: formatProfileName(profilesById.get(record.doctor_id)) || 'ไม่พบชื่อแพทย์',
           departmentName: doctor?.department_id
             ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก'
             : 'ไม่ระบุแผนก',
@@ -830,11 +841,11 @@ export async function getDashboardView(
         const nextSlot = upcomingAppointments[0] ? slotsById.get(upcomingAppointments[0].slot_id) : undefined;
         return {
           doctorId: doctor.id,
-          doctorName: profile?.full_name ?? 'ไม่พบชื่อแพทย์',
+          doctorName: formatProfileName(profile) || 'ไม่พบชื่อแพทย์',
           departmentId: doctor.department_id ?? 'unassigned',
           departmentName: department?.name ?? 'ไม่ระบุแผนก',
           status,
-          currentPatientName: currentPatient?.full_name ?? null,
+          currentPatientName: formatProfileName(currentPatient) || null,
           currentQueueNumber: inProgressAppointment?.queue_number ?? null,
           nextAppointmentTime: nextSlot?.start_time?.slice(0, 5) ?? null,
         };
@@ -858,7 +869,7 @@ export async function getDashboardView(
 
   return {
     role,
-    actor: { id: actor.id, fullName: actor.full_name },
+    actor: { id: actor.id, fullName: formatProfileName(actor) },
     date: today,
     startDate,
     range,
@@ -941,7 +952,9 @@ export async function getDashboardStats() {
   };
 }
 export interface StaffProfileUpdate {
-  fullName: string;
+  title: ProfileTitle | null;
+  firstName: string;
+  lastName: string;
   phone: string | null;
   role: UserRole;
   isActive: boolean;
@@ -953,7 +966,9 @@ export async function updateStaffProfile(
 ): Promise<void> {
   const { error } = await supabase.rpc('staff_admin_update_profile', {
     p_profile_id: profileId,
-    p_full_name: update.fullName,
+    p_title: update.title,
+    p_first_name: update.firstName,
+    p_last_name: update.lastName,
     p_phone: update.phone,
     p_role: update.role,
     p_is_active: update.isActive,

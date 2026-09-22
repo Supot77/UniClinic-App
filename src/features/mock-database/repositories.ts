@@ -1,6 +1,7 @@
 import { userRoles, type AppointmentStatus, type InventoryAction, type Medication, type MedicationReminderStatus, type Notification, type UserRole } from '@/types/database';
 import { dashboardRangeLabels, type BroadcastHistoryItem, type DashboardGenderCount, type DashboardMetric, type DashboardRange, type DashboardView, type SendBroadcastInput } from '@/features/dashboard/types';
 import { ClinicMockDatabase, mockResult } from './engine';
+import { formatProfileName } from '@/lib/profileName';
 
 function subtractDays(date: string, days: number): string {
   const [year, month, day] = date.split('-').map(Number);
@@ -796,7 +797,7 @@ export function createClinicRepositories(
             ?? tables.profiles.find((profile) => profile.role === role)
           : tables.profiles.find((profile) => profile.role === role);
         const actor = matchedActor
-          ?? (requestedUserId ? { id: requestedUserId, full_name: 'บัญชีที่เข้าสู่ระบบ' } : defaultProfile)
+          ?? (requestedUserId ? { id: requestedUserId, title: null, first_name: 'บัญชีที่เข้าสู่ระบบ', last_name: '' } : defaultProfile)
           ?? null;
         const activeStatuses: AppointmentStatus[] = ['pending', 'confirmed', 'in_progress', 'completed', 'no_show'];
         const slotsById = new Map(tables.appointment_slots.map((slot) => [slot.id, slot]));
@@ -1139,12 +1140,12 @@ export function createClinicRepositories(
                 status:
                   appointment.status,
 
-                patientName:
-                  patient?.full_name ??
+                  patientName:
+                  formatProfileName(patient) ||
                   'ไม่พบบัญชีผู้ป่วย',
 
                 doctorName:
-                  doctor?.full_name ??
+                  formatProfileName(doctor) ||
                   'ไม่พบแพทย์',
 
                 departmentName:
@@ -1173,8 +1174,8 @@ export function createClinicRepositories(
                   date: slot?.slot_date ?? '',
                   startTime: slot?.start_time?.slice(0, 5) ?? '',
                   status: appointment.status,
-                  patientName: patient?.full_name ?? 'ไม่พบบัญชีผู้ป่วย',
-                  doctorName: doctor?.full_name ?? 'ไม่พบแพทย์',
+                  patientName: formatProfileName(patient) || 'ไม่พบบัญชีผู้ป่วย',
+                  doctorName: formatProfileName(doctor) || 'ไม่พบแพทย์',
                   departmentName: department?.name ?? 'ไม่ระบุแผนก',
                 };
               })
@@ -1215,7 +1216,7 @@ export function createClinicRepositories(
                 return {
                   id: record.id,
                   date: record.created_at,
-                  doctorName: tables.profiles.find((profile) => profile.id === record.doctor_id)?.full_name ?? 'ไม่พบแพทย์',
+                  doctorName: formatProfileName(tables.profiles.find((profile) => profile.id === record.doctor_id)) || 'ไม่พบแพทย์',
                   departmentName: doctorRecord?.department_id ? tables.departments.find((department) => department.id === doctorRecord.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
                   summary: record.diagnosis || record.treatment_notes || 'ไม่มีสรุปการรักษา',
                   medicationCount: record.prescribed_medications?.length ?? 0,
@@ -1232,8 +1233,8 @@ export function createClinicRepositories(
                 const dispensedCount = medications.filter((medication) => Boolean(medication.dispensed)).length;
                 return {
                   id: record.id,
-                  patientName: tables.profiles.find((profile) => profile.id === record.patient_id)?.full_name ?? 'ไม่พบชื่อผู้ป่วย',
-                  doctorName: tables.profiles.find((profile) => profile.id === record.doctor_id)?.full_name ?? 'ไม่พบชื่อแพทย์',
+                  patientName: formatProfileName(tables.profiles.find((profile) => profile.id === record.patient_id)) || 'ไม่พบชื่อผู้ป่วย',
+                  doctorName: formatProfileName(tables.profiles.find((profile) => profile.id === record.doctor_id)) || 'ไม่พบชื่อแพทย์',
                   departmentName: doctorRecord?.department_id
                     ? tables.departments.find((department) => department.id === doctorRecord.department_id)?.name ?? 'ไม่ระบุแผนก'
                     : 'ไม่ระบุแผนก',
@@ -1288,8 +1289,7 @@ export function createClinicRepositories(
           actor: actor
             ? {
                 id: actor.id,
-                fullName:
-                  actor.full_name,
+                fullName: formatProfileName(actor),
               }
             : null,
 

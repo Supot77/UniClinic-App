@@ -102,11 +102,10 @@ export interface Profile {
   id: string;
 
   student_id: string | null;
-  full_name: string;
 
   title?: ProfileTitle | null;
-  first_name?: string | null;
-  last_name?: string | null;
+  first_name: string;
+  last_name: string;
   date_of_birth?: string | null;
   gender?: ProfileGender | null;
 
@@ -330,7 +329,7 @@ export interface Notification {
 export interface UnreadNotificationRecipient {
   notification_id: string;
   user_id: string;
-  full_name: string;
+  display_name: string;
   role: UserRole;
   title: string;
   created_at: string;

@@ -63,7 +63,8 @@
       .from('profiles')
       .select('*')
       .eq('role', 'patient')
-      .order('full_name');
+      .order('first_name')
+      .order('last_name');
     if (error) throw error;
     return data ?? [];
   }

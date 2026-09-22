@@ -9,6 +9,8 @@ export default async function PharmacyPage({ searchParams }: PharmacyPageProps =
   // อนุญาตเฉพาะ medical (แพทย์/เภสัชกร) และ staff_admin / admin (เจ้าหน้าที่/ผู้ดูแลระบบ)
   // บุคคลที่ยังไม่ล็อกอินจะถูก redirect ไป /login และผู้ป่วย (patient) จะถูก redirect ไป /dashboard
   const { user, role, rawRole } = await requireRole(['medical', 'staff_admin', 'admin']);
+  const metadata = user.user_metadata as { title?: string; first_name?: string; last_name?: string };
+  const userName = [metadata.title, metadata.first_name, metadata.last_name].filter(Boolean).join(' ') || undefined;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const initialTab = resolvedSearchParams?.tab === 'prescriptions' ? 'prescriptions' : 'inventory';
   const validStatuses = ['all', 'pending', 'dispensed', 'insufficient'] as const;
@@ -25,7 +27,7 @@ export default async function PharmacyPage({ searchParams }: PharmacyPageProps =
         initialSort={initialSort}
         currentRole={rawRole || role}
         userEmail={user.email}
-        userName={user.user_metadata?.full_name}
+        userName={userName}
         userId={user.id}
       />
     </div>

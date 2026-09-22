@@ -9,6 +9,8 @@ interface MedicationDetailPageProps {
 
 export default async function MedicationDetailPage({ params }: MedicationDetailPageProps) {
   const { user, role, rawRole } = await requireRole(['medical', 'staff_admin', 'admin']);
+  const metadata = user.user_metadata as { title?: string; first_name?: string; last_name?: string };
+  const userName = [metadata.title, metadata.first_name, metadata.last_name].filter(Boolean).join(' ') || undefined;
   const { medicationId } = await params;
 
   return (
@@ -16,7 +18,7 @@ export default async function MedicationDetailPage({ params }: MedicationDetailP
       medicationId={medicationId}
       currentRole={rawRole || role}
       userEmail={user.email}
-      userName={user.user_metadata?.full_name}
+      userName={userName}
       userId={user.id}
     />
   );

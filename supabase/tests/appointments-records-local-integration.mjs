@@ -31,9 +31,12 @@ try {
   const migration = await readFile(new URL('../migrations/13_pai_manual_appointments_records.sql', import.meta.url), 'utf8');
   await db.exec(migration);
   await db.exec(migration); // Reapplying the migration is safe.
+  await db.exec(await readFile(new URL('../migrations/29_profile_registration_identity.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../migrations/33_remove_full_name.sql', import.meta.url), 'utf8'));
   for (const [id, role, name] of [[patient,'patient','Patient A'],[otherPatient,'patient','Patient B'],[doctor,'medical','Doctor A'],[otherDoctor,'medical','Doctor B'],[staff,'staff_admin','Staff']]) {
     await query('INSERT INTO auth.users VALUES ($1)', [id]);
-    await query('INSERT INTO profiles(id, role, full_name) VALUES ($1,$2,$3)', [id,role,name]);
+    const [firstName, ...lastNameParts] = name.split(' ');
+    await query('INSERT INTO profiles(id, role, first_name, last_name) VALUES ($1,$2,$3,$4)', [id,role,firstName,lastNameParts.join(' ')]);
   }
   await query("INSERT INTO departments(id,name) VALUES ($1,'Test')", [department]);
   for (const id of [doctor,otherDoctor]) await query('INSERT INTO doctors(id,department_id) VALUES ($1,$2)',[id,department]);
