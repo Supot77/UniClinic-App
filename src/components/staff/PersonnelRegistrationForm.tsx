@@ -100,7 +100,12 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
             })}
           </div></fieldset>
 
-        {kind === 'patient' ? <div className="px-6 pb-8 pt-4 sm:px-10"><RegisterPage mode="staff-walk-in" embedded /></div> : <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-9 px-6 py-8 sm:px-10">
+        {kind === 'patient' ? (
+          <div className="px-6 pb-8 pt-4 sm:px-10">
+            <RegisterPage mode="staff-walk-in" embedded />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-9 px-6 py-8 sm:px-10">
 
           <fieldset className="space-y-5"><legend className="mb-1 flex items-center gap-2 text-lg font-bold text-brand-ink"><BriefcaseMedical className="size-5 text-brand-strong" />ข้อมูลส่วนตัวและการติดต่อ</legend>
             <div className="grid gap-5 sm:grid-cols-6">
@@ -130,7 +135,8 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
 
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
           <div className="flex flex-col-reverse gap-3 border-t border-brand-border-soft pt-6 sm:flex-row sm:justify-end"><Link href="/staff/accounts" aria-disabled={submitting} className="inline-flex h-12 items-center justify-center rounded-xl border border-brand-border-strong px-6 font-semibold text-brand-ink hover:bg-brand-page">ยกเลิก</Link><button type="submit" disabled={submitting || (kind === 'doctor' && departments.length === 0)} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-strong px-7 font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60">{submitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}{submitting ? 'กำลังสร้างบัญชี…' : 'สร้างบัญชี'}</button></div>
-        </form>}
+          </form>
+        )}
       </section>
     </main>
   );

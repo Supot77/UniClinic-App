@@ -363,3 +363,18 @@
 - `npm.cmd run lint` — ผ่าน 0 errors, 6 warnings เดิม
 - `npm.cmd run build` — ผ่าน
 - Browser visual QA — ยังไม่ยืนยัน เพราะ environment ไม่มี browser session (`browsers: []`, IAB unavailable)
+
+## แก้ JSX conditional ในฟอร์มลงทะเบียนบุคลากร — 23 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- ปรับ `src/components/staff/PersonnelRegistrationForm.tsx` ให้ conditional ระหว่างฟอร์มผู้ป่วยกับฟอร์มบุคลากรใช้วงเล็บ JSX ชัดเจน และปิด `<form>` แยกจาก ternary expression
+- คง behavior, route, validation, data contract และ visual UI เดิม; แก้เฉพาะโครงสร้าง syntax เพื่อป้องกัน Turbopack parse error ที่ `</section>`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `npx.cmd --no-install eslint 'src/components/staff/PersonnelRegistrationForm.tsx'` — ผ่าน
+- `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
+- `npm.cmd run lint` — ไม่ผ่านจาก 3 errors เดิมใน `src/app/(patient)/reminders/page.tsx` และ `src/components/dashboard/DashboardScreen.tsx`; changed file ไม่พบ lint error และมี warnings เดิม 10 รายการในไฟล์อื่น
+- Automated tests และ browser QA — ไม่รัน; งานนี้เป็น syntax-only และไม่เปลี่ยน behavior
