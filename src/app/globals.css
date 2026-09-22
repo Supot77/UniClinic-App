@@ -315,6 +315,16 @@ body,
   transform: translateY(-1px);
 }
 
+/* Hero booking button - matches doctor schedule button color */
+.landing-booking-btn {
+  background-color: transparent;
+  border: 1px solid var(--theme-brand-border-strong);
+  color: var(--theme-brand-ink);
+}
+.landing-booking-btn:hover {
+  background-color: var(--theme-brand-soft);
+}
+
 /* Service card */
 .clinic-service-card {
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);

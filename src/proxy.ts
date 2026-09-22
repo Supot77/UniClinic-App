@@ -10,7 +10,7 @@ const PUBLIC_EXACT_PATHS = [
   "/forgot-password",
   "/reset-password",
 ];
-const PUBLIC_PREFIXES = ["/schedules"];
+const PUBLIC_PREFIXES = ["/schedules", "/api"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT_PATHS.includes(pathname)) return true;

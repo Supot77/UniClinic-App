@@ -49,5 +49,9 @@ export async function apiClient<T>(
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new ApiError(response.status, DEFAULT_API_ERROR_MESSAGE);
+  }
 }
