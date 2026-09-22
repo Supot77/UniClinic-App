@@ -224,7 +224,7 @@ export default function Header() {
           {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </button>
 
-        <Link href={isAuthenticated ? "/dashboard" : "/"} onClick={closeMobileMenu} className="flex shrink-0 items-center gap-2 rounded-brand-sm font-bold tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent">
+        <Link href="/" onClick={closeMobileMenu} className="flex shrink-0 items-center gap-2 rounded-brand-sm font-bold tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent">
           <span className="flex h-8 w-8 items-center justify-center rounded-brand-sm bg-brand-accent text-brand-ink" aria-hidden="true"><Hospital className="h-[18px] w-[18px]" /></span>
           <span className="text-[15px] sm:text-base">WU Clinic</span>
         </Link>
