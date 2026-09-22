@@ -414,12 +414,18 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
   role: ClinicRole; section: 'appointments' | 'records'; error: string; message: string; busy: boolean;
   reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[]; wide?: boolean;
 }) {
-  const title = role === 'patient' ? 'นัดหมายและผลตรวจ' : section === 'appointments' ? 'นัดหมายและคิวตรวจ' : 'ผลตรวจและรายการยา';
-  const description = role === 'patient'
-    ? 'นัดหมาย ผลตรวจ และรายการยาของบัญชีนี้เท่านั้น'
-    : role === 'medical'
-      ? section === 'appointments' ? 'ติดตามคิวตรวจและบันทึกข้อมูลการรักษาของผู้ป่วยที่รับผิดชอบ' : 'บันทึกผลตรวจและรายการยาให้ครบถ้วนก่อนส่งต่อผู้ป่วย'
-      : 'จัดการคำขอนัดและติดตามคิวของผู้รับบริการจากระบบปัจจุบัน';
+  const title = section === 'records'
+    ? role === 'patient' ? 'ประวัติการรักษา' : 'ผลตรวจและรายการยา'
+    : role === 'patient' ? 'นัดหมายของฉัน' : role === 'medical' ? 'นัดหมายและคิวตรวจ' : 'รายการนัดทั้งหมด';
+  const description = section === 'records'
+    ? role === 'patient'
+      ? 'ดูนัดหมาย ผลตรวจ และรายการยาของคุณ'
+      : 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ'
+    : role === 'patient'
+      ? 'ติดตามสถานะนัดหมายและรายละเอียดการเข้ารับบริการ'
+      : role === 'medical'
+        ? 'ติดตามคิวตรวจและบันทึกข้อมูลการรักษาของผู้ป่วยที่รับผิดชอบ'
+        : 'จัดการคำขอนัดและติดตามคิวของผู้รับบริการจากระบบปัจจุบัน';
   return <section className={`${wide ? 'relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8' : 'mx-auto w-full max-w-none lg:relative lg:left-1/2 lg:w-[calc(100vw-4rem)] lg:max-w-[1368px] lg:-translate-x-1/2'} space-y-5 text-brand-ink`}>
     <header className="border-b border-brand-border-soft pb-5 sm:pb-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
