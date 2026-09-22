@@ -100,17 +100,17 @@ export function validateRegistration(
   const errors: FieldErrors = {};
 
   if (!values.title) {
-    errors.title = 'กรุณาเลือกคำนำหน้า';
+    errors.title = 'เลือกคำนำหน้า';
   }
 
   if (!personNamePattern.test(values.firstName.trim())) {
     errors.firstName =
-      'ชื่อใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ';
+      'ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น';
   }
 
   if (!personNamePattern.test(values.lastName.trim())) {
     errors.lastName =
-      'นามสกุลใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ';
+      'ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น';
   }
 
   if (
@@ -119,15 +119,15 @@ export function validateRegistration(
       new Date().toISOString().slice(0, 10)
   ) {
     errors.dateOfBirth =
-      'กรุณาระบุวันเกิดที่ถูกต้อง';
+      'ระบุวันเกิดให้ถูกต้อง';
   }
 
   if (!values.gender) {
-    errors.gender = 'กรุณาเลือกเพศ';
+    errors.gender = 'เลือกเพศ';
   }
 
   if (!['student', 'employee'].includes(values.patientType)) {
-    errors.patientType = 'กรุณาเลือกประเภทผู้ป่วย';
+    errors.patientType = 'เลือกประเภทผู้ป่วย';
   }
 
   if (values.patientType === 'student' && !/^\d{8}$/.test(values.studentId)) {
@@ -141,12 +141,12 @@ export function validateRegistration(
 
   if (!/^0[689]\d{8}$/.test(values.phone)) {
     errors.phone =
-      'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
+      'กรอกเบอร์มือถือไทย 10 หลัก โดยขึ้นต้นด้วย 06, 08 หรือ 09';
   }
 
   if (!values.allergyStatus) {
     errors.allergyStatus =
-      'กรุณาเลือกข้อมูลประวัติแพ้ยา';
+      'เลือกสถานะการแพ้ยา';
   }
 
   if (
@@ -154,12 +154,12 @@ export function validateRegistration(
     !values.allergies.trim()
   ) {
     errors.allergies =
-      'กรุณาระบุรายละเอียดการแพ้ยา';
+      'ระบุรายละเอียดการแพ้ยา';
   }
 
   if (!values.chronicDiseaseStatus) {
     errors.chronicDiseaseStatus =
-      'กรุณาเลือกข้อมูลโรคประจำตัว';
+      'เลือกสถานะโรคประจำตัว';
   }
 
   if (
@@ -167,12 +167,12 @@ export function validateRegistration(
     !values.chronicDiseases.trim()
   ) {
     errors.chronicDiseases =
-      'กรุณาระบุรายละเอียดโรคประจำตัว';
+      'ระบุรายละเอียดโรคประจำตัว';
   }
 
   if (!values.emergencyContactTitle) {
     errors.emergencyContactTitle =
-      'กรุณาเลือกคำนำหน้าผู้ติดต่อฉุกเฉิน';
+      'เลือกคำนำหน้าผู้ติดต่อฉุกเฉิน';
   }
 
   if (
@@ -181,7 +181,7 @@ export function validateRegistration(
     )
   ) {
     errors.emergencyContactFirstName =
-      'ชื่อผู้ติดต่อใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ';
+      'ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น';
   }
 
   if (
@@ -190,7 +190,7 @@ export function validateRegistration(
     )
   ) {
     errors.emergencyContactLastName =
-      'นามสกุลผู้ติดต่อใช้ได้เฉพาะตัวอักษรไทยหรืออังกฤษ';
+      'ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น';
   }
 
   const patientFullName = `${values.firstName.trim()} ${values.lastName.trim()}`.toLocaleLowerCase();
@@ -201,12 +201,12 @@ export function validateRegistration(
 
   if (!values.emergencyContactRelationship.trim()) {
     errors.emergencyContactRelationship =
-      'กรุณาระบุความสัมพันธ์';
+      'ระบุความสัมพันธ์กับผู้ป่วย';
   }
 
   if (!/^0[689]\d{8}$/.test(values.emergencyPhone)) {
     errors.emergencyPhone =
-      'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
+      'กรอกเบอร์มือถือไทย 10 หลัก โดยขึ้นต้นด้วย 06, 08 หรือ 09';
   } else if (values.emergencyPhone === values.phone) {
     errors.emergencyPhone = 'เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก';
   }
@@ -217,7 +217,7 @@ export function validateRegistration(
     )
   ) {
     errors.email =
-      'กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น';
+      'ใช้อีเมล @mail.wu.ac.th เท่านั้น';
   }
 
   if (!/^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(values.password)) {
@@ -227,7 +227,7 @@ export function validateRegistration(
 
   if (values.confirmPassword !== values.password) {
     errors.confirmPassword =
-      'ยืนยันรหัสผ่านไม่ตรงกัน';
+      'รหัสผ่านไม่ตรงกัน';
   }
 
   return errors;
@@ -377,10 +377,8 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           }),
         });
         const result = (await response.json()) as { error?: string };
-        if (!response.ok) throw new Error(result.error || 'สร้างบัญชีผู้ป่วยไม่สำเร็จ');
-        setForm(initialForm);
-        setFieldErrors({});
-        setSuccess('สร้างบัญชีผู้ป่วยสำเร็จแล้ว');
+        if (!response.ok) throw new Error(result.error || 'เพิ่มบัญชีผู้ป่วยไม่สำเร็จ ลองใหม่');
+        router.push('/staff/accounts?created=true');
       } else {
         await signUp(form.email.trim().toLowerCase(), form.password, details);
         await signOut();
@@ -393,7 +391,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
       setError(
         err instanceof Error
           ? err.message
-          : 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่',
+          : mode === 'staff-walk-in'
+            ? 'เพิ่มบัญชีผู้ป่วยไม่สำเร็จ ลองใหม่'
+            : 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่',
       );
     } finally {
       setIsSubmitting(false);
@@ -446,7 +446,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <p className="mt-1 text-sm text-slate-500">
                 {mode === 'staff-walk-in'
-                  ? 'สร้างบัญชีให้นักศึกษาหรือบุคลากรที่เข้ารับบริการ'
+                  ? 'เพิ่มบัญชีผู้ป่วยสำหรับนักศึกษาหรือบุคลากรที่เข้ารับบริการ'
                   : 'สร้างบัญชีเพื่อใช้งาน WU Clinic'}
               </p>
             </div>
@@ -481,7 +481,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           <FormSection
             number="1"
             title="ข้อมูลส่วนตัว"
-            description="สำหรับยืนยันตัวตนและบันทึกข้อมูลผู้ป่วย"
+            description="ใช้ยืนยันตัวตนและบันทึกข้อมูลผู้ป่วย"
           >
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]">
               <Field
@@ -518,7 +518,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 id="first-name"
                 label="ชื่อ"
                 error={fieldErrors.firstName}
-                help="ใช้เฉพาะตัวอักษรไทยหรืออังกฤษ"
+                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
               >
                 <input
                   id="first-name"
@@ -544,7 +544,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 id="last-name"
                 label="นามสกุล"
                 error={fieldErrors.lastName}
-                help="ใช้เฉพาะตัวอักษรไทยหรืออังกฤษ"
+                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
               >
                 <input
                   id="last-name"
@@ -582,12 +582,12 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 />
               </Field>
 
-              <Field id="age" label="อายุ" help="คำนวณอัตโนมัติจากวันเกิด">
+              <Field id="age" label="อายุ" help="คำนวณจากวันเกิดอัตโนมัติ">
                 <input
                   id="age"
                   type="text"
                   value={age === null ? '' : `${age} ปี`}
-                  placeholder="เลือกวันเกิดก่อน"
+                  placeholder="เลือกวันเกิดเพื่อคำนวณอายุ"
                   readOnly
                   aria-readonly="true"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 outline-none"
@@ -674,7 +674,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 id="phone"
                 label="เบอร์โทรศัพท์"
                 error={fieldErrors.phone}
-                help="ตัวเลข 10 หลัก ไม่ต้องใส่ขีด"
+                help="กรอกตัวเลข 10 หลัก ไม่ต้องใส่ขีด"
               >
                 <input
                   id="phone"
@@ -704,7 +704,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           <FormSection
             number="2"
             title="ข้อมูลสุขภาพ"
-            description="ข้อมูลเบื้องต้นสำหรับการดูแลรักษา"
+            description="ข้อมูลเบื้องต้นสำหรับการรักษา"
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
@@ -735,7 +735,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   )}
                 >
                   <option value="">
-                    เลือกข้อมูล
+                    เลือกสถานะ
                   </option>
                   <option value="no">ไม่มี</option>
                   <option value="yes">
@@ -780,7 +780,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   )}
                 >
                   <option value="">
-                    เลือกข้อมูล
+                    เลือกสถานะ
                   </option>
                   <option value="no">ไม่มี</option>
                   <option value="yes">
@@ -853,7 +853,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           <FormSection
             number="3"
             title="ผู้ติดต่อฉุกเฉิน"
-            description="บุคคลที่สามารถติดต่อได้ในกรณีฉุกเฉิน"
+            description="บุคคลที่ติดต่อได้เมื่อเกิดเหตุฉุกเฉิน"
           >
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]">
               <Field
@@ -898,7 +898,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 error={
                   fieldErrors.emergencyContactFirstName
                 }
-                help="ใช้เฉพาะตัวอักษรไทยหรืออังกฤษ"
+                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
               >
                 <input
                   id="emergency-contact-first-name"
@@ -929,7 +929,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 error={
                   fieldErrors.emergencyContactLastName
                 }
-                help="ใช้เฉพาะตัวอักษรไทยหรืออังกฤษ"
+                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
               >
                 <input
                   id="emergency-contact-last-name"
@@ -962,7 +962,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 error={
                   fieldErrors.emergencyContactRelationship
                 }
-                help="เช่น บิดา มารดา ญาติ หรือเพื่อน"
+                help="ระบุความสัมพันธ์กับผู้ป่วย"
               >
                 <input
                   id="emergency-relationship"
@@ -989,7 +989,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 id="emergency-phone"
                 label="เบอร์โทรฉุกเฉิน"
                 error={fieldErrors.emergencyPhone}
-                help="ตัวเลข 10 หลัก ไม่ต้องใส่ขีด"
+                help="กรอกตัวเลข 10 หลัก ไม่ต้องใส่ขีด"
               >
                 <input
                   id="emergency-phone"
@@ -1019,14 +1019,14 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           <FormSection
             number="4"
             title="ข้อมูลเข้าสู่ระบบ"
-            description="ใช้อีเมลมหาวิทยาลัยในการเข้าสู่ระบบ"
+            description="ใช้เข้าสู่ระบบด้วยอีเมลมหาวิทยาลัย"
           >
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Field
                 id="register-email"
                 label="อีเมลมหาวิทยาลัย"
                 error={fieldErrors.email}
-                help="รองรับเฉพาะ @mail.wu.ac.th"
+                help="ใช้เฉพาะ @mail.wu.ac.th"
               >
                 <input
                   id="register-email"
@@ -1107,7 +1107,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 id="confirm-password"
                 label="ยืนยันรหัสผ่าน"
                 error={fieldErrors.confirmPassword}
-                help="ต้องตรงกับรหัสผ่าน"
+                help="กรอกรหัสผ่านเดิมอีกครั้ง"
               >
                 <input
                   id="confirm-password"
@@ -1147,8 +1147,8 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 className="mr-2 inline size-4 text-teal-600"
                 aria-hidden="true"
               />
-              บัญชีที่สมัครจะได้รับสิทธิ์ผู้ป่วย
-              และไม่สามารถเปลี่ยนบทบาทเองได้
+              บัญชีนี้จะได้รับบทบาทผู้ป่วย
+              และผู้ใช้จะเปลี่ยนบทบาทเองไม่ได้
             </p>
 
             <button

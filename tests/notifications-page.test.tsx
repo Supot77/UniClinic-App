@@ -50,7 +50,7 @@ describe('NotificationsPage user-facing errors', () => {
 
     render(<NotificationsPage />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+    expect(await screen.findByRole('alert')).toHaveTextContent('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
     expect(screen.getByRole('button', { name: 'โหลดข้อมูลใหม่' })).toBeInTheDocument();
   });
 
@@ -58,9 +58,9 @@ describe('NotificationsPage user-facing errors', () => {
     serviceMocks.markAsRead.mockRejectedValueOnce({ code: '42501', message: 'permission denied' });
 
     render(<NotificationsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'ทำเครื่องหมาย ยืนยันนัดหมายแล้ว ว่าอ่านแล้ว' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'ทำเครื่องหมายว่าอ่านแล้ว: ยืนยันนัดหมายแล้ว' }));
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('คุณไม่มีสิทธิ์ทำรายการนี้'));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('คุณไม่มีสิทธิ์ดำเนินการนี้'));
     expect(screen.queryByRole('button', { name: 'โหลดข้อมูลใหม่' })).not.toBeInTheDocument();
   });
 

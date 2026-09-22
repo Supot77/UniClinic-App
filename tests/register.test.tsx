@@ -133,9 +133,9 @@ describe('registration validation', () => {
     expect(errors).toEqual(
       expect.objectContaining({
         allergies:
-          'กรุณาระบุรายละเอียดการแพ้ยา',
+          'ระบุรายละเอียดการแพ้ยา',
         chronicDiseases:
-          'กรุณาระบุรายละเอียดโรคประจำตัว',
+          'ระบุรายละเอียดโรคประจำตัว',
       }),
     );
   });
@@ -250,19 +250,19 @@ describe('registration validation', () => {
 
     expect(
       screen.getByText(
-        'กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น',
+        'ใช้อีเมล @mail.wu.ac.th เท่านั้น',
       ),
     ).toBeInTheDocument();
 
     expect(
       screen.getByText(
-        'กรุณาระบุความสัมพันธ์',
+        'ระบุความสัมพันธ์กับผู้ป่วย',
       ),
     ).toBeInTheDocument();
 
     expect(
       screen.getAllByText(
-        'กรุณากรอกเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09',
+        'กรอกเบอร์มือถือไทย 10 หลัก โดยขึ้นต้นด้วย 06, 08 หรือ 09',
       ),
     ).toHaveLength(2);
 

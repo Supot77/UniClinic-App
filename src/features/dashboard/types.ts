@@ -186,8 +186,8 @@ export const roleLabels: Record<UserRole, string> = {
 
 export const dashboardRangeLabels: Record<DashboardRange, string> = {
   today: 'วันนี้',
-  '7d': '7 วันที่ผ่านมา',
-  '30d': '30 วันที่ผ่านมา',
+  '7d': 'ย้อนหลัง 7 วัน',
+  '30d': 'ย้อนหลัง 30 วัน',
 };
 
 export const broadcastTypeLabels: Record<NotificationType, string> = {
