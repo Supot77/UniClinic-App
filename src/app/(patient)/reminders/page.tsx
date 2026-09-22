@@ -165,7 +165,7 @@ function mapReminderToDisplay(reminder: MedicationReminderWithMedication, custom
   const dosage = (med as unknown as { dosage?: string })?.dosage ?? `1 ${med?.type ?? 'เม็ด'}`;
   const mealTiming = customTiming || getMealTimingForMed(med?.name, med?.category, med?.description);
   const times = (reminder.reminder_times || []).map((t) => formatTimeToThai(t, mealTiming));
-  const instruction = `รับทาน ครั้งละ ${dosage} · ${mealTiming} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
+  const instruction = `รับประทานครั้งละ ${dosage} · ${mealTiming} · วันละ ${(reminder.reminder_times || []).length} ครั้ง${desc}`;
 
   return {
     id: reminder.id,
@@ -767,7 +767,7 @@ export default function RemindersPage() {
     const formattedTimes = sortedTimes.map((t) => formatTimeToThai(t, editMealTiming));
     const dosage = (chosenMed as unknown as { dosage?: string })?.dosage ?? `1 ${chosenMed?.type ?? 'เม็ด'}`;
     const desc = (chosenMed as unknown as { description?: string })?.description ? ` (${(chosenMed as unknown as { description?: string }).description})` : '';
-    const newInstruction = `รับทาน ครั้งละ ${dosage} · ${editMealTiming} · วันละ ${sortedTimes.length} ครั้ง${desc}`;
+    const newInstruction = `รับประทานครั้งละ ${dosage} · ${editMealTiming} · วันละ ${sortedTimes.length} ครั้ง${desc}`;
 
     updateMealTimingOverride(editingItem.id, editMealTiming);
 
@@ -823,7 +823,7 @@ export default function RemindersPage() {
               รายการยาและการแจ้งเตือน
             </h1>
             <p className="mt-1 text-sm text-brand-muted">
-              ตารางเวลาทานยา ข้อมูลการใช้ยา และการแจ้งเตือนสำหรับผู้ป่วย
+              ตารางเวลาและคำแนะนำการรับประทานยาสำหรับผู้ป่วย
             </p>
           </div>
 
@@ -835,7 +835,7 @@ export default function RemindersPage() {
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50 cursor-pointer"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              สั่งจ่ายยา / เพิ่มยา
+              สั่งจ่ายยา
             </button>
           )}
         </header>
@@ -889,7 +889,7 @@ export default function RemindersPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-brand-ink">{currentPatient.name}</span>
               <span className="text-xs text-brand-muted tabular-nums">
-                (ผู้ป่วย) รหัสนักศึกษา: {currentPatient.studentId}
+                รหัสนักศึกษา: {currentPatient.studentId}
               </span>
               {currentPatient.phone && (
                 <span className="text-xs text-brand-muted">
@@ -922,7 +922,7 @@ export default function RemindersPage() {
             {currentPatient.allergies && (
               <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
                 <AlertTriangle size={15} className="text-rose-600 shrink-0" />
-                <span>{currentPatient.allergies}</span>
+                <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
               </div>
             )}
           </div>
@@ -1220,8 +1220,8 @@ export default function RemindersPage() {
                 </h3>
                 <p className="text-xs sm:text-sm text-brand-muted mt-1 max-w-md mx-auto">
                   {isPatient
-                    ? 'เมื่อแพทย์สั่งจ่ายยา ข้อมูลยาและเวลาทานยาจะแสดงที่นี่'
-                    : 'คลิกปุ่ม "สั่งจ่ายยา / เพิ่มยา" เพื่อสั่งจ่ายยาและตั้งรอบเตือนให้ผู้ป่วยรายนี้'}
+                    ? 'เมื่อแพทย์สั่งจ่ายยา รายการยาและเวลาแจ้งเตือนจะแสดงที่นี่'
+                    : 'กดปุ่ม "สั่งจ่ายยา" เพื่อบันทึกรายการยาและตั้งเวลาเตือน'}
                 </p>
               </div>
               {canManageMedication && (
@@ -1231,7 +1231,7 @@ export default function RemindersPage() {
                     onClick={() => setIsAddModalOpen(true)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover cursor-pointer"
                   >
-                    <Plus size={16} /> สั่งจ่ายยาใหม่
+                    <Plus size={16} /> สั่งจ่ายยา
                   </button>
                 </div>
               )}
@@ -1326,7 +1326,7 @@ export default function RemindersPage() {
                         <span>•</span>
                         <span className={med.endDate ? 'text-brand-body' : 'text-status-success font-medium flex items-center gap-1.5'}>
                           {!med.endDate && <span className="w-1.5 h-1.5 rounded-full bg-status-success inline-block"></span>}
-                          {med.endDate ? `สิ้นสุด: ${med.endDate}` : 'ทานต่อเนื่องจนกว่าจะมีการเปลี่ยนแปลง'}
+                          {med.endDate ? `สิ้นสุด: ${med.endDate}` : 'รับประทานต่อเนื่องตามแพทย์สั่ง'}
                         </span>
                       </div>
                     </div>
@@ -1398,7 +1398,7 @@ export default function RemindersPage() {
             {currentPatient.allergies && (
               <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex items-center gap-2 font-medium">
                 <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>คำเตือน: ผู้ป่วยมีประวัติ {currentPatient.allergies}</span>
+                <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
               </div>
             )}
 
@@ -1408,7 +1408,7 @@ export default function RemindersPage() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-semibold text-brand-ink">
-                    เลือกตัวยาที่แพทย์สั่งจ่าย (จากประวัติการตรวจ) *
+                    เลือกรายการยาที่แพทย์สั่งจ่าย *
                   </label>
                   {prescribedMedsForPatient.length > 0 && (
                     <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
@@ -1440,7 +1440,7 @@ export default function RemindersPage() {
                     <div>
                       <p className="font-semibold">ไม่พบรายการยาที่แพทย์สั่งจ่าย</p>
                       <p className="mt-0.5 text-amber-700">
-                        ผู้ป่วยรายนี้ยังไม่มีรายการยาที่แพทย์สั่งในตารางประวัติการตรวจ (medical_records) ระบบจะอนุญาตให้จ่ายยาและตั้งเตือนเฉพาะยาที่แพทย์สั่งเท่านั้น
+                        ยังไม่มีประวัติการสั่งยาจากแพทย์สำหรับผู้ป่วยรายนี้ ระบบจะแสดงและตั้งเตือนได้เฉพาะยาที่แพทย์สั่งจ่ายเท่านั้น
                       </p>
                     </div>
                   </div>
@@ -1454,7 +1454,7 @@ export default function RemindersPage() {
               {/* ช่องเลือกการใช้ยากับอาหาร (ก่อนอาหาร, หลังอาหาร, พร้อมอาหาร, ก่อนนอน) */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-1.5">
-                  การใช้ยากับอาหาร *
+                  วิธีรับประทานกับมื้ออาหาร *
                 </label>
                 <select
                   required
@@ -1473,7 +1473,7 @@ export default function RemindersPage() {
               {/* ช่องเลือกรอบเวลาที่ต้องทานยา (เช้า, กลางวัน, เย็น, ก่อนนอน) */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-2">
-                  รอบเวลาที่ต้องทาน *
+                  รอบเวลาทานยา *
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -1531,7 +1531,7 @@ export default function RemindersPage() {
                     className={inputClass}
                   />
                   <p className="text-[11px] text-brand-muted mt-1">
-                    {endDate ? `สิ้นสุดวันที่ ${endDate}` : 'ปล่อยว่างเพื่อให้ทานต่อเนื่อง'}
+                    {endDate ? `สิ้นสุดวันที่ ${endDate}` : 'เว้นว่างไว้หากรับประทานต่อเนื่อง'}
                   </p>
                 </div>
               </div>
@@ -1588,7 +1588,7 @@ export default function RemindersPage() {
             {currentPatient.allergies && (
               <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex items-center gap-2 font-medium">
                 <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>คำเตือน: ผู้ป่วยมีประวัติ {currentPatient.allergies}</span>
+                <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
               </div>
             )}
 
@@ -1622,7 +1622,7 @@ export default function RemindersPage() {
               {/* แก้ไขการใช้ยากับอาหาร */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-1.5">
-                  การใช้ยากับอาหาร *
+                  วิธีรับประทานกับมื้ออาหาร *
                 </label>
                 <select
                   required
@@ -1641,7 +1641,7 @@ export default function RemindersPage() {
               {/* แก้ไขรอบเวลาที่ต้องทานยา */}
               <div>
                 <label className="block text-xs font-semibold text-brand-ink mb-2">
-                  รอบเวลาที่ต้องทาน *
+                  รอบเวลาทานยา *
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -1699,7 +1699,7 @@ export default function RemindersPage() {
                     className={inputClass}
                   />
                   <p className="text-[11px] text-brand-muted mt-1">
-                    {editEndDate ? `สิ้นสุดวันที่ ${editEndDate}` : 'ปล่อยว่างเพื่อให้ทานต่อเนื่อง'}
+                    {editEndDate ? `สิ้นสุดวันที่ ${editEndDate}` : 'เว้นว่างไว้หากรับประทานต่อเนื่อง'}
                   </p>
                 </div>
               </div>
@@ -1739,7 +1739,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-brand-ink">ยืนยันการลบรายการเตือนยา</h3>
-                <p className="text-xs text-brand-muted">การดำเนินการนี้ไม่สามารถเรียกคืนได้</p>
+                <p className="text-xs text-brand-muted">เมื่อลบแล้วจะไม่สามารถกู้คืนข้อมูลได้</p>
               </div>
             </div>
 
