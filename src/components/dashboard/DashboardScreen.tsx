@@ -22,7 +22,7 @@ import type { AppointmentStatus } from '@/types/database';
 import SegmentedControl from '@/components/common/SegmentedControl';
 
 const appointmentStatusLabels: Record<AppointmentStatus, string> = {
-  pending: 'รอยืนยัน', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'เสร็จสิ้น',
+  pending: 'รอการยืนยัน', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'ตรวจเสร็จแล้ว',
   cancelled: 'ยกเลิก', no_show: 'ไม่มาตามนัด', rejected: 'ปฏิเสธ',
 };
 
@@ -316,11 +316,11 @@ function DashboardActionLink({
 }
 
 function MetricIcon({ id }: { id: string }) {
-  if (id.includes('appointment')) return <CalendarDays className="size-5" aria-hidden="true" />;
-  if (id.includes('medication')) return <Pill className="size-5" aria-hidden="true" />;
-  if (id.includes('reminder')) return <Clock3 className="size-5" aria-hidden="true" />;
-  if (id.includes('notification')) return <Bell className="size-5" aria-hidden="true" />;
-  return <ClipboardCheck className="size-5" aria-hidden="true" />;
+  if (id.includes('appointment')) return <CalendarDays className="size-5 shrink-0" aria-hidden="true" />;
+  if (id.includes('medication')) return <Pill className="size-5 shrink-0" aria-hidden="true" />;
+  if (id.includes('reminder')) return <Clock3 className="size-5 shrink-0" aria-hidden="true" />;
+  if (id.includes('notification')) return <Bell className="size-5 shrink-0" aria-hidden="true" />;
+  return <ClipboardCheck className="size-5 shrink-0" aria-hidden="true" />;
 }
 
 function MedicalMetricItem({ item, selected, onSelect }: {
@@ -328,16 +328,16 @@ function MedicalMetricItem({ item, selected, onSelect }: {
   selected: boolean;
   onSelect?: () => void;
 }) {
-  const className = `relative flex h-28 min-h-0 w-full flex-col justify-center rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:h-32 ${selected ? 'border-brand-strong bg-brand-soft text-brand-strong shadow-sm' : 'border-transparent text-brand-ink hover:border-brand-border-soft hover:bg-brand-page'}`;
+  const className = `relative flex h-36 min-h-36 w-full flex-col justify-center rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:h-32 ${selected ? 'border-brand-strong bg-brand-soft text-brand-strong shadow-sm' : 'border-transparent text-brand-ink hover:border-brand-border-soft hover:bg-brand-page'}`;
   const content = <>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="line-clamp-2 text-sm font-medium leading-5">{item.label}</p>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-brand-muted">{item.description}</p>
+        <p className="break-words line-clamp-2 text-sm font-medium leading-5">{item.label}</p>
+        <p className="mt-1 break-words line-clamp-2 text-xs leading-4 text-brand-muted">{item.description}</p>
       </div>
       <MetricIcon id={item.id} />
     </div>
-    <p className="mt-3 text-3xl font-bold leading-none tabular-nums">{item.value}</p>
+    <p className="mt-2 text-3xl font-bold leading-none tabular-nums sm:mt-3">{item.value}</p>
     {onSelect && <ChevronDown className={`absolute bottom-2 right-3 size-4 ${selected ? 'text-brand-strong' : 'text-brand-muted'}`} aria-hidden="true" />}
   </>;
 
@@ -365,13 +365,13 @@ function PatientNextAppointmentSummary({
   const activeIndex = Math.min(selectedIndex, Math.max(0, appointmentList.length - 1));
   const appointment = appointmentList[activeIndex] ?? null;
   const hasMultipleAppointments = appointmentList.length > 1;
-  const showNavigation = appointment !== null;
+  const showNavigation = hasMultipleAppointments;
 
   useEffect(() => {
     setSelectedIndex(0);
   }, [appointments, fallbackAppointment]);
 
-  return <div className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-white/75 p-3.5 sm:p-5 shadow-xs transition-all" role="region" aria-label="นัดหมายถัดไป">
+  return <div className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all" role="region" aria-label="นัดหมายถัดไป">
     {!appointment ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-[11px] sm:text-xs font-semibold text-brand-muted">คิวถัดไป</p>
@@ -428,7 +428,7 @@ function MedicalMetricDropdown({
         : rangeHeading('ตรวจเสร็จ', range);
   const appointmentGroups = filter === 'appointments'
     ? [
-      { status: 'pending' as const, label: 'รอยืนยัน', appointments: filteredAppointments.filter((appointment) => appointment.status === 'pending') },
+      { status: 'pending' as const, label: 'รอการยืนยัน', appointments: filteredAppointments.filter((appointment) => appointment.status === 'pending') },
       { status: 'confirmed' as const, label: 'ยืนยันแล้ว', appointments: filteredAppointments.filter((appointment) => appointment.status === 'confirmed') },
       ...(() => {
         const otherAppointments = filteredAppointments.filter((appointment) => appointment.status !== 'pending' && appointment.status !== 'confirmed');
@@ -444,12 +444,11 @@ function MedicalMetricDropdown({
   return <div className="border-x border-b border-brand-border-soft bg-brand-page/45 px-4 py-4 sm:px-5" role="region" aria-label={`รายชื่อผู้ป่วย${heading}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
-        <p className="text-xl font-semibold text-brand-ink">{heading}</p>
-        <p className="mt-1 text-base text-brand-muted">{filteredAppointments.length} รายการที่แสดง</p>
+        <p className="text-sm text-brand-muted">พบ {filteredAppointments.length} รายการ</p>
       </div>
       <DashboardActionLink href="/appointments">ดูนัดหมายทั้งหมด</DashboardActionLink>
     </div>
-    {filteredAppointments.length === 0 ? <p className="py-5 text-center text-sm text-brand-muted">ไม่มีรายชื่อผู้ป่วยในตัวกรองนี้</p> : filter === 'appointments' ? <div className="mt-3 space-y-4">
+    {filteredAppointments.length === 0 ? <p className="py-5 text-center text-sm text-brand-muted">ไม่พบผู้ป่วยในสถานะนี้</p> : filter === 'appointments' ? <div className="mt-3 space-y-4">
       {appointmentGroups.map((group) => {
         const pageCount = Math.max(1, Math.ceil(group.appointments.length / appointmentPageSize));
         const currentPage = Math.min(pagesByGroup[group.status] ?? 0, pageCount - 1);
@@ -473,7 +472,7 @@ function MedicalMetricDropdown({
             </button>
           </div>
         </div>
-        {group.appointments.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border-soft px-3 py-3 text-xs text-brand-muted">ไม่มีรายการ</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {group.appointments.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border-soft px-3 py-3 text-xs text-brand-muted">ไม่พบรายการ</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {visibleAppointments.map(renderAppointmentCard)}
         </div>}
       </div>;
@@ -509,7 +508,7 @@ function UpcomingAppointmentToast({ appointments, isPreview = false }: { appoint
       <div className="flex items-center gap-2 rounded-xl border border-brand-strong/25 bg-brand-soft/60 px-2.5 py-2 shadow-sm sm:px-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white text-brand-strong"><Clock3 className="size-4" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold leading-4 text-brand-strong">{isPreview && <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] tracking-wide">PREVIEW</span>}นัดหมายถัดไป · อีก {minutesUntil} นาที</p>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold leading-4 text-brand-strong">{isPreview && <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] tracking-wide">PREVIEW</span>}นัดหมายในอีก {minutesUntil} นาที</p>
           <Link href={`/records?appointment=${encodeURIComponent(appointment.id)}`} className="mt-0.5 block truncate text-sm font-bold text-brand-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">{appointment.patientName}</Link>
           <p className="mt-0.5 truncate text-xs text-brand-body">{appointment.startTime} น. · คิว #{appointment.queueNumber ?? '—'} · {appointment.departmentName}</p>
         </div>
@@ -549,10 +548,10 @@ function MedicationProgressList({
         </div>
         <div className="flex flex-wrap gap-1.5">{medication.lowStock && <span className="rounded-full bg-status-warning-bg px-2 py-0.5 text-[11px] font-medium text-status-warning">ใกล้หมด</span>}{medication.expired && <span className="rounded-full bg-status-critical-bg px-2 py-0.5 text-[11px] font-medium text-status-critical">หมดอายุ</span>}</div>
       </div>
-      {!medication.expired && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-page" role="progressbar" aria-label={`สต๊อกยา ${medication.name}`} aria-valuemin={0} aria-valuemax={threshold} aria-valuenow={Math.min(medication.stock, threshold)}>
+      {!medication.expired && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-page" role="progressbar" aria-label={`จำนวนคงเหลือของยา ${medication.name}`} aria-valuemin={0} aria-valuemax={threshold} aria-valuenow={Math.min(medication.stock, threshold)}>
         <div className={`h-full rounded-full transition-[width] ${barClass}`} style={{ width: `${progress}%` }} />
       </div>}
-      <div className="mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-[11px] leading-4 text-brand-muted"><span>คงเหลือ {medication.stock} จากจุดสั่งซื้อ {medication.minimumStock}</span>{medication.expiryDate && <span>หมดอายุ {medication.expiryDate}</span>}</div>
+      <div className="mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-[11px] leading-4 text-brand-muted"><span>คงเหลือ {medication.stock} · จุดสั่งซื้อ {medication.minimumStock}</span>{medication.expiryDate && <span>หมดอายุ {medication.expiryDate}</span>}</div>
     </div>;
   })}</div>;
 }
@@ -616,8 +615,8 @@ function PatientExamStatsSection({ view }: { view: DashboardView }) {
   const activeCount = inProgressCount + confirmedCount + pendingCount;
   const [selectedStat, setSelectedStat] = useState<'all' | 'active' | 'completed' | null>(null);
   const selectedDetails = selectedStat === null ? null : {
-    title: selectedStat === 'all' ? 'สรุปนัดหมายทั้งหมด' : selectedStat === 'active' ? 'สรุปนัดที่รอรับบริการ/ตรวจ' : 'สรุปการตรวจเสร็จสิ้น',
-    description: selectedStat === 'all' ? 'จำนวนแยกตามสถานะในช่วงที่เลือก' : selectedStat === 'active' ? 'นัดหมายที่ยังอยู่ระหว่างรอรับบริการหรือกำลังตรวจ' : 'นัดหมายที่ตรวจเสร็จแล้วในช่วงที่เลือก',
+    title: selectedStat === 'all' ? 'สรุปนัดหมายทั้งหมด' : selectedStat === 'active' ? 'สรุปนัดที่กำลังรอหรือกำลังตรวจ' : 'สรุปนัดที่ตรวจเสร็จแล้ว',
+    description: selectedStat === 'all' ? 'ดูจำนวนนัดหมายตามสถานะในช่วงที่เลือก' : selectedStat === 'active' ? 'นัดหมายที่กำลังรอรับบริการหรือกำลังตรวจ' : 'นัดหมายที่ตรวจเสร็จแล้วในช่วงที่เลือก',
   };
 
   const toggleStat = (stat: 'all' | 'active' | 'completed') => {
@@ -625,11 +624,11 @@ function PatientExamStatsSection({ view }: { view: DashboardView }) {
   };
 
   return (
-    <section aria-label="สถิติสถานะการตรวจ" className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-white/75 p-3.5 sm:p-5 shadow-xs transition-all">
+    <section aria-label="สรุปนัดหมายและการตรวจ" className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-1.5 border-b border-brand-border-soft pb-3">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-brand-ink">สถิติสถานะการตรวจ</h2>
-          <p className="text-xs text-brand-muted">สรุปสถานะนัดหมายและการตรวจรักษาในช่วงที่เลือก</p>
+          <h2 className="text-base sm:text-lg font-bold text-brand-ink">สรุปนัดหมายและการตรวจ</h2>
+          <p className="text-xs text-brand-muted">ดูจำนวนนัดหมายตามสถานะในช่วงที่เลือก</p>
         </div>
         <DashboardActionLink href="/appointments">ดูนัดหมายทั้งหมด</DashboardActionLink>
       </div>
@@ -643,15 +642,15 @@ function PatientExamStatsSection({ view }: { view: DashboardView }) {
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'all' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
           <button type="button" aria-expanded={selectedStat === 'active'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('active')} className={`relative w-full rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:p-3 ${selectedStat === 'active' ? 'border-sky-500 bg-sky-100/70 ring-2 ring-sky-100' : 'border-sky-100 bg-sky-50/50 hover:border-sky-300 hover:bg-sky-100/60'}`}>
-            <span className="text-[11px] sm:text-xs font-medium text-sky-800">รอรับบริการ/ตรวจ</span>
+            <span className="text-[11px] sm:text-xs font-medium text-sky-800">กำลังรอหรือกำลังตรวจ</span>
             <p className="mt-1 text-lg sm:text-2xl font-bold tabular-nums text-sky-600">{activeCount}</p>
-            <span className="text-[10px] sm:text-[11px] text-sky-700/80">นัดที่กำลังจะถึง</span>
+            <span className="text-[10px] sm:text-[11px] text-sky-700/80">นัดที่ยังไม่เสร็จ</span>
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-sky-700/70 transition-transform sm:right-3 sm:top-3 ${selectedStat === 'active' ? 'rotate-180 text-sky-700' : ''}`} aria-hidden="true" />
           </button>
           <button type="button" aria-expanded={selectedStat === 'completed'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('completed')} className={`relative col-span-2 w-full rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:col-span-1 sm:p-3 ${selectedStat === 'completed' ? 'border-emerald-500 bg-emerald-100/70 ring-2 ring-emerald-100' : 'border-emerald-100 bg-emerald-50/50 hover:border-emerald-300 hover:bg-emerald-100/60'}`}>
-            <span className="text-[11px] sm:text-xs font-medium text-emerald-800">ตรวจเสร็จสิ้น</span>
+            <span className="text-[11px] sm:text-xs font-medium text-emerald-800">ตรวจเสร็จแล้ว</span>
             <p className="mt-1 text-lg sm:text-2xl font-bold tabular-nums text-emerald-600">{completedCount}</p>
-            <span className="text-[10px] sm:text-[11px] text-emerald-700/80">ตรวจเรียบร้อย</span>
+            <span className="text-[10px] sm:text-[11px] text-emerald-700/80">นัดที่ตรวจเสร็จแล้ว</span>
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-emerald-700/70 transition-transform sm:right-3 sm:top-3 ${selectedStat === 'completed' ? 'rotate-180 text-emerald-700' : ''}`} aria-hidden="true" />
           </button>
         </div>
@@ -687,11 +686,11 @@ function PatientTreatmentHistorySection({
 
   const historyControls = <DashboardActionLink href="/records">ดูประวัติทั้งหมด</DashboardActionLink>;
 
-  const historyDescription = `ผลตรวจที่เปิดดูได้จากบัญชีของคุณ${range === 'today' ? ' วันนี้' : ` ในช่วง ${dashboardRangeLabels[range]}`}`;
+  const historyDescription = `ผลตรวจของคุณ${range === 'today' ? ' วันนี้' : ` ในช่วง ${dashboardRangeLabels[range]}`}`;
   const historyTitle = <span>ประวัติการรักษา</span>;
 
   return <Section title={historyTitle} description={historyDescription} headerClassName="flex-col lg:flex-row lg:items-center" action={historyControls}>
-    {rangeFilteredHistory.length === 0 ? <div className="border-y border-brand-border-soft"><EmptyState message={history.length > 0 ? 'ไม่มีประวัติการรักษาในช่วงที่เลือก' : 'ยังไม่มีประวัติการรักษาที่เปิดดูได้'} /></div> : <div className="mt-4 space-y-4">
+    {rangeFilteredHistory.length === 0 ? <div className="border-y border-brand-border-soft"><EmptyState message={history.length > 0 ? 'ไม่พบประวัติการรักษาในช่วงนี้' : 'ยังไม่มีประวัติการรักษา'} /></div> : <div className="mt-4 space-y-4">
       <p className="text-xs text-brand-muted" aria-live="polite">แสดง {filteredHistory.length} จาก {rangeFilteredHistory.length} รายการ</p>
       <div className="overflow-hidden border-y border-brand-border-soft">
         <table className="w-full table-fixed text-left text-xs sm:text-sm">
@@ -710,7 +709,7 @@ function PatientTreatmentHistorySection({
               <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{record.departmentName}</td>
               <td className="break-words px-2 py-3 font-medium text-brand-ink sm:px-4 sm:py-4">{record.doctorName}</td>
               <td className="break-words px-2 py-3 text-brand-ink sm:px-4 sm:py-4"><p className="font-medium">{record.summary}</p></td>
-              <td className="break-words px-2 py-3 text-right text-[10px] text-brand-muted sm:px-4 sm:py-4 sm:text-xs">{record.medicationCount > 0 ? `${record.medicationCount} รายการ` : 'ไม่มีการสั่งยา'}</td>
+              <td className="break-words px-2 py-3 text-right text-[10px] text-brand-muted sm:px-4 sm:py-4 sm:text-xs">{record.medicationCount > 0 ? `${record.medicationCount} รายการ` : 'ไม่ได้สั่งยา'}</td>
             </tr>)}
           </tbody>
         </table>
@@ -728,14 +727,14 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
       <PatientExamStatsSection view={view} />
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-white/75 p-3.5 sm:p-5 shadow-xs">
+        <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs">
           <Section
-            title="ยาที่กำลังใช้"
-            description="รายการยาที่แพทย์สั่งให้คุณใช้ในปัจจุบัน"
+            title="ยาที่ใช้ตอนนี้"
+            description="ยาที่แพทย์สั่งให้คุณใช้ตอนนี้"
             action={<DashboardActionLink href="/reminders">ดูทั้งหมด</DashboardActionLink>}
           >
             {medications.length === 0 ? (
-              <EmptyState message="ยังไม่มีรายการยาที่กำลังใช้" />
+              <EmptyState message="ยังไม่มียาที่กำลังใช้อยู่" />
             ) : (
               <div className="mt-4 space-y-3">
                 {medications.map((medication) => {
@@ -744,7 +743,7 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
                   const remainingDoses = Math.max(0, totalDoses - takenDoses);
                   const progress = totalDoses > 0 ? Math.min(100, Math.round((takenDoses / totalDoses) * 100)) : 0;
                   return (
-                    <article key={medication.id} className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-white/75 p-3.5 sm:p-5 shadow-xs transition-all">
+                      <article key={medication.id} className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3.5">
                         <div className="flex items-start gap-3 min-w-0 flex-1">
                           <span className="flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -757,7 +756,7 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
                               {medication.endDate && <span className="text-[11px] text-brand-muted">ถึง {formatThaiDate(medication.endDate)}</span>}
                             </div>
                             <p className="mt-1 text-xs sm:text-sm leading-5 text-brand-body">
-                              <span className="font-medium text-brand-ink">ขนาด:</span> {medication.dosage}
+                              <span className="font-medium text-brand-ink">ขนาดยา:</span> {medication.dosage}
                               <span className="mx-2 text-brand-border">·</span>
                               <span className="font-medium text-brand-ink">วิธีใช้:</span> {medication.instruction}
                             </p>
@@ -783,10 +782,10 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
                           <div className="flex items-center justify-between gap-2 pt-1">
                             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-strong">
                               <Clock3 className="size-3.5" aria-hidden="true" />
-                              ครั้งถัดไป {medication.nextDoseTime ? `${medication.nextDoseTime} น.` : 'ยังไม่ตั้งเวลา'}
+                              ครั้งถัดไป: {medication.nextDoseTime ? `${medication.nextDoseTime} น.` : 'ยังไม่ตั้งเวลา'}
                             </span>
                             <span className="rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                              รอทาน
+                              รอกินยา
                             </span>
                           </div>
                         </div>
@@ -802,7 +801,7 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
 
         </div>
 
-        <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-white/75 p-3.5 sm:p-5 shadow-xs">
+        <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs">
           <PatientTreatmentHistorySection
             history={history}
             range={view.range}
@@ -831,12 +830,12 @@ function MedicationAlertSection({ view, filter, onFilterChange }: {
       ? view.medicationAlerts.filter((medication) => medication.expired)
       : view.medicationAlerts;
   const emptyMessage = filter === 'low-stock'
-    ? 'ไม่มียาที่ใกล้หมด'
+    ? 'ไม่พบยาที่ใกล้หมด'
     : filter === 'expired'
-      ? 'ไม่มียาที่หมดอายุ'
-      : 'ไม่มีรายการยาที่ต้องตรวจสอบ';
+      ? 'ไม่พบยาที่หมดอายุ'
+      : 'ไม่พบรายการยาที่ต้องตรวจสอบ';
 
-  return <Section className="border-y border-brand-border-soft" title="รายการยาที่ต้องตรวจสอบ" description="ยาหมดอายุถูกแยกออกจากยาใกล้หมดตามกฎระบบ" action={<DashboardActionLink href="/pharmacy">ดูคลังยา</DashboardActionLink>}>
+  return <Section className="border-y border-brand-border-soft" title="รายการยาที่ต้องตรวจสอบ" description="แยกยาหมดอายุออกจากยาใกล้หมด" action={<DashboardActionLink href="/pharmacy">ดูคลังยา</DashboardActionLink>}>
     <div className="overflow-x-auto pb-1">
       <div role="group" aria-label="กรองสถานะยา" className="flex w-fit min-w-0 items-end gap-1 border-b border-brand-border-soft">
         {medicationFilterOptions.map((option) => {
@@ -870,12 +869,12 @@ function MedicalPharmacySections({ view, filter, includePrescriptions = true, on
     else setLocalMedicationFilter(nextFilter);
   };
 
-  return <div className={`${dashboardContentWidthClass} space-y-8 sm:space-y-10`}>
-    {showPrescriptions && <Section title="ใบสั่งยารอจ่าย" description="รายการที่ยังมีรายการยาไม่ได้จ่ายครบ" action={<DashboardActionLink href="/pharmacy">ดูทั้งหมด</DashboardActionLink>}>
-      {pendingPrescriptions.length === 0 ? <EmptyState message="ไม่มีใบสั่งยาที่รอจ่าย" /> : <div className="divide-y divide-brand-border-soft">
+  return <div className="w-full space-y-8 sm:space-y-10">
+    {showPrescriptions && <Section title="ใบสั่งยาที่รอจ่าย" description="ใบสั่งยาที่ยังจ่ายยาไม่ครบ" action={<DashboardActionLink href="/pharmacy">ดูทั้งหมด</DashboardActionLink>}>
+      {pendingPrescriptions.length === 0 ? <EmptyState message="ไม่พบใบสั่งยาที่รอจ่าย" /> : <div className="divide-y divide-brand-border-soft">
         {pendingPrescriptions.map((prescription) => <div key={prescription.id} className="flex flex-col gap-3 px-1 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0"><p className="font-semibold text-brand-ink">{prescription.patientName}</p><p className="mt-1 text-sm text-brand-body">{prescription.diagnosis}</p><p className="mt-1 text-xs text-brand-muted">{prescription.doctorName} · {prescription.departmentName} · {formatThaiDateTime(prescription.date)} น.</p></div>
-          <span className="shrink-0 self-start rounded-full bg-status-warning-bg px-2.5 py-1 text-xs font-semibold text-status-warning">เหลือจ่าย {Math.max(0, prescription.medicationCount - prescription.dispensedCount)}/{prescription.medicationCount} รายการ</span>
+          <span className="shrink-0 self-start rounded-full bg-status-warning-bg px-2.5 py-1 text-xs font-semibold text-status-warning">เหลือจ่าย {Math.max(0, prescription.medicationCount - prescription.dispensedCount)} จาก {prescription.medicationCount} รายการ</span>
         </div>)}
       </div>}
     </Section>}
@@ -929,7 +928,7 @@ function ClinicOverviewSections({ view }: { view: DashboardView }) {
   ];
 
   return <div className="space-y-10">
-    <Section title="ภาพรวมแยกตามแผนก" description={`จำนวนผู้ป่วย แพทย์ที่ปฏิบัติงาน และความหนาแน่นในช่วง ${dashboardRangeLabels[view.range]}`} action={<DashboardActionLink href="/departments">จัดการแผนก</DashboardActionLink>}>
+    <Section title="สรุปตามแผนก" description={`ผู้ป่วย แพทย์ที่ปฏิบัติงาน และความหนาแน่นในช่วง ${dashboardRangeLabels[view.range]}`} action={<DashboardActionLink href="/departments">จัดการแผนก</DashboardActionLink>}>
       {view.departmentLoads.length === 0 ? <EmptyState message="ยังไม่มีข้อมูลแผนกในช่วงนี้" /> : <>
         <div className="mt-3 overflow-hidden rounded-lg border border-brand-border-soft bg-brand-page/35">
           <div className="grid sm:grid-cols-2">
@@ -950,7 +949,7 @@ function ClinicOverviewSections({ view }: { view: DashboardView }) {
     </Section>
 
     <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-      <Section title="สถานะแพทย์ในคลินิก" description="เลือกสถานะเพื่อดูรายชื่อแพทย์ตามสถานะ" action={<DashboardActionLink href="/schedules">ดูตารางแพทย์</DashboardActionLink>}>
+      <Section title="สถานะแพทย์" description="เลือกสถานะเพื่อดูรายชื่อแพทย์" action={<DashboardActionLink href="/schedules">ดูตารางแพทย์</DashboardActionLink>}>
         <div className="overflow-x-auto pb-1">
           <div role="group" aria-label="กรองสถานะแพทย์" className="mx-auto flex w-full min-w-max items-end gap-0 border-b border-brand-border-soft">
           {statusOptions.map((option) => {
@@ -966,7 +965,7 @@ function ClinicOverviewSections({ view }: { view: DashboardView }) {
         <div className="mt-3 border-y border-brand-border-soft">
           {(() => {
             const doctorList = departmentDoctors.filter((doctor) => doctor.status === doctorStatusFilter);
-            return doctorList.length === 0 ? <p className="px-1 py-4 text-xs text-brand-muted">ยังไม่มีรายชื่อแพทย์ในสถานะนี้</p> : <div className="divide-y divide-brand-border-soft">{doctorList.map((doctor) => <div key={doctor.doctorId} className="flex flex-col gap-2 px-1 py-4 sm:px-2"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-brand-ink">{doctor.doctorName}</p><p className="mt-1 text-xs text-brand-body">{doctor.departmentName}</p>{doctor.status === 'away' && <p className="mt-1 text-[11px] text-brand-muted">ลา / นอกเวลาทำการ</p>}{doctor.status === 'available' && doctor.nextAppointmentTime && <p className="mt-1 text-[11px] text-brand-muted">นัดถัดไป {doctor.nextAppointmentTime} น.</p>}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${doctorStatusClasses[doctor.status]}`}>{doctorStatusLabels[doctor.status]}</span></div><Link href="/schedules" className="inline-flex min-h-9 w-fit items-center gap-2 rounded-lg border border-brand-strong bg-white px-3 text-xs font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">ดูตาราง <ArrowRight className="size-3.5" aria-hidden="true" /></Link></div>)}</div>;
+            return doctorList.length === 0 ? <p className="px-1 py-4 text-xs text-brand-muted">ไม่พบแพทย์ในสถานะนี้</p> : <div className="divide-y divide-brand-border-soft">{doctorList.map((doctor) => <div key={doctor.doctorId} className="flex flex-col gap-2 px-1 py-4 sm:px-2"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-brand-ink">{doctor.doctorName}</p><p className="mt-1 text-xs text-brand-body">{doctor.departmentName}</p>{doctor.status === 'away' && <p className="mt-1 text-[11px] text-brand-muted">ลาหรือนอกเวลาทำการ</p>}{doctor.status === 'available' && doctor.nextAppointmentTime && <p className="mt-1 text-[11px] text-brand-muted">นัดถัดไป: {doctor.nextAppointmentTime} น.</p>}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${doctorStatusClasses[doctor.status]}`}>{doctorStatusLabels[doctor.status]}</span></div><Link href="/schedules" className="inline-flex min-h-9 w-fit items-center gap-2 rounded-lg border border-brand-strong bg-white px-3 text-xs font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">ดูตาราง <ArrowRight className="size-3.5" aria-hidden="true" /></Link></div>)}</div>;
           })()}
         </div>
       </Section>
@@ -1017,7 +1016,7 @@ export default function DashboardScreen({
         })
         .catch((loadError) => {
           if (!cancelled) {
-            setError(loadError instanceof Error ? loadError.message : 'โหลดข้อมูล Dashboard ไม่สำเร็จ');
+            setError(loadError instanceof Error ? loadError.message : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ');
             if (role === 'staff_admin') setDatabaseStatus('disconnected');
           }
         })
@@ -1039,7 +1038,7 @@ export default function DashboardScreen({
   }
 
   if (!view) {
-    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none flex min-h-[55vh] flex-col items-center justify-center border-y border-rose-200 py-12 text-center`} role="alert">{role === 'staff_admin' && <div className="absolute right-3 top-3 sm:right-6"><DatabaseStatusChip status={databaseStatus} /></div>}<PackageX className="size-10 text-rose-500" /><h1 className="mt-4 text-xl font-bold text-brand-ink">โหลดข้อมูล Dashboard ไม่สำเร็จ</h1><p className="mt-2 text-sm text-status-critical">{error ?? 'ไม่พบข้อมูลสำหรับบทบาทนี้'}</p><button type="button" onClick={() => { setLoading(true); setRefreshToken((value) => value + 1); }} className={`${dashboardButton} mt-5 border-rose-700 bg-rose-700 text-white hover:bg-rose-800`}><RefreshCw className="size-4" /> ลองอีกครั้ง</button></div>;
+    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none flex min-h-[55vh] flex-col items-center justify-center border-y border-rose-200 py-12 text-center`} role="alert">{role === 'staff_admin' && <div className="absolute right-3 top-3 sm:right-6"><DatabaseStatusChip status={databaseStatus} /></div>}<PackageX className="size-10 text-rose-500" /><h1 className="mt-4 text-xl font-bold text-brand-ink">โหลดข้อมูลแดชบอร์ดไม่สำเร็จ</h1><p className="mt-2 text-sm text-status-critical">{error ?? 'ไม่พบข้อมูลสำหรับบทบาทนี้'}</p><button type="button" onClick={() => { setLoading(true); setRefreshToken((value) => value + 1); }} className={`${dashboardButton} mt-5 border-rose-700 bg-rose-700 text-white hover:bg-rose-800`}><RefreshCw className="size-4" /> ลองอีกครั้ง</button></div>;
   }
 
   const isMedicalDoctorDashboard = role === 'medical' && view.metrics.some((item) => item.id === 'own-appointments');
@@ -1075,7 +1074,7 @@ export default function DashboardScreen({
         <div className="flex items-start gap-3 pr-12 sm:min-w-0 sm:flex-1 sm:pr-0">
           <span aria-hidden="true" className="mt-1 h-8 sm:h-10 w-1 shrink-0 rounded-full bg-brand-strong" />
           <div>
-          <h1 className="text-2xl font-bold leading-tight tracking-tight text-brand-ink sm:text-3xl">{role === 'staff_admin' ? <><span className="block sm:inline">ภาพรวมงานคลินิก</span><span className="block sm:ml-2 sm:inline">ของผู้ดูแลระบบ</span></> : view.title}</h1>
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-brand-ink sm:text-3xl">{view.title}</h1>
           <p className="mt-1 sm:mt-2 max-w-2xl text-xs sm:text-sm leading-5 sm:leading-6 text-brand-body">{view.description}</p>
           </div>
         </div>
@@ -1091,10 +1090,10 @@ export default function DashboardScreen({
         <section className="border-b border-brand-border-soft pb-2 sm:pb-3" aria-label="ตัวกรองแดชบอร์ด">
           <div className="flex flex-col gap-2.5 py-1 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex shrink-0 items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-ink"><Filter className="size-3.5 sm:size-4 text-brand-strong" aria-hidden="true" />ช่วงข้อมูล</div>
+              <div className="flex shrink-0 items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-ink"><Filter className="size-3.5 sm:size-4 text-brand-strong" aria-hidden="true" />ช่วงเวลา</div>
               <div className="min-w-0 max-w-full overflow-x-auto scrollbar-none">
                 <SegmentedControl
-                  ariaLabel="เลือกช่วงข้อมูลย้อนหลัง"
+                  ariaLabel="เลือกช่วงเวลาย้อนหลัง"
                   value={range}
                   options={(Object.entries(dashboardRangeLabels) as Array<[DashboardRange, string]>).map(([value, label]) => ({ value, label }))}
                   onChange={(value) => { if (value !== range) { setError(null); setLoading(true); setRange(value); } }}
@@ -1109,7 +1108,7 @@ export default function DashboardScreen({
                   className="w-max max-w-none"
                   ariaLabel="เลือกข้อมูลภาพรวม"
                   value={chartMode}
-                  options={[{ value: 'status' as const, label: 'แผนภาพสถานะ' }, { value: 'gender' as const, label: 'แผนภาพเพศ' }]}
+                  options={[{ value: 'status' as const, label: 'สรุปตามสถานะ' }, { value: 'gender' as const, label: 'สรุปตามเพศ' }]}
                   onChange={setChartMode}
                 />
               </div>
@@ -1118,12 +1117,12 @@ export default function DashboardScreen({
         </section>
 
         <div className="space-y-6 sm:space-y-8" aria-busy={loading}>
-        {loading && <div role="status" aria-label="กำลังอัปเดตข้อมูลแดชบอร์ด" className="flex items-center gap-2 border-y border-brand-border-soft bg-brand-page/40 px-3 py-2 text-xs font-medium text-brand-muted"><RefreshCw className="size-3.5 animate-spin text-brand-strong" aria-hidden="true" />กำลังอัปเดตข้อมูลตามช่วงที่เลือก…</div>}
+        {loading && <div role="status" aria-label="กำลังอัปเดตข้อมูลแดชบอร์ด" className="flex items-center gap-2 border-y border-brand-border-soft bg-brand-page/40 px-3 py-2 text-xs font-medium text-brand-muted"><RefreshCw className="size-3.5 animate-spin text-brand-strong" aria-hidden="true" />กำลังอัปเดตข้อมูลช่วงนี้…</div>}
         {error && <div role="alert" className="border-y border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-status-critical">{error}</div>}
 
         {role === 'staff_admin' && chartMode === 'status' && <div className="mx-auto grid w-full max-w-[920px] grid-cols-1 items-center gap-4 border-b border-brand-border-soft py-4 sm:grid-cols-2 sm:gap-8" role="group" aria-label="ความคืบหน้านัดหมาย">
-          <StatusDonut title="ยืนยันแล้ว" centerPercent={confirmationPercent} slices={[{ label: 'รอยืนยัน', count: pendingAppointments, color: '#e8efed' }, { label: 'ยืนยันแล้ว', count: confirmedAppointments, color: '#087f78' }]} />
-          <StatusDonut title="ตรวจเสร็จสิ้น" centerPercent={examinationPercent} slices={[{ label: 'กำลังตรวจ', count: inProgressAppointments, color: '#e8efed' }, { label: 'เสร็จสิ้น', count: completedAppointments, color: '#15803d' }]} />
+          <StatusDonut title="ยืนยันแล้ว" centerPercent={confirmationPercent} slices={[{ label: 'รอการยืนยัน', count: pendingAppointments, color: '#e8efed' }, { label: 'ยืนยันแล้ว', count: confirmedAppointments, color: '#087f78' }]} />
+          <StatusDonut title="ตรวจเสร็จแล้ว" centerPercent={examinationPercent} slices={[{ label: 'กำลังตรวจ', count: inProgressAppointments, color: '#e8efed' }, { label: 'ตรวจเสร็จแล้ว', count: completedAppointments, color: '#15803d' }]} />
         </div>}
 
         {role === 'staff_admin' && chartMode === 'gender' && <div id="staff-gender-summary" className={`${dashboardContentWidthClass} animate-in fade-in slide-in-from-top-2 duration-200`}>
@@ -1169,7 +1168,7 @@ export default function DashboardScreen({
         </section>}
 
           {role === 'patient' ? <PatientDashboardContent view={view} onRefresh={refreshDashboard} /> : <>
-          {role === 'staff_admin' && <Section className={dashboardContentWidthClass} title={rangeHeading('สถานะนัดหมาย', view.range)} description="เลือกสถานะเพื่อดูรายชื่อผู้ป่วย แพทย์ และรายละเอียดนัดหมาย" action={<DashboardActionLink href="/appointments">จัดการนัดหมาย</DashboardActionLink>}>
+          {role === 'staff_admin' && <Section className={dashboardContentWidthClass} title={rangeHeading('นัดหมายตามสถานะ', view.range)} description="เลือกสถานะเพื่อดูนัดหมายและรายละเอียด" action={<DashboardActionLink href="/appointments">จัดการนัดหมาย</DashboardActionLink>}>
             <div className="overflow-x-auto">
               <div role="group" aria-label="เลือกสถานะนัดหมาย" className="mx-auto flex w-full min-w-max items-end gap-0 border-b border-brand-border-soft">
                 <button type="button" aria-pressed={appointmentStatusFilter === 'all'} onClick={() => setAppointmentFilter('all')} className={`relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 border-x border-t px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-12 sm:gap-2 sm:px-5 sm:text-sm ${appointmentStatusFilter === 'all' ? 'z-10 -mb-px rounded-t-2xl border-brand-border-soft border-t-4 border-t-brand-strong bg-brand-surface text-brand-strong' : 'border-transparent text-brand-body hover:text-brand-ink'}`}>
@@ -1189,7 +1188,7 @@ export default function DashboardScreen({
             </div>
           </Section>}
 
-      {((role === 'medical' && ((isMedicalDoctorDashboard && !medicalMetricDropdownFilter) || medicalWorkFilter === 'appointments')) || role === 'staff_admin') && <Section className={dashboardContentWidthClass} hideHeader={role === 'staff_admin'} title={role === 'medical' ? 'คิวและนัดหมายของฉัน' : 'คิวและนัดหมายล่าสุด'} description={`แสดงข้อมูลจำเป็นต่อการทำงานในช่วง ${dashboardRangeLabels[view.range]} โดยไม่เปิดเผยผลตรวจ`} action={<DashboardActionLink href="/appointments">{role === 'medical' ? 'ดูนัดหมายทั้งหมด' : 'จัดการนัดหมาย'}</DashboardActionLink>}>{filteredAppointmentQueue.length === 0 ? <EmptyState message={appointmentFilter === 'today' ? 'ไม่มีนัดหมายวันนี้' : appointmentFilter === 'remaining' ? 'ไม่มีคิวที่เหลือ' : appointmentFilter === 'pending' ? 'ไม่มีผู้ป่วยที่รอยืนยัน' : appointmentFilter === 'confirmed' ? 'ไม่มีผู้ป่วยที่ยืนยันแล้ว' : appointmentFilter === 'in_progress' ? 'ไม่มีรายการที่กำลังตรวจ' : appointmentFilter === 'completed' ? 'ยังไม่มีนัดที่ตรวจเสร็จ' : appointmentFilter === 'cancelled' ? 'ไม่มีนัดที่ยกเลิก' : appointmentFilter === 'no_show' ? 'ไม่มีผู้ป่วยที่ไม่มาตามนัด' : appointmentFilter === 'served' ? 'ยังไม่มีผู้ป่วยที่เข้ารับบริการจริง' : 'ไม่มีนัดหมายในช่วงที่เลือก'} /> : <div className="overflow-x-auto"><div className="min-w-[760px]"><div className="grid grid-cols-[80px_120px_1.2fr_1fr_130px] gap-4 border-b border-brand-border-soft px-5 py-3 text-xs font-semibold text-brand-muted"><span>คิว</span><span>วันเวลา</span><span>ผู้ป่วย</span><span>{role === 'medical' ? 'แผนก' : 'แพทย์ / แผนก'}</span><span>สถานะ</span></div><div className="divide-y divide-brand-border-soft">{filteredAppointmentQueue.map((item) => <div key={item.id} className="grid grid-cols-[80px_120px_1.2fr_1fr_130px] items-center gap-4 px-5 py-4 text-sm"><span className="font-bold tabular-nums text-brand-ink">{item.queueNumber ? `#${item.queueNumber}` : '—'}</span><span className="text-brand-body"><span className="block">{new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(`${item.date}T12:00:00+07:00`))}</span><span className="text-xs text-brand-muted">{item.startTime} น.</span></span><span className="font-semibold text-brand-ink">{item.patientName}{role === 'medical' && isMedicalDoctorDashboard && <Link href={`/records?appointment=${encodeURIComponent(item.id)}`} className="mt-1 block text-xs font-semibold text-brand-strong hover:underline">เปิดรายละเอียด</Link>}</span><span className="text-brand-body">{role === 'medical' ? item.departmentName : <>{item.doctorName}<span className="block text-xs text-brand-muted">{item.departmentName}</span></>}</span><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${appointmentStatusClasses[item.status]}`}>{appointmentStatusLabels[item.status]}</span></div>)}</div></div></div>}</Section>}
+      {((role === 'medical' && ((isMedicalDoctorDashboard && !medicalMetricDropdownFilter) || medicalWorkFilter === 'appointments')) || role === 'staff_admin') && <Section className={dashboardContentWidthClass} hideHeader={role === 'staff_admin'} title={role === 'medical' ? 'คิวและนัดหมายของฉัน' : 'คิวและนัดหมายล่าสุด'} description={`คิวและนัดหมายในช่วง ${dashboardRangeLabels[view.range]}`} action={<DashboardActionLink href="/appointments">{role === 'medical' ? 'ดูนัดหมายทั้งหมด' : 'จัดการนัดหมาย'}</DashboardActionLink>}>{filteredAppointmentQueue.length === 0 ? <EmptyState message={appointmentFilter === 'today' ? 'ไม่พบนัดหมายวันนี้' : appointmentFilter === 'remaining' ? 'ไม่พบคิวที่เหลือ' : appointmentFilter === 'pending' ? 'ไม่พบผู้ป่วยที่รอการยืนยัน' : appointmentFilter === 'confirmed' ? 'ไม่พบผู้ป่วยที่ยืนยันแล้ว' : appointmentFilter === 'in_progress' ? 'ไม่พบรายการที่กำลังตรวจ' : appointmentFilter === 'completed' ? 'ยังไม่มีนัดหมายที่ตรวจเสร็จ' : appointmentFilter === 'cancelled' ? 'ไม่พบนัดที่ยกเลิก' : appointmentFilter === 'no_show' ? 'ไม่พบผู้ป่วยที่ไม่มาตามนัด' : appointmentFilter === 'served' ? 'ยังไม่พบผู้ป่วยที่เข้ารับบริการ' : 'ไม่พบนัดหมายในช่วงนี้'} /> : <div className="overflow-x-auto"><div className="min-w-[760px]"><div className="grid grid-cols-[80px_120px_1.2fr_1fr_130px] gap-4 border-b border-brand-border-soft px-5 py-3 text-xs font-semibold text-brand-muted"><span>คิว</span><span>วันเวลา</span><span>ผู้ป่วย</span><span>{role === 'medical' ? 'แผนก' : 'แพทย์ / แผนก'}</span><span>สถานะ</span></div><div className="divide-y divide-brand-border-soft">{filteredAppointmentQueue.map((item) => <div key={item.id} className="grid grid-cols-[80px_120px_1.2fr_1fr_130px] items-center gap-4 px-5 py-4 text-sm"><span className="font-bold tabular-nums text-brand-ink">{item.queueNumber ? `#${item.queueNumber}` : '—'}</span><span className="text-brand-body"><span className="block">{new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(`${item.date}T12:00:00+07:00`))}</span><span className="text-xs text-brand-muted">{item.startTime} น.</span></span><span className="font-semibold text-brand-ink">{item.patientName}{role === 'medical' && isMedicalDoctorDashboard && <Link href={`/records?appointment=${encodeURIComponent(item.id)}`} className="mt-1 block text-xs font-semibold text-brand-strong hover:underline">เปิดรายละเอียด</Link>}</span><span className="text-brand-body">{role === 'medical' ? item.departmentName : <>{item.doctorName}<span className="block text-xs text-brand-muted">{item.departmentName}</span></>}</span><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${appointmentStatusClasses[item.status]}`}>{appointmentStatusLabels[item.status]}</span></div>)}</div></div></div>}</Section>}
 
       {role === 'staff_admin' && <ClinicOverviewSections view={view} />}
 

@@ -277,14 +277,14 @@ export default function Header() {
                   ? "แจ้งเตือน ดูประกาศจากผู้ดูแลระบบ"
                   : activeUnreadCount !== null && activeUnreadCount > 0
                   ? `แจ้งเตือน มี ${activeUnreadCount} รายการที่ยังไม่ได้อ่าน`
-                  : "แจ้งเตือน ไม่มีรายการค้างอ่าน"
+                  : "แจ้งเตือน ไม่มีรายการที่ยังไม่ได้อ่าน"
               }
               title={
                 isAdmin
                   ? "แจ้งเตือน (ประกาศจากผู้ดูแลระบบ)"
                   : activeUnreadCount !== null && activeUnreadCount > 0
                   ? `แจ้งเตือน (${activeUnreadCount} รายการที่ยังไม่ได้อ่าน)`
-                  : "แจ้งเตือน (ไม่มีรายการค้างอ่าน)"
+                  : "แจ้งเตือน (ไม่มีรายการที่ยังไม่ได้อ่าน)"
               }
               className="relative flex size-10 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
             >

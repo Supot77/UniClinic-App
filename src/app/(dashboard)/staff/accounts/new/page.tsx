@@ -3,5 +3,5 @@ import { requireRole } from '@/lib/requireRole';
 
 export default async function NewWalkInPatientPage() {
   await requireRole(['staff_admin']);
-  return <RegisterPage />;
+  return <RegisterPage mode="staff-walk-in" />;
 }
