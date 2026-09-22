@@ -29,6 +29,12 @@ const roleLabels: Record<UserRole, string> = {
   medical: "หมอ",
 };
 
+const titleOptionsByRole: Record<UserRole, ProfileTitle[]> = {
+  patient: ["นาย", "นาง", "นางสาว", "อื่น ๆ"],
+  medical: ["นายแพทย์", "แพทย์หญิง", "ดร."],
+  staff_admin: ["นาย", "นาง", "นางสาว", "ดร."],
+};
+
 type HealthStatus = "yes" | "no" | "unknown";
 
 interface DoctorInfo {
@@ -439,10 +445,9 @@ export default function ProfileContent() {
                               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                             >
                               <option value="">ไม่ระบุ</option>
-                              <option value="นาย">นาย</option>
-                              <option value="นาง">นาง</option>
-                              <option value="นางสาว">นางสาว</option>
-                              <option value="อื่น ๆ">อื่น ๆ</option>
+                              {titleOptionsByRole.patient.map((title) => (
+                                <option key={title} value={title}>{title}</option>
+                              ))}
                             </select>
                           </div>
 
@@ -1022,10 +1027,9 @@ export default function ProfileContent() {
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                           >
                             <option value="">ไม่ระบุ</option>
-                            <option value="นาย">นาย</option>
-                            <option value="นาง">นาง</option>
-                            <option value="นางสาว">นางสาว</option>
-                            <option value="อื่น ๆ">อื่น ๆ</option>
+                            {(role ? titleOptionsByRole[role] : []).map((title) => (
+                              <option key={title} value={title}>{title}</option>
+                            ))}
                           </select>
                         </div>
 

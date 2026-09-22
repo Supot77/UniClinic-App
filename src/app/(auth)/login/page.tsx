@@ -79,9 +79,8 @@ function LoginForm() {
       const redirect =
         searchParams.get('redirect');
 
-      startRedirectTransition(() => {
-        router.replace(redirect || '/profile');
-      });
+      router.push(redirect || '/dashboard');
+      router.refresh();
     } catch (err) {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('login_welcome_toast');
