@@ -10,7 +10,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
-import { signUp } from '@/services/authService';
+import { signOut, signUp } from '@/services/authService';
 
 type FieldName =
   | 'title'
@@ -214,9 +214,9 @@ export function validateRegistration(
       'กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น';
   }
 
-  if (values.password.length < 8) {
+  if (!/^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(values.password)) {
     errors.password =
-      'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+      'รหัสผ่านต้องมีอย่างน้อย 8 ตัว และประกอบด้วยตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข';
   }
 
   if (values.confirmPassword !== values.password) {
@@ -370,7 +370,8 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
         router.push('/staff/accounts?created=true');
       } else {
         await signUp(form.email.trim().toLowerCase(), form.password, details);
-        router.push('/login?registered=true');
+        await signOut();
+        router.replace('/login?registered=true');
       }
     } catch (err) {
       setError(
@@ -550,6 +551,7 @@ export default function RegisterPage({ mode = 'self-service' }: RegisterPageProp
                   id="date-of-birth"
                   type="date"
                   required
+                  min="1900-01-01"
                   max={new Date()
                     .toISOString()
                     .slice(0, 10)}

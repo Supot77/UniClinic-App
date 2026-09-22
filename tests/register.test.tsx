@@ -19,6 +19,7 @@ import * as authService from '@/services/authService';
 
 const router = vi.hoisted(() => ({
   push: vi.fn(),
+  replace: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -27,6 +28,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/services/authService', () => ({
   signUp: vi.fn(),
+  signOut: vi.fn(),
 }));
 
 const validForm = {
@@ -52,8 +54,8 @@ const validForm = {
   emergencyPhone: '0891234567',
 
   email: 'student@mail.wu.ac.th',
-  password: 'password123',
-  confirmPassword: 'password123',
+  password: 'Password123',
+  confirmPassword: 'Password123',
 };
 
 describe('registration validation', () => {
@@ -406,7 +408,7 @@ describe('registration validation', () => {
       screen.getByLabelText(/^รหัสผ่าน /),
       {
         target: {
-          value: 'password123',
+          value: 'Password123',
         },
       },
     );
@@ -415,7 +417,7 @@ describe('registration validation', () => {
       screen.getByLabelText(/ยืนยันรหัสผ่าน/),
       {
         target: {
-          value: 'password123',
+          value: 'Password123',
         },
       },
     );
@@ -431,7 +433,7 @@ describe('registration validation', () => {
         authService.signUp,
       ).toHaveBeenCalledWith(
         'student@mail.wu.ac.th',
-        'password123',
+        'Password123',
         {
           title: 'นาย',
           firstName: 'สมชาย',
@@ -459,7 +461,8 @@ describe('registration validation', () => {
         },
       );
 
-      expect(router.push).toHaveBeenCalledWith(
+      expect(authService.signOut).toHaveBeenCalled();
+      expect(router.replace).toHaveBeenCalledWith(
         '/login?registered=true',
       );
     });
@@ -502,10 +505,10 @@ describe('registration validation', () => {
 
   it('shows password confirmation feedback in real time', () => {
     render(<RegisterPage />);
-    fireEvent.change(screen.getByLabelText(/^รหัสผ่าน /), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText(/^รหัสผ่าน /), { target: { value: 'Password123' } });
     fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่าน/), { target: { value: 'different123' } });
     expect(screen.getByText('รหัสผ่านไม่ตรงกัน')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่าน/), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่าน/), { target: { value: 'Password123' } });
     expect(screen.getByText('รหัสผ่านตรงกัน')).toBeInTheDocument();
   });
 });

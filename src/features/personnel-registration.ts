@@ -20,7 +20,8 @@ export interface PersonnelRegistrationInput {
 
 const namePattern = /^[A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E]+(?:[ '-][A-Za-z\u0E01-\u0E3A\u0E40-\u0E4E]+)*$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const licensePattern = /^\d{1,10}$/;
+const medicalCouncilLicensePattern = /^ว\.\d{5,6}$/;
+const strongPasswordPattern = /^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/;
 
 export function normalizePersonnelInput(input: PersonnelRegistrationInput): PersonnelRegistrationInput {
   return {
@@ -41,7 +42,7 @@ export function normalizePersonnelInput(input: PersonnelRegistrationInput): Pers
 
 export function validatePersonnelInput(input: PersonnelRegistrationInput): string | null {
   if (!['doctor', 'staff'].includes(input.kind)) return 'ประเภทบัญชีไม่ถูกต้อง';
-  if (input.kind === 'doctor' && !['นาย', 'นาง', 'นางสาว', 'อื่น ๆ'].includes(input.title)) return 'กรุณาเลือกคำนำหน้า';
+  if (input.kind === 'doctor' && !['นายแพทย์', 'แพทย์หญิง', 'ดร.'].includes(input.title)) return 'กรุณาเลือกคำนำหน้าแพทย์';
   if (!namePattern.test(input.firstName) || !namePattern.test(input.lastName)) {
     return 'ชื่อและนามสกุลต้องเป็นตัวอักษรไทยหรืออังกฤษ';
   }
@@ -50,12 +51,14 @@ export function validatePersonnelInput(input: PersonnelRegistrationInput): strin
   if (!/^0[689]\d{8}$/.test(input.phone)) {
     return 'เบอร์โทรศัพท์ต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
   }
-  if (input.password.length < 8) return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+  if (!strongPasswordPattern.test(input.password)) {
+    return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัว และประกอบด้วยตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข';
+  }
   if (input.kind === 'doctor' && !input.position) return 'กรุณาระบุตำแหน่ง';
   if (input.kind === 'doctor' && !input.organization) return 'กรุณาระบุหน่วยงาน';
   if (input.kind === 'doctor') {
-    if (!licensePattern.test(input.licenseNumber ?? '')) {
-      return 'เลขใบประกอบวิชาชีพต้องเป็นตัวเลขไม่เกิน 10 หลัก';
+    if (!medicalCouncilLicensePattern.test(input.licenseNumber ?? '')) {
+      return 'เลขใบประกอบวิชาชีพต้องอยู่ในรูปแบบ ว. ตามด้วยตัวเลข 5–6 หลัก';
     }
     if (!input.specialty) return 'กรุณาระบุความเชี่ยวชาญ';
     if (!input.departmentId) return 'กรุณาเลือกแผนก';

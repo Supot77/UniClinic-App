@@ -77,7 +77,14 @@ export type StockReservationStatus =
   | 'released'
   | 'expired';
 
-export type ProfileTitle = 'นาย' | 'นาง' | 'นางสาว' | 'อื่น ๆ';
+export type ProfileTitle =
+  | 'นาย'
+  | 'นาง'
+  | 'นางสาว'
+  | 'นายแพทย์'
+  | 'แพทย์หญิง'
+  | 'ดร.'
+  | 'อื่น ๆ';
 
 export type ProfileGender = 'male' | 'female' | 'unspecified';
 
