@@ -22,6 +22,7 @@ import {
   validateDepartmentName,
   validateDoctorLeave,
   validateDoctorLeavePermission,
+  validateSlotEditWindow,
   validateSlotPermission,
   validateSlot,
 } from '../domain/rules';
@@ -587,6 +588,8 @@ export class DatabaseSchedulingRepository {
 
     const existing = id ? existingSlots.find((item) => item.id === id) : undefined;
     if (id && !existing) return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
+    const editWindow = validateSlotEditWindow(existing, input, todayDate);
+    if (!editWindow.ok) return editWindow;
     const bookedCount = existing?.bookedCount ?? 0;
     const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate, doctorLeaves);
     if (!valid.ok) return valid;

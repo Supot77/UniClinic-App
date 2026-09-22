@@ -106,6 +106,27 @@ describe('MockSchedulingRepository', () => {
     expect(repository.toggleSlot(slot.id)).toMatchObject({ ok: true, value: { status: 'closed', bookedCount: slot.bookedCount } });
   });
 
+  it('allows editing a future closed slot while preserving its closed status', () => {
+    const repository = new MockSchedulingRepository();
+    const before = repository.snapshot();
+    const input = {
+      doctorId: before.doctors[0].id,
+      serviceId: before.services[0].id,
+      slotDate: TEST_BATCH_DATE,
+      startTime: '09:00',
+      endTime: '09:30',
+      maxCapacity: 2,
+    };
+    const created = repository.saveSlot(input, undefined, TEST_WEEK_START);
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    expect(repository.toggleSlot(created.value.id)).toMatchObject({ ok: true, value: { status: 'closed' } });
+    const edited = repository.saveSlot({ ...input, endTime: '10:00' }, created.value.id, TEST_WEEK_START);
+
+    expect(edited).toMatchObject({ ok: true, value: { status: 'closed', endTime: '10:00' } });
+  });
+
   it('hard deletes a new doctor until a slot references it', () => {
     const repository = new MockSchedulingRepository();
     const result = repository.saveDoctor({

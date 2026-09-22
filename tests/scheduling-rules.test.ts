@@ -7,6 +7,7 @@ import {
   getClinicDatesForWeekdays,
   isSlotExpired,
   validateDepartmentName,
+  validateSlotEditWindow,
   validateSlot,
 } from '@/features/scheduling/domain/rules';
 
@@ -229,6 +230,15 @@ describe('scheduling schedule domain rules', () => {
     expect(isSlotExpired(TEST_TODAY, '09:00', TEST_TODAY, '09:01')).toBe(true);
     expect(isSlotExpired(TEST_TODAY, '09:30', TEST_TODAY, '09:15')).toBe(false);
     expect(isSlotExpired(TOMORROW, '08:30', TEST_TODAY, '18:00')).toBe(false);
+  });
+
+  it('allows editing a closed slot before its start and rejects it after start', () => {
+    const closedSlot = { ...MOCK_SLOTS[0], status: 'closed' as const, slotDate: TEST_TODAY, startTime: '09:00' };
+    expect(validateSlotEditWindow(closedSlot, closedSlot, TEST_TODAY, '08:59')).toEqual({ ok: true, value: true });
+    expect(validateSlotEditWindow(closedSlot, closedSlot, TEST_TODAY, '09:00')).toMatchObject({
+      ok: false,
+      error: 'แก้ไขไม่ได้ เพราะรอบตรวจเริ่มไปแล้ว',
+    });
   });
 
   it('rejects duplicate department names regardless of case', () => {
