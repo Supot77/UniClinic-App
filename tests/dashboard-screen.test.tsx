@@ -38,7 +38,56 @@ const queue: DashboardView['appointmentQueue'] = [
   },
 ];
 
+function createRangeTestView(role: DashboardView['role'], range: DashboardView['range']): DashboardView {
+  return {
+    role,
+    actor: { id: `${role}-1`, fullName: 'ผู้ใช้งานทดสอบ' },
+    date: '2026-09-14',
+    startDate: range === 'today' ? '2026-09-14' : '2026-09-08',
+    range,
+    title: role === 'patient' ? 'ภาพรวมสุขภาพของฉัน' : 'ภาพรวมแดชบอร์ดทดสอบ',
+    description: 'ข้อมูลทดสอบแดชบอร์ด',
+    metrics: [],
+    appointmentStatuses: [],
+    appointmentQueue: [],
+    departmentLoads: [],
+    medicationAlerts: [],
+    recentNotifications: [],
+    roleCounts: [],
+  };
+}
+
 describe('Dashboard appointment filters', () => {
+  it.each([
+    ['patient', 'patient-1'],
+    ['medical', 'medical-1'],
+    ['staff_admin', 'staff_admin-1'],
+  ] as const)('updates only the lower dashboard data when %s changes range', async (role, actorId) => {
+    const todayView = createRangeTestView(role, 'today');
+    const nextView = createRangeTestView(role, '7d');
+    let resolveNextView!: (view: DashboardView) => void;
+    const nextViewPromise = new Promise<DashboardView>((resolve) => { resolveNextView = resolve; });
+    getDashboardViewMock.mockReset();
+    getDashboardViewMock
+      .mockImplementationOnce(() => Promise.resolve(todayView))
+      .mockImplementationOnce(() => nextViewPromise);
+
+    render(<DashboardScreen role={role} actorId={actorId} />);
+
+    expect(await screen.findByRole('region', { name: 'ตัวกรองแดชบอร์ด' })).toBeInTheDocument();
+    const rangeFilter = screen.getByRole('region', { name: 'ตัวกรองแดชบอร์ด' });
+    const nextRangeButton = within(rangeFilter).getByRole('button', { name: '7 วันที่ผ่านมา' });
+    fireEvent.click(nextRangeButton);
+
+    expect(screen.getByRole('region', { name: 'ตัวกรองแดชบอร์ด' })).toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: 'กำลังอัปเดตข้อมูลแดชบอร์ด' })).toBeInTheDocument();
+    await waitFor(() => expect(getDashboardViewMock).toHaveBeenCalledWith(role, actorId, expect.any(String), '7d'));
+
+    resolveNextView(nextView);
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'กำลังอัปเดตข้อมูลแดชบอร์ด' })).not.toBeInTheDocument());
+    expect(nextRangeButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('filters today appointments, remaining queue, and restores all rows', () => {
     expect(filterAppointmentQueue(queue, 'appointments', '2026-09-14').map((item) => item.id)).toEqual(['today-pending', 'today-confirmed']);
     expect(filterAppointmentQueue(queue, 'today', '2026-09-14').map((item) => item.id)).toEqual(['today-pending', 'today-confirmed']);
@@ -470,8 +519,8 @@ describe('Dashboard appointment filters', () => {
       role: 'patient',
       actor: { id: 'patient-1', fullName: 'ผู้ป่วยหนึ่ง' },
       date: '2026-09-14',
-      startDate: '2026-09-14',
-      range: 'today',
+      startDate: '2026-09-01',
+      range: '30d',
       title: 'ภาพรวมสุขภาพของฉัน',
       description: 'นัดหมาย ยา การเตือน และข้อความของบัญชีนี้เท่านั้น',
       metrics: [
@@ -505,7 +554,9 @@ describe('Dashboard appointment filters', () => {
 
     render(<DashboardScreen role="patient" actorId="patient-1" />);
 
-    expect(await screen.findByText('นัดหมายของฉัน')).toBeInTheDocument();
+    expect(await screen.findByRole('main')).toHaveClass('w-screen', 'max-w-none');
+    expect(screen.getByRole('heading', { name: 'ภาพรวมสุขภาพของฉัน', level: 1 })).toHaveClass('text-2xl', 'sm:text-3xl');
+    expect(screen.queryByRole('region', { name: 'ภาพรวมสุขภาพของฉัน' })).not.toBeInTheDocument();
     expect(screen.getAllByText('ยาที่กำลังใช้')).toHaveLength(1);
     expect(screen.queryByText('การแจ้งเตือน')).not.toBeInTheDocument();
     expect(screen.queryByText('การแจ้งเตือนวันนี้')).not.toBeInTheDocument();
@@ -523,9 +574,8 @@ describe('Dashboard appointment filters', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'วันที่' })).toBeInTheDocument();
     const historyToolbar = screen.getByRole('toolbar', { name: 'ตัวควบคุมประวัติการรักษา' });
-    const historySearchInput = within(historyToolbar).getByPlaceholderText('ค้นหาแพทย์ แผนก ผลตรวจ หรือยา');
     const sortControl = within(historyToolbar).getByRole('combobox', { name: 'เรียงลำดับประวัติการรักษา' });
-    expect(historySearchInput).toBeInTheDocument();
+    expect(within(historyToolbar).queryByPlaceholderText('ค้นหาแพทย์ แผนก ผลตรวจ หรือยา')).not.toBeInTheDocument();
     expect(sortControl).toHaveValue('oldest');
     expect(within(historyToolbar).getByRole('link', { name: 'ดูประวัติทั้งหมด' })).toHaveAttribute('href', '/records');
     expect(screen.getByText('แสดง 2 จาก 2 รายการ')).toBeInTheDocument();
@@ -535,21 +585,13 @@ describe('Dashboard appointment filters', () => {
     const historyRows = screen.getByRole('table').querySelectorAll('tbody tr');
     expect(within(historyRows[0] as HTMLElement).getByText('แพทย์สอง')).toBeInTheDocument();
 
-    fireEvent.change(historySearchInput, { target: { value: 'Amoxicillin' } });
-    const [nextHistoryUrl, nextHistoryOptions] = navigationMocks.replace.mock.lastCall as [string, { scroll: boolean }];
-    const nextHistoryParams = new URLSearchParams(nextHistoryUrl.split('?')[1] ?? '');
-    expect(nextHistoryUrl.startsWith('/dashboard/patient?')).toBe(true);
-    expect(nextHistoryParams.get('historySearch')).toBe('Amoxicillin');
-    expect(nextHistoryParams.get('historySort')).toBe('oldest');
-    expect(nextHistoryOptions).toEqual({ scroll: false });
-    expect(screen.getByText('แสดง 1 จาก 2 รายการ')).toBeInTheDocument();
+    expect(screen.getByText('แสดง 2 จาก 2 รายการ')).toBeInTheDocument();
     expect(screen.getByText('ตรวจสุขภาพฟัน')).toBeInTheDocument();
-    expect(screen.queryByText('ติดตามอาการทั่วไป')).not.toBeInTheDocument();
+    expect(screen.getByText('ติดตามอาการทั่วไป')).toBeInTheDocument();
     expect(screen.queryByText('สถานะนัดหมายวันนี้')).not.toBeInTheDocument();
   });
 
-  it('renders patient booking, cancellation, medication log, and advice actions', async () => {
-    requestPatientAppointmentCancellationMock.mockResolvedValue(undefined);
+  it('renders patient next appointment, medication log, and advice actions', async () => {
     recordPatientMedicationTakenMock.mockResolvedValue(undefined);
     getDashboardViewMock.mockResolvedValue({
       role: 'patient',
@@ -578,27 +620,51 @@ describe('Dashboard appointment filters', () => {
         todayDoses: [{ scheduledAt: '2026-09-14T08:00:00+07:00', time: '08:00', status: 'pending' }],
       }],
       patientTreatmentHistory: [{
-        id: 'record-1', date: '2026-09-10T03:00:00.000Z', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
+        id: 'record-1', date: '2026-09-14T03:00:00.000Z', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
         summary: 'ติดตามอาการทั่วไป', advice: 'พักผ่อนให้เพียงพอ', medicationNames: ['Paracetamol'], medicationCount: 1,
       }],
       departmentLoads: [], medicationAlerts: [], recentNotifications: [], roleCounts: [],
     } satisfies DashboardView);
 
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<DashboardScreen role="patient" actorId="patient-1" />);
 
-    expect(await screen.findByRole('link', { name: 'จองนัดใหม่' })).toHaveAttribute('href', '/schedules');
+    expect(await screen.findByRole('region', { name: 'นัดหมายถัดไป' })).toBeInTheDocument();
+    expect(screen.queryByText('รายการนัดหมายทั้งหมด')).not.toBeInTheDocument();
     expect(screen.queryByText('ข้อมูลสุขภาพของฉัน')).not.toBeInTheDocument();
     expect(screen.queryByText('มีประวัติแพ้ยา')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'ภาพรวมสุขภาพของฉัน' })).not.toBeInTheDocument();
     expect(screen.getByText('คำแนะนำ: พักผ่อนให้เพียงพอ')).toBeInTheDocument();
     expect(screen.getByText(/ยังไม่ได้บันทึก/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'กินแล้ว' }));
     await waitFor(() => expect(recordPatientMedicationTakenMock).toHaveBeenCalledWith('reminder-1', '2026-09-14T08:00:00+07:00'));
+  });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'ขอยกเลิกนัด' })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'ขอยกเลิกนัด' }));
-    await waitFor(() => expect(requestPatientAppointmentCancellationMock).toHaveBeenCalledWith('appointment-next'));
-    vi.restoreAllMocks();
+  it('filters patient treatment history according to the selected date range', async () => {
+    const view: DashboardView = {
+      role: 'patient',
+      actor: { id: 'patient-1', fullName: 'ผู้ป่วยหนึ่ง' },
+      date: '2026-09-14',
+      startDate: '2026-09-08',
+      range: '7d',
+      title: 'ภาพรวมสุขภาพของฉัน',
+      description: '',
+      metrics: [],
+      appointmentStatuses: [],
+      appointmentQueue: [],
+      patientMedications: [],
+      patientTreatmentHistory: [
+        { id: 'rec-recent', date: '2026-09-10T03:00:00.000Z', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป', summary: 'อาการล่าสุด', medicationCount: 0 },
+        { id: 'rec-old', date: '2026-08-01T03:00:00.000Z', doctorName: 'แพทย์สอง', departmentName: 'เวชทั่วไป', summary: 'อาการเก่า', medicationCount: 0 },
+      ],
+      departmentLoads: [], medicationAlerts: [], recentNotifications: [], roleCounts: [],
+    };
+    getDashboardViewMock.mockResolvedValue(view);
+    render(<DashboardScreen role="patient" actorId="patient-1" />);
+
+    expect(await screen.findByText('อาการล่าสุด')).toBeInTheDocument();
+    expect(screen.queryByText('อาการเก่า')).not.toBeInTheDocument();
+    expect(screen.getByText('แสดง 1 จาก 1 รายการ')).toBeInTheDocument();
+    expect(screen.getByText('ผลตรวจและคำแนะนำที่เปิดดูได้จากบัญชีของคุณ ในช่วง 7 วันที่ผ่านมา')).toBeInTheDocument();
   });
 });

@@ -292,19 +292,18 @@ export default function NotificationsPage() {
   };
 
   return (
-    <main className="dashboard-shell mx-auto flex max-w-7xl flex-col gap-6 pt-4 pb-10">
+    <main className="dashboard-shell mx-auto flex w-full max-w-7xl flex-col gap-6 pt-4 pb-10">
       <header>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl">ศูนย์แจ้งเตือน</h1>
-            <p className="mt-1 text-sm text-brand-body">นัดหมาย การเตือนยา และประกาศของคุณ</p>
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto">{auth.role === 'staff_admin' && <button onClick={() => setIsBroadcastOpen(true)} aria-expanded={isBroadcastOpen} aria-controls="notification-broadcast-panel" className="inline-flex min-h-10 w-full flex-1 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"><Send className="size-4" aria-hidden="true" />ส่งประกาศ</button>}<button onClick={() => void reloadInbox()} disabled={loading || auth.isLoading} className="inline-flex min-h-10 w-full flex-1 shrink-0 items-center justify-center gap-2 rounded-brand-button border border-brand-border bg-white px-3 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:flex-initial">
-              <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" /> รีเฟรช
+          <div className="flex shrink-0 items-center gap-2">{auth.role === 'staff_admin' && <button onClick={() => setIsBroadcastOpen(true)} aria-expanded={isBroadcastOpen} aria-controls="notification-broadcast-panel" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"><Send className="size-4" aria-hidden="true" />ส่งประกาศ</button>}<button type="button" aria-label="รีเฟรช" title="รีเฟรช" onClick={() => void reloadInbox()} disabled={loading || auth.isLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-brand-button bg-brand-strong text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:gap-2 sm:px-3">
+              <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" /><span className="hidden sm:inline">รีเฟรช</span>
           </button></div>
         </div>
         {!auth.isLoading && !auth.isAuthenticated && <p className="mt-2 text-xs font-semibold text-amber-700">กรุณาเข้าสู่ระบบเพื่อดูการแจ้งเตือน</p>}
-        <div className="mt-6 overflow-hidden border-b border-brand-border-soft pb-1.5" aria-label="ตัวกรองศูนย์แจ้งเตือน">
+        <div className="mt-5 overflow-hidden border-b border-brand-border-soft pb-2" aria-label="ตัวกรองศูนย์แจ้งเตือน">
           <time suppressHydrationWarning dateTime={bangkokDate()} className="mb-2 block px-1 text-right text-xs text-brand-muted">{formatBangkokDate()}</time>
           <div className="flex min-w-0 flex-col gap-3 pb-1 sm:flex-row sm:items-center" role="toolbar" aria-label="ตัวกรองศูนย์แจ้งเตือน">
             <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
