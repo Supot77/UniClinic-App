@@ -324,7 +324,7 @@ export default function RemindersPage() {
     }, 5000);
   };
 
-  // รายชื่อผู้ป่วยทั้งหมด (คำนวณแยกตามสิทธิ์ของผู้ใช้งาน)
+  // รายชื่อผู้ป่วยทั้งหมดที่มีใน database (คำนวณแยกตามสิทธิ์ของผู้ใช้งาน)
   const allPatients = useMemo<PatientOption[]>(() => {
     if (!canManageMedication) {
       if (user) {
