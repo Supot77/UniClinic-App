@@ -4,12 +4,14 @@ import { CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 
 type ToastVariant = 'success' | 'info';
+type ToastPosition = 'top-right' | 'top-center' | 'top-left' | 'bottom-right' | 'bottom-left';
 
 interface ToastProps {
   message: string | null | undefined;
   onDismiss: () => void;
   variant?: ToastVariant;
   duration?: number;
+  position?: ToastPosition;
 }
 
 const variantStyles: Record<ToastVariant, { icon: typeof CheckCircle2; iconClass: string; ring: string }> = {
@@ -17,8 +19,22 @@ const variantStyles: Record<ToastVariant, { icon: typeof CheckCircle2; iconClass
   info: { icon: Info, iconClass: 'bg-status-info-bg text-status-info', ring: 'ring-brand-border' },
 };
 
+const positionClasses: Record<ToastPosition, string> = {
+  'top-right': 'top-20 inset-x-4 sm:left-auto sm:right-6 justify-end',
+  'top-center': 'top-20 inset-x-4 justify-center',
+  'top-left': 'top-20 inset-x-4 sm:right-auto sm:left-6 justify-start',
+  'bottom-right': 'bottom-4 inset-x-4 sm:left-auto sm:right-6 justify-end',
+  'bottom-left': 'bottom-4 inset-x-4 sm:right-auto sm:left-6 justify-start',
+};
+
 /** Compact, non-modal status message for transient action feedback. */
-export default function Toast({ message, onDismiss, variant = 'success', duration = 3500 }: ToastProps) {
+export default function Toast({
+  message,
+  onDismiss,
+  variant = 'success',
+  duration = 3500,
+  position = 'top-right',
+}: ToastProps) {
   const dismissRef = useRef(onDismiss);
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
@@ -72,13 +88,22 @@ export default function Toast({ message, onDismiss, variant = 'success', duratio
 
   const styles = variantStyles[variant];
   const Icon = styles.icon;
+  const isTop = position.startsWith('top');
+  const animationName = isTop ? 'toastFadeInOutTop' : 'toastFadeInOut';
 
   if (!message) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[100] flex justify-end sm:left-auto sm:right-6" aria-live="polite" aria-atomic="true">
+    <div
+      className={`pointer-events-none fixed z-[100] flex ${positionClasses[position]}`}
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div
         role="status"
+        style={{
+          animation: `${animationName} ${duration}ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+        }}
         className={`pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-brand-ink shadow-2xl ring-1 ${styles.ring}`}
         onMouseEnter={() => setPaused('hover', true)}
         onMouseLeave={() => setPaused('hover', false)}
@@ -91,7 +116,12 @@ export default function Toast({ message, onDismiss, variant = 'success', duratio
           <Icon className="size-5" />
         </span>
         <span className="min-w-0 flex-1 break-words">{message}</span>
-        <button type="button" onClick={onDismiss} className="shrink-0 rounded-lg p-1.5 text-brand-muted transition-colors hover:bg-brand-surface hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong" aria-label="ปิดข้อความแจ้งเตือน">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="shrink-0 rounded-lg p-1.5 text-brand-muted transition-colors hover:bg-brand-surface hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+          aria-label="ปิดข้อความแจ้งเตือน"
+        >
           <X className="size-4" aria-hidden="true" />
         </button>
       </div>
