@@ -5,7 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, ty
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, FileHeart, RefreshCw, X } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { apiClient } from '@/lib/api-client';
 
 export const inputClass = 'min-h-11 w-full rounded-xl border border-brand-border-soft bg-white px-3 py-2 text-sm text-brand-ink outline-none focus:border-brand-strong focus:ring-4 focus:ring-brand-soft disabled:bg-brand-surface';
 export const primaryButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
@@ -181,7 +181,104 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
   };
 }
 
-/** Explicit test/offline adapter; production composition uses the database adapter above. */
+/** Browser adapter for the Route Handler boundary. The Supabase adapter above remains available for isolated tests. */
+export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepository {
+  type ApiSlot = {
+    id: string; doctor_id: string; slot_date: string; start_time: string; end_time: string;
+    max_capacity: number; booked_count: number; status: string;
+    doctor?: { profile?: { full_name?: string | null } | null; department?: { name?: string | null } | null } | null;
+  };
+  type ApiAppointment = {
+    id: string; patient_id: string; slot_id: string; queue_number: number | null; reason: string | null;
+    status: ClinicSnapshot['appointments'][number]['status']; cancel_requested_at: string | null; rejection_reason: string | null;
+    slot?: ApiSlot | null; patient?: { full_name?: string | null; phone?: string | null } | null;
+  };
+  type ApiRecord = {
+    id: string; appointment_id: string; patient_id: string; doctor_id: string; diagnosis: string | null;
+    treatment_notes: string | null; prescribed_medications: ClinicSnapshot['records'][number]['prescribed_medications'];
+    created_at: string; height_cm?: number | null; weight_kg?: number | null; blood_pressure?: string | null; pulse_bpm?: number | null;
+    appointment?: { status?: string | null } | null; patient?: { full_name?: string | null } | null; doctor?: { full_name?: string | null; profile?: { full_name?: string | null } | null } | null;
+  };
+
+  const isFutureSlot = (slot: ApiSlot) => {
+    const now = new Date();
+    return new Date(`${slot.slot_date}T${slot.start_time}+07:00`) > now;
+  };
+
+  return {
+    async load() {
+      const [appointments, slots, departments, records, medications] = await Promise.all([
+        apiClient<ApiAppointment[]>('/api/appointments'),
+        apiClient<ApiSlot[]>('/api/schedules/slots'),
+        apiClient<Array<{ name: string }>>('/api/departments'),
+        expectedRole === 'staff_admin' ? Promise.resolve([] as ApiRecord[]) : apiClient<ApiRecord[]>('/api/medical-records'),
+        expectedRole === 'medical' ? apiClient<Array<{ id: string; name: string; type: string }>>('/api/medications') : Promise.resolve([]),
+      ]);
+      const actor = await apiClient<{ profile: { id: string }; role: ClinicRole }>('/api/auth/me');
+      const recordIds = new Set(records.map((record) => record.appointment_id));
+      const slotRows = slots.map((slot) => ({
+        id: slot.id,
+        doctor_id: slot.doctor_id,
+        doctor: slot.doctor?.profile?.full_name ?? 'ไม่ระบุแพทย์',
+        department: slot.doctor?.department?.name ?? 'ไม่ระบุแผนก',
+        slot_date: slot.slot_date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        max_capacity: slot.max_capacity,
+        booked_count: slot.booked_count,
+        status: slot.status,
+        bookable: slot.status === 'available' && isFutureSlot(slot),
+      }));
+      return snapshotSchema.parse({
+        actor: { id: actor.profile.id, role: actor.role },
+        departments: departments.map((department) => department.name),
+        slots: slotRows,
+        appointments: appointments.map((appointment) => ({
+          id: appointment.id,
+          user_id: appointment.patient_id,
+          patient: appointment.patient?.full_name ?? 'ไม่ระบุชื่อ',
+          slot_id: appointment.slot_id,
+          patient_phone: appointment.patient?.phone ?? null,
+          queue_number: appointment.queue_number,
+          reason: appointment.reason,
+          status: appointment.status,
+          cancel_requested_at: appointment.cancel_requested_at,
+          rejection_reason: appointment.rejection_reason,
+          has_record: recordIds.has(appointment.id),
+        })),
+        records: records.map((record) => ({
+          id: record.id,
+          appointment_id: record.appointment_id,
+          patient_id: record.patient_id,
+          doctor_id: record.doctor_id,
+          patient: record.patient?.full_name ?? 'ไม่ระบุชื่อ',
+          doctor: record.doctor?.full_name ?? record.doctor?.profile?.full_name ?? 'ไม่ระบุแพทย์',
+          diagnosis: record.diagnosis,
+          treatment_notes: record.treatment_notes,
+          prescribed_medications: record.prescribed_medications,
+          created_at: record.created_at,
+          completed: record.appointment?.status === 'completed',
+          height_cm: record.height_cm ?? null,
+          weight_kg: record.weight_kg ?? null,
+          blood_pressure: record.blood_pressure ?? null,
+          pulse_bpm: record.pulse_bpm ?? null,
+        })),
+        medications,
+      });
+    },
+    async book(slotId, reason) {
+      await apiClient('/api/appointments', { method: 'POST', body: JSON.stringify({ slotId, reason }) });
+    },
+    async transition(appointmentId, action, reason) {
+      await apiClient(`/api/appointments/${appointmentId}/status`, { method: 'PATCH', body: JSON.stringify({ action, reason }) });
+    },
+    async saveRecord(input) {
+      await apiClient('/api/medical-records', { method: 'POST', body: JSON.stringify(input) });
+    },
+  };
+}
+
+/** Explicit test/offline adapter; production composition uses the API adapter above. */
 export function createClinicMockRepository(seed: ClinicSnapshot, now = new Date('2026-09-08T08:00:00+07:00')): ClinicRepository {
   const state = structuredClone(seed);
   let sequence = 100;
@@ -259,7 +356,7 @@ export function useClinicWorkspace(role: ClinicRole, injected?: ClinicRepository
   const generation = useRef(0);
   const repository = useCallback(() => {
     if (injected) return injected;
-    if (!repo.current) repo.current = createClinicDatabaseRepository(createClient(), role);
+    if (!repo.current) repo.current = createClinicApiRepository(role);
     return repo.current;
   }, [role, injected]);
   const reload = useCallback(async () => {

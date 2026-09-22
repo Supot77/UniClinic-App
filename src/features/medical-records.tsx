@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Activity,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   FileHeart,
   HeartPulse,
@@ -20,7 +22,9 @@ import {
   ClinicSelect,
   ClinicWorkspaceShell,
   inputClass,
+  physicalExamSchema,
   primaryButtonClass,
+  prescriptionSchema,
   secondaryButtonClass,
   type ClinicRepository,
   type ClinicSnapshot,
@@ -38,11 +42,68 @@ function nullableNumber(value: string) {
   return trimmed ? Number(trimmed) : null;
 }
 
-function RecordEditor({ data, busy, selectedId, save }: {
+const recordSteps = [
+  { id: 'physical', eyebrow: '01 / TRIAGE', title: 'การตรวจร่างกายเบื้องต้น', description: 'บันทึกค่าสัญญาณชีพและข้อมูลจากการคัดกรอง' },
+  { id: 'summary', eyebrow: '02 / CLINICAL SUMMARY', title: 'สรุปผลตรวจ', description: 'ระบุผลวินิจฉัยและคำแนะนำการรักษา' },
+  { id: 'medications', eyebrow: '03 / PRESCRIPTION', title: 'รายการยา', description: 'เพิ่มรายการยาเมื่อแพทย์มีคำสั่งจ่าย' },
+  { id: 'review', eyebrow: '04 / REVIEW', title: 'ตรวจทานและยืนยัน', description: 'ตรวจข้อมูลทั้งหมดก่อนบันทึกครั้งเดียว' },
+] as const;
+
+type PhysicalExamInput = Pick<RecordInput, 'height_cm' | 'weight_kg' | 'blood_pressure' | 'pulse_bpm'>;
+
+function physicalExamInput(draft: PhysicalExamDraft): PhysicalExamInput {
+  return {
+    height_cm: nullableNumber(draft.height_cm),
+    weight_kg: nullableNumber(draft.weight_kg),
+    blood_pressure: draft.blood_pressure.trim() || null,
+    pulse_bpm: nullableNumber(draft.pulse_bpm),
+  };
+}
+
+function validatePhysicalExam(draft: PhysicalExamDraft) {
+  const result = physicalExamSchema.safeParse(physicalExamInput(draft));
+  return result.success ? '' : result.error.issues[0]?.message ?? 'กรุณาตรวจสอบข้อมูลการตรวจร่างกาย';
+}
+
+function prescriptionInput(item: PrescriptionDraft): Prescription {
+  return {
+    medication_id: item.medication_id,
+    name: item.name,
+    dosage: item.dosage,
+    frequency: item.frequency,
+    quantity: item.quantity,
+    duration_days: item.duration_days,
+  };
+}
+
+function validatePrescriptions(items: PrescriptionDraft[]) {
+  const seen = new Set<string>();
+  for (const item of items) {
+    const result = prescriptionSchema.safeParse(prescriptionInput(item));
+    if (!result.success) return result.error.issues[0]?.message ?? 'กรุณากรอกรายการยาให้ครบ';
+    if (seen.has(item.medication_id)) return 'ไม่ควรเลือกยาซ้ำในรายการเดียวกัน';
+    seen.add(item.medication_id);
+  }
+  return '';
+}
+
+function recordValidation(diagnosis: string, physicalExam: PhysicalExamDraft, items: PrescriptionDraft[]) {
+  const physicalError = validatePhysicalExam(physicalExam);
+  if (physicalError) return { step: 0, message: physicalError };
+  if (!diagnosis.trim()) return { step: 1, message: 'กรุณากรอกผลวินิจฉัยก่อนดำเนินการต่อ' };
+  if (diagnosis.trim().length > 5000) return { step: 1, message: 'ผลวินิจฉัยต้องไม่เกิน 5,000 ตัวอักษร' };
+  const prescriptionError = validatePrescriptions(items);
+  if (prescriptionError) return { step: 2, message: prescriptionError };
+  return null;
+}
+
+export function MedicalRecordStepper({ data, busy, selectedId, save, showQueueSelector = true, onSaved }: {
   data: ClinicSnapshot;
   busy: boolean;
   selectedId?: string;
   save: (input: RecordInput) => Promise<boolean>;
+  showQueueSelector?: boolean;
+  onSaved?: () => void;
 }) {
   const pending = data.appointments.filter((appointment) => appointment.status === 'in_progress' && !appointment.has_record);
   const [appointmentId, setAppointmentId] = useState(pending.find((appointment) => appointment.id === selectedId)?.id ?? pending[0]?.id ?? '');
@@ -51,6 +112,8 @@ function RecordEditor({ data, busy, selectedId, save }: {
   const [items, setItems] = useState<PrescriptionDraft[]>([]);
   const [physicalExam, setPhysicalExam] = useState<PhysicalExamDraft>(emptyPhysicalExam);
   const [complete, setComplete] = useState(true);
+  const [step, setStep] = useState(0);
+  const [stepError, setStepError] = useState('');
   const chosen = pending.find((appointment) => appointment.id === appointmentId);
 
   function update(index: number, patch: Partial<PrescriptionDraft>) {
@@ -70,77 +133,140 @@ function RecordEditor({ data, busy, selectedId, save }: {
     setAdvice('');
     setItems([]);
     setPhysicalExam(emptyPhysicalExam);
+    setComplete(true);
+    setStep(0);
+    setStepError('');
   }
 
   if (!pending.length) return <div className="flex items-start gap-3 rounded-2xl border border-dashed border-brand-border-soft bg-brand-surface p-5 text-sm text-brand-body"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand-strong shadow-sm"><ClipboardCheck className="h-4 w-4" aria-hidden="true" /></span><p>ไม่มีคิวที่รอบันทึกผลตรวจ เริ่มตรวจจากหน้านัดหมายก่อน</p></div>;
 
-  return <form className="overflow-hidden rounded-[1.75rem] border border-brand-border-soft bg-white shadow-[0_16px_42px_rgba(26,61,62,0.07)]" onSubmit={async (event) => {
+  function validateCurrentStep() {
+    if (step === 0) return validatePhysicalExam(physicalExam);
+    if (step === 1) return !diagnosis.trim() ? 'กรุณากรอกผลวินิจฉัยก่อนดำเนินการต่อ' : diagnosis.trim().length > 5000 ? 'ผลวินิจฉัยต้องไม่เกิน 5,000 ตัวอักษร' : '';
+    if (step === 2) return validatePrescriptions(items);
+    return '';
+  }
+
+  function goNext() {
+    const error = validateCurrentStep();
+    if (error) {
+      setStepError(error);
+      return;
+    }
+    setStepError('');
+    setStep((current) => Math.min(current + 1, recordSteps.length - 1));
+  }
+
+  async function submitRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (chosen && await save({
+    const validation = recordValidation(diagnosis, physicalExam, items);
+    if (validation) {
+      setStep(validation.step);
+      setStepError(validation.message);
+      return;
+    }
+    if (!chosen) return;
+    const saved = await save({
       appointmentId: chosen.id,
       diagnosis,
       advice,
-      prescriptions: items.map((item) => ({ medication_id: item.medication_id, name: item.name, dosage: item.dosage, frequency: item.frequency, quantity: item.quantity, duration_days: item.duration_days })),
-      height_cm: nullableNumber(physicalExam.height_cm),
-      weight_kg: nullableNumber(physicalExam.weight_kg),
-      blood_pressure: physicalExam.blood_pressure.trim() || null,
-      pulse_bpm: nullableNumber(physicalExam.pulse_bpm),
+      prescriptions: items.map(prescriptionInput),
+      ...physicalExamInput(physicalExam),
       complete,
-    })) resetDraft();
-  }}>
+    });
+    if (saved) {
+      resetDraft();
+      onSaved?.();
+    }
+  }
+
+  const currentStep = recordSteps[step];
+  const physicalValue = (value: string, unit: string) => value.trim() ? `${value.trim()} ${unit}` : 'ไม่ได้ระบุ';
+
+  return <form className="overflow-hidden rounded-[1.75rem] border border-brand-border-soft bg-white shadow-[0_16px_42px_rgba(26,61,62,0.07)]" onSubmit={submitRecord}>
     <div className="relative overflow-hidden border-b border-brand-border-soft bg-[linear-gradient(115deg,#f1f9ff_0%,#f8fcfb_62%,#fff8e9_100%)] px-5 py-5 sm:px-7 sm:py-6">
       <div className="absolute -right-10 -top-20 h-44 w-44 rounded-full bg-sky-100/80 blur-3xl" aria-hidden="true" />
       <div className="relative flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-strong text-white shadow-lg shadow-brand-strong/20"><FileHeart className="h-5 w-5" aria-hidden="true" /></span>
-        <div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-strong">CLINICAL NOTE</p><h2 className="mt-1 text-xl font-bold tracking-tight text-brand-ink">บันทึกผลตรวจและรายการยา</h2><p className="mt-1 text-sm text-brand-body">บันทึกครั้งเดียว ส่งต่อให้ผู้ป่วยและจุดจ่ายยาตามสิทธิ์</p></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-strong">CLINICAL NOTE</p><h2 className="mt-1 text-xl font-bold tracking-tight text-brand-ink">บันทึกผลตรวจทีละขั้นตอน</h2><p className="mt-1 text-sm text-brand-body">กรอกข้อมูลตามลำดับ แล้วตรวจทานก่อนบันทึกครั้งเดียว</p></div>
       </div>
       <div className="relative mt-4 flex items-start gap-2 text-xs leading-5 text-brand-body"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-strong" aria-hidden="true" /><span>ตรวจทานข้อมูลก่อนยืนยัน เพราะผลตรวจและใบสั่งยาแก้ไขไม่ได้หลังบันทึก</span></div>
+      <ol className="relative mt-6 grid gap-2 sm:grid-cols-4" aria-label="ขั้นตอนการบันทึกผลตรวจ">
+        {recordSteps.map((item, index) => {
+          const active = index === step;
+          const completeStep = index < step;
+          return <li key={item.id} className="min-w-0">
+            <button type="button" disabled={busy || index > step} aria-current={active ? 'step' : undefined} onClick={() => { if (index <= step) { setStep(index); setStepError(''); } }} className={`flex min-h-12 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-default ${active ? 'bg-brand-strong text-white shadow-sm' : completeStep ? 'bg-white/80 text-brand-strong' : 'bg-white/50 text-brand-body'}`}>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? 'bg-white/20 text-white' : completeStep ? 'bg-brand-soft text-brand-strong' : 'bg-white text-brand-body'}`}>{completeStep ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : index + 1}</span>
+              <span className="min-w-0"><span className="block truncate font-bold">{item.title}</span><span className={`mt-0.5 block truncate text-[11px] ${active ? 'text-white/75' : 'text-brand-body'}`}>{item.description}</span></span>
+            </button>
+          </li>;
+        })}
+      </ol>
     </div>
 
     <fieldset disabled={busy} className="space-y-6 p-5 sm:p-7">
-      <section className="rounded-2xl border border-brand-border-soft bg-brand-surface p-4 sm:p-5" aria-labelledby="record-queue-title">
+      {showQueueSelector ? <section className="rounded-2xl border border-brand-border-soft bg-brand-surface p-4 sm:p-5" aria-labelledby="record-queue-title">
         <div className="mb-3 flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-brand-strong shadow-sm"><Stethoscope className="h-4 w-4" aria-hidden="true" /></span><div><h3 id="record-queue-title" className="font-bold text-brand-ink">คิวที่กำลังตรวจ</h3><p className="text-xs text-brand-body">เลือกผู้ป่วยที่กำลังอยู่ในขั้นตอนตรวจ</p></div></div>
         <ClinicSelect value={chosen?.id ?? ''} onChange={(value) => { setAppointmentId(value); resetDraft(); }} placeholder="เลือกคิว" ariaLabel="คิวที่กำลังตรวจ" options={pending.map((appointment) => ({ value: appointment.id, label: `คิว ${appointment.queue_number ?? '—'} · ${appointment.patient}` }))} />
-        {chosen && <div className="mt-3 flex items-start gap-2 rounded-xl bg-white px-3 py-2.5 text-sm text-brand-body"><ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-strong" aria-hidden="true" /><span>อาการที่แจ้ง: {chosen.reason || 'ไม่ได้ระบุ'}</span></div>}
-      </section>
+      </section> : <div className="flex items-start gap-3 rounded-2xl border border-brand-border-soft bg-brand-surface px-4 py-3 text-sm"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand-strong shadow-sm"><Stethoscope className="h-4 w-4" aria-hidden="true" /></span><div className="min-w-0"><p className="font-bold text-brand-ink">{chosen?.patient ?? 'ผู้ป่วยที่เลือก'}</p><p className="mt-1 text-brand-body">อาการที่แจ้ง: {chosen?.reason || 'ไม่ได้ระบุ'}</p></div><span className="ml-auto shrink-0 rounded-full bg-status-info-bg px-2.5 py-1 text-xs font-bold text-status-info">กำลังตรวจ</span></div>}
+      {stepError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">{stepError}</p>}
 
-      <section className="space-y-4" aria-labelledby="diagnosis-title">
-        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-strong">01 / CLINICAL SUMMARY</p><h3 id="diagnosis-title" className="mt-1 text-lg font-bold text-brand-ink">สรุปการตรวจ</h3></div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="block text-sm font-semibold text-brand-ink">ผลวินิจฉัย<textarea required maxLength={5000} rows={5} value={diagnosis} onChange={(event) => setDiagnosis(event.target.value)} className={`${inputClass} mt-2 min-h-32 resize-y rounded-2xl border-brand-border-soft bg-brand-surface`} placeholder="บันทึกผลวินิจฉัยของผู้ป่วย" /></label>
-          <label className="block text-sm font-semibold text-brand-ink">คำแนะนำการรักษา<textarea maxLength={5000} rows={5} value={advice} onChange={(event) => setAdvice(event.target.value)} className={`${inputClass} mt-2 min-h-32 resize-y rounded-2xl border-brand-border-soft bg-brand-surface`} placeholder="คำแนะนำ การดูแลตัวเอง หรือการติดตามผล" /></label>
-        </div>
-      </section>
+      <section className="space-y-5" aria-labelledby="record-step-title">
+        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-strong">{currentStep.eyebrow}</p><h3 id="record-step-title" className="mt-1 text-xl font-bold tracking-tight text-brand-ink">{currentStep.title}</h3><p className="mt-1 text-sm text-brand-body">{currentStep.description}</p></div>
 
-      <section aria-labelledby="physical-exam-title" className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/60 p-4 sm:p-5">
-        <div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sky-600 shadow-sm"><HeartPulse className="h-5 w-5" aria-hidden="true" /></span><div><h3 id="physical-exam-title" className="font-bold text-brand-ink">การตรวจร่างกายเบื้องต้น</h3><p className="mt-0.5 text-xs text-brand-body">กรอกเมื่อมีข้อมูลจากการคัดกรอง ผู้ป่วยจะเห็นพร้อมผลตรวจ</p></div></div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="block text-sm text-brand-ink" htmlFor="record-height"><span className="mb-1.5 block font-semibold">ส่วนสูง <span className="font-normal text-brand-body">(ซม.)</span></span><input id="record-height" type="number" min={30} max={250} step="0.1" inputMode="decimal" placeholder="เช่น 170" aria-label="ส่วนสูง (ซม.)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.height_cm} onChange={(event) => updatePhysicalExam('height_cm', event.target.value)} /></label>
-          <label className="block text-sm text-brand-ink" htmlFor="record-weight"><span className="mb-1.5 block font-semibold">น้ำหนัก <span className="font-normal text-brand-body">(กก.)</span></span><input id="record-weight" type="number" min={1} max={300} step="0.1" inputMode="decimal" placeholder="เช่น 65" aria-label="น้ำหนัก (กก.)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.weight_kg} onChange={(event) => updatePhysicalExam('weight_kg', event.target.value)} /></label>
-          <label className="block text-sm text-brand-ink" htmlFor="record-blood-pressure"><span className="mb-1.5 block font-semibold">ความดันโลหิต <span className="font-normal text-brand-body">(mmHg)</span></span><input id="record-blood-pressure" type="text" inputMode="numeric" pattern="[0-9]{2,3}/[0-9]{2,3}" placeholder="เช่น 120/80" aria-label="ความดันโลหิต (mmHg)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.blood_pressure} onChange={(event) => updatePhysicalExam('blood_pressure', event.target.value)} /></label>
-          <label className="block text-sm text-brand-ink" htmlFor="record-pulse"><span className="mb-1.5 block font-semibold">ชีพจร <span className="font-normal text-brand-body">(ครั้ง/นาที)</span></span><input id="record-pulse" type="number" min={20} max={250} step={1} inputMode="numeric" placeholder="เช่น 72" aria-label="ชีพจร (ครั้ง/นาที)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.pulse_bpm} onChange={(event) => updatePhysicalExam('pulse_bpm', event.target.value)} /></label>
-        </div>
-      </section>
-
-      <section className="space-y-4" aria-labelledby="prescription-title">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Pill className="h-5 w-5" aria-hidden="true" /></span><div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-strong">02 / PRESCRIPTION</p><h3 id="prescription-title" className="mt-1 text-lg font-bold text-brand-ink">รายการยา</h3></div></div><span className="text-xs text-brand-body">{items.length} รายการ</span></div>
-        {items.length === 0 && <div className="rounded-2xl border border-dashed border-brand-border-soft bg-brand-surface px-4 py-4 text-sm text-brand-body">ไม่มีรายการยา สามารถบันทึกผลตรวจโดยไม่สั่งยาได้</div>}
-        <div className="space-y-3">{items.map((item, index) => <fieldset key={index} className="relative rounded-2xl border border-brand-border-soft bg-[#fbfdfc] p-4 pt-5 sm:p-5">
-          <legend className="max-w-[calc(100%-2.5rem)] px-2 text-sm font-bold text-brand-ink">ยารายการที่ {index + 1}</legend>
-          <button type="button" aria-label={`ลบยารายการที่ ${index + 1}`} title={`ลบยารายการที่ ${index + 1}`} className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-status-critical transition hover:bg-status-critical-bg hover:text-status-critical focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-status-critical" onClick={() => setItems((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}><X className="h-4 w-4" aria-hidden="true" /></button>
-          <label className="block text-sm font-semibold text-brand-ink">ยา<ClinicSelect value={item.medication_id} onChange={(value) => { const medication = data.medications.find((entry) => entry.id === value); update(index, { medication_id: medication?.id ?? '', name: medication?.name ?? '' }); }} placeholder="เลือกยาจากคลัง" ariaLabel={`ยารายการที่ ${index + 1}`} options={data.medications.map((medication) => ({ value: medication.id, label: `${medication.name} · ${medication.type}`, disabled: items.some((entry, rowIndex) => rowIndex !== index && entry.medication_id === medication.id) }))} /></label>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <label className="text-sm font-medium text-brand-ink">จำนวนที่สั่ง<input type="number" required min={1} max={100000} step={1} className={`${inputClass} mt-1.5 rounded-2xl border-brand-border-soft bg-white`} value={item.quantity} onChange={(event) => update(index, { quantity: Number(event.target.value) })} /></label>
-            <label className="text-sm font-medium text-brand-ink">ระยะเวลา (วัน)<input type="number" required min={1} max={365} step={1} className={`${inputClass} mt-1.5 rounded-2xl border-brand-border-soft bg-white`} value={item.duration_days} onChange={(event) => update(index, { duration_days: Number(event.target.value) })} /></label>
-            <label className="text-sm font-medium text-brand-ink">ขนาดยาต่อครั้ง (ระบุหน่วย)<input required maxLength={500} placeholder="เช่น 500 mg, 1 เม็ด หรือ 5 ml" className={`${inputClass} mt-1.5 rounded-2xl border-brand-border-soft bg-white`} value={item.dosage} onChange={(event) => update(index, { dosage: event.target.value })} /></label>
-            <label className="text-sm font-medium text-brand-ink" htmlFor={`medication-times-${index}`}><span className="mb-1.5 block">ช่วงเวลาและความถี่ในการใช้ยา <span className="sr-only">รายการที่ {index + 1}</span></span><input id={`medication-times-${index}`} required maxLength={400} placeholder="เช่น เช้า เที่ยง เย็น หรือก่อนนอน" className={`${inputClass} rounded-2xl border-brand-border-soft bg-white`} value={item.times} onChange={(event) => update(index, { times: event.target.value })} /></label>
-            <div className="space-y-1.5 text-sm font-medium text-brand-ink xl:col-start-1"><span className="block">การใช้ยากับอาหาร</span><ClinicSelect value={item.meal} onChange={(value) => update(index, { meal: value })} placeholder="เลือกมื้ออาหาร" ariaLabel={`การใช้ยากับอาหาร รายการที่ ${index + 1}`} options={['ก่อนอาหาร', 'หลังอาหาร', 'พร้อมอาหาร', 'ไม่ขึ้นกับมื้ออาหาร'].map((meal) => ({ value: meal, label: meal }))} /></div>
+        {step === 0 && <section aria-labelledby="physical-exam-title" className="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/60 p-4 sm:p-5">
+          <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sky-600 shadow-sm"><HeartPulse className="h-5 w-5" aria-hidden="true" /></span><div><h4 id="physical-exam-title" className="font-bold text-brand-ink">ตรวจค่าสัญญาณชีพ</h4><p className="mt-0.5 text-xs leading-5 text-brand-body">กรอกเมื่อมีข้อมูลจากการคัดกรอง ช่องว่างสามารถข้ามได้</p></div></div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="block text-sm text-brand-ink" htmlFor="record-height"><span className="mb-1.5 block font-semibold">ส่วนสูง <span className="font-normal text-brand-body">(ซม.)</span></span><input id="record-height" type="number" min={30} max={250} step="0.1" inputMode="decimal" placeholder="เช่น 170" aria-label="ส่วนสูง (ซม.)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.height_cm} onChange={(event) => { setStepError(''); updatePhysicalExam('height_cm', event.target.value); }} /></label>
+            <label className="block text-sm text-brand-ink" htmlFor="record-weight"><span className="mb-1.5 block font-semibold">น้ำหนัก <span className="font-normal text-brand-body">(กก.)</span></span><input id="record-weight" type="number" min={1} max={300} step="0.1" inputMode="decimal" placeholder="เช่น 65" aria-label="น้ำหนัก (กก.)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.weight_kg} onChange={(event) => { setStepError(''); updatePhysicalExam('weight_kg', event.target.value); }} /></label>
+            <label className="block text-sm text-brand-ink" htmlFor="record-blood-pressure"><span className="mb-1.5 block font-semibold">ความดันโลหิต <span className="font-normal text-brand-body">(mmHg)</span></span><input id="record-blood-pressure" type="text" inputMode="numeric" pattern="[0-9]{2,3}/[0-9]{2,3}" placeholder="เช่น 120/80" aria-label="ความดันโลหิต (mmHg)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.blood_pressure} onChange={(event) => { setStepError(''); updatePhysicalExam('blood_pressure', event.target.value); }} /></label>
+            <label className="block text-sm text-brand-ink" htmlFor="record-pulse"><span className="mb-1.5 block font-semibold">ชีพจร <span className="font-normal text-brand-body">(ครั้ง/นาที)</span></span><input id="record-pulse" type="number" min={20} max={250} step={1} inputMode="numeric" placeholder="เช่น 72" aria-label="ชีพจร (ครั้ง/นาที)" className={`${inputClass} rounded-2xl border-sky-100 bg-white`} value={physicalExam.pulse_bpm} onChange={(event) => { setStepError(''); updatePhysicalExam('pulse_bpm', event.target.value); }} /></label>
           </div>
-        </fieldset>)}</div>
-        <button type="button" disabled={!data.medications.length || items.length >= 50} className={`${secondaryButtonClass} rounded-xl`} onClick={() => setItems((rows) => [...rows, { medication_id: '', name: '', dosage: '', frequency: '', meal: '', times: '', quantity: 1, duration_days: 1 }])}><Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรายการยา</button>
+        </section>}
+
+        {step === 1 && <section className="space-y-4" aria-labelledby="diagnosis-title">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block text-sm font-semibold text-brand-ink">ผลวินิจฉัย<textarea required maxLength={5000} rows={7} value={diagnosis} onChange={(event) => { setStepError(''); setDiagnosis(event.target.value); }} className={`${inputClass} mt-2 min-h-40 resize-y rounded-2xl border-brand-border-soft bg-brand-surface`} placeholder="บันทึกผลวินิจฉัยของผู้ป่วย" /></label>
+            <label className="block text-sm font-semibold text-brand-ink">คำแนะนำการรักษา<textarea maxLength={5000} rows={7} value={advice} onChange={(event) => { setStepError(''); setAdvice(event.target.value); }} className={`${inputClass} mt-2 min-h-40 resize-y rounded-2xl border-brand-border-soft bg-brand-surface`} placeholder="คำแนะนำ การดูแลตัวเอง หรือการติดตามผล" /></label>
+          </div>
+          <p className="rounded-xl border border-brand-border-soft bg-brand-surface px-4 py-3 text-xs leading-5 text-brand-body">ผลวินิจฉัยจำเป็นต้องกรอก ส่วนคำแนะนำการรักษาสามารถเว้นว่างได้</p>
+        </section>}
+
+        {step === 2 && <section className="space-y-4" aria-labelledby="prescription-title">
+          <div className="flex flex-wrap items-end justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Pill className="h-5 w-5" aria-hidden="true" /></span><div><h4 id="prescription-title" className="font-bold text-brand-ink">รายการยาที่สั่ง</h4><p className="mt-0.5 text-xs text-brand-body">ไม่มียาให้ข้ามขั้นตอนนี้ได้</p></div></div><span className="text-xs text-brand-body">{items.length} รายการ</span></div>
+          {items.length === 0 && <div className="rounded-2xl border border-dashed border-brand-border-soft bg-brand-surface px-4 py-4 text-sm text-brand-body">ไม่มีรายการยา สามารถบันทึกผลตรวจโดยไม่สั่งยาได้</div>}
+          <div className="space-y-3">{items.map((item, index) => <fieldset key={index} className="relative rounded-2xl border border-brand-border-soft bg-[#fbfdfc] p-4 pt-5 sm:p-5">
+            <legend className="max-w-[calc(100%-2.5rem)] px-2 text-sm font-bold text-brand-ink">ยารายการที่ {index + 1}</legend>
+            <button type="button" aria-label={`ลบยารายการที่ ${index + 1}`} title={`ลบยารายการที่ ${index + 1}`} className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-status-critical transition hover:bg-status-critical-bg hover:text-status-critical focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-status-critical" onClick={() => { setStepError(''); setItems((rows) => rows.filter((_, rowIndex) => rowIndex !== index)); }}><X className="h-4 w-4" aria-hidden="true" /></button>
+            <label className="block text-sm font-semibold text-brand-ink">ยา<ClinicSelect value={item.medication_id} onChange={(value) => { const medication = data.medications.find((entry) => entry.id === value); setStepError(''); update(index, { medication_id: medication?.id ?? '', name: medication?.name ?? '' }); }} placeholder="เลือกยาจากคลัง" ariaLabel={`ยารายการที่ ${index + 1}`} options={data.medications.map((medication) => ({ value: medication.id, label: `${medication.name} · ${medication.type}`, disabled: items.some((entry, rowIndex) => rowIndex !== index && entry.medication_id === medication.id) }))} /></label>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="text-sm font-medium text-brand-ink">จำนวนที่สั่ง<input type="number" min={1} max={100000} step={1} className={`${inputClass} mt-1.5 rounded-2xl border-brand-border-soft bg-white`} value={item.quantity} onChange={(event) => { setStepError(''); update(index, { quantity: Number(event.target.value) }); }} /></label>
+              <label className="text-sm font-medium text-brand-ink">ระยะเวลา (วัน)<input type="number" min={1} max={365} step={1} className={`${inputClass} mt-1.5 rounded-2xl border-brand-border-soft bg-white`} value={item.duration_days} onChange={(event) => { setStepError(''); update(index, { duration_days: Number(event.target.value) }); }} /></label>
+              <label className="text-sm font-medium text-brand-ink">ขนาดยาต่อครั้ง (ระบุหน่วย)<input maxLength={500} placeholder="เช่น 500 mg, 1 เม็ด หรือ 5 ml" className={`${inputClass} mt-1.5 rounded-2xl border-brand-border-soft bg-white`} value={item.dosage} onChange={(event) => { setStepError(''); update(index, { dosage: event.target.value }); }} /></label>
+              <label className="text-sm font-medium text-brand-ink" htmlFor={`medication-times-${index}`}><span className="mb-1.5 block">ช่วงเวลาและความถี่ในการใช้ยา <span className="sr-only">รายการที่ {index + 1}</span></span><input id={`medication-times-${index}`} maxLength={400} placeholder="เช่น เช้า เที่ยง เย็น หรือก่อนนอน" className={`${inputClass} rounded-2xl border-brand-border-soft bg-white`} value={item.times} onChange={(event) => { setStepError(''); update(index, { times: event.target.value }); }} /></label>
+              <div className="space-y-1.5 text-sm font-medium text-brand-ink xl:col-start-1"><span className="block">การใช้ยากับอาหาร</span><ClinicSelect value={item.meal} onChange={(value) => { setStepError(''); update(index, { meal: value }); }} placeholder="เลือกมื้ออาหาร" ariaLabel={`การใช้ยากับอาหาร รายการที่ ${index + 1}`} options={['ก่อนอาหาร', 'หลังอาหาร', 'พร้อมอาหาร', 'ไม่ขึ้นกับมื้ออาหาร'].map((meal) => ({ value: meal, label: meal }))} /></div>
+            </div>
+          </fieldset>)}</div>
+          <button type="button" disabled={!data.medications.length || items.length >= 50} className={`${secondaryButtonClass} rounded-xl`} onClick={() => { setStepError(''); setItems((rows) => [...rows, { medication_id: '', name: '', dosage: '', frequency: '', meal: '', times: '', quantity: 1, duration_days: 1 }]); }}><Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรายการยา</button>
+        </section>}
+
+        {step === 3 && <section className="space-y-5" aria-labelledby="review-title">
+          <div className="rounded-2xl border border-brand-border-soft bg-brand-surface p-4 sm:p-5"><h4 id="review-title" className="font-bold text-brand-ink">ข้อมูลผู้ป่วย</h4><p className="mt-2 text-sm text-brand-body"><span className="font-semibold text-brand-ink">{chosen?.patient}</span> · อาการที่แจ้ง: {chosen?.reason || 'ไม่ได้ระบุ'}</p></div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4" aria-labelledby="review-physical-title"><h4 id="review-physical-title" className="font-bold text-brand-ink">การตรวจร่างกายเบื้องต้น</h4><dl className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-brand-body">ส่วนสูง</dt><dd className="mt-1 font-semibold text-brand-ink">{physicalValue(physicalExam.height_cm, 'ซม.')}</dd></div><div><dt className="text-brand-body">น้ำหนัก</dt><dd className="mt-1 font-semibold text-brand-ink">{physicalValue(physicalExam.weight_kg, 'กก.')}</dd></div><div><dt className="text-brand-body">ความดันโลหิต</dt><dd className="mt-1 font-semibold text-brand-ink">{physicalExam.blood_pressure.trim() || 'ไม่ได้ระบุ'}</dd></div><div><dt className="text-brand-body">ชีพจร</dt><dd className="mt-1 font-semibold text-brand-ink">{physicalValue(physicalExam.pulse_bpm, 'ครั้ง/นาที')}</dd></div></dl></section>
+            <section className="rounded-2xl border border-brand-border-soft bg-white p-4" aria-labelledby="review-summary-title"><h4 id="review-summary-title" className="font-bold text-brand-ink">สรุปผลตรวจ</h4><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-brand-ink"><strong>ผลวินิจฉัย:</strong> {diagnosis || 'ไม่ได้ระบุ'}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-ink"><strong>คำแนะนำ:</strong> {advice || 'ไม่ได้ระบุ'}</p></section>
+          </div>
+          <section className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4" aria-labelledby="review-medications-title"><div className="flex items-center justify-between gap-3"><h4 id="review-medications-title" className="font-bold text-brand-ink">รายการยา</h4><span className="text-xs text-brand-body">{items.length} รายการ</span></div>{items.length ? <ul className="mt-3 space-y-2">{items.map((item, index) => <li key={index} className="rounded-xl border border-emerald-100 bg-white px-3 py-2.5 text-sm"><p className="font-semibold text-brand-ink">{item.name || 'ยังไม่ได้เลือกยา'} · {item.quantity} รายการ</p><p className="mt-1 text-brand-body">{item.dosage || 'ยังไม่ระบุขนาดยา'} · {item.frequency || 'ยังไม่ระบุช่วงเวลา'} · {item.duration_days} วัน</p></li>)}</ul> : <p className="mt-2 text-sm text-brand-body">ไม่มีรายการยา</p>}</section>
+          <label className="flex items-start gap-3 rounded-2xl border border-brand-border-soft bg-white p-4 text-sm"><input type="checkbox" className="mt-1" checked={complete} onChange={(event) => setComplete(event.target.checked)} /><span><span className="block font-semibold text-brand-ink">จบตรวจพร้อมบันทึกผล</span><span className="mt-1 block text-xs leading-5 text-brand-body">หากยังไม่เลือก ระบบจะบันทึกผลไว้เป็น “รอจบตรวจ” เพื่อให้เจ้าหน้าที่ดำเนินการต่อ</span></span></label>
+        </section>}
+
       </section>
 
-      <div className="flex flex-col gap-4 border-t border-brand-border-soft pt-5 sm:flex-row sm:items-center sm:justify-between"><label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-ink"><input type="checkbox" checked={complete} onChange={(event) => setComplete(event.target.checked)} />จบตรวจพร้อมบันทึกผล</label><button disabled={!chosen || !diagnosis.trim()} className={`${primaryButtonClass} min-h-12 rounded-2xl px-5`}>{busy ? 'กำลังบันทึก…' : complete ? 'ยืนยันบันทึกผลและจบตรวจ' : 'ยืนยันบันทึกผลตรวจ'}</button></div>
+      <div className="flex flex-col-reverse gap-3 border-t border-brand-border-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <button type="button" disabled={busy || step === 0} className={`${secondaryButtonClass} rounded-xl`} onClick={() => { setStepError(''); setStep((current) => Math.max(current - 1, 0)); }}><ChevronLeft className="h-4 w-4" aria-hidden="true" />ย้อนกลับ</button>
+        {step < recordSteps.length - 1 ? <button type="button" disabled={busy || !chosen} className={`${primaryButtonClass} rounded-xl`} onClick={goNext}>ถัดไป<ChevronRight className="h-4 w-4" aria-hidden="true" /></button> : <button type="submit" disabled={busy || !chosen} className={`${primaryButtonClass} min-h-12 rounded-2xl px-5`}>{busy ? 'กำลังบันทึก…' : complete ? 'ยืนยันบันทึกผลและจบตรวจ' : 'ยืนยันบันทึกผลตรวจ'}<CheckCircle2 className="h-4 w-4" aria-hidden="true" /></button>}
+      </div>
     </fieldset>
   </form>;
 }
@@ -174,5 +300,5 @@ export function PatientRecordsPage({ repository, selectedId }: { repository?: Cl
 
 export function MedicalRecordsPage({ repository, selectedId }: { repository?: ClinicRepository; selectedId?: string }) {
   const state = useClinicWorkspace('medical', repository);
-  return <ClinicWorkspaceShell {...state} role="medical" section="records" wide>{state.loading ? <ClinicPageLoading /> : state.data && <div className="space-y-5"><RecordsIntro role="medical" records={state.data.records.length} pending={state.data.appointments.filter((appointment) => appointment.status === 'in_progress' && !appointment.has_record).length} /><RecordEditor data={state.data} busy={state.busy} selectedId={selectedId} save={(input) => state.run((repositoryInstance) => repositoryInstance.saveRecord(input), input.complete ? 'บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดดูได้' : 'บันทึกผลตรวจแล้ว จบตรวจเพื่อให้ผู้ป่วยเปิดดูผลได้')} /><RecordList data={state.data} selectedId={selectedId} /></div>}</ClinicWorkspaceShell>;
+  return <ClinicWorkspaceShell {...state} role="medical" section="records" wide>{state.loading ? <ClinicPageLoading /> : state.data && <div className="space-y-5"><RecordsIntro role="medical" records={state.data.records.length} pending={state.data.appointments.filter((appointment) => appointment.status === 'in_progress' && !appointment.has_record).length} /><MedicalRecordStepper data={state.data} busy={state.busy} selectedId={selectedId} save={(input) => state.run((repositoryInstance) => repositoryInstance.saveRecord(input), input.complete ? 'บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดดูได้' : 'บันทึกผลตรวจแล้ว จบตรวจเพื่อให้ผู้ป่วยเปิดดูผลได้')} /><RecordList data={state.data} selectedId={selectedId} /></div>}</ClinicWorkspaceShell>;
 }

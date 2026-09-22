@@ -9,9 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import { createSchedulingRepository } from '../data/repositoryFactory';
-import { DatabaseSchedulingRepository } from '../data/databaseRepository';
+import { ApiSchedulingRepository } from '../data/apiRepository';
 import type { SchedulingRepository, SchedulingSnapshot } from '../domain/repository';
 import type {
   DoctorWeeklySchedule,
@@ -78,17 +77,7 @@ interface SchedulingContextValue extends SchedulingSnapshot {
 const SchedulingContext = createContext<SchedulingContextValue | null>(null);
 
 export function SchedulingProvider({ children }: { children: ReactNode }) {
-  const supabaseClient = useMemo(() => {
-    try {
-      return createClient();
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const dbRepo = useMemo(() => {
-    return supabaseClient ? new DatabaseSchedulingRepository(supabaseClient) : null;
-  }, [supabaseClient]);
+  const dbRepo = useMemo(() => new ApiSchedulingRepository(), []);
 
   const [repository] = useState<SchedulingRepository>(() => createSchedulingRepository());
   const [snapshot, setSnapshot] = useState<SchedulingSnapshot>(() => {
