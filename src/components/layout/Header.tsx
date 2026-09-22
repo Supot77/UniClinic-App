@@ -334,7 +334,7 @@ export default function Header() {
               aria-expanded={accountMenuOpen}
             >
               <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="hidden max-w-28 truncate sm:inline">{user?.full_name ?? "บัญชีผู้ใช้"}</span>
+              <span className="hidden max-w-28 truncate sm:inline">{user?.displayName ?? "บัญชีผู้ใช้"}</span>
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150 ${accountMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
           ) : (
@@ -423,7 +423,6 @@ export default function Header() {
       )}
       <ProfileAccountDrawer
         role={role}
-        fullName={user?.full_name ?? 'บัญชีผู้ใช้'}
         open={accountMenuOpen}
         onClose={() => setAccountMenuOpen(false)}
         onSignOut={() => void handleSignOut()}

@@ -1,4 +1,6 @@
 all table?
+
+> Snapshot นี้เป็นหลักฐานก่อนรัน `supabase/migrations/33_remove_full_name.sql` จึงยังอาจแสดง `full_name` จากฐานเดิมอยู่ หลัง migration สำเร็จ ให้ยึด `docs/03_database_design_and_er.md` และโครงสร้างใน migration 33 เป็นสัญญาณล่าสุด
 ## Table `medications`
 
 ### Columns
@@ -34,7 +36,9 @@ all table?
 |------|------|-------------|
 | `id` | `uuid` | Primary |
 | `student_id` | `text` |  Nullable Unique |
-| `full_name` | `text` |  |
+| `title` | `text` | Nullable |
+| `first_name` | `text` |  |
+| `last_name` | `text` |  |
 | `phone` | `text` |  Nullable |
 | `emergency_phone` | `text` |  Nullable |
 | `address` | `text` |  Nullable |

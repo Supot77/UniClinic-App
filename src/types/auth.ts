@@ -4,7 +4,7 @@ export interface AuthUser {
   id: string;
   email: string;
   role: UserRole;
-  full_name: string;
+  displayName: string;
   avatar_url?: string | null;
 }
 
@@ -22,7 +22,9 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string;
   password: string;
-  full_name: string;
+  title: string;
+  first_name: string;
+  last_name: string;
   student_id?: string;
   phone?: string;
 }

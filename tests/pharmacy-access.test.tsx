@@ -18,7 +18,7 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
 
   it('allows access for medical role and passes role to PharmacyContent', async () => {
     vi.spyOn(requireRoleModule, 'requireRole').mockResolvedValueOnce({
-      user: { id: 'doc-1', email: 'doctor@wu.ac.th', user_metadata: { full_name: 'นพ. วลัย' } } as unknown as User,
+      user: { id: 'doc-1', email: 'doctor@wu.ac.th', user_metadata: { title: 'นาย', first_name: 'วลัย', last_name: 'แพทย์' } } as unknown as User,
       role: 'medical',
       rawRole: 'doctor',
     });
@@ -33,7 +33,7 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
 
   it('allows access for staff_admin role', async () => {
     vi.spyOn(requireRoleModule, 'requireRole').mockResolvedValueOnce({
-      user: { id: 'staff-1', email: 'staff@wu.ac.th', user_metadata: { full_name: 'เจ้าหน้าที่ สมศรี' } } as unknown as User,
+      user: { id: 'staff-1', email: 'staff@wu.ac.th', user_metadata: { first_name: 'สมศรี', last_name: 'เจ้าหน้าที่' } } as unknown as User,
       role: 'staff_admin',
       rawRole: 'staff_admin',
     });
@@ -44,7 +44,7 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
 
   it('allows access for admin role specifically', async () => {
     vi.spyOn(requireRoleModule, 'requireRole').mockResolvedValueOnce({
-      user: { id: 'admin-1', email: 'admin@wu.ac.th', user_metadata: { full_name: 'แอดมิน สมชาย' } } as unknown as User,
+      user: { id: 'admin-1', email: 'admin@wu.ac.th', user_metadata: { first_name: 'สมชาย', last_name: 'แอดมิน' } } as unknown as User,
       role: 'staff_admin',
       rawRole: 'admin',
     });

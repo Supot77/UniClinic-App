@@ -29,7 +29,9 @@ vi.mock("next/link", () => ({
 const patient: Profile = {
   id: "patient-1",
   student_id: "66123456",
-  full_name: "สมชาย ใจดี",
+  title: null,
+  first_name: "สมชาย",
+  last_name: "ใจดี",
   phone: "0812345678",
   emergency_phone: "0899999999",
   address: null,

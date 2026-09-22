@@ -61,7 +61,9 @@ describe('DatabaseSchedulingRepository', () => {
               department_id: 'dept-1',
               profile: {
                 id: 'doc-1',
-                full_name: 'นพ. สมชาย ใจดี',
+                title: 'นาย',
+                first_name: 'สมชาย',
+                last_name: 'ใจดี',
                 role: 'medical',
                 is_active: true,
               },
@@ -79,7 +81,7 @@ describe('DatabaseSchedulingRepository', () => {
     expect(doctors.length).toBe(1);
     expect(doctors[0]).toMatchObject({
       id: 'doc-1',
-      fullName: 'นพ. สมชาย ใจดี',
+      fullName: 'นาย สมชาย ใจดี',
       specialty: 'อายุรศาสตร์',
       departmentId: 'dept-1',
       availability: 'active',

@@ -51,7 +51,7 @@ export async function getLowStockMedications(threshold?: number): Promise<Medica
 export async function getInventoryLogs(medicationId?: string): Promise<InventoryLog[]> {
   let query = supabase
     .from('inventory_logs')
-    .select('*, medication:medications(name), pharmacist:profiles(full_name)')
+    .select('*, medication:medications(name), pharmacist:profiles(title, first_name, last_name)')
     .order('created_at', { ascending: false });
 
   if (medicationId) {

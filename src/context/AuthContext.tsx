@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import type { AuthSession } from '@/types/auth';
 import type { UserRole } from '@/types/database';
+import { formatProfileName } from '@/lib/profileName';
 
 const supabase = createClient();
 
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 id: profile.id,
                 email: supabaseSession.user.email!,
                 role: profile.role,
-                full_name: profile.full_name,
+                displayName: formatProfileName(profile),
                 avatar_url: profile.avatar_url,
               },
               isLoading: false,
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               id: profile.id,
               email: currentSession.user.email!,
               role: profile.role,
-              full_name: profile.full_name,
+              displayName: formatProfileName(profile),
               avatar_url: profile.avatar_url,
             },
             isLoading: false,

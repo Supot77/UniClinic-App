@@ -17,6 +17,7 @@ import {
 import type {
   HealthDeclarationStatus,
   PatientType,
+  ProfileTitle,
 } from '@/types/database';
 import Toast from '@/components/common/Toast';
 
@@ -25,7 +26,9 @@ interface StaffEditPatientFormProps {
 }
 
 const initialForm: StaffAdminPatientUpdates = {
-  full_name: '',
+  title: null,
+  first_name: '',
+  last_name: '',
   phone: '',
   emergency_phone: '',
   address: '',
@@ -73,7 +76,9 @@ export default function StaffEditPatientForm({
         if (!active) return;
 
         setForm({
-          full_name: patient.full_name ?? '',
+          title: patient.title ?? null,
+          first_name: patient.first_name ?? '',
+          last_name: patient.last_name ?? '',
           phone: patient.phone ?? '',
           emergency_phone:
             patient.emergency_phone ?? '',
@@ -219,20 +224,40 @@ export default function StaffEditPatientForm({
           </h2>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="sm:col-span-2">
+            <label>
               <span className="mb-2 block text-sm font-medium text-slate-700">
-                ชื่อ–นามสกุล
+                คำนำหน้า
               </span>
 
+              <select
+                value={form.title ?? ''}
+                onChange={(event) => updateField('title', (event.target.value || null) as ProfileTitle | null)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              >
+                <option value="">ไม่ระบุ</option>
+                <option value="นาย">นาย</option>
+                <option value="นาง">นาง</option>
+                <option value="นางสาว">นางสาว</option>
+                <option value="อื่น ๆ">อื่น ๆ</option>
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-2 block text-sm font-medium text-slate-700">ชื่อ</span>
               <input
                 required
-                value={form.full_name}
-                onChange={(event) =>
-                  updateField(
-                    'full_name',
-                    event.target.value
-                  )
-                }
+                value={form.first_name}
+                onChange={(event) => updateField('first_name', event.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              />
+            </label>
+
+            <label>
+              <span className="mb-2 block text-sm font-medium text-slate-700">นามสกุล</span>
+              <input
+                required
+                value={form.last_name}
+                onChange={(event) => updateField('last_name', event.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
               />
             </label>

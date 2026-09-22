@@ -50,7 +50,6 @@ export async function POST(request: Request) {
   const profileId = created.user.id;
   const { error: profileError } = await admin.from('profiles').insert({
     id: profileId,
-    full_name: `${input.firstName} ${input.lastName}`,
     title: input.title,
     first_name: input.firstName,
     last_name: input.lastName,

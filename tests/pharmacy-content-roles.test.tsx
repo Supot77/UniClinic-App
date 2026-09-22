@@ -102,21 +102,27 @@ const mockMedicalRecords = [
 const mockProfiles = [
   {
     id: 'pat-1',
-    full_name: 'นายสมศักดิ์ รักเรียน',
+    title: 'นาย',
+    first_name: 'สมศักดิ์',
+    last_name: 'รักเรียน',
     student_id: '65123456',
     phone: '0812345678',
     role: 'patient',
   },
   {
     id: 'pat-2',
-    full_name: 'นางสาว อารียา สุขใจ',
+    title: 'นางสาว',
+    first_name: 'อารียา',
+    last_name: 'สุขใจ',
     student_id: '65123999',
     phone: '0898765432',
     role: 'patient',
   },
   {
     id: 'doc-1',
-    full_name: 'นพ. วิชัย เก่งการุณ',
+    title: null,
+    first_name: 'นพ.',
+    last_name: 'วิชัย เก่งการุณ',
     role: 'medical',
   },
 ];
@@ -223,7 +229,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     fireEvent.click(prescriptionsTab);
 
     // Verify patient name and doctor name are shown
-    expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
+    expect(await screen.findByText('นาย สมศักดิ์ รักเรียน')).toBeInTheDocument();
     expect(screen.getByText('65123456')).toBeInTheDocument();
     expect(screen.getAllByText('นพ. วิชัย เก่งการุณ').length).toBeGreaterThan(0);
     expect(screen.queryByText(/ผลวินิจฉัย:/)).not.toBeInTheDocument();
@@ -244,7 +250,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     });
     fireEvent.click(prescriptionsTab);
 
-    expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
+    expect(await screen.findByText('นาย สมศักดิ์ รักเรียน')).toBeInTheDocument();
 
     // Role admin should see locked dispense indicator
     expect(screen.getByText('ดูอย่างเดียว')).toBeInTheDocument();
@@ -259,7 +265,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     });
     fireEvent.click(prescriptionsTab);
 
-    expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
+    expect(await screen.findByText('นาย สมศักดิ์ รักเรียน')).toBeInTheDocument();
 
     // Role staff_admin should see locked dispense indicator
     expect(screen.getByText('ดูอย่างเดียว')).toBeInTheDocument();
@@ -583,7 +589,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
 
     // Wait for prescription order data to load
-    expect(await screen.findByText('นายสมศักดิ์ รักเรียน')).toBeInTheDocument();
+    expect(await screen.findByText('นาย สมศักดิ์ รักเรียน')).toBeInTheDocument();
 
     // Click dispense button on pending order
     const dispenseBtn = screen.getByRole('button', { name: /จ่ายยาและตัดสต็อก/ });

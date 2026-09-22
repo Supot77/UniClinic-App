@@ -62,8 +62,8 @@ describe('Supabase-compatible mock repositories', () => {
     expect(result.error).toBeNull();
     expect(result.data?.[0]).toMatchObject({
       user_id: 'profile-peter-parker',
-      patient: { full_name: 'Peter Parker' },
-      slot: { doctor: { profile: { full_name: 'Stephen Strange' }, department: { id: 'dept-general' } } },
+      patient: { first_name: 'Peter', last_name: 'Parker' },
+      slot: { doctor: { profile: { first_name: 'Stephen', last_name: 'Strange' }, department: { id: 'dept-general' } } },
     });
   });
 

@@ -16,6 +16,7 @@ import {
 import { searchProfilesByGroup } from "@/services/authService";
 import { useAuth } from "@/hooks/useAuth";
 import type { Profile } from "@/types/database";
+import { formatProfileName } from "@/lib/profileName";
 
 const healthStatusLabel: Record<string, { text: string; className: string }> = {
   yes: {
@@ -348,7 +349,7 @@ export default function PatientSearchContent() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="truncate text-base font-semibold text-zinc-900">
-                        {patient.full_name}
+                        {formatProfileName(patient)}
                       </h3>
                       <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
                         {patientTypeLabel(patient)}

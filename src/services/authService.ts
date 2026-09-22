@@ -12,7 +12,9 @@ import type {
 const supabase = createClient();
 
 export interface PersonalProfileUpdates {
-  full_name: string;
+  title: ProfileTitle | null;
+  first_name: string;
+  last_name: string;
   phone: string;
   emergency_phone: string | null;
   address: string | null;
@@ -26,7 +28,9 @@ export interface HealthProfileUpdates {
 }
 
 export interface StaffAdminPatientUpdates {
-  full_name: string;
+  title: ProfileTitle | null;
+  first_name: string;
+  last_name: string;
   phone: string;
   emergency_phone: string | null;
   address: string | null;
@@ -113,9 +117,6 @@ export async function signUp(
 
   const normalizedChronicDiseases =
     details.chronicDiseases?.trim() || null;
-
-  const fullName =
-    `${normalizedFirstName} ${normalizedLastName}`;
 
   const validTitles: ProfileTitle[] = [
     'นาย',
@@ -310,8 +311,6 @@ export async function signUp(
       .from('profiles')
       .insert({
         id: data.user.id,
-        full_name: fullName,
-
         title: details.title,
         first_name: normalizedFirstName,
         last_name: normalizedLastName,
@@ -501,11 +500,12 @@ export async function updateMyPersonalProfile(
 ): Promise<Profile> {
   const userId = await getCurrentUserId();
 
-  const fullName = updates.full_name.trim();
+  const firstName = updates.first_name.trim();
+  const lastName = updates.last_name.trim();
   const phone = updates.phone.trim();
 
-  if (!fullName) {
-    throw new Error('กรุณากรอกชื่อ-นามสกุล');
+  if (!firstName || !lastName) {
+    throw new Error('กรุณากรอกชื่อและนามสกุล');
   }
 
   if (!phone) {
@@ -515,7 +515,9 @@ export async function updateMyPersonalProfile(
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      full_name: fullName,
+      title: updates.title,
+      first_name: firstName,
+      last_name: lastName,
       phone,
       emergency_phone: updates.emergency_phone?.trim() || null,
       address: updates.address?.trim() || null,
@@ -626,7 +628,8 @@ export async function updatePatientByStaff(
   patientId: string,
   updates: StaffAdminPatientUpdates,
 ): Promise<Profile> {
-  const fullName = updates.full_name.trim();
+  const firstName = updates.first_name.trim();
+  const lastName = updates.last_name.trim();
   const phone = updates.phone.trim();
   const studentId = updates.student_id?.trim() || null;
   const employeeId = updates.employee_id?.trim() || null;
@@ -636,8 +639,8 @@ export async function updatePatientByStaff(
     throw new Error('ไม่พบรหัสผู้ป่วย');
   }
 
-  if (!fullName) {
-    throw new Error('กรุณากรอกชื่อ-นามสกุล');
+  if (!firstName || !lastName) {
+    throw new Error('กรุณากรอกชื่อและนามสกุล');
   }
 
   if (!phone) {
@@ -665,7 +668,9 @@ export async function updatePatientByStaff(
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      full_name: fullName,
+      title: updates.title,
+      first_name: firstName,
+      last_name: lastName,
       phone,
       emergency_phone: updates.emergency_phone?.trim() || null,
       address: updates.address?.trim() || null,
@@ -698,7 +703,8 @@ export async function getAccounts(
   let query = supabase
     .from('profiles')
     .select('*')
-    .order('full_name', { ascending: true });
+    .order('first_name', { ascending: true })
+    .order('last_name', { ascending: true });
 
   if (group === 'patient') {
     query = query.eq('role', 'patient');
@@ -950,7 +956,9 @@ export async function searchProfilesByGroup(
 
   const selectedFields = [
     'id',
-    'full_name',
+    'title',
+    'first_name',
+    'last_name',
     'student_id',
     'employee_id',
     'patient_type',
@@ -970,7 +978,8 @@ export async function searchProfilesByGroup(
   let request = supabase
     .from('profiles')
     .select(selectedFields, { count: 'exact' })
-    .order('full_name', { ascending: true })
+    .order('first_name', { ascending: true })
+    .order('last_name', { ascending: true })
     .range(from, to);
 
   if (group === 'patient') {
@@ -984,7 +993,8 @@ export async function searchProfilesByGroup(
 
   if (normalizedQuery) {
     const filters = [
-      `full_name.ilike.%${safeSearchTerm}%`,
+      `first_name.ilike.%${safeSearchTerm}%`,
+      `last_name.ilike.%${safeSearchTerm}%`,
       `student_id.ilike.%${safeSearchTerm}%`,
       `employee_id.ilike.%${safeSearchTerm}%`,
       `phone.ilike.%${safeSearchTerm}%`,

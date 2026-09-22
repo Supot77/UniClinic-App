@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Footer from "@/components/layout/Footer";
 
 const authState = vi.hoisted(() => ({
-  user: null as null | { full_name: string },
+  user: null as null | { displayName: string },
   isAuthenticated: false,
   isLoading: false,
   role: null as string | null,
@@ -43,7 +43,7 @@ describe("Footer", () => {
   it("renders patient links for authenticated patient role and hides staff menus", () => {
     authState.isAuthenticated = true;
     authState.role = "patient";
-    authState.user = { full_name: "สมหญิง ผู้ป่วย" };
+    authState.user = { displayName: "สมหญิง ผู้ป่วย" };
 
     render(<Footer />);
 
@@ -65,7 +65,7 @@ describe("Footer", () => {
   it("renders medical staff links for authenticated medical role", () => {
     authState.isAuthenticated = true;
     authState.role = "medical";
-    authState.user = { full_name: "นพ. สมชาย ใจดี" };
+    authState.user = { displayName: "นพ. สมชาย ใจดี" };
 
     render(<Footer />);
 
@@ -85,7 +85,7 @@ describe("Footer", () => {
   it("renders staff admin links for authenticated staff_admin role", () => {
     authState.isAuthenticated = true;
     authState.role = "staff_admin";
-    authState.user = { full_name: "แอดมิน สมบัติ" };
+    authState.user = { displayName: "แอดมิน สมบัติ" };
 
     render(<Footer />);
 
@@ -108,7 +108,7 @@ describe("Footer", () => {
 
     authState.isAuthenticated = true;
     authState.role = "patient";
-    authState.user = { full_name: "สมหญิง ผู้ป่วย" };
+    authState.user = { displayName: "สมหญิง ผู้ป่วย" };
 
     render(<Footer />);
     expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/dashboard");

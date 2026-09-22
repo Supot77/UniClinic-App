@@ -102,7 +102,7 @@ erDiagram
 
 ## Data dictionary ฉบับตรงกับ schema ล่าสุด
 
-ชนิดข้อมูล, ค่า NULL, default และ FK ด้านล่างยึดตาม schema snapshot ล่าสุดที่ส่งมา. ฟิลด์ compatibility ยังบันทึกไว้เพื่อไม่ให้ข้อมูลเดิมหาย แต่ไม่มี workflow เก่ารองรับใน scope นี้
+ชนิดข้อมูล, ค่า NULL, default และ FK ด้านล่างยึดตาม schema หลัง migration `33_remove_full_name.sql`. ชื่อที่แสดงผลประกอบจาก `title`, `first_name` และ `last_name` ที่ขอบเขตแอป/RPC ไม่ได้เก็บซ้ำเป็นคอลัมน์เดียว
 
 ### 1. `profiles`
 
@@ -110,7 +110,11 @@ erDiagram
 | --- | --- | --- | --- | --- | --- |
 | `id` | `uuid` | ไม่ได้ | — | PK; FK → `auth.users.id` | รหัสบัญชีเดียวกับ Supabase Auth |
 | `student_id` | `text` | ได้ | — | UNIQUE | รหัสนักศึกษา |
-| `full_name` | `text` | ไม่ได้ | — | — | ชื่อ–นามสกุล |
+| `title` | `text` | ได้ | — | CHECK: `นาย`, `นาง`, `นางสาว`, `อื่น ๆ` | คำนำหน้า |
+| `first_name` | `text` | ไม่ได้ | — | CHECK รูปแบบชื่อ | ชื่อจริง |
+| `last_name` | `text` | ไม่ได้ | — | CHECK รูปแบบนามสกุล | นามสกุล |
+| `date_of_birth` | `date` | ได้ | — | ไม่เกินวันปัจจุบัน | วันเดือนปีเกิด |
+| `gender` | `text` | ได้ | — | CHECK: `male`, `female`, `unspecified` | เพศ |
 | `phone` | `text` | ได้ | — | — | เบอร์โทรศัพท์ |
 | `emergency_phone` | `text` | ได้ | — | — | เบอร์ติดต่อฉุกเฉิน |
 | `address` | `text` | ได้ | — | — | ที่อยู่ |

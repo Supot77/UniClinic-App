@@ -12,6 +12,7 @@ import type {
   DoctorLeaveInput,
 } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
+import { formatProfileName, getProfileInitial } from '@/lib/profileName';
 import type { SchedulingResult, SlotBatchInput, SlotInput } from '../domain/rules';
 import {
   buildSlotBatchPlan,
@@ -118,7 +119,9 @@ export class DatabaseSchedulingRepository {
         department_id,
         profile:profiles!doctors_id_fkey (
           id,
-          full_name,
+          title,
+          first_name,
+          last_name,
           role,
           is_active
         )
@@ -137,13 +140,17 @@ export class DatabaseSchedulingRepository {
       profile:
         | {
             id: string;
-            full_name: string;
+            title: string | null;
+            first_name: string;
+            last_name: string;
             role: string;
             is_active: boolean;
           }
         | Array<{
             id: string;
-            full_name: string;
+            title: string | null;
+            first_name: string;
+            last_name: string;
             role: string;
             is_active: boolean;
           }>
@@ -152,17 +159,9 @@ export class DatabaseSchedulingRepository {
 
     return (data as unknown as DoctorRow[]).map((row) => {
       const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
-      const rawFullName = profile?.full_name?.trim();
+      const rawFullName = formatProfileName(profile);
       const fullName = rawFullName || 'ไม่ระบุชื่อ';
-      const initials = rawFullName
-        ? rawFullName
-            .split(' ')
-            .map((part: string) => part[0])
-            .filter(Boolean)
-            .slice(0, 2)
-            .join('')
-            .toUpperCase() || 'DR'
-        : 'DR';
+      const initials = rawFullName ? getProfileInitial(profile).toUpperCase() : 'DR';
 
       return {
         id: row.id,
@@ -181,28 +180,24 @@ export class DatabaseSchedulingRepository {
   async fetchDoctorAccounts(): Promise<DoctorAccountOption[]> {
     const { data, error } = await this.client
       .from('profiles')
-      .select('id, full_name, role, is_active')
+      .select('id, title, first_name, last_name, role, is_active')
       .eq('role', 'medical')
       .eq('is_active', true)
-      .order('full_name', { ascending: true });
+      .order('first_name', { ascending: true })
+      .order('last_name', { ascending: true });
 
     if (error || !data) {
       console.error('Error fetching doctor accounts:', error);
       return [];
     }
 
-    return data.map((row: { id: string; full_name: string }) => {
-      const initials = row.full_name
-        .split(' ')
-        .map((part: string) => part[0])
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('')
-        .toUpperCase() || 'MD';
+    return data.map((row: { id: string; title: string | null; first_name: string; last_name: string }) => {
+      const fullName = formatProfileName(row) || 'ไม่ระบุชื่อ';
+      const initials = getProfileInitial(row).toUpperCase() || 'MD';
 
       return {
         profileId: row.id,
-        fullName: row.full_name,
+        fullName,
         email: '',
         initials,
       };

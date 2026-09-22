@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { getProfile, updateMyPersonalProfile, updateMyHealthProfile, updateMyProfileAvatar } from "@/services/authService";
 import { createClient } from "@/utils/supabase/client";
-import type {Profile,UserRole,} from "@/types/database";
+import type { Profile, ProfileTitle, UserRole } from "@/types/database";
+import { formatProfileName, getProfileInitial } from "@/lib/profileName";
 const supabase = createClient();
 import {
   Phone,
@@ -72,7 +73,9 @@ export default function ProfileContent() {
   const [editingPersonal, setEditingPersonal] = useState(false);
 
   const [personalForm, setPersonalForm] = useState({
-    full_name: "",
+    title: null as ProfileTitle | null,
+    first_name: "",
+    last_name: "",
     phone: "",
     emergency_phone: "",
     address: "",
@@ -114,7 +117,9 @@ export default function ProfileContent() {
     setProfile(data);
 
     setPersonalForm({
-      full_name: data?.full_name ?? "",
+      title: data?.title ?? null,
+      first_name: data?.first_name ?? "",
+      last_name: data?.last_name ?? "",
       phone: data?.phone ?? "",
       emergency_phone: data?.emergency_phone ?? "",
       address: data?.address ?? "",
@@ -192,8 +197,8 @@ export default function ProfileContent() {
 
     setPersonalError(null);
 
-    if (!personalForm.full_name.trim()) {
-      setPersonalError("กรุณากรอกชื่อ-นามสกุล");
+    if (!personalForm.first_name.trim() || !personalForm.last_name.trim()) {
+      setPersonalError("กรุณากรอกชื่อและนามสกุล");
       return;
     }
 
@@ -211,7 +216,9 @@ export default function ProfileContent() {
 
     try {
       await updateMyPersonalProfile({
-        full_name: personalForm.full_name.trim(),
+        title: personalForm.title,
+        first_name: personalForm.first_name.trim(),
+        last_name: personalForm.last_name.trim(),
         phone: personalForm.phone.trim(),
         emergency_phone: personalForm.emergency_phone.trim() || null,
         address: personalForm.address.trim() || null,
@@ -424,19 +431,37 @@ export default function ProfileContent() {
                         <div className="grid gap-4 sm:grid-cols-2">
                           {/* Name */}
 
-                          <div className="sm:col-span-2">
-                            <label className="mb-2 block text-xs font-semibold text-slate-600">
-                              ชื่อ-นามสกุล
-                            </label>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold text-slate-600">คำนำหน้า</label>
+                            <select
+                              value={personalForm.title ?? ""}
+                              onChange={(e) => setPersonalForm({ ...personalForm, title: (e.target.value || null) as ProfileTitle | null })}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
+                            >
+                              <option value="">ไม่ระบุ</option>
+                              <option value="นาย">นาย</option>
+                              <option value="นาง">นาง</option>
+                              <option value="นางสาว">นางสาว</option>
+                              <option value="อื่น ๆ">อื่น ๆ</option>
+                            </select>
+                          </div>
 
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold text-slate-600">ชื่อ</label>
                             <input
-                              value={personalForm.full_name}
-                              onChange={(e) =>
-                                setPersonalForm({
-                                  ...personalForm,
-                                  full_name: e.target.value,
-                                })
-                              }
+                              required
+                              value={personalForm.first_name}
+                              onChange={(e) => setPersonalForm({ ...personalForm, first_name: e.target.value })}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-300 focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold text-slate-600">นามสกุล</label>
+                            <input
+                              required
+                              value={personalForm.last_name}
+                              onChange={(e) => setPersonalForm({ ...personalForm, last_name: e.target.value })}
                               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-300 focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                             />
                           </div>
@@ -538,7 +563,7 @@ export default function ProfileContent() {
                               {profile?.avatar_url ? (
                                 <img src={profile.avatar_url} alt="รูปโปรไฟล์" className="h-full w-full object-cover" />
                               ) : (
-                                (profile?.full_name?.charAt(0) ?? "?")
+                                getProfileInitial(profile)
                               )}
                             </div>
                             <label
@@ -563,7 +588,7 @@ export default function ProfileContent() {
 
                           <div className="min-w-0">
                             <p className="text-[18px] font-bold text-slate-800">
-                              {profile?.full_name || "ไม่ระบุชื่อ"}
+                              {formatProfileName(profile) || "ไม่ระบุชื่อ"}
                             </p>
 
                             <span className="mt-2 inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-600">
@@ -989,19 +1014,37 @@ export default function ProfileContent() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         {/* Full name */}
 
-                        <div className="sm:col-span-2">
-                          <label className="mb-2 block text-xs font-semibold text-slate-600">
-                            ชื่อ-นามสกุล
-                          </label>
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold text-slate-600">คำนำหน้า</label>
+                          <select
+                            value={personalForm.title ?? ""}
+                            onChange={(e) => setPersonalForm({ ...personalForm, title: (e.target.value || null) as ProfileTitle | null })}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
+                          >
+                            <option value="">ไม่ระบุ</option>
+                            <option value="นาย">นาย</option>
+                            <option value="นาง">นาง</option>
+                            <option value="นางสาว">นางสาว</option>
+                            <option value="อื่น ๆ">อื่น ๆ</option>
+                          </select>
+                        </div>
 
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold text-slate-600">ชื่อ</label>
                           <input
-                            value={personalForm.full_name}
-                            onChange={(e) =>
-                              setPersonalForm({
-                                ...personalForm,
-                                full_name: e.target.value,
-                              })
-                            }
+                            required
+                            value={personalForm.first_name}
+                            onChange={(e) => setPersonalForm({ ...personalForm, first_name: e.target.value })}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold text-slate-600">นามสกุล</label>
+                          <input
+                            required
+                            value={personalForm.last_name}
+                            onChange={(e) => setPersonalForm({ ...personalForm, last_name: e.target.value })}
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                           />
                         </div>
@@ -1083,7 +1126,7 @@ export default function ProfileContent() {
                             {profile?.avatar_url ? (
                               <img src={profile.avatar_url} alt="รูปโปรไฟล์" className="h-full w-full object-cover" />
                             ) : (
-                              (profile?.full_name?.charAt(0) ?? "?")
+                              getProfileInitial(profile)
                             )}
                           </div>
                           <label
@@ -1110,7 +1153,7 @@ export default function ProfileContent() {
 
                         <div className="min-w-0">
                           <p className="text-xl font-bold text-slate-800">
-                            {profile?.full_name || "ไม่ระบุชื่อ"}
+                            {formatProfileName(profile) || "ไม่ระบุชื่อ"}
                           </p>
 
                           <span className="mt-2 inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-600">
