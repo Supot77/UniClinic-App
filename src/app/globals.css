@@ -563,23 +563,25 @@ html[data-theme="dark"] textarea::placeholder {
   color: var(--theme-brand-muted);
 }
 
-/* Booking controls are remapped to dark surfaces above. Keep their text and
-   icons on the same high-contrast dark-theme palette. */
+/* Booking controls keep their light surfaces in the dark appointment form.
+   Use a dark local palette so date/service/slot values stay legible. */
 html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control {
-  color: var(--theme-brand-ink) !important;
+  background-color: #ffffff !important;
+  border-color: #8fb9b6 !important;
+  color: #16343a !important;
 }
 
 html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-ink {
-  color: var(--theme-brand-ink) !important;
+  color: #16343a !important;
 }
 
 html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-muted,
 html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-slate-400 {
-  color: var(--theme-brand-body) !important;
+  color: #49636b !important;
 }
 
 html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control svg {
-  color: var(--theme-brand-accent) !important;
+  color: #087f78 !important;
 }
 
 html[data-theme="dark"] select option {
