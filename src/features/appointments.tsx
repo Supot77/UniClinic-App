@@ -89,9 +89,9 @@ function BookingForm({ data, busy, book, initialSlotId }: {
   const selected = slots.find((slot) => slot.id === slotId);
   const departments = data.departments ?? [...new Set(data.slots.map((slot) => slot.department))].sort();
 
-  const bookingControlClass = '!h-12 !min-h-12 !w-full !rounded-xl !border-brand-border !bg-white !px-4 !shadow-none hover:!border-brand-strong';
+  const bookingControlClass = 'appointment-booking-control !h-12 !min-h-12 !w-full !rounded-xl !border-brand-border !bg-white !px-4 !shadow-none hover:!border-brand-strong';
 
-  return <form className="min-w-0 border-b border-brand-border-soft pb-8 sm:pb-10" onSubmit={async (event) => {
+  return <form data-appointment-booking="true" className="min-w-0 border-b border-brand-border-soft pb-8 sm:pb-10" onSubmit={async (event) => {
     event.preventDefault();
     if (selected && await book(selected.id, reason)) {
       setSlotId('');

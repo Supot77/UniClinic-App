@@ -563,6 +563,25 @@ html[data-theme="dark"] textarea::placeholder {
   color: var(--theme-brand-muted);
 }
 
+/* Booking controls are remapped to dark surfaces above. Keep their text and
+   icons on the same high-contrast dark-theme palette. */
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control {
+  color: var(--theme-brand-ink) !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-ink {
+  color: var(--theme-brand-ink) !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-muted,
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-slate-400 {
+  color: var(--theme-brand-body) !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control svg {
+  color: var(--theme-brand-accent) !important;
+}
+
 html[data-theme="dark"] select option {
   background-color: var(--theme-brand-surface);
   color: var(--theme-brand-ink);

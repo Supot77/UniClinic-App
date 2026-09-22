@@ -414,7 +414,7 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
   role: ClinicRole; section: 'appointments' | 'records'; error: string; message: string; busy: boolean;
   reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[]; wide?: boolean;
 }) {
-  const title = role === 'patient' ? 'ภาพรวมสุขภาพของฉัน' : section === 'appointments' ? 'นัดหมายและคิวตรวจ' : 'ผลตรวจและรายการยา';
+  const title = role === 'patient' ? 'นัดหมายและผลตรวจ' : section === 'appointments' ? 'นัดหมายและคิวตรวจ' : 'ผลตรวจและรายการยา';
   const description = role === 'patient'
     ? 'นัดหมาย ผลตรวจ และรายการยาของบัญชีนี้เท่านั้น'
     : role === 'medical'
