@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useTransition } from 'react';
 import {
   useRouter,
   useSearchParams,
@@ -10,10 +10,12 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { signIn } from '@/services/authService';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { toLoginErrorMessage } from '@/lib/userFacingErrors';
+import { useAuth } from '@/hooks/useAuth';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] =
@@ -30,9 +32,12 @@ function LoginForm() {
 
   const [isRedirecting, setIsRedirecting] =
     useState(false);
+  const [isRoutePending, startRedirectTransition] =
+    useTransition();
 
   const isLoading =
-    isSubmitting || isRedirecting;
+    isSubmitting || isRedirecting || isRoutePending;
+  const showRedirectOverlay = isRedirecting && !isAuthenticated;
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -71,18 +76,17 @@ function LoginForm() {
 
       setIsSubmitting(false);
       setIsRedirecting(true);
-
       const redirect =
         searchParams.get('redirect');
 
-      router.push(redirect || '/profile');
-      router.refresh();
+      startRedirectTransition(() => {
+        router.replace(redirect || '/profile');
+      });
     } catch (err) {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('login_welcome_toast');
       }
       setIsSubmitting(false);
-      setIsRedirecting(false);
 
       setError(
         toLoginErrorMessage(err),
@@ -92,7 +96,7 @@ function LoginForm() {
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-zinc-100 bg-white p-8 shadow-xl">
-      {isRedirecting && (
+      {showRedirectOverlay && (
         <div
           role="status"
           aria-live="polite"
@@ -236,7 +240,7 @@ function LoginForm() {
             />
           )}
 
-          {isRedirecting
+          {isRedirecting || isRoutePending
             ? 'กำลังเปิดหน้าถัดไป…'
             : isSubmitting
               ? 'กำลังเข้าสู่ระบบ…'
