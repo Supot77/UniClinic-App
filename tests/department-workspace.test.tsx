@@ -95,6 +95,27 @@ describe('Department and doctor workspace', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('shows save progress and ignores duplicate department saves while the request is pending', async () => {
+    let resolveSave: (value: { ok: true; value: { id: string } }) => void = () => undefined;
+    scheduling.saveDepartment.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve as typeof resolveSave;
+    }));
+    render(<DepartmentWorkspace />);
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มแผนก' }));
+
+    const saveButton = screen.getByRole('button', { name: 'บันทึกข้อมูลแผนก' });
+    fireEvent.click(saveButton);
+
+    const pendingButton = await screen.findByRole('button', { name: 'กำลังบันทึก…' });
+    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(pendingButton);
+    expect(scheduling.saveDepartment).toHaveBeenCalledTimes(1);
+
+    resolveSave({ ok: true, value: { id: 'new' } });
+    expect(await screen.findByText('เพิ่มแผนกแล้ว')).toBeInTheDocument();
+  });
+
   it('preserves the edited department draft when validation fails', async () => {
     scheduling.saveDepartment.mockResolvedValueOnce({ ok: false, error: 'ชื่อแผนกซ้ำ' });
     const before = structuredClone(scheduling.departments);

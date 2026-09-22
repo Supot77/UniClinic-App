@@ -143,6 +143,7 @@ export default function ConfirmationModal({ request, onCancel, isBusy = false }:
             ref={confirmButtonRef}
             type="button"
             disabled={pending}
+            aria-busy={pending}
             onClick={handleConfirm}
             className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${confirmClass}`}
           >

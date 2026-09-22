@@ -322,6 +322,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [serviceDraft, setServiceDraft] = useState({ code: '', name: '', description: '' });
   const [serviceFormError, setServiceFormError] = useState('');
+  const [serviceIsSaving, setServiceIsSaving] = useState(false);
   const [leaveFormOpen, setLeaveFormOpen] = useState(false);
   const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
   const [leaveDraft, setLeaveDraft] = useState<DoctorLeaveDraft>(createEmptyDoctorLeaveDraft);
@@ -791,15 +792,23 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
   const saveService = async () => {
     setServiceFormError('');
-    const result = await persistService({ ...serviceDraft }, editingServiceId ?? undefined);
-    if (!result.ok) {
-      setServiceFormError(result.error);
-      return;
+    setServiceIsSaving(true);
+    const wasEditing = Boolean(editingServiceId);
+    try {
+      const result = await persistService({ ...serviceDraft }, editingServiceId ?? undefined);
+      if (!result.ok) {
+        setServiceFormError(result.error);
+        return;
+      }
+      setServiceFormOpen(false);
+      setEditingServiceId(null);
+      setServiceDraft({ code: '', name: '', description: '' });
+      setNotice(wasEditing ? 'อัปเดตบริการแล้ว' : 'เพิ่มบริการแล้ว');
+    } catch (err) {
+      setServiceFormError(err instanceof Error ? err.message : 'บันทึกบริการไม่สำเร็จ');
+    } finally {
+      setServiceIsSaving(false);
     }
-    setServiceFormOpen(false);
-    setEditingServiceId(null);
-    setServiceDraft({ code: '', name: '', description: '' });
-    setNotice(editingServiceId ? 'อัปเดตบริการแล้ว' : 'เพิ่มบริการแล้ว');
   };
 
   const confirmToggleClosed = async (slot: ScheduleSlot) => {
@@ -1114,7 +1123,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
 
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button type="button" onClick={closeBatchForm} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
-              <button type="button" disabled={batchIsSaving || !batchPreview?.ok || batchPreview.value.slots.length === 0} onClick={saveBatchSlots} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white shadow-xs hover:bg-brand-hover disabled:opacity-50">
+              <button type="button" disabled={batchIsSaving || !batchPreview?.ok || batchPreview.value.slots.length === 0} aria-busy={batchIsSaving} onClick={saveBatchSlots} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white shadow-xs hover:bg-brand-hover disabled:opacity-50">
                 {batchIsSaving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                 {batchIsSaving ? 'กำลังสร้าง…' : 'สร้างรอบตรวจ'}
               </button>
@@ -1207,14 +1216,14 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
             {leaveFormError && <p className="mt-3 text-sm font-medium text-rose-700" role="alert">{leaveFormError}</p>}
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
               {editingLeaveId && (
-                <button type="button" disabled={leaveIsSaving || leaveIsDeleting} onClick={cancelDoctorLeave} className="mr-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                <button type="button" disabled={leaveIsSaving || leaveIsDeleting} aria-busy={leaveIsDeleting} onClick={cancelDoctorLeave} className="mr-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
                   {leaveIsDeleting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {!leaveIsDeleting && <Trash2 className="h-4 w-4" aria-hidden="true" />}
                   {leaveIsDeleting ? 'กำลังยกเลิก…' : 'ยกเลิกวันลา'}
                 </button>
               )}
               <button type="button" onClick={closeLeaveForm} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ปิด</button>
-              <button type="button" disabled={leaveIsSaving || leaveIsDeleting || Boolean(draftLeaveOverlap)} onClick={saveDoctorLeave} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-800 px-5 text-sm font-semibold text-white shadow-xs hover:bg-violet-900 disabled:opacity-50">
+              <button type="button" disabled={leaveIsSaving || leaveIsDeleting || Boolean(draftLeaveOverlap)} aria-busy={leaveIsSaving} onClick={saveDoctorLeave} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-800 px-5 text-sm font-semibold text-white shadow-xs hover:bg-violet-900 disabled:opacity-50">
                 {leaveIsSaving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                 {leaveIsSaving ? 'กำลังบันทึก…' : editingLeaveId ? 'บันทึกการแก้ไข' : 'บันทึกวันลา'}
               </button>
@@ -1403,6 +1412,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               <button
                 type="button"
                 disabled={isSaving || (!editingSlotId && isDoctorOnLeave(visibleDoctorLeaves, draft.doctorId, draft.slotDate))}
+                aria-busy={isSaving}
                 onClick={saveSlot}
                 className="min-h-11 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50 shadow-xs inline-flex items-center justify-center gap-2"
               >
@@ -1431,7 +1441,7 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
                <h2 id="service-form-title" className="mt-1 text-xl font-bold text-slate-950">{editingServiceId ? 'แก้ไขบริการ' : 'เพิ่มบริการ'}</h2>
                <p className="mt-1 text-xs text-slate-500">บริการนี้จะใช้เปิดรับจองในวันที่และรอบตรวจที่กำหนด</p>
               </div>
-              <button type="button" onClick={() => setServiceFormOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100" aria-label="ปิดแบบฟอร์มบริการ"><X className="h-5 w-5" aria-hidden="true" /></button>
+              <button type="button" disabled={serviceIsSaving} onClick={() => setServiceFormOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" aria-label="ปิดแบบฟอร์มบริการ"><X className="h-5 w-5" aria-hidden="true" /></button>
             </div>
             <div className="space-y-4">
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">รหัสบริการ<input className={inputClass} value={serviceDraft.code} onChange={(event) => setServiceDraft((current) => ({ ...current, code: event.target.value }))} placeholder="เช่น GEN-CONSULT" /></label>
@@ -1440,8 +1450,11 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
               {serviceFormError && <p className="text-sm font-medium text-rose-700" role="alert">{serviceFormError}</p>}
             </div>
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
-              <button type="button" onClick={() => setServiceFormOpen(false)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
-              <button type="button" onClick={saveService} className="min-h-11 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white hover:bg-brand-hover">บันทึกบริการ</button>
+              <button type="button" disabled={serviceIsSaving} onClick={() => setServiceFormOpen(false)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">ยกเลิก</button>
+              <button type="button" disabled={serviceIsSaving} aria-busy={serviceIsSaving} onClick={saveService} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50">
+                {serviceIsSaving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                {serviceIsSaving ? 'กำลังบันทึก…' : 'บันทึกบริการ'}
+              </button>
             </div>
           </div>
           </div>
@@ -1936,7 +1949,18 @@ function CalendarBoard({
                   onToggleClosed={() => onToggle(slot)}
                 />
               </div>
-              {canBook && slot.status === 'available' && slot.bookedCount < slot.maxCapacity && slot.slotDate > getTodayDate() && (
+              {canBook && slot.status !== 'closed' && (
+                slot.status === 'full' || slot.bookedCount >= slot.maxCapacity ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="จองไม่ได้ รอบตรวจเต็มแล้ว"
+                    className="inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-4 text-sm font-semibold text-slate-500"
+                  >
+                    จอง (เต็มแล้ว)
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : (
                 <Link
                   href={{ pathname: '/appointments', query: { slotId: slot.id } }}
                   className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white shadow-xs hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-sky-600"
@@ -1944,6 +1968,7 @@ function CalendarBoard({
                   จอง
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
+                )
               )}
             </div>
           ))}

@@ -171,6 +171,27 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(screen.getByLabelText('กำลังโหลดตารางตรวจแพทย์')).toBeInTheDocument();
   });
 
+  it('shows service save progress and ignores duplicate saves while the request is pending', async () => {
+    let resolveSave: (value: { ok: true; value: ScheduleService }) => void = () => undefined;
+    schedulingState.saveService.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve as typeof resolveSave;
+    }));
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มบริการ' }));
+
+    const saveButton = screen.getByRole('button', { name: 'บันทึกบริการ' });
+    fireEvent.click(saveButton);
+
+    const pendingButton = await screen.findByRole('button', { name: 'กำลังบันทึก…' });
+    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveAttribute('aria-busy', 'true');
+    fireEvent.click(pendingButton);
+    expect(schedulingState.saveService).toHaveBeenCalledTimes(1);
+
+    resolveSave({ ok: true, value: mockServices[0] });
+    expect(await screen.findByText('เพิ่มบริการแล้ว')).toBeInTheDocument();
+  });
+
   it('prevents adding slots for past dates in the schedule workspace', () => {
     schedulingState.isLoading = false;
     schedulingState.slots = [];
@@ -342,7 +363,7 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(screen.getByRole('link', { name: 'จอง' })).toHaveAttribute('href', '/appointments?slotId=slot-future');
   });
 
-  it('does not expose booking for a full or closed slot in day view', () => {
+  it('keeps booking visible for a full slot until the slot is closed', () => {
     schedulingState.slots = [
       { ...mockSlots[0], id: 'slot-full', slotDate: '2026-09-10', bookedCount: mockSlots[0].maxCapacity, status: 'full' },
       { ...mockSlots[0], id: 'slot-closed', slotDate: '2026-09-10', bookedCount: 0, status: 'closed' },
@@ -350,9 +371,11 @@ describe('ScheduleWorkspace Service Filter', () => {
 
     render(<ScheduleWorkspace role="patient" actorId="guest" />);
 
+    fireEvent.change(screen.getByLabelText('กรองสถานะ'), { target: { value: 'all' } });
     fireEvent.doubleClick(screen.getAllByTitle(/ดับเบิลคลิกเพื่อดูตารางตรวจวันที่.*10 ก\.ย\./)[0]);
 
     expect(screen.getByLabelText('ปฏิทินรายวัน')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'จองไม่ได้ รอบตรวจเต็มแล้ว' })).toBeDisabled();
     expect(screen.queryByRole('link', { name: 'จอง' })).not.toBeInTheDocument();
   });
 

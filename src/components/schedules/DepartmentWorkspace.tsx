@@ -692,6 +692,7 @@ export default function DepartmentWorkspace() {
                 <button
                   type="button"
                   disabled={isSaving}
+                  aria-busy={isSaving}
                   onClick={saveDepartment}
                   className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
                 >
@@ -847,6 +848,7 @@ export default function DepartmentWorkspace() {
                 <button
                   type="button"
                   disabled={isSaving}
+                  aria-busy={isSaving}
                   onClick={saveDoctor}
                   className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
                 >

@@ -2,6 +2,25 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## Progress กันกดซ้ำใน Scheduling และ CTA จองตามสถานะรอบ — 22 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- ปรับ `src/components/schedules/ScheduleWorkspace.tsx` ให้การบันทึกบริการมีสถานะ `serviceIsSaving` พร้อม spinner, `disabled`, `aria-busy` และรองรับ error/exception โดยไม่เปิดให้กดซ้ำ
+- เพิ่ม `aria-busy` ให้ปุ่มบันทึก slot, สร้าง slot หลายวัน, บันทึก/ยกเลิกวันลา และปุ่มบันทึกแผนก/แพทย์ใน `ScheduleWorkspace.tsx` และ `DepartmentWorkspace.tsx`; ปุ่มยืนยันกลางใน `ConfirmationModal.tsx` รายงาน busy state ด้วย
+- ปรับ CTA `จอง` ในมุมมองรายวันให้แสดงต่อเมื่อรอบยังไม่ `closed`; รอบเต็มยังแสดงเป็นปุ่ม disabled `จอง (เต็มแล้ว)` และรอบปิดจะไม่แสดง CTA
+- เพิ่ม regression coverage ใน `tests/department-workspace.test.tsx` และ `tests/schedule-workspace-department-filter.test.tsx`
+
+### Verification
+
+- focused Vitest: ผ่าน 3 files / 45 tests
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- targeted ESLint: ผ่าน 0 errors / 0 warnings
+- `npm.cmd run build`: ผ่าน และ compile routes/pages ครบ
+- `git diff --check`: ผ่าน
+- Browser: `/schedules` โหลดและแสดง layout narrow/mobile ใน guest session; `/departments` ถูก route guard ส่งไป login จึงยังไม่ยืนยัน authenticated form ที่ 360/1280 และ keyboard ครบ
+- database integration/RLS และการ deploy remote ยังไม่อยู่ในหลักฐานรอบนี้
+
 ## ปรับชื่อโปรไฟล์แบบแยกฟิลด์ให้ครบทุก runtime และ migration — 22 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
