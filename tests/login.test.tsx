@@ -75,10 +75,10 @@ describe('LoginPage', () => {
     authState.isAuthenticated = true;
 
     await waitFor(() => {
-      expect(screen.queryByText('เข้าสู่ระบบสำเร็จ')).not.toBeInTheDocument();
-      expect(routerState.replace).toHaveBeenCalledWith('/profile');
-      expect(routerState.push).not.toHaveBeenCalled();
-      expect(routerState.refresh).not.toHaveBeenCalled();
+      expect(screen.getByText('เข้าสู่ระบบสำเร็จ')).toBeInTheDocument();
+      expect(within(screen.getByRole('status')).getByText('กำลังเปิดหน้าถัดไป…')).toBeInTheDocument();
+      expect(routerState.push).toHaveBeenCalledWith('/dashboard');
+      expect(routerState.refresh).toHaveBeenCalled();
     });
   });
 

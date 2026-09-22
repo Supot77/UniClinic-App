@@ -14,13 +14,13 @@ const titles = ['นาย', 'นาง', 'นางสาว', 'อื่น �
 function validate(email: string, password: string, details: RegistrationDetails): string | null {
   if (!titles.includes(details.title ?? '')) return 'กรุณาเลือกคำนำหน้า';
   if (!namePattern.test(details.firstName?.trim() ?? '') || !namePattern.test(details.lastName?.trim() ?? '')) return 'ชื่อและนามสกุลต้องเป็นตัวอักษรไทยหรืออังกฤษ';
-  if (!details.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(details.dateOfBirth) || details.dateOfBirth > new Date().toISOString().slice(0, 10)) return 'กรุณาระบุวันเกิดที่ถูกต้อง';
+  if (!details.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(details.dateOfBirth) || details.dateOfBirth < '1900-01-01' || details.dateOfBirth > new Date().toISOString().slice(0, 10)) return 'กรุณาระบุวันเกิดที่ถูกต้อง';
   if (!['male', 'female', 'unspecified'].includes(details.gender ?? '')) return 'กรุณาเลือกเพศ';
   if (!['student', 'employee'].includes(details.patientType ?? '')) return 'กรุณาเลือกประเภทผู้ป่วย';
   if (details.patientType === 'student' && !/^\d{8}$/.test(details.studentId ?? '')) return 'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก';
   if (details.patientType === 'employee' && !/^\d{8}$/.test(details.employeeId ?? '')) return 'รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก';
   if (!/^[^\s@]+@mail\.wu\.ac\.th$/i.test(email)) return 'กรุณาใช้อีเมล @mail.wu.ac.th เท่านั้น';
-  if (password.length < 8) return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+  if (!/^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(password)) return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัว และประกอบด้วยตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข';
   if (!/^0[689]\d{8}$/.test(details.phone ?? '') || !/^0[689]\d{8}$/.test(details.emergencyPhone ?? '')) return 'เบอร์โทรศัพท์ต้องเป็นเบอร์มือถือไทย 10 หลัก ขึ้นต้นด้วย 06, 08 หรือ 09';
   if (!titles.includes(details.emergencyContactTitle ?? '') || !namePattern.test(details.emergencyContactFirstName?.trim() ?? '') || !namePattern.test(details.emergencyContactLastName?.trim() ?? '')) return 'ข้อมูลผู้ติดต่อฉุกเฉินไม่ถูกต้อง';
   if (`${details.firstName?.trim()} ${details.lastName?.trim()}`.toLocaleLowerCase() === `${details.emergencyContactFirstName?.trim()} ${details.emergencyContactLastName?.trim()}`.toLocaleLowerCase()) return 'ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย';
