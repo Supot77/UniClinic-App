@@ -1,7 +1,7 @@
 import { requireApiAuth } from '../_lib/auth';
 import { errorResponse, isResponse, parseDate, parseUuid, readJson } from '../_lib/http';
 
-type ReminderInput = { id?: string; medicationId?: string; medication_id?: string; reminderTimes?: string[]; reminder_times?: string[]; startDate?: string; start_date?: string; endDate?: string | null; end_date?: string | null; status?: string };
+type ReminderInput = { id?: string; userId?: string; user_id?: string; medicationId?: string; medication_id?: string; reminderTimes?: string[]; reminder_times?: string[]; startDate?: string; start_date?: string; endDate?: string | null; end_date?: string | null; status?: string };
 
 function payload(body: ReminderInput, userId: string, partial = false): Record<string, unknown> | Response {
   const output: Record<string, unknown> = {};
@@ -32,28 +32,41 @@ function payload(body: ReminderInput, userId: string, partial = false): Record<s
   return output;
 }
 
-export async function GET() {
-  const auth = await requireApiAuth(['patient']);
+export async function GET(request: Request) {
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
-  const { data, error } = await auth.supabase.from('medication_reminders').select('*, medication:medications(*)').eq('user_id', auth.actor.id).order('created_at', { ascending: false });
+  const url = new URL(request.url);
+  const userId = url.searchParams.get('userId');
+  if (userId && !parseUuid(userId)) return Response.json({ error: 'รหัสผู้ใช้ไม่ถูกต้อง' }, { status: 400 });
+  const targetUserId = auth.actor.role === 'patient' ? auth.actor.id : (userId || auth.actor.id);
+  const { data, error } = await auth.supabase
+    .from('medication_reminders')
+    .select('*, medication:medications(*)')
+    .eq('user_id', targetUserId)
+    .order('created_at', { ascending: false });
   if (error) return errorResponse(error, 'โหลดรายการเตือนยาไม่สำเร็จ');
   return Response.json(data ?? []);
 }
 
 export async function POST(request: Request) {
-  const auth = await requireApiAuth(['patient']);
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const body = await readJson<ReminderInput>(request);
   if (isResponse(body)) return body;
-  const values = payload(body, auth.actor.id);
+  const targetUserId = auth.actor.role === 'patient' ? auth.actor.id : (body.user_id ?? body.userId ?? auth.actor.id);
+  const values = payload(body, targetUserId);
   if (values instanceof Response) return values;
-  const { data, error } = await auth.supabase.from('medication_reminders').insert({ ...values, user_id: auth.actor.id, created_by: auth.actor.id, status: body.status ?? 'active' }).select('*, medication:medications(*)').single();
+  const { data, error } = await auth.supabase
+    .from('medication_reminders')
+    .insert({ ...values, user_id: targetUserId, created_by: auth.actor.id, status: body.status ?? 'active' })
+    .select('*, medication:medications(*)')
+    .single();
   if (error) return errorResponse(error, 'สร้างรายการเตือนยาไม่สำเร็จ');
   return Response.json(data, { status: 201 });
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireApiAuth(['patient']);
+  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const body = await readJson<ReminderInput>(request);
   if (isResponse(body)) return body;
@@ -62,7 +75,11 @@ export async function PATCH(request: Request) {
   const values = payload(body, auth.actor.id, true);
   if (values instanceof Response) return values;
   if (!Object.keys(values).length) return Response.json({ error: 'ไม่มีข้อมูลสำหรับแก้ไข' }, { status: 400 });
-  const { data, error } = await auth.supabase.from('medication_reminders').update({ ...values, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', auth.actor.id).select('*, medication:medications(*)').single();
+  let query = auth.supabase.from('medication_reminders').update({ ...values, updated_at: new Date().toISOString() }).eq('id', id);
+  if (auth.actor.role === 'patient') {
+    query = query.eq('user_id', auth.actor.id);
+  }
+  const { data, error } = await query.select('*, medication:medications(*)').single();
   if (error) return errorResponse(error, 'แก้ไขรายการเตือนยาไม่สำเร็จ');
   return Response.json(data);
 }

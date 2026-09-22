@@ -441,6 +441,40 @@ export const clinicMockTables: ClinicMockTables = {
 
   medical_records: [
     {
+      id: 'record-peter',
+      appointment_id: 'appointment-peter',
+      patient_id: 'profile-peter-parker',
+      doctor_id: 'profile-stephen-strange',
+      diagnosis: 'ไข้หวัดและการติดเชื้อทางเดินหายใจส่วนบน',
+      treatment_notes: 'พักผ่อน ดื่มน้ำมากๆ รับประทานยาตามแพทย์สั่ง',
+      prescribed_medications: [
+        {
+          medication_id: 'med-paracetamol',
+          name: 'Paracetamol 500mg',
+          dosage: '1 เม็ด',
+          frequency: 'วันละ 3 ครั้ง หลังอาหาร',
+          duration_days: 3,
+          quantity: 10,
+          dispensed: true,
+          dispensed_at: '2026-09-22T08:14:00.000Z',
+          dispensed_by: 'profile-severus-snape',
+        },
+        {
+          medication_id: 'med-amoxicillin',
+          name: 'Amoxicillin 500mg',
+          dosage: '1 เม็ด',
+          frequency: 'วันละ 2 ครั้ง หลังอาหาร',
+          duration_days: 7,
+          quantity: 14,
+          dispensed: true,
+          dispensed_at: '2026-09-22T08:14:00.000Z',
+          dispensed_by: 'profile-severus-snape',
+        },
+      ],
+      created_at: '2026-09-22T08:14:00.000Z',
+      updated_at: '2026-09-22T08:14:00.000Z',
+    },
+    {
       id: 'record-wednesday',
       appointment_id:
         'appointment-wednesday',

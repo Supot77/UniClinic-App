@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import TopProgressBar from "@/components/common/TopProgressBar";
 import BackToTopButton from "@/components/common/BackToTopButton";
+import LoginToastListener from "@/components/common/LoginToastListener";
 import { AuthProvider } from "@/context/AuthContext";
 import { ClinicMockProvider } from "@/features/mock-database/ClinicMockProvider";
 import AppearanceInitializer from "@/components/settings/AppearanceInitializer";
@@ -34,6 +35,7 @@ export default function RootLayout({
           <ClinicMockProvider>
             <TopProgressBar />
             <Header />
+            <LoginToastListener />
             {/* Main Content Area */}
             <main className="flex-1 bg-brand-surface pt-16">
               {children}

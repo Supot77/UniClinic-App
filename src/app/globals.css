@@ -563,6 +563,27 @@ html[data-theme="dark"] textarea::placeholder {
   color: var(--theme-brand-muted);
 }
 
+/* Booking controls keep their light surfaces in the dark appointment form.
+   Use a dark local palette so date/service/slot values stay legible. */
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control {
+  background-color: #ffffff !important;
+  border-color: #8fb9b6 !important;
+  color: #16343a !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-ink {
+  color: #16343a !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-brand-muted,
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control .text-slate-400 {
+  color: #49636b !important;
+}
+
+html[data-theme="dark"] [data-appointment-booking] .appointment-booking-control svg {
+  color: #087f78 !important;
+}
+
 html[data-theme="dark"] select option {
   background-color: var(--theme-brand-surface);
   color: var(--theme-brand-ink);
@@ -571,3 +592,48 @@ html[data-theme="dark"] select option {
 html[data-font-size="large"] {
   font-size: 106.25%;
 }
+
+/* Toast entrance and gradual fade-out animation */
+@keyframes toastFadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+@keyframes toastFadeInOutTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+[role="status"]:hover,
+[role="status"]:focus-within {
+  animation-play-state: paused !important;
+}
+

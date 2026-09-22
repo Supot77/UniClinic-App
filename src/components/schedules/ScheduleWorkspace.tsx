@@ -54,6 +54,7 @@ import {
   getBangkokToday,
   isDoctorOnLeave,
   isSlotExpired,
+  validateSlotEditWindow,
 } from '@/features/scheduling/domain/rules';
 import type { SlotBatchInput, SlotBatchTimeBlock } from '@/features/scheduling/domain/rules';
 
@@ -636,9 +637,12 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
       setFormError('คุณไม่มีสิทธิ์แก้ไขรอบตรวจของแพทย์คนอื่น');
       return;
     }
-    if (slot && isSlotExpired(slot.slotDate, slot.startTime, bangkokNow.date, bangkokNow.time)) {
+    const editWindow = slot
+      ? validateSlotEditWindow(slot, slot, bangkokNow.date, bangkokNow.time)
+      : { ok: true as const, value: true as const };
+    if (!editWindow.ok) {
       setNotice('');
-      setFormError('แก้ไขไม่ได้ เพราะรอบตรวจเริ่มไปแล้ว');
+      setFormError(editWindow.error);
       return;
     }
     if (!slot && suggestedDate && suggestedDate < getTodayDate()) {

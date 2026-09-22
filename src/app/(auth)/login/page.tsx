@@ -65,6 +65,10 @@ function LoginForm() {
         password,
       );
 
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('login_welcome_toast', 'true');
+      }
+
       setIsSubmitting(false);
       setIsRedirecting(true);
 
@@ -74,6 +78,9 @@ function LoginForm() {
       router.push(redirect || '/profile');
       router.refresh();
     } catch (err) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('login_welcome_toast');
+      }
       setIsSubmitting(false);
       setIsRedirecting(false);
 

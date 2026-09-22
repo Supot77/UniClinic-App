@@ -87,6 +87,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const targetStart = typeof updates.start_time === 'string' ? updates.start_time : existing.start_time;
   const targetEnd = typeof updates.end_time === 'string' ? updates.end_time : existing.end_time;
   const targetCapacity = typeof updates.max_capacity === 'number' ? updates.max_capacity : existing.max_capacity;
+  const hasSlotDetailsUpdate = Object.keys(updates).some((key) => key !== 'status');
+  if (hasSlotDetailsUpdate) {
+    const currentDate = clinicToday();
+    const currentTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Bangkok',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+    if (targetDate < currentDate || (targetDate === currentDate && targetStart <= currentTime)) {
+      return Response.json({ error: 'แก้ไขไม่ได้ เพราะรอบตรวจเริ่มไปแล้ว' }, { status: 400 });
+    }
+  }
   if (!isWeekday(targetDate)) return Response.json({ error: 'คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์' }, { status: 400 });
   if (targetDate < clinicToday() && targetDate !== existing.slot_date) return Response.json({ error: 'ไม่สามารถย้ายรอบตรวจไปวันในอดีตได้' }, { status: 400 });
   const windowError = validateWindow(targetStart, targetEnd);
