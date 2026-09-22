@@ -578,8 +578,9 @@ export async function getDashboardView(
     : role === 'patient'
       ? appointments.filter((appointment) => {
           if (!patientAppointmentStatuses.includes(appointment.status)) return false;
-          if (range !== 'today') return true;
           const slot = scopedSlots.find((candidate) => candidate.id === appointment.slot_id);
+          if (!slot || slot.slot_date < startDate || slot.slot_date > today) return false;
+          if (range !== 'today') return true;
           return isUpcomingToday(slot?.slot_date, slot?.start_time, today, currentBangkokTime);
         })
     : range === 'today'
@@ -700,15 +701,33 @@ export async function getDashboardView(
       ? patientAppointmentStatuses.includes(appointment.status)
       : activeAppointmentStatuses.includes(appointment.status))
     .map(mapAppointment);
-  const nextAppointment = [...mappedAppointmentQueue, ...mappedFutureAppointments]
+  const patientAppointments = Array.from(new Map(
+    [...mappedAppointmentQueue, ...mappedFutureAppointments].map((appointment) => [appointment.id, appointment]),
+  ).values());
+  const upcomingAppointments = patientAppointments
     .filter((appointment) => (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'in_progress')
       && isUpcomingAppointment(appointment.date, appointment.startTime, today, currentBangkokTime))
-    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))[0] ?? null;
-  const patientAppointmentQueue = [...mappedAppointmentQueue, ...mappedFutureAppointments]
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+  const nextAppointment = upcomingAppointments[0] ?? null;
+  const patientAppointmentQueue = [...patientAppointments]
     .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
   const appointmentQueue = role === 'patient'
     ? patientAppointmentQueue
     : mappedAppointmentQueue.sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`)).slice(0, 8);
+
+  const patientRangeAppointments = role === 'patient'
+    ? mappedAppointmentQueue.filter((appointment) => appointment.date >= startDate && appointment.date <= today)
+    : [];
+  const patientScheduledAppointments = patientRangeAppointments.filter((appointment) => appointment.status !== 'cancelled');
+  const patientCompletedAppointments = patientScheduledAppointments.filter((appointment) => appointment.status === 'completed').length;
+  const patientOverviewAppointments = role === 'patient'
+    ? {
+        total: patientScheduledAppointments.length,
+        completed: patientCompletedAppointments,
+        remaining: patientScheduledAppointments.length - patientCompletedAppointments,
+        cancelled: patientRangeAppointments.filter((appointment) => appointment.status === 'cancelled').length,
+      }
+    : undefined;
 
   const medicationById = new Map(medications.map((medication) => [medication.id, medication]));
   const patientMedications = role === 'patient'
@@ -741,6 +760,21 @@ export async function getDashboardView(
         };
       })
     : [];
+  const patientRangeMedicationLogs = role === 'patient'
+    ? medicationLogs.filter((log) => {
+        const logDate = toBangkokDate(log.scheduled_datetime);
+        return logDate >= startDate && logDate <= today;
+      })
+    : [];
+  const patientOverviewMedication = role === 'patient'
+    ? {
+        totalDoses: patientRangeMedicationLogs.length,
+        takenDoses: patientRangeMedicationLogs.filter((log) => log.status === 'taken').length,
+        pendingDoses: patientRangeMedicationLogs.filter((log) => log.status === 'pending').length,
+        missedDoses: patientRangeMedicationLogs.filter((log) => log.status === 'missed').length,
+        activeMedicationCount: patientMedicationIds.size,
+      }
+    : undefined;
   const patientTreatmentHistory = role === 'patient'
     ? medicalRecords
       .filter((record) => record.patient_id === actorId && (!record.appointment?.status || record.appointment.status === 'completed'))
@@ -897,8 +931,12 @@ export async function getDashboardView(
     servedAppointmentCount: role === 'staff_admin' ? servedAppointmentCount : undefined,
     doctorStatuses,
     nextAppointment,
+    upcomingAppointments: role === 'patient' ? upcomingAppointments : undefined,
     patientMedications,
     patientTreatmentHistory,
+    patientOverview: role === 'patient' && patientOverviewAppointments && patientOverviewMedication
+      ? { appointments: patientOverviewAppointments, medication: patientOverviewMedication }
+      : undefined,
     departmentLoads,
     pendingPrescriptions,
     medicationAlerts: activeMedications

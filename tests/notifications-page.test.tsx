@@ -63,4 +63,12 @@ describe('NotificationsPage user-facing errors', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('คุณไม่มีสิทธิ์ทำรายการนี้'));
     expect(screen.queryByRole('button', { name: 'โหลดข้อมูลใหม่' })).not.toBeInTheDocument();
   });
+
+  it('keeps refresh available as a compact accessible control', async () => {
+    render(<NotificationsPage />);
+
+    const refreshButton = await screen.findByRole('button', { name: 'รีเฟรช' });
+    expect(refreshButton).toHaveAttribute('title', 'รีเฟรช');
+    expect(refreshButton.querySelector('svg')).toBeTruthy();
+  });
 });

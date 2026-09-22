@@ -2,6 +2,33 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## ปรับปรุงหน้าผลตรวจและรายการยาตาม Issue #121 — 22 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ปรับ shell ให้แต่ละหน้าเหลือ H1 เดียว และแยก H2 ระหว่างฟอร์มบันทึกผลตรวจกับประวัติผลตรวจตาม role
+- ปรับข้อความไทย, Stepper และคำเตือนก่อนยืนยันให้ตรงกับงานคลินิกมากขึ้น โดยคงการบันทึกครั้งเดียวและสถานะ `จบตรวจแล้ว`/`รอจบตรวจ`
+- จัดฟอร์มรายการยาใหม่เป็นกลุ่มเลือกยา, ขนาด/จำนวน/ระยะเวลา และวิธีใช้/อาหาร; ปุ่มเพิ่มอยู่ใกล้หัวข้อ และปุ่มลบมีพื้นที่กดอย่างน้อย 44×44 px
+- เปลี่ยนประวัติผลตรวจเป็นรายการแนวตั้ง เรียงใหม่สุดก่อน ระบุ `วันที่บันทึกผล` แยก empty state ตามสาเหตุ และอธิบายชัดว่ารายการยาเป็นคำสั่งยาไม่ใช่สถานะการจ่ายยา
+- ปรับ copy ของ flow เริ่มตรวจในหน้า appointments ให้สอดคล้องกับหน้าผลตรวจ โดยไม่เปลี่ยน repository หรือ data contract
+
+### ไฟล์หลัก
+
+- `src/features/clinic-care.tsx`
+- `src/features/medical-records.tsx`
+- `src/features/appointments.tsx`
+- `tests/appointments-records-runtime-ui.test.tsx`
+
+### Verification
+
+- focused UI tests: ผ่าน 29 tests
+- full test suite: ผ่าน 44 files / 377 tests
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- targeted ESLint สำหรับไฟล์ที่แก้: ผ่าน 0 errors / 0 warnings
+- `npm.cmd run build`: ผ่าน; compile, TypeScript และ static generation 42/42 routes ผ่าน
+- `npm.cmd run lint`: ยังไม่ผ่านจาก error เดิมนอก scope ใน `src/app/(patient)/reminders/page.tsx` 2 จุด และ warnings เดิม 6 รายการ
+- Browser QA 360px/1280px/keyboard: พยายามเปิด Chrome แล้ว แต่ environment นี้ไม่มี browser session ให้ใช้งาน จึงยังยืนยันผ่าน browser จริงไม่ได้
+
 ## แก้ไขรอบตรวจที่ปิดก่อนเวลาเริ่ม และลดขอบเขตหน้าจัดการแผนก — 22 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม

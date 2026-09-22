@@ -58,6 +58,7 @@ export interface DashboardView {
     serviceName?: string;
   }>;
   nextAppointment?: DashboardView['appointmentQueue'][number] | null;
+  upcomingAppointments?: DashboardView['appointmentQueue'];
   patientProfile?: {
     phone: string | null;
     patientType: string | null;
@@ -93,6 +94,21 @@ export interface DashboardView {
     medicationNames?: string[];
     medicationCount: number;
   }>;
+  patientOverview?: {
+    appointments: {
+      total: number;
+      completed: number;
+      remaining: number;
+      cancelled: number;
+    };
+    medication: {
+      totalDoses: number;
+      takenDoses: number;
+      pendingDoses: number;
+      missedDoses: number;
+      activeMedicationCount: number;
+    };
+  };
   departmentLoads: Array<{
     departmentId: string;
     departmentName: string;

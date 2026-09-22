@@ -1,0 +1,9 @@
+ src/app/(patient)/notifications/page.tsx     |  11 [32m+[m[31m-[m
+ src/components/dashboard/DashboardScreen.tsx | 509 [32m++++++++++++++++[m[31m-----------[m
+ src/components/layout/Header.tsx             |   2 [32m+[m[31m-[m
+ src/features/dashboard/types.ts              |  16 [32m+[m
+ src/services/dashboardService.ts             |  46 [32m++[m[31m-[m
+ tests/dashboard-screen.test.tsx              | 112 [32m++++[m[31m--[m
+ tests/header.test.tsx                        |   4 [32m+[m[31m-[m
+ tests/notifications-page.test.tsx            |   8 [32m+[m
+ 8 files changed, 474 insertions(+), 234 deletions(-)
