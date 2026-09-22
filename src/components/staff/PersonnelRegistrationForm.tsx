@@ -93,7 +93,7 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
           </div>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-9 px-6 py-8 sm:px-10">
+        <div className="space-y-9 px-6 py-8 sm:px-10">
           <fieldset><legend className="mb-3 font-semibold text-brand-ink">ประเภทบุคลากร</legend><div className="grid gap-3 sm:grid-cols-2">
             {([{ value: 'doctor', label: 'แพทย์', description: 'มีใบประกอบวิชาชีพและประจำแผนก', icon: Stethoscope }, { value: 'staff', label: 'เจ้าหน้าที่', description: 'ดูแลงานบริหารและบริการของคลินิก', icon: ShieldCheck }] as const).map((option) => {
               const Icon = option.icon; const selected = kind === option.value;
@@ -138,6 +138,7 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
           <div className="flex flex-col-reverse gap-3 border-t border-brand-border-soft pt-6 sm:flex-row sm:justify-end"><Link href="/staff/accounts" aria-disabled={submitting} className="inline-flex h-12 items-center justify-center rounded-xl border border-brand-border-strong px-6 font-semibold text-brand-ink hover:bg-brand-page">ยกเลิก</Link><button type="submit" disabled={submitting || (kind === 'doctor' && departments.length === 0)} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-strong px-7 font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60">{submitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}{submitting ? 'กำลังสร้างบัญชี…' : 'สร้างบัญชี'}</button></div>
           </form>
         )}
+        </div>
       </section>
     </main>
   );

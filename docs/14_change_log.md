@@ -2,6 +2,26 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## แก้ JSX ของฟอร์มลงทะเบียนบุคลากร — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เปลี่ยน wrapper รอบตัวเลือกประเภทบัญชีจาก `<form>` เป็น `<div>` เพื่อไม่ให้ซ้อนกับฟอร์มสร้างบัญชีบุคลากรและฟอร์มผู้ป่วยที่ฝังอยู่ใน `RegisterPage`
+- คงการ submit และ `handleSubmit` ไว้เฉพาะฟอร์มบุคลากร พร้อมปิด JSX wrapper ให้ครบ ทำให้ Turbopack parse ไฟล์ได้
+
+### ไฟล์หลัก
+
+- `src/components/staff/PersonnelRegistrationForm.tsx`
+
+### Verification
+
+- `npm.cmd run build`: ผ่าน; compile, TypeScript และ static generation 42/42 routes ผ่าน
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- `npx.cmd --no-install vitest run tests/personnel-registration.test.ts`: ผ่าน 1 file / 6 tests
+- targeted ESLint: ผ่าน 0 errors; มี warning เดิม 1 รายการเรื่อง `UserPlus` ไม่ได้ใช้งาน
+- `git diff --check`: ผ่าน
+- Browser QA และ database/RLS: ไม่ได้ตรวจในรอบนี้
+
 ## ปรับปรุงหน้าผลตรวจและรายการยาตาม Issue #121 — 22 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
