@@ -41,7 +41,7 @@ src/app/api/
 │       ├── route.ts                    # GET: รายละเอียดใบนัดหมาย
 │       └── status/route.ts             # PATCH: เปลี่ยนสถานะ (confirm, in_progress, completed, cancelled, rejected)
 ├── medical-records/
-│   ├── route.ts                        # GET: ประวัติการตรวจรักษา, POST: บันทึกผลตรวจ สัญญาณชีพ และยา
+│   ├── route.ts                        # GET: ประวัติการตรวจรักษา, POST: บันทึกผลตรวจ การตรวจร่างกายเบื้องต้น และยา
 │   └── [id]/route.ts                   # GET: รายละเอียดเวชระเบียนรายครั้ง
 ├── medications/
 │   ├── route.ts                        # GET: รายการยาในคลัง, POST: เพิ่มรายการยา

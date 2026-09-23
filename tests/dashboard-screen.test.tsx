@@ -81,12 +81,46 @@ describe('Dashboard appointment filters', () => {
     fireEvent.click(nextRangeButton);
 
     expect(screen.getByRole('region', { name: 'ตัวกรองแดชบอร์ด' })).toBeInTheDocument();
-    expect(await screen.findByRole('status', { name: 'กำลังอัปเดตข้อมูลแดชบอร์ด' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: todayView.title })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'กำลังโหลดข้อมูลช่วงเวลาที่เลือก' })).toBeInTheDocument();
+    expect(screen.queryByText('กำลังอัปเดตข้อมูลช่วงนี้…')).not.toBeInTheDocument();
     await waitFor(() => expect(getDashboardViewMock).toHaveBeenCalledWith(role, actorId, expect.any(String), '7d'));
 
     resolveNextView(nextView);
-    await waitFor(() => expect(screen.queryByRole('status', { name: 'กำลังอัปเดตข้อมูลแดชบอร์ด' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'กำลังโหลดข้อมูลช่วงเวลาที่เลือก' })).not.toBeInTheDocument());
     expect(nextRangeButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('keeps the next medical queue visible while lower range data loads', async () => {
+    const nextAppointment: DashboardView['appointmentQueue'][number] = {
+      id: 'next-queue', queueNumber: 4, date: '2026-09-14', startTime: '09:15', status: 'confirmed',
+      patientName: 'ผู้ป่วยถัดไป', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
+    };
+    const todayView: DashboardView = {
+      ...createRangeTestView('medical', 'today'),
+      metrics: [{ id: 'own-appointments', label: 'นัดของฉันวันนี้', value: 1, description: '', href: '/appointments', tone: 'blue' }],
+      appointmentQueue: [nextAppointment],
+      nextAppointment,
+      upcomingAppointments: [nextAppointment],
+    };
+    const nextView = createRangeTestView('medical', '7d');
+    let resolveNextView!: (view: DashboardView) => void;
+    const nextViewPromise = new Promise<DashboardView>((resolve) => { resolveNextView = resolve; });
+    getDashboardViewMock
+      .mockImplementationOnce(() => Promise.resolve(todayView))
+      .mockImplementationOnce(() => nextViewPromise);
+
+    render(<DashboardScreen role="medical" actorId="medical-1" />);
+
+    const nextQueue = await screen.findByRole('region', { name: 'คิวถัดไปที่ต้องตรวจ' });
+    const rangeFilter = screen.getByRole('region', { name: 'ตัวกรองแดชบอร์ด' });
+    fireEvent.click(within(rangeFilter).getByRole('button', { name: 'ย้อนหลัง 7 วัน' }));
+
+    expect(within(nextQueue).getByText('คิว #4')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'กำลังโหลดข้อมูลช่วงเวลาที่เลือก' })).toBeInTheDocument();
+
+    resolveNextView(nextView);
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'กำลังโหลดข้อมูลช่วงเวลาที่เลือก' })).not.toBeInTheDocument());
   });
 
   it('filters today appointments, remaining queue, and restores all rows', () => {
