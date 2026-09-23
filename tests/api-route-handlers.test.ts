@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 type QueryBuilder = {
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
   insert: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
@@ -28,6 +29,7 @@ function builder(result: { data?: unknown; error?: unknown; count?: number | nul
   const query = {} as QueryBuilder;
   query.select = vi.fn(() => query);
   query.eq = vi.fn(() => query);
+  query.in = vi.fn(() => query);
   query.order = vi.fn(() => query);
   query.insert = vi.fn(() => query);
   query.update = vi.fn(() => query);
@@ -42,6 +44,9 @@ import { POST as postDepartment } from '@/app/api/departments/route';
 import { GET as getDepartments } from '@/app/api/departments/route';
 import { POST as postAppointment } from '@/app/api/appointments/route';
 import { GET as getDoctorAccounts } from '@/app/api/doctors/accounts/route';
+import { GET as getDoctors } from '@/app/api/doctors/route';
+import { GET as getOfferings } from '@/app/api/schedules/offerings/route';
+import { GET as getSlots } from '@/app/api/schedules/slots/route';
 
 describe('API Route Handlers', () => {
   beforeEach(() => {
@@ -62,6 +67,52 @@ describe('API Route Handlers', () => {
     expect(builders.departments.eq).toHaveBeenCalledWith('is_active', true);
   });
 
+  it('allows guests to read only active doctor profiles for the schedule', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    builders.doctors = builder({ data: [
+      { id: 'doctor-active', specialty: 'เวชทั่วไป', department_id: 'department-1' },
+      { id: 'doctor-inactive', specialty: 'ทันตกรรม', department_id: 'department-1' },
+    ], error: null });
+    builders.profiles = builder({ data: [
+      { id: 'doctor-active', title: 'นพ.', first_name: 'สมชาย', last_name: 'ใจดี', role: 'medical', is_active: true },
+      { id: 'doctor-inactive', title: 'ทพ.', first_name: 'สมศักดิ์', last_name: 'ฟันสวย', role: 'medical', is_active: false },
+    ], error: null });
+    builders.departments = builder({ data: [{ id: 'department-1', name: 'เวชทั่วไป' }], error: null });
+
+    const response = await getDoctors();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([{
+      id: 'doctor-active',
+      specialty: 'เวชทั่วไป',
+      department_id: 'department-1',
+      profile: { id: 'doctor-active', title: 'นพ.', first_name: 'สมชาย', last_name: 'ใจดี' },
+      department: { id: 'department-1', name: 'เวชทั่วไป' },
+    }]);
+  });
+
+  it('allows guests to read active service offerings without creator identifiers', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    builders.daily_service_offerings = builder({ data: [{ id: 'offering-1', service_id: 'service-1', doctor_id: 'doctor-1', offering_date: '2026-09-23', is_active: true }], error: null });
+
+    const response = await getOfferings();
+
+    expect(response.status).toBe(200);
+    expect(builders.daily_service_offerings.select).toHaveBeenCalledWith('id, service_id, doctor_id, offering_date, is_active');
+    await expect(response.json()).resolves.toEqual([{ id: 'offering-1', service_id: 'service-1', doctor_id: 'doctor-1', offering_date: '2026-09-23', is_active: true }]);
+  });
+
+  it('allows guests to read public schedule slots while keeping appointment writes protected', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    builders.appointment_slots = builder({ data: [{ id: 'slot-1', doctor_id: 'doctor-1', slot_date: '2026-09-23', status: 'available' }], error: null });
+
+    const response = await getSlots(new Request('http://localhost/api/schedules/slots'));
+
+    expect(response.status).toBe(200);
+    expect(builders.appointment_slots.select).toHaveBeenCalledWith('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, booked_count, status, offering:daily_service_offerings(service_id, offering_date, is_active)');
+    expect(builders.appointment_slots.order).toHaveBeenCalledWith('slot_date', { ascending: true });
+  });
+
   it('rejects protected department writes without a session', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
 
@@ -70,6 +121,17 @@ describe('API Route Handlers', () => {
     }));
 
     expect(response.status).toBe(401);
+  });
+
+  it('rejects appointment booking without a session', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+
+    const response = await postAppointment(new Request('http://localhost/api/appointments', {
+      method: 'POST', body: JSON.stringify({ slotId: '00000000-0000-4000-8000-000000000001', reason: 'ตรวจอาการ' }), headers: { 'Content-Type': 'application/json' },
+    }));
+
+    expect(response.status).toBe(401);
+    expect(supabaseMock.rpc).not.toHaveBeenCalled();
   });
 
   it('validates appointment booking before invoking the transactional RPC', async () => {

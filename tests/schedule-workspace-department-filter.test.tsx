@@ -410,6 +410,20 @@ describe('ScheduleWorkspace Service Filter', () => {
     expect(screen.getByRole('link', { name: 'จอง' })).toHaveAttribute('href', '/appointments?slotId=slot-1');
   });
 
+  it('lets guests inspect available slots and requires login before booking', () => {
+    schedulingState.slots = [{ ...mockSlots[0], slotDate: '2026-09-10' }];
+    render(<ScheduleWorkspace role="patient" actorId="guest" canBook={false} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'ดูรายวัน 10 ก.ย.' })[0]);
+
+    expect(within(screen.getByLabelText('ปฏิทินรายวัน')).getByText('นพ. สมชาย ใจดี')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'เข้าสู่ระบบเพื่อจอง' })).toHaveAttribute(
+      'href',
+      '/login?redirect=%2Fappointments%3FslotId%3Dslot-1',
+    );
+    expect(screen.queryByRole('link', { name: 'จอง' })).not.toBeInTheDocument();
+  });
+
   it('opens day view using the date header keyboard action', () => {
     render(<ScheduleWorkspace role="patient" actorId="guest" />);
     fireEvent.keyDown(screen.getByRole('button', { name: 'เปิดตารางตรวจวันที่ 10 ก.ย.' }), { key: 'Enter' });
