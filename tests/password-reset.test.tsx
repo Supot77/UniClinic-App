@@ -70,13 +70,25 @@ describe('profile password security', () => {
     render(<PasswordSecurityCard />);
 
     fireEvent.change(screen.getByLabelText('รหัสผ่านปัจจุบัน'), { target: { value: 'oldpassword' } });
-    fireEvent.change(screen.getByLabelText('รหัสผ่านใหม่'), { target: { value: 'newpassword1' } });
-    fireEvent.change(screen.getByLabelText('ยืนยันรหัสผ่านใหม่'), { target: { value: 'newpassword1' } });
+    fireEvent.change(screen.getByLabelText('รหัสผ่านใหม่'), { target: { value: 'Newpassword1' } });
+    fireEvent.change(screen.getByLabelText('ยืนยันรหัสผ่านใหม่'), { target: { value: 'Newpassword1' } });
     fireEvent.click(screen.getByRole('button', { name: 'เปลี่ยนรหัสผ่าน' }));
 
     await waitFor(() => {
-      expect(authService.changePassword).toHaveBeenCalledWith('oldpassword', 'newpassword1');
+      expect(authService.changePassword).toHaveBeenCalledWith('oldpassword', 'Newpassword1');
       expect(screen.getByRole('status')).toHaveTextContent('เปลี่ยนรหัสผ่านสำเร็จ');
     });
+  });
+
+  it('shows password rules while typing and rejects a password without uppercase', async () => {
+    render(<PasswordSecurityCard />);
+    fireEvent.change(screen.getByLabelText('รหัสผ่านปัจจุบัน'), { target: { value: 'Oldpassword1' } });
+    fireEvent.change(screen.getByLabelText('รหัสผ่านใหม่'), { target: { value: 'newpassword1' } });
+    expect(screen.getByText('○ ตัวพิมพ์ใหญ่ A–Z')).toBeInTheDocument();
+    expect(screen.getByText('✓ ตัวพิมพ์เล็ก a–z')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('ยืนยันรหัสผ่านใหม่'), { target: { value: 'newpassword1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'เปลี่ยนรหัสผ่าน' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('ตัวพิมพ์ใหญ่');
+    expect(authService.changePassword).not.toHaveBeenCalled();
   });
 });

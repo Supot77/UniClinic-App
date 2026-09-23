@@ -356,6 +356,7 @@ export async function signIn(
 
   if (typeof window !== 'undefined') {
     sessionStorage.setItem('login_welcome_toast', 'true');
+    localStorage.setItem(`uniclinic_login_at:${data.user.id}`, String(Date.now()));
   }
 
   return data;

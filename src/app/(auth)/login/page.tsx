@@ -175,7 +175,6 @@ function LoginForm() {
             className="mt-1.5 text-xs text-zinc-500"
           >
             ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail.wu.ac.th
-            ส่วนบุคลากรใช้อีเมลตามบัญชีที่ผู้ดูแลระบบกำหนด
           </p>
         </div>
 
@@ -247,7 +246,7 @@ function LoginForm() {
         </button>
 
         <p className="text-center text-sm text-zinc-500">
-          ยังไม่มีบัญชี?{' '}
+          ยังไม่มีบัญชีผู้ป่วย?{' '}
           <Link
             href="/register"
             className="font-medium text-sky-500 hover:underline"
