@@ -205,17 +205,24 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /Doctor Demo/ })).not.toBeInTheDocument();
   });
 
-  it("navigates to dashboard when authenticated and to home when guest on logo click", () => {
+  it("routes guests to home and authenticated users to their role dashboard from the logo", () => {
     const { unmount } = render(<Header />);
     expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/");
     unmount();
 
-    authState.user = { displayName: "Patient Demo" };
-    authState.isAuthenticated = true;
-    authState.role = "patient";
+    for (const [role, dashboardPath] of [
+      ["patient", "/dashboard/patient"],
+      ["medical", "/dashboard/medical"],
+      ["staff_admin", "/dashboard/staff_admin"],
+    ]) {
+      authState.user = { displayName: `${role} Demo` };
+      authState.isAuthenticated = true;
+      authState.role = role;
 
-    render(<Header />);
-    expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/dashboard");
+      const { unmount: unmountRoleHeader } = render(<Header />);
+      expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", dashboardPath);
+      unmountRoleHeader();
+    }
   });
 
   it("renders an unread count badge with exact number when unread notifications exist", async () => {

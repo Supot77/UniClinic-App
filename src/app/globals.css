@@ -530,6 +530,12 @@ html[data-theme="dark"] [class~="bg-[#fbfdfc]"] {
   background-color: var(--theme-brand-surface) !important;
 }
 
+/* Modal backdrops should darken the page in dark mode instead of inheriting
+   the light text-oriented brand token used by legacy overlay utilities. */
+html[data-theme="dark"] .clinic-modal-backdrop {
+  background-color: rgb(0 0 0 / 0.6);
+}
+
 /* Keep the established light-mode shell palette for the global header/footer. */
 html[data-theme="dark"] body > header,
 html[data-theme="dark"] body > footer {

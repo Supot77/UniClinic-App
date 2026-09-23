@@ -26,8 +26,8 @@ export interface SchedulingSnapshot {
 }
 
 /**
- * Boundary consumed by the UI. SchedulingProvider composes the database adapter for
- * configured runtime sessions and keeps this mock implementation for tests/offline demos.
+ * Boundary consumed by the UI. Production scheduling data comes from the API repository;
+ * tests may supply a mock implementation explicitly through their test setup.
  */
 export interface SchedulingRepository {
   snapshot(): SchedulingSnapshot;

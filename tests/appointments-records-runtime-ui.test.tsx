@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AppointmentPage from '@/features/appointments';
 import { MedicalRecordsPage, PatientRecordsPage } from '@/features/medical-records';
-import { createClinicMockRepository, type ClinicRepository } from '@/features/clinic-care';
+import { type ClinicRepository } from '@/features/clinic-care';
+import { createClinicMockRepository } from './clinic-care-mock-repository';
 import { fixture, slotId, withAppointment } from './clinic-care-fixtures';
 
 describe('Clinic database-backed role containers with injected offline repository', () => {
@@ -25,6 +26,23 @@ describe('Clinic database-backed role containers with injected offline repositor
     const workspace = (await screen.findByRole('heading', { name: 'นัดหมายและคิวตรวจ' })).closest('section');
     expect(workspace).toHaveClass('w-screen', 'left-1/2', '-translate-x-1/2');
   });
+  it('keeps one page heading and separates the medical record workspace from its history', async () => {
+    render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
+
+    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: 'ผลตรวจและรายการยา' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'บันทึกผลตรวจ' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'ผลตรวจของผู้ป่วยในความดูแล' })).toBeInTheDocument();
+    expect(screen.getByText('โปรดตรวจสอบข้อมูลให้เรียบร้อยก่อนยืนยัน เนื่องจากหลังบันทึกแล้วจะแก้ไขไม่ได้')).toBeInTheDocument();
+  });
+  it('gives the patient record page a clear empty state', async () => {
+    render(<PatientRecordsPage repository={createClinicMockRepository(fixture('patient'))} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ประวัติการรักษา' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'ผลตรวจและรายการยาของฉัน' })).toBeInTheDocument();
+    expect(screen.getByText('ยังไม่มีผลตรวจ')).toBeInTheDocument();
+    expect(screen.getByText('เมื่อมีผลตรวจ รายการจะแสดงที่นี่')).toBeInTheDocument();
+  });
   it('saves and displays the prescribed dose, meal, times and duration', async () => {
     const repo = createClinicMockRepository(withAppointment());
     render(<MedicalRecordsPage repository={repo} />);
@@ -43,14 +61,14 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByRole('button', { name: 'ลบยารายการที่ 1' })).toHaveClass('text-status-critical', 'hover:bg-status-critical-bg');
     fireEvent.click(screen.getByRole('button', { name: 'ยารายการที่ 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'ยาทดสอบ · เม็ด' }));
-    fireEvent.change(screen.getByLabelText('ขนาดยาต่อครั้ง (ระบุหน่วย)'), { target: { value: '2 เม็ด' } });
+    fireEvent.change(screen.getByLabelText('ขนาดยาต่อครั้ง'), { target: { value: '2 เม็ด' } });
     fireEvent.click(screen.getByRole('button', { name: 'การใช้ยากับอาหาร รายการที่ 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'หลังอาหาร' }));
-    fireEvent.change(screen.getByLabelText('ช่วงเวลาและความถี่ในการใช้ยา รายการที่ 1'), { target: { value: 'เช้า เที่ยง เย็น' } });
+    fireEvent.change(screen.getByLabelText('วิธีใช้ / ความถี่ รายการที่ 1'), { target: { value: 'เช้า เที่ยง เย็น' } });
     fireEvent.change(screen.getByLabelText('ระยะเวลา (วัน)'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('จำนวนที่สั่ง'), { target: { value: '18' } });
+    fireEvent.change(screen.getByLabelText('จำนวนที่สั่ง (หน่วยยา)'), { target: { value: '18' } });
     fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
-    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบการตรวจ' }));
     expect(await screen.findByText('หลังอาหาร · เช้า เที่ยง เย็น')).toBeInTheDocument();
     expect(screen.getByText('2 เม็ด')).toBeInTheDocument();
     expect(screen.getByText('3 วัน')).toBeInTheDocument();
@@ -70,7 +88,7 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByRole('button', { name: 'ลบยารายการที่ 1' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'ลบยารายการที่ 1' }));
     expect(screen.queryByRole('button', { name: 'ลบยารายการที่ 1' })).not.toBeInTheDocument();
-    expect(screen.getByText('ไม่มีรายการยา สามารถบันทึกผลตรวจโดยไม่สั่งยาได้')).toBeInTheDocument();
+    expect(screen.getByText('ยังไม่มีรายการยา สามารถบันทึกผลตรวจโดยไม่สั่งยาได้')).toBeInTheDocument();
   });
   it('shows loading, then empty state without a role switcher', async () => {
     render(<AppointmentPage role="patient" repository={createClinicMockRepository(fixture())} />);
@@ -211,10 +229,10 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.change(diagnosis, { target: { value: 'ผลทดสอบ' } });
     fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
-    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
-    expect(await screen.findByText('บันทึกผลและจบตรวจแล้ว ผู้ป่วยเปิดดูได้')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบการตรวจ' }));
+    expect(await screen.findByText('บันทึกผลและจบการตรวจแล้ว ผู้ป่วยเปิดดูได้')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/ผลวินิจฉัย:/).parentElement).toHaveTextContent('ผลทดสอบ'));
-    expect(screen.queryByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ยืนยันบันทึกผลและจบการตรวจ' })).not.toBeInTheDocument();
   });
   it('failed record save retains the entered diagnosis for correction', async () => {
     const repo: ClinicRepository = { ...createClinicMockRepository(withAppointment()), saveRecord: vi.fn().mockRejectedValue(new Error('ไม่พบยา')) };
@@ -224,7 +242,7 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.change(diagnosis, { target: { value: 'ผลทดสอบ' } });
     fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
-    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบตรวจ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึกผลและจบการตรวจ' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('ไม่พบยา');
     expect(diagnosis).toHaveValue('ผลทดสอบ');
   });
@@ -289,7 +307,7 @@ describe('Clinic database-backed role containers with injected offline repositor
 
     fireEvent.click(await screen.findByRole('button', { name: 'เริ่มตรวจ' }));
 
-    expect(await screen.findByRole('heading', { name: 'การตรวจร่างกายเบื้องต้น' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'สัญญาณชีพ' })).toBeInTheDocument();
     expect(screen.getByLabelText('ส่วนสูง (ซม.)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ถัดไป' })).toBeInTheDocument();
     expect((await repo.load()).appointments[0]).toMatchObject({ status: 'in_progress', has_record: false });

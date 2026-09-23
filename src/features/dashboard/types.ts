@@ -58,6 +58,7 @@ export interface DashboardView {
     serviceName?: string;
   }>;
   nextAppointment?: DashboardView['appointmentQueue'][number] | null;
+  upcomingAppointments?: DashboardView['appointmentQueue'];
   patientProfile?: {
     phone: string | null;
     patientType: string | null;
@@ -93,6 +94,21 @@ export interface DashboardView {
     medicationNames?: string[];
     medicationCount: number;
   }>;
+  patientOverview?: {
+    appointments: {
+      total: number;
+      completed: number;
+      remaining: number;
+      cancelled: number;
+    };
+    medication: {
+      totalDoses: number;
+      takenDoses: number;
+      pendingDoses: number;
+      missedDoses: number;
+      activeMedicationCount: number;
+    };
+  };
   departmentLoads: Array<{
     departmentId: string;
     departmentName: string;
@@ -170,8 +186,8 @@ export const roleLabels: Record<UserRole, string> = {
 
 export const dashboardRangeLabels: Record<DashboardRange, string> = {
   today: 'วันนี้',
-  '7d': '7 วันที่ผ่านมา',
-  '30d': '30 วันที่ผ่านมา',
+  '7d': 'ย้อนหลัง 7 วัน',
+  '30d': 'ย้อนหลัง 30 วัน',
 };
 
 export const broadcastTypeLabels: Record<NotificationType, string> = {

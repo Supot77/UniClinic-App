@@ -1,8 +1,8 @@
 # 01. ภาพรวมโครงการ
 
-ปรับปรุง 7 กันยายน 2569 (2026-09-07) — ฉบับ scope manual ขนาดเล็ก ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 23 กันยายน 2569 (2026-09-23) — ระบุ mock เฉพาะ automated tests; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
 
-ระบบคลินิกมหาวิทยาลัยและรายการเตือนแบบกรอกเอง สำหรับมินิโปรเจกต์ COE67-331 กำหนดส่งวันที่ 25 กันยายน 2569 ใช้ Next.js, React, TypeScript, Tailwind CSS และ Supabase จริงผ่าน database repository; mock ใช้สำหรับ automated tests/offline demo ไม่มีบริการอีเมลหรือ worker ใน scope
+ระบบคลินิกมหาวิทยาลัยและรายการเตือนแบบกรอกเอง สำหรับมินิโปรเจกต์ COE67-331 กำหนดส่งวันที่ 25 กันยายน 2569 ใช้ Next.js, React, TypeScript, Tailwind CSS และ Supabase จริงผ่าน database repository; mock ใช้เฉพาะ automated tests ไม่มีบริการอีเมลหรือ worker ใน scope
 
 บทบาทมี 3 กลุ่มเท่านั้น: ผู้ป่วย (`patient`), แพทย์/เภสัชกร (`medical`) และเจ้าหน้าที่/แอดมิน (`staff_admin`) แต่ละบทบาทมี guarded entry page/dashboard และแยก role-specific container เมื่อข้อมูลหรือคำสั่งต่างกัน
 

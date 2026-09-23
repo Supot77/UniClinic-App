@@ -7,7 +7,6 @@ import TopProgressBar from "@/components/common/TopProgressBar";
 import BackToTopButton from "@/components/common/BackToTopButton";
 import LoginToastListener from "@/components/common/LoginToastListener";
 import { AuthProvider } from "@/context/AuthContext";
-import { ClinicMockProvider } from "@/features/mock-database/ClinicMockProvider";
 import AppearanceInitializer from "@/components/settings/AppearanceInitializer";
 
 const clinicFont = Noto_Sans_Thai({
@@ -32,17 +31,15 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-brand-surface text-brand-ink antialiased">
         <AppearanceInitializer />
         <AuthProvider>
-          <ClinicMockProvider>
-            <TopProgressBar />
-            <Header />
-            <LoginToastListener />
-            {/* Main Content Area */}
-            <main className="flex-1 bg-brand-surface pt-16">
-              {children}
-            </main>
-            <Footer />
-            <BackToTopButton />
-          </ClinicMockProvider>
+          <TopProgressBar />
+          <Header />
+          <LoginToastListener />
+          {/* Main Content Area */}
+          <main className="flex-1 bg-brand-surface pt-16">
+            {children}
+          </main>
+          <Footer />
+          <BackToTopButton />
         </AuthProvider>
       </body>
     </html>

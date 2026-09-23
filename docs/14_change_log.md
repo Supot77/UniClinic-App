@@ -2,6 +2,78 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## ถอด Mock/Demo ออกจาก Runtime และอนุญาตทำงานบน develop — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ปรับ `AGENTS.md`, `docs/05_folder_and_git_workflow.md` และ skill `sync-develop` ให้ทำงานบน `develop` ได้เมื่อเจ้าของสั่ง โดย agent ไม่เปลี่ยน branch/commit/push เอง
+- ถอด `ClinicMockProvider` ออกจาก root layout และย้าย appointment mock repository ไป test-only fixture
+- Scheduling runtime เริ่มจาก snapshot ว่างและเรียก `ApiSchedulingRepository` เท่านั้น; ไม่มี mock factory/fallback
+- Weekly schedule และ doctor templates ยังไม่มี Route Handler จึงคืน error/ค่าว่างแทนการเปลี่ยนข้อมูลจำลองใน memory
+- ลบ `seedSampleReminders` ซึ่งสร้าง reminder ตัวอย่างลงฐานจริงได้ ทั้งที่ไม่มี caller
+- คง mock adapters/fixtures ที่ tests ใช้ไว้ และอัปเดตกติกา/เอกสาร as-built ตาม D29/D30
+
+### ไฟล์หลัก
+
+- `AGENTS.md`, `.agents/skills/sync-develop/SKILL.md`, `README.md`
+- `docs/00_reading_guide.md`, `docs/01_project_overview.md`, `docs/02_user_stories.md`, `docs/03_database_design_and_er.md`, `docs/04_system_architecture_and_tech_stack.md`, `docs/05_folder_and_git_workflow.md`, `docs/07_foundation_and_scope.md`, `docs/09_implementation_plan.md`, `docs/10_team_decisions.md`, `docs/11_functional_requirements.md`, `docs/appointments-and-medical-records.md`, `docs/owners/README.md`, `docs/owners/_shared/{as-built,status}.md`, `docs/owners/{herb,kan,pai,shop-supot}/{as-built,status}.md`
+- `src/app/layout.tsx`, `src/features/clinic-care.tsx`, `src/features/mock-database/ClinicMockProvider.tsx`, `src/features/scheduling/context/SchedulingProvider.tsx`, `src/features/scheduling/data/repositoryFactory.ts`, `src/features/scheduling/domain/repository.ts`, `src/services/reminderService.ts`, `src/types/schedule.ts`
+- `tests/clinic-care-mock-repository.ts`, `tests/appointments-records-runtime.test.ts`, `tests/appointments-records-runtime-ui.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- `git diff --check`: ผ่าน
+- Automated tests ไม่ได้รันในรอบนี้
+- Browser QA และ live Supabase/RLS ไม่ได้ตรวจ
+
+## แก้ JSX ของฟอร์มลงทะเบียนบุคลากร — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เปลี่ยน wrapper รอบตัวเลือกประเภทบัญชีจาก `<form>` เป็น `<div>` เพื่อไม่ให้ซ้อนกับฟอร์มสร้างบัญชีบุคลากรและฟอร์มผู้ป่วยที่ฝังอยู่ใน `RegisterPage`
+- คงการ submit และ `handleSubmit` ไว้เฉพาะฟอร์มบุคลากร พร้อมปิด JSX wrapper ให้ครบ ทำให้ Turbopack parse ไฟล์ได้
+
+### ไฟล์หลัก
+
+- `src/components/staff/PersonnelRegistrationForm.tsx`
+
+### Verification
+
+- `npm.cmd run build`: ผ่าน; compile, TypeScript และ static generation 42/42 routes ผ่าน
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- `npx.cmd --no-install vitest run tests/personnel-registration.test.ts`: ผ่าน 1 file / 6 tests
+- targeted ESLint: ผ่าน 0 errors; มี warning เดิม 1 รายการเรื่อง `UserPlus` ไม่ได้ใช้งาน
+- `git diff --check`: ผ่าน
+- Browser QA และ database/RLS: ไม่ได้ตรวจในรอบนี้
+
+## ปรับปรุงหน้าผลตรวจและรายการยาตาม Issue #121 — 22 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ปรับ shell ให้แต่ละหน้าเหลือ H1 เดียว และแยก H2 ระหว่างฟอร์มบันทึกผลตรวจกับประวัติผลตรวจตาม role
+- ปรับข้อความไทย, Stepper และคำเตือนก่อนยืนยันให้ตรงกับงานคลินิกมากขึ้น โดยคงการบันทึกครั้งเดียวและสถานะ `จบตรวจแล้ว`/`รอจบตรวจ`
+- จัดฟอร์มรายการยาใหม่เป็นกลุ่มเลือกยา, ขนาด/จำนวน/ระยะเวลา และวิธีใช้/อาหาร; ปุ่มเพิ่มอยู่ใกล้หัวข้อ และปุ่มลบมีพื้นที่กดอย่างน้อย 44×44 px
+- เปลี่ยนประวัติผลตรวจเป็นรายการแนวตั้ง เรียงใหม่สุดก่อน ระบุ `วันที่บันทึกผล` แยก empty state ตามสาเหตุ และอธิบายชัดว่ารายการยาเป็นคำสั่งยาไม่ใช่สถานะการจ่ายยา
+- ปรับ copy ของ flow เริ่มตรวจในหน้า appointments ให้สอดคล้องกับหน้าผลตรวจ โดยไม่เปลี่ยน repository หรือ data contract
+
+### ไฟล์หลัก
+
+- `src/features/clinic-care.tsx`
+- `src/features/medical-records.tsx`
+- `src/features/appointments.tsx`
+- `tests/appointments-records-runtime-ui.test.tsx`
+
+### Verification
+
+- focused UI tests: ผ่าน 29 tests
+- full test suite: ผ่าน 44 files / 377 tests
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- targeted ESLint สำหรับไฟล์ที่แก้: ผ่าน 0 errors / 0 warnings
+- `npm.cmd run build`: ผ่าน; compile, TypeScript และ static generation 42/42 routes ผ่าน
+- `npm.cmd run lint`: ยังไม่ผ่านจาก error เดิมนอก scope ใน `src/app/(patient)/reminders/page.tsx` 2 จุด และ warnings เดิม 6 รายการ
+- Browser QA 360px/1280px/keyboard: พยายามเปิด Chrome แล้ว แต่ environment นี้ไม่มี browser session ให้ใช้งาน จึงยังยืนยันผ่าน browser จริงไม่ได้
+
 ## แก้ไขรอบตรวจที่ปิดก่อนเวลาเริ่ม และลดขอบเขตหน้าจัดการแผนก — 22 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
@@ -336,3 +408,108 @@
 - `npm.cmd run lint` — ผ่าน 0 errors, 6 warnings เดิม
 - `npm.cmd run build` — ผ่าน
 - Browser visual QA — ยังไม่ยืนยัน เพราะ environment ไม่มี browser session (`browsers: []`, IAB unavailable)
+
+## แก้ JSX conditional ในฟอร์มลงทะเบียนบุคลากร — 23 กันยายน 2569
+
+### ขอบเขตและไฟล์ที่แก้
+
+- ปรับ `src/components/staff/PersonnelRegistrationForm.tsx` ให้ conditional ระหว่างฟอร์มผู้ป่วยกับฟอร์มบุคลากรใช้วงเล็บ JSX ชัดเจน และปิด `<form>` แยกจาก ternary expression
+- คง behavior, route, validation, data contract และ visual UI เดิม; แก้เฉพาะโครงสร้าง syntax เพื่อป้องกัน Turbopack parse error ที่ `</section>`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `npx.cmd --no-install eslint 'src/components/staff/PersonnelRegistrationForm.tsx'` — ผ่าน
+- `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
+- `npm.cmd run lint` — ไม่ผ่านจาก 3 errors เดิมใน `src/app/(patient)/reminders/page.tsx` และ `src/components/dashboard/DashboardScreen.tsx`; changed file ไม่พบ lint error และมี warnings เดิม 10 รายการในไฟล์อื่น
+- Automated tests และ browser QA — ไม่รัน; งานนี้เป็น syntax-only และไม่เปลี่ยน behavior
+
+# ปรับปลายทางโลโก้ Header ตาม role — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เมื่อเข้าสู่ระบบแล้ว การกดโลโก้ WU Clinic ใน Header ไปยัง dashboard ของ role ปัจจุบัน (`patient`, `medical`, `staff_admin`) จากทุกหน้า
+- ผู้ใช้ที่ยังไม่เข้าสู่ระบบยังกดโลโก้กลับหน้าแรก `/`
+
+### ไฟล์หลัก
+
+- `src/components/layout/Header.tsx`
+- `tests/header.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/header.test.tsx` — ผ่าน 1 file / 15 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA — ไม่ได้ตรวจในรอบนี้
+
+# เปิดตารางแพทย์ให้ guest ดูแบบ read-only — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ผู้ใช้ที่ยังไม่เข้าสู่ระบบดูรายชื่อแพทย์ที่เปิดใช้งาน บริการ และรอบตรวจที่เปิดให้บริการได้
+- รอบว่างแสดงทางเข้าสู่ระบบเพื่อจองและพากลับไปยัง slot ที่เลือก; guest ไม่มีลิงก์สร้างนัดหมาย
+- คง guard ของการสร้างนัดหมายและคำสั่งเขียนไว้เหมือนเดิม; account options และเหตุผลวันลายังไม่เปิดเผยแก่ guest
+- ใช้ public-read RLS policies เดิม; ไม่มี migration ใหม่ และยังไม่ได้ตรวจ RLS บนฐานจริง
+
+### ไฟล์หลัก
+
+- `src/app/(clinic)/schedules/page.tsx`
+- `src/app/api/doctors/route.ts`
+- `src/app/api/schedules/offerings/route.ts`
+- `src/app/api/schedules/slots/route.ts`
+- `src/components/schedules/ScheduleWorkspace.tsx`
+- `src/features/scheduling/data/apiRepository.ts`
+- `tests/api-route-handlers.test.ts`
+- `tests/schedule-workspace-department-filter.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/api-route-handlers.test.ts tests/schedule-workspace-department-filter.test.tsx tests/header.test.tsx` — ผ่าน 3 files / 56 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint สำหรับไฟล์ที่เปลี่ยน — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA และ live DB/RLS — ไม่ได้ตรวจในรอบนี้
+
+# แก้การ map บริการบน Landing — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `fetchLandingServices` อ่าน `is_active` จาก `/api/services` แล้ว map เป็น `isActive` ให้ตรงกับ UI; บริการที่เปิดใช้งานจึงผ่านตัวกรองบนหน้า Landing
+- แปลง `description: null` จาก API เป็น `''` เพราะ `ScheduleService.description` ต้องเป็น string; แก้ TypeScript error ที่พบใน Vercel build
+
+### ไฟล์หลัก
+
+- `src/services/landingService.ts`
+
+### Verification
+
+- `git diff --check` — ตรวจหลังแก้ไข
+- `npx.cmd --no-install tsc --noEmit` — ผ่านหลังแก้ nullable description
+- Automated tests และ browser QA — ไม่ได้รัน
+
+# แยก component ตารางตรวจ — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- แยก UI ของ dialog จัดการรอบเดี่ยว, รอบหลายวัน, วันลา และบริการ ออกจาก `ScheduleWorkspace`
+- แยก header actions, ตัวกรอง/ตัวควบคุมปฏิทิน และ renderer ปฏิทินวัน/สัปดาห์/เดือนเป็น component เฉพาะ
+- คง state orchestration, callbacks, validation, role checks และ data access ไว้ใน flow เดิม; ไม่เปลี่ยน UI behavior หรือ permission
+- `ScheduleWorkspace.tsx` ลดจาก 2,142 เป็น 983 บรรทัด
+
+### ไฟล์หลัก
+
+- `src/components/schedules/ScheduleWorkspace.tsx`
+- `src/components/schedules/BatchScheduleDialog.tsx`
+- `src/components/schedules/DoctorLeaveDialog.tsx`
+- `src/components/schedules/SlotEditorDialog.tsx`
+- `src/components/schedules/ServiceDialog.tsx`
+- `src/components/schedules/ScheduleWorkspaceToolbar.tsx`
+- `src/components/schedules/ScheduleCalendar.tsx`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint ทั้ง 7 ไฟล์ — ผ่าน ไม่มี warnings
+- `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
+- Automated tests และ browser QA — ไม่ได้รัน

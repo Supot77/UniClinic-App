@@ -1,6 +1,6 @@
 # 03. แบบข้อมูลและ ER
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — reverse-engineer schema/runtime ให้แยกชื่อ PAI RPC ออกจากตารางนัด/ผลตรวจที่ RPC รุ่นปัจจุบันใช้งาน และเพิ่ม catalog บริการกับ daily offering โดยคง departments เป็นข้อมูลความถนัดของแพทย์; owner trace อยู่ใน [docs/owners](owners/README.md)
+ปรับปรุง 23 กันยายน 2569 (2026-09-23) — ระบุ runtime boundary ที่ไม่มี mock/demo fallback และคงแผนที่ schema/owner trace แยกจากหลักฐาน DB/RLS จริง
 
 > ไฟล์ schema snapshot จาก Supabase เป็นข้อมูลอ้างอิง ไม่ควรรันตรง ๆ เพราะไม่มีลำดับ Foreign Key ที่รับประกันได้ ให้ใช้ migration ตามลำดับ รวม `supabase/migrations/13_services_and_daily_offerings.sql` สำหรับฐานที่มี schema เดิมแล้ว
 
@@ -8,7 +8,7 @@
 
 ## สถานะและขอบเขต
 
-- Runtime หลักใช้ Supabase ผ่าน database repository; mock repository ใช้เฉพาะ automated tests/offline demo ที่ระบุชัด
+- Runtime ใช้ Supabase ผ่าน database repository/API; mock repository ใช้เฉพาะ automated tests ไม่มี offline demo หรือ mock fallback ในแอป
 - Base schema เดิมมี 11 ตาราง; migration เพิ่ม `services`, `daily_service_offerings`, `broadcasts` และเคยเสนอ `pai_appointments`/`pai_medical_records` ใน migration รุ่นแรก จึงไม่ควรสรุปจำนวนตารางเดียวโดยไม่ระบุ migration target
 - Active appointment/record runtime ใน code และ migration รุ่นหลังใช้ `appointments` และ `medical_records` ผ่าน RPC ชื่อ `pai_*`; `pai_appointments` และ `pai_medical_records` เป็น target จาก migration รุ่นแรกที่ snapshot นี้ไม่พบ
 - บทบาทใน `profiles.role` เหลือ 3 ค่าเท่านั้น: `patient`, `medical`, `staff_admin`
@@ -20,11 +20,11 @@
 
 | เส้นทาง | ตาราง/ฟังก์ชันหลัก | ข้อสรุปจาก repository |
 | --- | --- | --- |
-| Schedule | `services` → `daily_service_offerings` → `appointment_slots` | `DatabaseSchedulingRepository` รองรับการอ่าน/เขียน; UI ยังมี mock composition บางคำสั่ง |
+| Schedule | `services` → `daily_service_offerings` → `appointment_slots` | `ApiSchedulingRepository` เรียก Route Handlers สำหรับ CRUD ที่รองรับ; weekly schedules/templates ยังไม่มี API และไม่เก็บ mock state |
 | Appointment | `appointments`, `pai_workspace`, `pai_book_appointment`, `pai_transition_appointment` | route `/appointments` ใช้ RPC ชื่อ PAI แต่ migration รุ่นปัจจุบันชี้ไป `appointments`; ไม่ใช่หลักฐานว่า RPC deploy บน target แล้ว |
 | Medical record | `medical_records`, `pai_save_record` | route `/records` ใช้ RPC ชื่อ PAI ที่ migration `28` ชี้ไป `medical_records`; หนึ่งผลตรวจต่อนัดตาม schema/test ที่พบ |
-| Pharmacy | `medications`, `inventory_logs`, `medicationService`, `/pharmacy` | เส้นทางแยกจาก PAI และมี mock/local-storage fallback; ยังไม่ยืนยัน integration แบบครบวงจร |
-| Reminder/notification | `medication_reminders`, `medication_logs`, `notifications` และ service ที่เกี่ยวข้อง | มี direct Supabase service; reminders/dashboard บางส่วนยัง fallback ไป mock |
+| Pharmacy | `medications`, `inventory_logs`, `medicationService`, `/pharmacy` | ใช้ medication API; ยังไม่ยืนยัน integration จ่ายยากับนัดแบบครบวงจรหรือ atomicity |
+| Reminder/notification | `medication_reminders`, `medication_logs`, `notifications` และ service ที่เกี่ยวข้อง | ใช้ reminder API และ Supabase service; ไม่มี mock data fallback |
 | Broadcast | `broadcasts`/RPC และ `notifications` | มี migration/RPC แยก; ต้องตรวจว่าฐานเป้าหมาย apply แล้ว |
 
 ตารางนี้คือ as-built map ไม่ใช่การเปลี่ยน target requirement ใน [08](08_system_rules_and_acceptance.md), [09](09_implementation_plan.md) หรือ [10](10_team_decisions.md)

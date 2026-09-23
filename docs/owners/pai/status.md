@@ -7,7 +7,7 @@
 ## ภาพรวมล่าสุด
 
 - Active appointment/record path อยู่ใน `appointments.tsx`, `medical-records.tsx` และ `clinic-care.tsx`
-- Database adapter ใช้ PAI RPC; mock adapter แยกสำหรับ test/offline
+- Database adapter ใช้ PAI RPC; mock adapter ใช้เฉพาะ automated tests
 - มี vitals validation และ RPC error mapping ใน `clinic-care.tsx`
 
 ## หลักฐาน

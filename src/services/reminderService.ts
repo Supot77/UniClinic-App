@@ -107,51 +107,8 @@ export async function deleteReminder(id: string) {
 }
 
 // =============================================================================
-// 2. ฟังก์ชันช่วยปรับสถานะการแจ้งเตือนและข้อมูลตัวอย่าง (Status & Seed Helpers)
+// 2. ฟังก์ชันช่วยปรับสถานะการแจ้งเตือน (Status Helpers)
 // =============================================================================
-
-/**
- * ฟังก์ชันสร้างข้อมูลตัวอย่างการแจ้งเตือนยา (Seed Sample Reminders) สำหรับผู้ใช้
- * ใช้สำหรับการทดสอบระบบ (Dev / Test Environment)
- * @param userId รหัสประจำตัวผู้ใช้ (UUID)
- * @returns รายการแจ้งเตือนยาตัวอย่างที่ถูกสร้างขึ้น
- */
-export async function seedSampleReminders(userId: string): Promise<MedicationReminderWithMedication[]> {
-  const meds = await getAvailableMedications();
-  if (!meds || meds.length === 0) return [];
-
-  const sampleItems = [
-    { medName: 'Paracetamol', times: ['08:00', '12:00', '18:00'] },
-    { medName: 'Amoxicillin', times: ['08:00', '13:00', '20:00'] },
-    { medName: 'Omeprazole', times: ['07:30'] },
-    { medName: 'Cetirizine', times: ['21:00'] },
-  ];
-
-  const now = new Date();
-  const startDate = now.toISOString().split('T')[0];
-  const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-  const toInsert = sampleItems
-    .map((sample) => {
-      const match = meds.find((m) => m.name.toLowerCase().includes(sample.medName.toLowerCase()));
-      if (!match) return null;
-      return {
-        user_id: userId,
-        medication_id: match.id,
-        reminder_times: sample.times,
-        start_date: startDate,
-        end_date: endDate,
-        status: 'active' as const,
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-  if (toInsert.length === 0) return [];
-
-  const created: MedicationReminderWithMedication[] = [];
-  for (const item of toInsert) created.push(await createReminder(item));
-  return created;
-}
 
 /**
  * พักการแจ้งเตือนการทานยาชั่วคราว (สถานะ 'paused')

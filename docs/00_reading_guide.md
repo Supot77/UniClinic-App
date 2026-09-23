@@ -48,7 +48,7 @@
 
 ## Data source และ UI contract ปัจจุบัน
 
-- Runtime เป้าหมายใช้ Supabase จริงผ่าน database repository ภายใต้ service/repository contract; mock repository ใช้ใน automated tests และ offline demo ที่ระบุชัด
+- Runtime ใช้ Supabase จริงผ่าน database repository ภายใต้ service/repository contract; mock repository ใช้เฉพาะ automated tests ไม่มี offline demo หรือ mock fallback ในแอป
 - Database client ใช้ session ของผู้ใช้และบังคับสิทธิ์ด้วย RLS/RPC ห้ามให้ browser รับ `service_role` หรือ secret
 - ทั้ง 3 role ต้องมี entry page/dashboard ของตนเอง เมื่อข้อมูลหรือคำสั่งต่างกันต้องแยก role-specific page/container/component และตรวจสิทธิ์ทั้ง route, service/repository และ database
 - Shared presentational component ใช้ร่วมกันได้เมื่อไม่มีความต่างด้านสิทธิ์หรือข้อมูล ห้ามมี production UI สำหรับสลับ role เพื่อข้าม session จริง
@@ -69,5 +69,5 @@
 | หน้าที่ | งานย่อยของ role เช่น `medical` ทำหน้าที่แพทย์หรือเภสัชกรได้ แต่ไม่กลายเป็น role ใหม่ |
 | manual | ผู้ใช้ที่มีสิทธิ์เป็นผู้กดคำสั่งและบันทึกผลเอง ไม่มี worker หรือการเปลี่ยนสถานะตามเวลา |
 | database runtime | Supabase จริงที่แอปอ่านเขียนผ่าน repository, session และ RLS |
-| mock | adapter ข้อมูลสังเคราะห์สำหรับ automated tests หรือ offline demo ไม่ใช่ runtime หลัก |
+| mock | adapter/fixture ข้อมูลสังเคราะห์สำหรับ automated tests เท่านั้น ไม่อยู่ใน runtime ของแอป |
 | scope | สิ่งที่ต้องคงไว้ในรอบนี้ ส่วนที่ไม่อยู่ในตารางหรือรายการ FR ถือว่านอก scope |

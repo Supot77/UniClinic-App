@@ -19,7 +19,6 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { roleLabels } from "@/features/dashboard/types";
 import {
   deleteStaffProfile,
   getStaffProfileDirectory,
@@ -30,6 +29,11 @@ import type { ProfileTitle, UserRole } from "@/types/database";
 import Toast from "@/components/common/Toast";
 
 const roleOrder: UserRole[] = ["patient", "medical", "staff_admin"];
+const accountRoleLabels: Record<UserRole, string> = {
+  patient: "ผู้ป่วย",
+  medical: "แพทย์",
+  staff_admin: "ผู้ดูแลระบบ",
+};
 type ProfileSort = "name-th" | "name-en" | "registered-asc" | "registered-desc";
 type ProfileFilter = UserRole | "all" | "suspended";
 type AccountAction =
@@ -78,7 +82,7 @@ function ProfileActions({
         role="switch"
         aria-checked={profile.isActive}
         aria-label={
-          profile.isActive ? "ระงับการใช้งานบัญชี" : "เปิดใช้งานบัญชี"
+          profile.isActive ? "ระงับบัญชี" : "เปิดใช้งานบัญชี"
         }
         onClick={() =>
           onAction({
@@ -87,7 +91,7 @@ function ProfileActions({
             nextActive: !profile.isActive,
           })
         }
-        title={profile.isActive ? "ระงับการใช้งานบัญชี" : "เปิดใช้งานบัญชี"}
+        title={profile.isActive ? "ระงับบัญชี" : "เปิดใช้งานบัญชี"}
         className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${profile.isActive ? "bg-emerald-500" : "bg-slate-300"}`}
       >
         <span
@@ -159,7 +163,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
   async function handleSave() {
     if (!editingProfile) return;
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
-      setSaveError("กรุณากรอกชื่อและนามสกุล");
+      setSaveError("กรอกชื่อและนามสกุล");
       return;
     }
 
@@ -176,12 +180,12 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
       });
       await loadProfiles(true);
       setEditingProfile(null);
-      setToast("บันทึกการเปลี่ยนแปลงแล้ว");
+      setToast("บันทึกข้อมูลแล้ว");
     } catch (saveProfileError) {
       setSaveError(
         saveProfileError instanceof Error
           ? saveProfileError.message
-          : "บันทึกข้อมูลไม่สำเร็จ",
+          : "บันทึกข้อมูลไม่สำเร็จ ลองใหม่",
       );
     } finally {
       setSaving(false);
@@ -198,7 +202,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "โหลดข้อมูลบัญชีไม่สำเร็จ",
+          : "โหลดรายชื่อบัญชีไม่สำเร็จ",
       );
     } finally {
       setLoading(false);
@@ -290,7 +294,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
         accountAction.kind === "hard-delete"
           ? "ลบบัญชีถาวรแล้ว"
           : accountAction.nextActive
-            ? "กู้คืนบัญชีแล้ว"
+            ? "เปิดใช้งานบัญชีแล้ว"
             : "ระงับบัญชีแล้ว",
       );
     } catch (actionError) {
@@ -298,10 +302,10 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
         actionError instanceof Error
           ? actionError.message
           : accountAction.kind === "hard-delete"
-            ? "ลบบัญชีถาวรไม่สำเร็จ"
+            ? "ลบบัญชีถาวรไม่สำเร็จ ลองใหม่"
             : accountAction.nextActive
-              ? "กู้คืนบัญชีไม่สำเร็จ"
-              : "ระงับบัญชีไม่สำเร็จ",
+              ? "เปิดใช้งานบัญชีไม่สำเร็จ ลองใหม่"
+              : "ระงับบัญชีไม่สำเร็จ ลองใหม่",
       );
       setAccountAction(null);
     } finally {
@@ -318,34 +322,25 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
-            บัญชีผู้ใช้งานทั้งหมด
+            จัดการบัญชีผู้ใช้
           </h1>
           <p className="mt-2 text-sm text-brand-muted">
-            จัดการข้อมูลติดต่อ บทบาท และสถานะบัญชี
+            ดูและแก้ไขข้อมูลติดต่อ บทบาท และสถานะบัญชี
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-          <Link
-            href="/staff/accounts/new"
+          {canCreatePersonnel && <Link
+            href="/staff/accounts/personnel/new"
             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-strong px-4 text-sm font-semibold text-white transition hover:bg-brand-hover sm:flex-none"
           >
             <Plus className="size-4" aria-hidden="true" />
-            <span>เพิ่มบัญชีผู้ป่วย</span>
-          </Link>
-          {canCreatePersonnel && (
-            <Link
-              href="/staff/accounts/personnel/new"
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-brand-strong bg-white px-4 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft sm:flex-none"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              <span>เพิ่มบัญชีบุคลากร</span>
-            </Link>
-          )}
+            <span>สร้างบัญชี</span>
+          </Link>}
           <button
             type="button"
             onClick={() => void loadProfiles(true)}
             disabled={loading || refreshing}
-            aria-label="รีเฟรชข้อมูลบัญชี"
+            aria-label="รีเฟรชรายชื่อบัญชี"
             title="รีเฟรช"
             className="inline-flex size-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-strong px-0 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:px-4"
           >
@@ -360,7 +355,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
 
       {!patientOnly && <section
         className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-        aria-label="สรุปจำนวนบัญชี"
+        aria-label="สรุปบัญชีผู้ใช้"
       >
         <button
           type="button"
@@ -369,7 +364,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
           className={`${summaryCardClass(roleFilter === "all")} min-w-0 text-left`}
         >
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-800">บัญชีทั้งหมด</p>
+            <p className="text-sm text-slate-800">ผู้ใช้ทั้งหมด</p>
             <Users className="size-5 text-sky-600" aria-hidden="true" />
           </div>
           <p className="mt-3 text-3xl font-bold text-slate-950">
@@ -386,7 +381,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-500">{roleLabels[role]}</p>
+                <p className="text-sm text-slate-500">{accountRoleLabels[role]}</p>
               </div>
               <UserRound className="size-5 text-slate-400" aria-hidden="true" />
             </div>
@@ -403,9 +398,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">บัญชีที่ถูกระงับ</p>
+              <p className="text-sm text-slate-500">บัญชีถูกระงับ</p>
               <p className="mt-0.5 text-xs text-slate-400">
-                ไม่สามารถเข้าสู่ระบบได้
+                เข้าสู่ระบบไม่ได้
               </p>
             </div>
             <UserRound className="size-5 text-slate-400" aria-hidden="true" />
@@ -419,9 +414,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
       <section className="overflow-hidden">
         <div className="flex flex-col gap-5 border-b border-brand-border-soft pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-brand-ink">{patientOnly ? "รายชื่อผู้ป่วย" : "รายชื่อบัญชี"}</h2>
+            <h2 className="text-xl font-semibold text-brand-ink">{patientOnly ? "รายชื่อผู้ป่วย" : "บัญชีผู้ใช้"}</h2>
             <p className="mt-1 text-sm text-brand-muted">
-              แสดง {filteredProfiles.length} จาก {profiles.length} บัญชี
+              พบ {filteredProfiles.length} จาก {profiles.length} บัญชี
             </p>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-2 lg:w-auto lg:flex-row">
@@ -430,11 +425,11 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-brand-body"
                 aria-hidden="true"
               />
-              <span className="sr-only">ค้นหาบัญชี</span>
+              <span className="sr-only">ค้นหาผู้ใช้</span>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-              placeholder="ค้นหาชื่อ อีเมล หรือเบอร์โทรศัพท์"
+              placeholder="ค้นหาชื่อ อีเมล หรือเบอร์โทร"
                 className="h-11 w-full rounded-lg border border-brand-border-strong bg-transparent py-2.5 pl-9 pr-3 text-sm text-brand-ink outline-none transition placeholder:text-brand-muted focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
               />
             </label>
@@ -449,16 +444,16 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
               }
               className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
             >
-              <option value="all">บัญชีทั้งหมด</option>
-              <option value="suspended">บัญชีที่ถูกระงับ</option>
+              <option value="all">ผู้ใช้ทั้งหมด</option>
+              <option value="suspended">บัญชีถูกระงับ</option>
               {roleOrder.map((role) => (
                 <option key={role} value={role}>
-                  {roleLabels[role]}
+                  {accountRoleLabels[role]}
                 </option>
               ))}
             </select></>}
             <label className="sr-only" htmlFor="profile-sort">
-              เรียงลำดับบัญชี
+              เรียงลำดับผู้ใช้
             </label>
             <select
               id="profile-sort"
@@ -466,10 +461,10 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
               onChange={(event) => setSortBy(event.target.value as ProfileSort)}
               className="h-11 rounded-lg border border-brand-border-strong bg-transparent px-3 text-sm text-brand-ink outline-none transition focus:border-brand-strong focus:ring-2 focus:ring-brand-soft"
             >
-              <option value="name-th">เรียงตาม ก-ฮ</option>
-              <option value="name-en">เรียงตาม A-Z</option>
-              <option value="registered-asc">เรียงตามสมัครเก่าสุด</option>
-              <option value="registered-desc">เรียงตามสมัครล่าสุด</option>
+              <option value="name-th">ชื่อ ก-ฮ</option>
+              <option value="name-en">ชื่อ A-Z</option>
+              <option value="registered-asc">สมัครเก่าสุด</option>
+              <option value="registered-desc">สมัครล่าสุด</option>
             </select>
           </div>
         </div>
@@ -477,7 +472,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
         {loading ? (
           <div className="flex min-h-48 items-center justify-center gap-2 py-10 text-sm text-brand-muted">
             <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
-            กำลังโหลดข้อมูลบัญชี…
+            กำลังโหลดรายชื่อบัญชี…
           </div>
         ) : error ? (
           <div className="flex min-h-48 flex-col items-center justify-center gap-3 py-10 text-center">
@@ -492,7 +487,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
           </div>
         ) : filteredProfiles.length === 0 ? (
           <div className="flex min-h-48 items-center justify-center py-10 text-sm text-brand-muted">
-            ไม่พบบัญชีตามเงื่อนไขที่เลือก
+            ไม่พบผู้ใช้ตามเงื่อนไขที่เลือก
           </div>
         ) : (
           <>
@@ -509,11 +504,11 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
               <thead className="border-b border-brand-border-soft text-xs font-semibold text-brand-muted">
                 <tr>
                   <th className="px-5 py-4 text-center">ลำดับ</th>
-                  <th className="px-5 py-4 text-center">ชื่อ</th>
+              <th className="px-5 py-4 text-center">ชื่อ-นามสกุล</th>
                   <th className="px-5 py-4 text-center">อีเมล</th>
                   <th className="px-5 py-4 text-center">เบอร์โทรศัพท์</th>
               <th className="px-5 py-4 text-center">บทบาท</th>
-                  <th className="whitespace-nowrap px-5 py-4 text-center">จัดการบัญชี</th>
+              <th className="whitespace-nowrap px-5 py-4 text-center">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border-soft">
@@ -553,12 +548,12 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                         className={`inline-flex items-center gap-1.5 text-xs font-semibold ${profile.isActive ? "text-brand-strong" : "text-brand-muted"}`}
                       >
                         <ShieldCheck className="size-3.5" aria-hidden="true" />
-                        {roleLabels[profile.role]}
+                        {accountRoleLabels[profile.role]}
                       </span>
                       <span
                         className="mt-1 block text-xs text-brand-muted"
                       >
-                        {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
+                        {profile.isActive ? "ใช้งานอยู่" : "ถูกระงับ"}
                       </span>
                     </td>
                     <td className="px-5 py-5 text-center">
@@ -595,10 +590,10 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                         className={`inline-flex items-center gap-1.5 font-semibold ${profile.isActive ? "text-brand-strong" : "text-brand-muted"}`}
                       >
                         <ShieldCheck className="size-3.5" aria-hidden="true" />
-                        {roleLabels[profile.role]}
+                        {accountRoleLabels[profile.role]}
                       </span>
                       <span className="text-brand-muted">
-                        · {profile.isActive ? "ใช้งานอยู่" : "ระงับบัญชี"}
+                        · {profile.isActive ? "ใช้งานอยู่" : "ถูกระงับ"}
                       </span>
                     </div>
                   </div>
@@ -643,7 +638,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
       {accountAction && (
         <BodyPortal>
           <div
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
+            className="clinic-modal-backdrop fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="account-action-title"
@@ -670,26 +665,22 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                 className="text-xl font-bold text-slate-950"
               >
                 {isHardDeleteAction
-                  ? "ลบบัญชีถาวร?"
+                  ? "ยืนยันการลบบัญชีถาวร"
                   : isRestoringAction
-                    ? "กู้คืนบัญชีนี้?"
-                    : "ระงับบัญชีนี้?"}
+                    ? "ยืนยันการเปิดใช้งานบัญชี"
+                    : "ยืนยันการระงับบัญชี"}
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 บัญชี “{accountAction.profile.fullName}”{" "}
                 {isHardDeleteAction
-                  ? "จะถูกลบถาวรออกจากระบบและไม่สามารถกู้คืนได้"
+                  ? "จะถูกลบถาวรและกู้คืนไม่ได้"
                   : isRestoringAction
-                    ? "จะสามารถกลับมาเข้าสู่ระบบได้อีกครั้ง"
-                    : "จะถูกระงับและไม่สามารถเข้าสู่ระบบได้"}
+                    ? "จะกลับมาเข้าสู่ระบบได้อีกครั้ง"
+                    : "จะถูกระงับและเข้าสู่ระบบไม่ได้"}
               </p>
-              {isHardDeleteAction ? (
-                <p className="mt-2 text-xs font-semibold text-rose-600">
-                  การลบถาวรจะไม่สามารถย้อนกลับได้
-                </p>
-              ) : !isRestoringAction ? (
+              {!isHardDeleteAction && !isRestoringAction ? (
                 <p className="mt-2 text-xs text-slate-400">
-                  ข้อมูลจะยังอยู่ในระบบและสามารถกู้คืนได้ภายหลัง
+                  ข้อมูลจะยังอยู่และเปิดใช้งานได้ภายหลัง
                 </p>
               ) : null}
             </div>
@@ -717,10 +708,10 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                 {actionSaving
                   ? "กำลังดำเนินการ…"
                   : isHardDeleteAction
-                    ? "ยืนยันการลบถาวร"
+                    ? "ลบบัญชีถาวร"
                     : isRestoringAction
-                      ? "ยืนยันการกู้คืน"
-                      : "ยืนยันการระงับ"}
+                      ? "เปิดใช้งานบัญชี"
+                      : "ระงับบัญชี"}
               </button>
             </div>
             </div>
@@ -731,7 +722,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
       {editingProfile && (
         <BodyPortal>
           <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4"
+            className="clinic-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-profile-title"
@@ -746,10 +737,10 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                   id="edit-profile-title"
                   className="text-xl font-bold text-slate-950"
                 >
-                  แก้ไขข้อมูลผู้ใช้งาน
+                  แก้ไขข้อมูลผู้ใช้
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  {editingProfile.email ?? "ไม่มีอีเมล"}
+                  {editingProfile.email ?? "ไม่ระบุอีเมล"}
                 </p>
               </div>
               <button
@@ -823,7 +814,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
                 >
                   {roleOrder.map((role) => (
                     <option key={role} value={role}>
-                      {roleLabels[role]}
+                      {accountRoleLabels[role]}
                     </option>
                   ))}
                 </select>

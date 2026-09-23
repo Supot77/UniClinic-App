@@ -21,7 +21,7 @@ Agent ต้องเลือกเปิดใช้งานและปฏ�
 4. **การสืบสวนและแก้ไขข้อผิดพลาด (Debugging & Troubleshooting)**:
    - เรียกใช้ `debug-mantra` เมื่อพบข้อผิดพลาด, test fail, บั๊ก หรือ stack trace โดยยึดหลัก 4 ขั้นตอน (Reproduce, Trace fail path, Falsify hypothesis, Cross-reference) ก่อนเสนอวิธีแก้
 5. **การจัดการ Git และ Branch (Git Workflow)**:
-   - เรียกใช้ `sync-develop` ก่อนเริ่มงานบน branch ทุกครั้ง เพื่อ fetch และ sync การเปลี่ยนแปลงล่าสุดจาก `origin/develop` เข้า branch ตนเองอย่างปลอดภัย
+   - ตรวจ branch และ working tree ก่อนเริ่มงาน; ทำบน `develop` ได้เมื่อเจ้าของงานสั่งหรือกำหนดไว้ ห้ามสร้าง/เปลี่ยน branch เอง และห้าม commit/push หากไม่ได้รับอนุญาต
 6. **การตรวจทานโค้ด (Code Review & Audit)**:
    - เรียกใช้ `scrutinize` หรือ `caveman-review` เมื่อต้องตรวจสอบ diff, ตรวจ PR หรือ sanity check โค้ดก่อนส่งมอบ
 7. **การบันทึกสรุปปัญหาหลังแก้ไข (Incident & Bug Resolution)**:
@@ -35,16 +35,16 @@ Agent ต้องเลือกเปิดใช้งานและปฏ�
 
 - ทำงานเฉพาะโมดูลที่ได้รับมอบหมายตามตารางเจ้าของงานใน `README.md` และ `docs/05_folder_and_git_workflow.md` เว้นแต่ผู้ใช้หรือเจ้าของโครงการสั่งเปลี่ยนขอบเขตอย่างชัดเจน
 - ตรวจ `git status` และ diff ก่อนแก้ไข รักษาการเปลี่ยนแปลงเดิมของผู้อื่น และห้ามเขียนทับ ย้อนกลับ หรือลบงานที่ไม่ได้อยู่ในขอบเขต
-- ก่อนเริ่มงานใหม่ทุกครั้งบน branch ของตนเอง ต้องตรวจว่า working tree อยู่ในสภาพที่ sync ได้ แล้วดึง `develop` ล่าสุดด้วย `git fetch origin develop` และรวม `origin/develop` เข้า branch ที่กำลังทำงานก่อนเริ่มแก้โค้ด หากมีงานค้างหรือเกิด conflict ให้หยุดรักษางานเดิมและประสานเจ้าของก่อน
+- ก่อนเริ่มงานทุกครั้ง ตรวจ `git status` และ branch เพื่อรักษางานค้างเดิม หากผู้ใช้สั่งทำบน `develop` ให้แก้บน branch ปัจจุบันได้โดยตรง ไม่สร้างหรือ sync branch เพิ่มเอง; หากทำบน feature branch ให้ใช้ `sync-develop` ตาม workflow และหยุดเมื่อมีงานค้างหรือ conflict
 - หากงานจำเป็นต้องแก้โมดูล สัญญาข้อมูล หรือไฟล์ที่ผู้อื่นเป็นเจ้าของ ให้ประสานเจ้าของโมดูลและคู่ตรวจก่อน รวมทั้งระบุผลกระทบไว้ในการส่งมอบหรือ PR
 - เมื่อการเปลี่ยนแปลงของหลายโมดูลขัดกัน ให้ข้อกำหนดและการเปลี่ยนแปลงที่เจ้าของโมดูลนั้นอนุมัติเป็นหลัก ห้ามแก้ conflict ด้วยการเลือกงานของตนเองทับงานเจ้าของส่วนดังกล่าวโดยพลการ
 - ไฟล์กลาง เช่น types, repository interfaces, mock data, shared components, layout, Supabase client และ migration ไม่มีเจ้าของคนเดียว การแก้ไขต้องรักษาความเข้ากันได้กับทุกโมดูลที่ใช้งาน และต้องแจ้งเจ้าของโมดูลที่ได้รับผลกระทบพร้อมคู่ตรวจ
-- จำกัดการ refactor ให้อยู่ในสิ่งที่จำเป็นต่อเป้าหมาย ห้ามเปลี่ยน branch, merge, commit หรือ push เว้นแต่ได้รับคำสั่ง หรือเป็นการ sync `origin/develop` เข้า branch ตนเองตามกติกาข้อนี้
-- หลังทำงานเสร็จ ต้องบันทึกการเปลี่ยนแปลงไว้บน branch ของตนเองเป็นลำดับ (ตรวจ diff, commit และ push branch ของตนเองเมื่อได้รับอนุญาต) ห้ามส่งงานตรงเข้า `develop` หรือ `main`
+- จำกัดการ refactor ให้อยู่ในสิ่งที่จำเป็นต่อเป้าหมาย ห้ามเปลี่ยน branch, merge, commit หรือ push เว้นแต่ได้รับคำสั่งโดยตรง
+- หลังทำงานเสร็จ ตรวจ diff และสรุปผลบน branch ปัจจุบัน; commit/push เมื่อได้รับอนุญาต ห้ามส่งงานตรงเข้า `main`
 
 ## แนวทางข้อมูลและ Backend แบบ Database-first
 
-- Runtime ของแอปใช้ Supabase จริงผ่าน database repository/adapter เป็น implementation หลัก ส่วน mock repository ใช้สำหรับ automated tests, Story/demo แบบ offline หรือกรณีที่ test ระบุ dependency ชัดเจนเท่านั้น
+- Runtime ของแอปใช้ Supabase จริงผ่าน database repository/adapter เท่านั้น ห้าม mock/demo data หรือ silent fallback ใน production runtime; mock repository และ fixture ใช้เฉพาะ automated tests ที่ระบุ dependency ชัดเจน
 - แยก UI และ business/domain logic ออกจากแหล่งข้อมูล โดยเรียกผ่าน repository หรือ service contract ที่ชัดเจน ห้ามให้ component เขียน Supabase query หรือ import mock fixture โดยตรง
 - Backend ต้องมี database repository และ mock repository ภายใต้ contract เดียวกัน พฤติกรรม ชนิดผลลัพธ์ validation และ error สำคัญต้องสอดคล้องกัน เพื่อให้ tests สลับเป็น mock ได้โดยไม่แก้ UI หรือ domain logic
 - ใช้ Supabase client ตาม execution context: browser client สำหรับคำสั่งของผู้ใช้, server client สำหรับ Server Component/Server Action/Route Handler และใช้ session ของผู้ใช้ร่วมกับ RLS ห้ามใช้ `service_role` ใน browser หรือส่ง secret ไปยัง client bundle
@@ -65,7 +65,7 @@ Agent ต้องเลือกเปิดใช้งานและปฏ�
 1. อ่าน `AGENTS.md`, เอกสารข้อกำหนดที่เกี่ยวข้อง และไฟล์ใน flow เดิมก่อนเสนอหรือแก้ไขงาน
 2. ก่อนเขียนโค้ด Next.js ให้อ่านคู่มือหัวข้อที่เกี่ยวข้องใน `node_modules/next/dist/docs/` ตามกฎด้านบน และทำตาม API/convention ของเวอร์ชันที่ติดตั้งจริง
 3. ตรวจสถานะ Git, ระบุเจ้าของโมดูล ไฟล์ที่ต้องแก้ ขอบเขตผลกระทบ และ acceptance criteria ที่เกี่ยวข้อง
-4. sync `origin/develop` เข้า branch ของตนเองตามกติกา Git ก่อนเริ่มเขียนโค้ด
+4. ตรวจ branch และ working tree; ถ้าผู้ใช้กำหนดให้ทำบน `develop` ให้ทำบน branch ปัจจุบันโดยตรง ส่วน feature branch ให้ sync `origin/develop` ตาม skill ก่อนเขียนโค้ด
 5. ทำการเปลี่ยนแปลงที่เล็กและตรงขอบเขต ตามรูปแบบที่มีอยู่ แยก domain logic ให้ทดสอบได้ และรักษา contract ระหว่างโมดูล
 6. เมื่อพฤติกรรมหรือ business rule เปลี่ยน ให้พิจารณาเพิ่มหรือปรับ tests ใน `tests/**/*.test.{ts,tsx}` ตามความเสี่ยงและขอบเขตของงาน โดยงานเล็กมาก งาน copy/docs หรือการปรับ UI ที่ไม่เปลี่ยน logic สามารถข้าม test ได้ แต่ต้องระบุเหตุผลและสิ่งที่ตรวจแทน หากงานกระทบ validation, permission, state หรือ data contract ให้เพิ่ม regression test เฉพาะส่วนที่เกี่ยวข้อง
 7. ตรวจ diff หลังแก้ไขเพื่อหาไฟล์นอกขอบเขต secret debug code การเปลี่ยน contract โดยไม่ตั้งใจ และงานของผู้อื่นที่ถูกทับ

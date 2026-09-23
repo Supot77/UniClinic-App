@@ -9,9 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { createSchedulingRepository } from '../data/repositoryFactory';
 import { ApiSchedulingRepository } from '../data/apiRepository';
-import type { SchedulingRepository, SchedulingSnapshot } from '../domain/repository';
+import type { SchedulingSnapshot } from '../domain/repository';
 import type {
   DoctorWeeklySchedule,
   DoctorAvailabilityTemplate,
@@ -78,23 +77,15 @@ const SchedulingContext = createContext<SchedulingContextValue | null>(null);
 
 export function SchedulingProvider({ children }: { children: ReactNode }) {
   const dbRepo = useMemo(() => new ApiSchedulingRepository(), []);
-
-  const [repository] = useState<SchedulingRepository>(() => createSchedulingRepository());
-  const [snapshot, setSnapshot] = useState<SchedulingSnapshot>(() => {
-    // When Supabase is configured, initialize empty so mock data never appears in real database mode
-    if (typeof window !== 'undefined' || process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return {
-        departments: [],
-        doctors: [],
-        services: [],
-        dailyServiceOfferings: [],
-        slots: [],
-        doctorLeaves: [],
-        weeklySchedules: [],
-        doctorAccounts: [],
-      };
-    }
-    return repository.snapshot();
+  const [snapshot, setSnapshot] = useState<SchedulingSnapshot>({
+    departments: [],
+    doctors: [],
+    services: [],
+    dailyServiceOfferings: [],
+    slots: [],
+    doctorLeaves: [],
+    weeklySchedules: [],
+    doctorAccounts: [],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -153,15 +144,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
     };
   }, [dbRepo, refresh]);
 
-  const run = useCallback(
-    <T,>(command: () => SchedulingResult<T>) => {
-      const result = command();
-      if (result.ok) setSnapshot(repository.snapshot());
-      return result;
-    },
-    [repository],
-  );
-
   const handleSaveDepartment = useCallback(
     async (
       input: Omit<ScheduleDepartment, 'id' | 'isActive'>,
@@ -182,9 +164,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกแผนก' };
         }
       }
-      return run(() => repository.saveDepartment(input, id));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับบันทึกแผนกได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.departments],
+    [dbRepo, refresh, snapshot.departments],
   );
 
   const handleToggleDepartment = useCallback(
@@ -208,9 +190,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
         }
         return { ok: false, error: 'ไม่พบแผนกที่ต้องการแก้ไข' };
       }
-      return run(() => repository.toggleDepartment(id));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับเปลี่ยนสถานะแผนกได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.departments],
+    [dbRepo, refresh, snapshot.departments],
   );
 
   const handleSaveDoctor = useCallback(
@@ -233,9 +215,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูลแพทย์' };
         }
       }
-      return run(() => repository.saveDoctor(input, id));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับบันทึกข้อมูลแพทย์ได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctors],
+    [dbRepo, refresh, snapshot.doctors],
   );
 
   const handleSaveService = useCallback(
@@ -254,9 +236,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกบริการ' };
         }
       }
-      return run(() => repository.saveService(input, id));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับบันทึกบริการได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.services],
+    [dbRepo, refresh, snapshot.services],
   );
 
   const handleToggleService = useCallback(
@@ -274,9 +256,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะบริการ' };
         }
       }
-      return run(() => repository.toggleService(id));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับเปลี่ยนสถานะบริการได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.services],
+    [dbRepo, refresh, snapshot.services],
   );
 
   const handleToggleDoctor = useCallback(
@@ -300,9 +282,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
         }
         return { ok: false, error: 'ไม่พบแพทย์ที่ต้องการแก้ไข' };
       }
-      return run(() => repository.toggleDoctor(id));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับเปลี่ยนสถานะแพทย์ได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctors],
+    [dbRepo, refresh, snapshot.doctors],
   );
 
   const handleSaveSlot = useCallback(
@@ -334,9 +316,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกรอบตรวจ' };
         }
       }
-      return run(() => repository.saveSlot(input, id, todayDate));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับบันทึกรอบตรวจได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
+    [dbRepo, refresh, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
   );
 
   const handleCreateSlotBatch = useCallback(
@@ -368,9 +350,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจหลายวัน' };
         }
       }
-      return run(() => repository.createSlotBatch(input, todayDate, actorId, role));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับสร้างรอบตรวจได้', field: 'doctorId' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
+    [dbRepo, refresh, snapshot.doctors, snapshot.doctorLeaves, snapshot.services, snapshot.slots],
   );
 
   const handleSaveDoctorLeave = useCallback(
@@ -391,9 +373,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกวันลาแพทย์' };
         }
       }
-      return run(() => repository.saveDoctorLeave(input, id, actorId, role));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับบันทึกวันลาแพทย์ได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.doctors],
+    [dbRepo, refresh, snapshot.doctorLeaves, snapshot.doctors],
   );
 
   const handleDeleteDoctorLeave = useCallback(
@@ -409,9 +391,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการยกเลิกวันลาแพทย์' };
         }
       }
-      return run(() => repository.deleteDoctorLeave(id, actorId, role));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับยกเลิกวันลาแพทย์ได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.doctors],
+    [dbRepo, refresh, snapshot.doctorLeaves, snapshot.doctors],
   );
 
   const handleToggleSlot = useCallback(
@@ -439,9 +421,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
         }
         return { ok: false, error: 'ไม่พบรอบตรวจที่ต้องการแก้ไข' };
       }
-      return run(() => repository.toggleSlot(id, actorId, role));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับเปลี่ยนสถานะรอบตรวจได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.slots],
+    [dbRepo, refresh, snapshot.slots],
   );
 
   const handleGenerateSlotsForRange = useCallback(
@@ -466,9 +448,9 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจ' };
         }
       }
-      return run(() => repository.generateSlotsForRange(startDate, endDate, today, serviceId));
+      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับสร้างรอบตรวจได้' };
     },
-    [dbRepo, refresh, repository, run, snapshot.doctorLeaves, snapshot.services, snapshot.slots, snapshot.weeklySchedules],
+    [dbRepo, refresh, snapshot.doctorLeaves, snapshot.services, snapshot.slots, snapshot.weeklySchedules],
   );
 
   const value = useMemo<SchedulingContextValue>(
@@ -487,10 +469,10 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
       saveSlot: handleSaveSlot,
       createSlotBatch: handleCreateSlotBatch,
       toggleSlot: handleToggleSlot,
-      saveWeeklySchedule: (input, id) => run(() => repository.saveWeeklySchedule(input, id)),
+      saveWeeklySchedule: () => ({ ok: false, error: 'การบันทึกตารางประจำสัปดาห์ยังไม่มี Route Handler รองรับ' }),
       generateSlotsForRange: handleGenerateSlotsForRange,
-      getDoctorTemplates: (doctorId) => repository.getDoctorTemplates(doctorId),
-      saveDoctorTemplate: (input) => run(() => repository.saveDoctorTemplate(input)),
+      getDoctorTemplates: () => [],
+      saveDoctorTemplate: () => ({ ok: false, error: 'การบันทึกแม่แบบตารางยังไม่มี Route Handler รองรับ' }),
     }),
     [
       snapshot,
@@ -508,8 +490,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
       handleCreateSlotBatch,
       handleToggleSlot,
       handleGenerateSlotsForRange,
-      run,
-      repository,
     ],
   );
 

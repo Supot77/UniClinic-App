@@ -28,7 +28,7 @@
 ## สถานะที่ใช้ร่วมกัน
 
 - `ทำแล้วใน code` — พบ route และ logic ที่เกี่ยวข้องใน source
-- `ทำบางส่วน/ยังมี mock` — มี code path แต่ยังมี fallback หรือขอบเขตไม่ครบ
+- `ทำบางส่วน/ยังมีช่องว่าง` — มี code path แต่ยังขาด behavior หรือขอบเขตบางส่วน
 - `เป็น target ยังไม่พบ code` — มีใน requirement/plan แต่ยังไม่พบ implementation ที่ตรงกัน
 - `ยังไม่ยืนยัน DB/RLS` — พบ migration หรือ repository แต่ไม่มีหลักฐาน integration กับฐานเป้าหมาย
 - `ยังไม่ตรวจ browser` — ไม่มีหลักฐาน Chrome 360px/1280px และ keyboard QA

@@ -134,7 +134,7 @@
 เจ้าของโครงการอนุมัติให้ยกเลิกข้อห้ามแบบ mock-only ที่ขัดกับข้อนี้ และเริ่มเปลี่ยนระบบเป็น database-first โดยยังคง business scope แบบ manual ของ D22
 
 - Runtime หลักใช้ Supabase จริงผ่าน database repository ภายใต้ contract เดียวกับ mock repository
-- Mock repository ใช้สำหรับ automated tests และ offline demo ที่ระบุชัด ไม่เป็น production runtime และไม่มี silent fallback เมื่อเชื่อมฐานล้มเหลว
+- Mock repository ใช้สำหรับ automated tests เท่านั้น ไม่เป็น production runtime และไม่มี offline demo หรือ silent fallback เมื่อเชื่อมฐานล้มเหลว
 - ใช้ session ของผู้ใช้กับ RLS/RPC เป็นขอบเขตสิทธิ์ ห้ามใช้ `service_role` ใน browser หรือเผยแพร่ secret
 - Migration, seed และ database integration รันกับ development/staging ได้เมื่อยืนยัน target, review diff และสำรองข้อมูลตามความเสี่ยง ห้าม destructive reset กับ production
 - `patient`, `medical`, `staff_admin` ต้องมี guarded entry page/dashboard ของตน เมื่อ data/action/permission ต่างกันให้แยก role-specific page/container/component
@@ -224,12 +224,23 @@
   - เช่น งานเพิ่ม/แก้ business logic, database schema, migration, สัญญาข้อมูล, authentication หรือก่อน merge เข้า `develop`/`main`
   - บังคับรัน Full Quality Gates ครบทั้ง 4 คำสั่ง และรายงานผลจริงก่อนส่งมอบ
 
+## D29 — ห้ามใช้ Mock/Demo เป็น Runtime
+
+- Runtime ของแอปอ่าน/เขียนผ่าน Supabase database repository หรือ API ที่ใช้ session/RLS เท่านั้น
+- ห้ามโหลด fixture, mock repository, demo account หรือ sample rows เป็น fallback เมื่อ Supabase/API ไม่พร้อม; ให้แสดง loading/empty/error ตามจริง
+- Mock repository และ fixture คงไว้เพื่อ automated tests ที่กำหนด dependency ชัดเจน
+
+## D30 — อนุญาตให้ทำงานบน develop โดยตรงเมื่อเจ้าของสั่ง
+
+- เมื่อเจ้าของงานสั่งให้เริ่มบน `develop` ให้แก้ branch ปัจจุบันได้โดยตรงหลังตรวจ `git status`; ไม่ต้องสร้าง feature branch หรือ sync/merge `origin/develop` ซ้ำ
+- งานอื่นยังใช้ feature → develop → main ตามปกติ; agent ห้ามเปลี่ยน branch, commit หรือ push โดยไม่มีคำสั่งโดยตรง
+
 ## งานติดตามที่ยังไม่ใช่ข้อกำหนดเพิ่ม
 
 | งานติดตาม | ผู้เกี่ยวข้อง | ผลที่ต้องได้ |
 | --- | --- | --- |
 | ตรวจ migration/RLS สำหรับ role canonical | ฟีม/ผู้ดูแลฐานข้อมูล | ยืนยัน target, backup และผลกับฐาน development/staging ก่อน deploy |
-| เปลี่ยน repository factory เป็น database-first | ทุกเจ้าของโมดูล | Runtime ใช้ Supabase; unit/component tests inject mock ผ่าน contract เดียวกัน |
+| ถอด mock runtime ตาม D29 | ทุกเจ้าของโมดูล | Scheduling ใช้ API runtime; mock adapters ใช้เฉพาะ tests; DB/RLS ยังต้องตรวจแยก |
 | แยก entry page/container ตาม role | ฟีม/เฮิร์บและเจ้าของ flow | route guard, service permission และ RLS ปฏิเสธ role ที่ไม่เกี่ยวข้อง |
 | ตรวจ contract ระหว่างโมดูลและข้อมูลเดโม | ทุกเจ้าของโมดูล | ยืนยัน role 3 ค่า จำนวนบัญชี 17 บัญชี และ flow manual เดียวกัน |
 | ตรวจ UI 360px/1280px, keyboard, loading, empty, error | ทุกเจ้าของโมดูลและคู่ตรวจ | บันทึกผลจริงก่อนนำเสนอ |

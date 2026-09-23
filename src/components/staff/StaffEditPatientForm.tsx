@@ -105,7 +105,7 @@ export default function StaffEditPatientForm({
         setError(
           loadError instanceof Error
             ? loadError.message
-            : 'โหลดข้อมูลผู้ป่วยไม่สำเร็จ'
+            : 'โหลดข้อมูลผู้ป่วยไม่สำเร็จ ลองใหม่'
         );
       } finally {
         if (active) {
@@ -148,12 +148,12 @@ export default function StaffEditPatientForm({
     try {
       await staffAdminUpdatePatient(patientId, form);
 
-      setSuccess('บันทึกข้อมูลผู้ป่วยแล้ว');
+      setSuccess('บันทึกข้อมูลแล้ว');
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : 'บันทึกข้อมูลไม่สำเร็จ'
+          : 'บันทึกข้อมูลไม่สำเร็จ ลองใหม่'
       );
     } finally {
       setIsSaving(false);
@@ -197,7 +197,7 @@ export default function StaffEditPatientForm({
 
         <p className="mt-1 text-sm text-slate-500">
           แก้ไขข้อมูลส่วนตัว รหัสประจำตัว
-          และข้อมูลสุขภาพของผู้ป่วย
+          และข้อมูลสุขภาพ
         </p>
       </header>
 
@@ -320,7 +320,7 @@ export default function StaffEditPatientForm({
 
         <section className="rounded-2xl border border-sky-100 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">
-            ประเภทและรหัสประจำตัว
+            ประเภทผู้ป่วยและรหัสประจำตัว
           </h2>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -549,7 +549,7 @@ export default function StaffEditPatientForm({
 
             {isSaving
               ? 'กำลังบันทึก…'
-              : 'บันทึกข้อมูล'}
+              : 'บันทึก'}
           </button>
         </div>
       </form>
