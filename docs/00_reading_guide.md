@@ -2,6 +2,7 @@
 
 ปรับปรุง 20 กันยายน 2569 (2026-09-20) — ข้อกำหนดสำหรับพัฒนาและ as-built trace จาก code path; code progress เป็นค่าประมาณ ไม่ใช่หลักฐาน deployment หรือการตรวจรับ
 ปรับปรุง 22 กันยายน 2569 (2026-09-22) — ข้อกำหนดสำหรับพัฒนาและ as-built trace จาก code path; สถานะ feature implementation ล่าสุดสำเร็จครบตาม scope ตามเอกสาร 14 แต่ไม่ใช้แทนหลักฐาน deployment หรือการตรวจรับ
+ปรับปรุง 23 กันยายน 2569 (2026-09-23) — ย้าย User Stories, Use Cases และ ER เฉพาะ Scheduling ของสุพจน์ไปที่ owner docs; เอกสารกลางคงข้อกำหนดและแผนภาพรวม
 
 ข้อสรุปทีมใน [10](10_team_decisions.md) เป็นหลักสำหรับกติกาที่เปลี่ยนล่าสุด [09](09_implementation_plan.md) เป็นแผนดำเนินงาน [08](08_system_rules_and_acceptance.md) เป็นข้อกำหนดและเกณฑ์ตรวจรับ หากพบเนื้อหาเก่าใน Git history หรือ PDF archive ให้ยึดข้อสรุปล่าสุดที่ทีมตอบรับ ไม่ใช้ข้อเสนอที่ยังไม่อนุมัติแทนข้อยุติ
 
@@ -18,8 +19,9 @@
 | เอกสาร | ใช้ทำอะไร |
 | --- | --- |
 | [01 ภาพรวม](01_project_overview.md) | เป้าหมายและเจ้าของงาน |
-| [02 User Stories](02_user_stories.md) | หน้าที่ผู้ใช้แต่ละโมดูล |
-| [03 แบบข้อมูลและ ER](03_database_design_and_er.md) | แบบข้อมูลปัจจุบันและส่วนที่ตัดออก |
+| [02 User Stories](02_user_stories.md) | ภาพรวมข้ามโมดูลและลิงก์ไปยัง owner story |
+| [03 แบบข้อมูลและ ER](03_database_design_and_er.md) | แบบข้อมูลร่วมและความสัมพันธ์ข้ามโมดูล |
+| [Owner views](owners/README.md) | User Stories, Use Cases, ER และ as-built trace แยกตามเจ้าของ |
 | [11 Functional Requirements](11_functional_requirements.md) | FR เป้าหมายและตารางเทียบกับ implementation ที่พบ |
 | [04 สถาปัตยกรรม](04_system_architecture_and_tech_stack.md) | ขอบเขตบริการ สิทธิ์และงานตามเวลา |
 | [05 โฟลเดอร์และ Git](05_folder_and_git_workflow.md) | พื้นที่งานและคู่ตรวจ |
@@ -59,7 +61,8 @@
 
 คำว่า “ตกลงแล้ว” หมายถึงทีมยืนยันขอบเขตหรือกติกา คำว่า “แผน” หมายถึงงานที่ควรทำต่อ และคำว่า “พัฒนา/ตรวจรับแล้ว” ต้องมีหลักฐานจากโค้ดหรือคำสั่งตรวจจริง เอกสารนี้ไม่เปลี่ยนสถานะของงานเพียงเพราะมีการเขียนรายละเอียดเพิ่ม
 
-ส่วน `as-built` ในเอกสาร 02, 03, 11 และ [owner views](owners/README.md) เป็นผลจากการอ่าน repository ณ 2026-09-20: PAI นัดหมาย/ผลตรวจเป็น active route, Scheduling มี schedule/department/leave/slot path และ shared confirmation, ส่วน pharmacy, reminders และ dashboard ยังมี path ที่ต้องแยกตาม source และตรวจ integration. ต้องตรวจ migration target, RLS และ flow บนฐานจริงแยกต่างหาก
+ส่วน `as-built` ในเอกสาร 02, 03, 11 และ [owner views](owners/README.md) สรุปจาก code path; ต้องตรวจ migration target, RLS และ flow บนฐานจริงแยกต่างหาก
+รายละเอียด story, use case และ ER ของ Scheduling อ่านจาก [owner docs ของสุพจน์](owners/shop-supot/README.md); เอกสาร 02 และ 03 คงภาพรวมข้ามโมดูลและลิงก์ไปยัง owner view
 
 ## คำศัพท์ที่ต้องใช้ให้ตรงกัน
 

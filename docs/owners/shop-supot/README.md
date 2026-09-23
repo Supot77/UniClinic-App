@@ -17,10 +17,18 @@
 
 ส่ง `slotId`, `serviceId`, `dailyServiceOfferingId`, `doctorId`, วันเวลาไทย, capacity, slot status และรายการ slot ที่ได้รับผลกระทบจากวันลาให้โมดูลนัดหมาย
 
-## เอกสารอ้างอิง
+## เอกสารของโมดูล
 
-- [User Stories](../../02_user_stories.md)
-- [Acceptance Criteria](../../08_system_rules_and_acceptance.md)
+- [User Stories](user-stories.md)
+- [Use Cases](use-cases.md)
+- [ER เฉพาะโมดูล](er.md)
+- [As-built trace](as-built.md)
+- [Status และหลักฐาน](status.md)
+
+## เอกสารกลาง
+
+- [เกณฑ์ตรวจรับ](../../08_system_rules_and_acceptance.md)
 - [Implementation Plan](../../09_implementation_plan.md)
 - [Team Decisions D25/D26/D28](../../10_team_decisions.md)
+- [Functional Requirements](../../11_functional_requirements.md)
 - [Refactoring and Routing Plan](../../13_code_refactoring_and_routing_plan.md)

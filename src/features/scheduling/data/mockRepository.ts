@@ -5,12 +5,9 @@ import {
   MOCK_DAILY_SERVICE_OFFERINGS,
   MOCK_SERVICES,
   MOCK_SLOTS,
-  MOCK_WEEKLY_SCHEDULES,
 } from '@/mocks/scheduleData';
 import type {
   DailyServiceOffering,
-  DoctorWeeklySchedule,
-  DoctorAvailabilityTemplate,
   ScheduleDepartment,
   ScheduleDoctor,
   ScheduleService,
@@ -21,7 +18,6 @@ import type {
 import type { UserRole } from '@/types/database';
 import {
   deriveSlotStatus,
-  isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
   buildSlotBatchPlan,
@@ -44,9 +40,7 @@ export class MockSchedulingRepository implements SchedulingRepository {
     dailyServiceOfferings: structuredClone(MOCK_DAILY_SERVICE_OFFERINGS),
     slots: structuredClone(MOCK_SLOTS),
     doctorAccounts: structuredClone(MOCK_DOCTOR_ACCOUNT_OPTIONS),
-    weeklySchedules: structuredClone(MOCK_WEEKLY_SCHEDULES),
     doctorLeaves: [],
-    availabilityTemplates: [],
   };
 
   snapshot(): SchedulingSnapshot {
@@ -315,86 +309,4 @@ export class MockSchedulingRepository implements SchedulingRepository {
     return { ok: true, value: next };
   }
 
-  saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): SchedulingResult<DoctorWeeklySchedule> {
-    const doctor = this.state.doctors.find((item) => item.id === input.doctorId);
-    if (!doctor) return { ok: false, error: 'ไม่พบแพทย์' };
-    if (doctor.availability !== 'active') return { ok: false, error: 'แพทย์ต้องเปิดใช้งานก่อนตั้งตาราง', field: 'doctorId' };
-    if (!this.state.doctors.some((doctor) => doctor.id === input.doctorId)) return { ok: false, error: 'ไม่พบแพทย์' };
-    if (![1, 2, 3, 4, 5].includes(input.weekday)) return { ok: false, error: 'ตารางประจำใช้ได้เฉพาะวันจันทร์ถึงศุกร์', field: 'weekday' };
-    if (!Number.isInteger(input.defaultCapacity) || input.defaultCapacity < 1) return { ok: false, error: 'ความจุต้องเป็นจำนวนเต็มมากกว่า 0', field: 'defaultCapacity' };
-    if (![30, 60].includes(input.slotDurationMinutes)) return { ok: false, error: 'รองรับความยาว slot 30 หรือ 60 นาที', field: 'slotDurationMinutes' };
-    const existing = id ? this.state.weeklySchedules.find((schedule) => schedule.id === id) : undefined;
-    if (id && !existing) return { ok: false, error: 'ไม่พบตารางประจำที่ต้องการแก้ไข' };
-    if (input.startTime >= input.endTime) return { ok: false, error: 'เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด', field: 'startTime' };
-    if (input.startTime < '08:30' || input.endTime > '16:30' || (input.startTime < '13:00' && input.endTime > '12:00')) return { ok: false, error: 'ตารางต้องอยู่ในเวลาคลินิกและไม่ทับช่วงพัก', field: 'startTime' };
-    if ((toMinutes(input.endTime) - toMinutes(input.startTime)) % input.slotDurationMinutes !== 0) return { ok: false, error: 'ช่วงเวลาต้องแบ่งลงตัวตามความยาว slot', field: 'endTime' };
-    const conflict = this.state.weeklySchedules.some((schedule) => schedule.id !== id && schedule.isActive && input.isActive && schedule.doctorId === input.doctorId && schedule.weekday === input.weekday && input.startTime < schedule.endTime && input.endTime > schedule.startTime);
-    if (conflict) return { ok: false, error: 'ตารางประจำมีเวลาทับซ้อนกัน', field: 'startTime' };
-    const schedule = existing ? { ...existing, ...input } : { ...input, id: crypto.randomUUID() };
-    this.state.weeklySchedules = existing ? this.state.weeklySchedules.map((item) => item.id === id ? schedule : item) : [...this.state.weeklySchedules, schedule];
-    return { ok: true, value: schedule };
-  }
-
-  generateSlotsForRange(startDate: string, endDate: string, today: string, requestedServiceId?: string): SchedulingResult<number> {
-    if (!startDate || !endDate || startDate > endDate) return { ok: false, error: 'ช่วงวันที่สร้างรอบไม่ถูกต้อง' };
-    let created = 0;
-    for (let date = startDate; date <= endDate; date = shiftDate(date, 1)) {
-      const weekday = clinicWeekday(date);
-      if (weekday < 1 || weekday > 5) continue;
-      for (const schedule of this.state.weeklySchedules.filter((item) => item.isActive && item.weekday === weekday)) {
-        if (isDoctorOnLeave(this.state.doctorLeaves, schedule.doctorId, date)) continue;
-        for (let minutes = toMinutes(schedule.startTime); minutes + schedule.slotDurationMinutes <= toMinutes(schedule.endTime); minutes += schedule.slotDurationMinutes) {
-          const startTime = fromMinutes(minutes); const endTime = fromMinutes(minutes + schedule.slotDurationMinutes);
-          const exists = this.state.slots.some((slot) => slot.doctorId === schedule.doctorId && slot.slotDate === date && slot.startTime === startTime && slot.endTime === endTime);
-          const overlaps = this.state.slots.some((slot) => slot.doctorId === schedule.doctorId && slot.slotDate === date && startTime < slot.endTime && endTime > slot.startTime);
-          if (!exists && !overlaps && date >= today) {
-            const serviceId = requestedServiceId ?? this.state.services.find((service) => service.id === `service-${this.state.doctors.find((doctor) => doctor.id === schedule.doctorId)?.departmentId}`)?.id ?? this.state.services.find((service) => service.isActive)?.id;
-            if (!serviceId) continue;
-            const offering = this.state.dailyServiceOfferings.find((item) => item.serviceId === serviceId && item.doctorId === schedule.doctorId && item.offeringDate === date) ?? {
-              id: crypto.randomUUID(), serviceId, doctorId: schedule.doctorId, offeringDate: date, isActive: true, createdBy: 'mock',
-            };
-            if (!this.state.dailyServiceOfferings.some((item) => item.id === offering.id)) this.state.dailyServiceOfferings.push(offering);
-            this.state.slots.push({ id: crypto.randomUUID(), doctorId: schedule.doctorId, serviceOfferingId: offering.id, serviceId, slotDate: date, startTime, endTime, maxCapacity: schedule.defaultCapacity, bookedCount: 0, status: 'available', hasHistory: false });
-            created += 1;
-          }
-        }
-      }
-    }
-    return { ok: true, value: created };
-  }
-
-  getDoctorTemplates(doctorId: string): DoctorAvailabilityTemplate[] {
-    const templates = this.state.availabilityTemplates?.filter((t) => t.doctorId === doctorId) ?? [];
-    return [...templates].sort((a, b) => b.usageCount - a.usageCount || b.lastUsedAt.localeCompare(a.lastUsedAt));
-  }
-
-  saveDoctorTemplate(input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>): SchedulingResult<DoctorAvailabilityTemplate> {
-    if (!this.state.availabilityTemplates) {
-      this.state.availabilityTemplates = [];
-    }
-    const now = new Date().toISOString();
-    const existing = this.state.availabilityTemplates.find(
-      (t) => t.doctorId === input.doctorId && t.startTime === input.startTime && t.endTime === input.endTime && t.defaultCapacity === input.defaultCapacity
-    );
-    if (existing) {
-      existing.usageCount += 1;
-      existing.lastUsedAt = now;
-      if (input.label) existing.label = input.label;
-      return { ok: true, value: structuredClone(existing) };
-    }
-    const newTemplate: DoctorAvailabilityTemplate = {
-      ...input,
-      id: crypto.randomUUID(),
-      usageCount: 1,
-      lastUsedAt: now,
-      label: input.label || `${input.startTime}–${input.endTime} (${input.defaultCapacity} คน)`,
-    };
-    this.state.availabilityTemplates.push(newTemplate);
-    return { ok: true, value: structuredClone(newTemplate) };
-  }
 }
-
-function toMinutes(value: string) { const [hour, minute] = value.split(':').map(Number); return hour * 60 + minute; }
-function fromMinutes(value: number) { return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`; }
-function clinicWeekday(value: string) { const [year, month, day] = value.split('-').map(Number); return new Date(Date.UTC(year, month - 1, day)).getUTCDay(); }
-function shiftDate(value: string, days: number) { const [year, month, day] = value.split('-').map(Number); const date = new Date(Date.UTC(year, month - 1, day + days)); return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`; }

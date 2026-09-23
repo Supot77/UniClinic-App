@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   DailyServiceOffering,
   DoctorAccountOption,
-  DoctorWeeklySchedule,
   ScheduleDepartment,
   ScheduleDoctor,
   ScheduleService,
@@ -17,7 +16,6 @@ import type { SchedulingResult, SlotBatchInput, SlotInput } from '../domain/rule
 import {
   buildSlotBatchPlan,
   deriveSlotStatus,
-  isDoctorOnLeave,
   isSlotExpired,
   validateDepartmentName,
   validateDoctorLeave,
@@ -786,161 +784,4 @@ export class DatabaseSchedulingRepository {
     };
   }
 
-  async generateSlotsForRange(
-    startDate: string,
-    endDate: string,
-    today: string,
-    weeklySchedules: DoctorWeeklySchedule[],
-    existingSlots: ScheduleSlot[],
-    services: ScheduleService[],
-    requestedServiceId?: string,
-    doctorLeaves: DoctorLeave[] = [],
-  ): Promise<SchedulingResult<number>> {
-    if (!startDate || !endDate || startDate > endDate) {
-      return { ok: false, error: 'ช่วงวันที่สร้างรอบไม่ถูกต้อง' };
-    }
-
-    const toMinutes = (val: string) => {
-      const [h, m] = val.split(':').map(Number);
-      return h * 60 + m;
-    };
-    const fromMinutes = (mins: number) =>
-      `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-    const clinicWeekday = (val: string) => {
-      const [y, m, d] = val.split('-').map(Number);
-      return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    };
-    const shiftDate = (val: string, days: number) => {
-      const [y, m, d] = val.split('-').map(Number);
-      const dt = new Date(Date.UTC(y, m - 1, d + days));
-      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
-    };
-
-    const selectedServiceId = requestedServiceId ?? services.find((service) => service.isActive)?.id;
-    if (!selectedServiceId || !services.some((service) => service.id === selectedServiceId && service.isActive)) {
-      return { ok: false, error: 'ต้องเลือกบริการที่เปิดใช้งานก่อนสร้างรอบตรวจ' };
-    }
-
-    const newRows: Array<{
-      doctor_id: string;
-      service_id: string;
-      slot_date: string;
-      start_time: string;
-      end_time: string;
-      max_capacity: number;
-      booked_count: number;
-      status: string;
-    }> = [];
-
-    const validSchedules = weeklySchedules.filter((s) => s.isActive && isValidUUID(s.doctorId));
-    if (validSchedules.length === 0) {
-      return {
-        ok: false,
-        error: 'ไม่พบตารางเวลาของแพทย์ในฐานข้อมูลจริง (ไม่สามารถใช้ตารางจำลอง Mock สร้างรอบตรวจได้ กรุณาเพิ่มแพทย์และตารางเวลาจริงในระบบก่อน)',
-      };
-    }
-
-    for (let date = startDate; date <= endDate; date = shiftDate(date, 1)) {
-      const weekday = clinicWeekday(date);
-      if (weekday < 1 || weekday > 5) continue;
-      for (const schedule of validSchedules.filter((s) => s.weekday === weekday)) {
-        if (isDoctorOnLeave(doctorLeaves, schedule.doctorId, date)) continue;
-        for (
-          let minutes = toMinutes(schedule.startTime);
-          minutes + schedule.slotDurationMinutes <= toMinutes(schedule.endTime);
-          minutes += schedule.slotDurationMinutes
-        ) {
-          const startTime = fromMinutes(minutes);
-          const endTime = fromMinutes(minutes + schedule.slotDurationMinutes);
-          const exists =
-            existingSlots.some(
-              (slot) =>
-                slot.doctorId === schedule.doctorId &&
-                slot.slotDate === date &&
-                slot.startTime === startTime &&
-                slot.endTime === endTime,
-            ) ||
-            newRows.some(
-              (r) =>
-                r.doctor_id === schedule.doctorId &&
-                r.slot_date === date &&
-                r.start_time === startTime &&
-                r.end_time === endTime,
-            );
-          const overlaps =
-            existingSlots.some(
-              (slot) =>
-                slot.doctorId === schedule.doctorId &&
-                slot.slotDate === date &&
-                startTime < slot.endTime &&
-                endTime > slot.startTime,
-            ) ||
-            newRows.some(
-              (r) =>
-                r.doctor_id === schedule.doctorId &&
-                r.slot_date === date &&
-                startTime < r.end_time &&
-                endTime > r.start_time,
-            );
-
-          if (!exists && !overlaps && date >= today) {
-            newRows.push({
-              doctor_id: schedule.doctorId,
-              service_id: selectedServiceId,
-              slot_date: date,
-              start_time: startTime,
-              end_time: endTime,
-              max_capacity: schedule.defaultCapacity,
-              booked_count: 0,
-              status: 'available',
-            });
-          }
-        }
-      }
-    }
-
-    if (newRows.length === 0) {
-      return { ok: true, value: 0 };
-    }
-
-    const offeringIds = new Map<string, string>();
-    for (const row of newRows) {
-      const key = `${row.service_id}:${row.doctor_id}:${row.slot_date}`;
-      if (offeringIds.has(key)) continue;
-      const { data: offering, error: offeringError } = await this.client
-        .from('daily_service_offerings')
-        .upsert(
-          {
-            service_id: row.service_id,
-            doctor_id: row.doctor_id,
-            offering_date: row.slot_date,
-            is_active: true,
-          },
-          { onConflict: 'service_id,doctor_id,offering_date' },
-        )
-        .select('id')
-        .single();
-      if (offeringError || !offering) {
-        return { ok: false, error: offeringError?.message || 'ไม่สามารถเตรียมบริการสำหรับวันที่เลือกได้' };
-      }
-      offeringIds.set(key, offering.id as string);
-    }
-
-    const insertRows = newRows.map((row) => ({
-      doctor_id: row.doctor_id,
-      daily_service_offering_id: offeringIds.get(`${row.service_id}:${row.doctor_id}:${row.slot_date}`),
-      slot_date: row.slot_date,
-      start_time: row.start_time,
-      end_time: row.end_time,
-      max_capacity: row.max_capacity,
-      booked_count: row.booked_count,
-      status: row.status,
-    }));
-    const { error } = await this.client.from('appointment_slots').insert(insertRows);
-    if (error) {
-      return { ok: false, error: error.message || 'ไม่สามารถสร้างรอบตรวจได้' };
-    }
-
-    return { ok: true, value: newRows.length };
-  }
 }

@@ -113,225 +113,111 @@
     <header>
       <p class="eyebrow">WU CLINIC · ER DATA MODEL</p>
       <h1>แบบข้อมูลและความสัมพันธ์</h1>
-      <p class="dek">แบบ ER จากการ reverse-engineer: schedule และ current PAI RPC target (`appointments`/`medical_records`) แยกจาก historical initial target ที่ยังไม่ยืนยันในฐาน snapshot</p>
+      <p class="dek">ภาพ ER จากการ reverse-engineer: รายละเอียด Scheduling แยกไว้ใน owner ER ของสุพจน์; ภาพส่วนกลางคง current PAI RPC target (`appointments`/`medical_records`) และจุดเชื่อม slot</p>
     </header>
 
     <figure>
       <figcaption>
-        <h2>00 · Current runtime target: service → slot → appointments</h2>
-        <p>เส้นทางที่ route นัดหมาย/ผลตรวจใช้งานผ่าน PAI RPC: `services` → `daily_service_offerings` → `appointment_slots` → `appointments` → `medical_records`</p>
+        <h2>00 · Scheduling owner module and appointment handoff</h2>
+        <p>Scheduling entities and constraints are maintained in <a href="../owners/shop-supot/er.md">ER ของสุพจน์</a>. Central model keeps the appointment slot reference.</p>
       </figcaption>
       <div class="diagram-viewport">
-        <svg viewBox="0 0 1040 500" role="img" aria-labelledby="active-title active-desc">
-          <title id="active-title">ER current runtime target ของ PAI และ schedule</title>
-          <desc id="active-desc">บริการเปิดให้แพทย์ในแต่ละวัน สร้าง slot ผู้ป่วยจองผ่าน PAI RPC ลง appointments และแพทย์บันทึก medical records</desc>
-
+        <svg viewBox="0 0 1040 300" role="img" aria-labelledby="schedule-title schedule-desc">
+          <title id="schedule-title">Scheduling owner boundary and appointment handoff</title>
+          <desc id="schedule-desc">Owner Scheduling model links through appointment_slots to appointments.</desc>
           <g>
-            <path class="relation" d="M240 94 H300" />
-            <path class="relation" d="M500 94 H560" />
-            <path class="relation" d="M780 184 H820" />
-            <path class="relation" d="M920 314 V348" />
-            <path class="relation" d="M140 170 V348 H820" />
-            <path class="relation" d="M400 170 V270 H670 V300" />
-            <path class="relation" d="M400 300 V170" />
+            <path class="relation" d="M280 145 H400" />
+            <path class="relation" d="M650 145 H770" />
           </g>
           <g class="cardinality">
-            <text x="252" y="86">1</text><text x="288" y="86">N</text>
-            <text x="512" y="86">1</text><text x="548" y="86">N</text>
-            <text x="792" y="176">1</text><text x="808" y="176">N</text>
-            <text x="930" y="334">1</text><text x="930" y="346">0..1</text>
-            <text x="148" y="166">1</text><text x="796" y="340">N</text>
+            <text x="294" y="136">owner model</text><text x="380" y="136">slot id</text>
+            <text x="664" y="136">1</text><text x="750" y="136">N</text>
           </g>
-
           <g class="entity">
-            <rect class="entity-box" x="40" y="40" width="200" height="130" rx="6" />
-            <rect class="entity-header" x="40" y="40" width="200" height="40" rx="6" />
-            <line class="entity-divider" x1="40" y1="80" x2="240" y2="80" />
-            <text class="entity-tag" x="52" y="56">ENTITY</text><text class="entity-name" x="52" y="72">services</text>
-            <text class="field" x="52" y="100"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="52" y="120"><tspan>code</tspan><tspan class="field-ref"> : unique text</tspan></text>
-            <text class="field" x="52" y="140"><tspan>name</tspan><tspan class="field-ref"> : text</tspan></text>
-            <text class="field" x="52" y="160"><tspan>is_active</tspan><tspan class="field-ref"> : boolean</tspan></text>
+            <rect class="entity-box" x="40" y="74" width="240" height="142" rx="6" />
+            <rect class="entity-header" x="40" y="74" width="240" height="40" rx="6" />
+            <line class="entity-divider" x1="40" y1="114" x2="280" y2="114" />
+            <text class="entity-tag" x="52" y="90">OWNER MODULE</text>
+            <text class="entity-name" x="52" y="106">Scheduling</text>
+            <text class="field" x="52" y="140">departments · doctors · services</text>
+            <text class="field" x="52" y="162">offerings · leaves · slots</text>
+            <text class="note" x="52" y="194">see owner ER for schema</text>
           </g>
-
           <g class="entity">
-            <rect class="entity-box" x="300" y="40" width="200" height="130" rx="6" />
-            <rect class="entity-header" x="300" y="40" width="200" height="40" rx="6" />
-            <line class="entity-divider" x1="300" y1="80" x2="500" y2="80" />
-            <text class="entity-tag" x="312" y="56">ENTITY</text><text class="entity-name" x="312" y="72">daily_service_offerings</text>
-            <text class="field" x="312" y="100"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="312" y="120"><tspan class="field-key">→ service_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="312" y="140"><tspan class="field-key">→ doctor_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="312" y="160"><tspan>offering_date</tspan><tspan class="field-ref"> : date</tspan></text>
+            <rect class="entity-box" x="400" y="74" width="250" height="142" rx="6" />
+            <rect class="entity-header" x="400" y="74" width="250" height="40" rx="6" />
+            <line class="entity-divider" x1="400" y1="114" x2="650" y2="114" />
+            <text class="entity-tag" x="412" y="90">OWNER ENTITY</text>
+            <text class="entity-name" x="412" y="106">appointment_slots</text>
+            <text class="field" x="412" y="140"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
+            <text class="note" x="412" y="174">details in owner ER</text>
           </g>
-
-          <g class="entity">
-            <rect class="entity-box" x="560" y="120" width="220" height="130" rx="6" />
-            <rect class="entity-header" x="560" y="120" width="220" height="40" rx="6" />
-            <line class="entity-divider" x1="560" y1="160" x2="780" y2="160" />
-            <text class="entity-tag" x="572" y="136">ENTITY</text><text class="entity-name" x="572" y="152">appointment_slots</text>
-            <text class="field" x="572" y="180"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="572" y="200"><tspan class="field-key">→ daily_offering_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="572" y="220"><tspan>slot_date / time</tspan><tspan class="field-ref"> : date/time</tspan></text>
-            <text class="field" x="572" y="240"><tspan>capacity/status</tspan><tspan class="field-ref"> : domain</tspan></text>
-          </g>
-
           <g class="entity entity-focal">
-            <rect class="entity-box" x="820" y="120" width="200" height="194" rx="6" />
-            <rect class="entity-header" x="820" y="120" width="200" height="40" rx="6" />
-            <line class="entity-divider" x1="820" y1="160" x2="1020" y2="160" />
-            <text class="entity-tag" x="832" y="136">CURRENT RPC TARGET</text><text class="entity-name" x="832" y="152">appointments</text>
-            <text class="field" x="832" y="180"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="832" y="200"><tspan class="field-key">→ patient_id / slot_id</tspan></text>
-            <text class="field" x="832" y="220"><tspan>queue_number</tspan><tspan class="field-ref"> : integer</tspan></text>
-            <text class="field" x="832" y="240"><tspan>reason</tspan><tspan class="field-ref"> : text</tspan></text>
-            <text class="field" x="832" y="260"><tspan>status</tspan><tspan class="field-ref"> : pending → completed</tspan></text>
-            <text class="field" x="832" y="280"><tspan>cancel/rejection</tspan><tspan class="field-ref"> : optional</tspan></text>
-            <text class="field" x="832" y="300"><tspan>active unique</tspan><tspan class="field-ref"> patient + slot</tspan></text>
+            <rect class="entity-box" x="770" y="74" width="230" height="142" rx="6" />
+            <rect class="entity-header" x="770" y="74" width="230" height="40" rx="6" />
+            <line class="entity-divider" x1="770" y1="114" x2="1000" y2="114" />
+            <text class="entity-tag" x="782" y="90">CURRENT PAI TARGET</text>
+            <text class="entity-name" x="782" y="106">appointments</text>
+            <text class="field" x="782" y="140"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
+            <text class="field" x="782" y="162"><tspan class="field-key">→ slot_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
+            <text class="field" x="782" y="184">patient_id · status</text>
           </g>
-
-          <g class="entity entity-focal">
-            <rect class="entity-box" x="820" y="348" width="200" height="112" rx="6" />
-            <rect class="entity-header" x="820" y="348" width="200" height="40" rx="6" />
-            <line class="entity-divider" x1="820" y1="388" x2="1020" y2="388" />
-            <text class="entity-tag" x="832" y="364">CURRENT RPC TARGET</text><text class="entity-name" x="832" y="380">medical_records</text>
-            <text class="field" x="832" y="408"><tspan class="field-key"># id / appointment_id</tspan></text>
-            <text class="field" x="832" y="428"><tspan class="field-key">→ patient_id / doctor_id</tspan></text>
-            <text class="field" x="832" y="448"><tspan>diagnosis / meds</tspan><tspan class="field-ref"> : text/jsonb</tspan></text>
-          </g>
-
-          <g class="entity">
-            <rect class="entity-box" x="40" y="348" width="200" height="112" rx="6" />
-            <rect class="entity-header" x="40" y="348" width="200" height="40" rx="6" />
-            <line class="entity-divider" x1="40" y1="388" x2="240" y2="388" />
-            <text class="entity-tag" x="52" y="364">ENTITY</text><text class="entity-name" x="52" y="380">profiles</text>
-            <text class="field" x="52" y="408"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="52" y="428"><tspan>role</tspan><tspan class="field-ref"> : patient | medical | staff_admin</tspan></text>
-            <text class="field" x="52" y="448"><tspan>is_active</tspan><tspan class="field-ref"> : boolean</tspan></text>
-          </g>
-
-          <text class="note" x="300" y="410">doctors / departments เชื่อมกับ daily offering ตาม FK; prescribed_medications เป็น JSONB จึงไม่ใช่ FK ไป medications</text>
-          <line class="legend-rule" x1="40" y1="480" x2="1000" y2="480" />
-          <text class="legend legend-accent" x="40" y="494">accent = current PAI RPC target</text>
-          <text class="note" x="240" y="494">ภาพนี้เป็น repository/migration trace; RLS และการ deploy ต้องตรวจบน target จริง</text>
         </svg>
       </div>
     </figure>
 
     <figure>
       <figcaption>
-        <h2>01 · Current appointment/record details</h2>
-        <p>รายละเอียดของตาราง `appointments` และ `medical_records` ที่ current PAI RPC ใช้งาน; historical `pai_*` target ไม่พบใน <a href="../Database_check.md">Database_check.md</a> และคงไว้ในเอกสาร ER เพื่อ trace เท่านั้น</p>
+        <h2>01 · Current appointment and medical record details</h2>
+        <p>Current PAI RPC uses appointments and medical_records. Scheduling slot detail is linked in figure 00 and the <a href="../owners/shop-supot/er.md">owner ER</a>.</p>
       </figcaption>
       <div class="diagram-viewport">
-        <svg viewBox="0 0 1040 644" role="img" aria-labelledby="care-title care-desc">
-          <title id="care-title">ER นัดหมายและผลตรวจ</title>
-          <desc id="care-desc">มุมมองรายละเอียดของ profiles, doctors, appointment slots, appointments และ medical records; current PAI RPC target อยู่ในภาพ 00</desc>
-
-          <!-- Relationships first -->
+        <svg viewBox="0 0 1040 340" role="img" aria-labelledby="care-title care-desc">
+          <title id="care-title">Profiles, appointments, and medical records</title>
+          <desc id="care-desc">A profile can have appointments; an appointment can produce a medical record.</desc>
           <g>
-            <path class="relation" d="M160 248 V188 Q160 180 168 180 H604 Q612 180 612 172 V104 H624" />
-            <path class="relation" d="M576 92 H604 Q612 92 612 84 V84 H624" />
-            <line class="relation" x1="744" y1="168" x2="744" y2="252" />
-            <line class="relation" x1="280" y1="320" x2="336" y2="320" />
-            <line class="relation" x1="576" y1="316" x2="624" y2="316" />
-            <line class="relation" x1="456" y1="380" x2="456" y2="456" />
+            <path class="relation" d="M280 150 H410" />
+            <path class="relation" d="M650 150 H780" />
+            <path class="relation" d="M160 218 V270 H530 V218" />
           </g>
-
-          <!-- Relationship cardinalities -->
           <g class="cardinality">
-            <text x="176" y="240">1</text><text x="604" y="116">0..1</text>
-            <text x="588" y="84">1</text><text x="636" y="76">N</text>
-            <text x="756" y="184">1</text><text x="756" y="244">N</text>
-            <text x="288" y="312">1</text><text x="324" y="312">N</text>
-            <text x="588" y="308">1</text><text x="612" y="308">N</text>
-            <text x="468" y="400">1</text><text x="468" y="444">0..1</text>
+            <text x="294" y="141">1</text><text x="390" y="141">N</text>
+            <text x="664" y="141">1</text><text x="760" y="141">0..1</text>
+            <text x="170" y="238">patient</text><text x="500" y="260">owner</text>
           </g>
-
-          <!-- profiles -->
+          <g class="entity">
+            <rect class="entity-box" x="40" y="70" width="240" height="148" rx="6" />
+            <rect class="entity-header" x="40" y="70" width="240" height="40" rx="6" />
+            <line class="entity-divider" x1="40" y1="110" x2="280" y2="110" />
+            <text class="entity-tag" x="52" y="86">SHARED ENTITY</text>
+            <text class="entity-name" x="52" y="102">profiles</text>
+            <text class="field" x="52" y="136"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
+            <text class="field" x="52" y="158">role : canonical role</text>
+            <text class="field" x="52" y="180">patient profile</text>
+          </g>
           <g class="entity entity-focal">
-            <rect class="entity-box" x="40" y="248" width="240" height="144" rx="6" />
-            <rect class="entity-header" x="40" y="248" width="240" height="40" rx="6" />
-            <line class="entity-divider" x1="40" y1="288" x2="280" y2="288" />
-            <text class="entity-tag" x="52" y="264">ENTITY</text>
-            <text class="entity-name" x="52" y="280">profiles</text>
-            <text class="field" x="52" y="308"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="52" y="328"><tspan>role</tspan><tspan class="field-ref"> : 3 canonical values</tspan></text>
-            <text class="field" x="52" y="348"><tspan>first_name + last_name</tspan><tspan class="field-ref"> : text</tspan></text>
-            <text class="field" x="52" y="368"><tspan>patient_type</tspan><tspan class="field-ref"> : student | employee</tspan></text>
-            <text class="field" x="52" y="388"><tspan>is_active</tspan><tspan class="field-ref"> : boolean</tspan></text>
+            <rect class="entity-box" x="410" y="70" width="240" height="148" rx="6" />
+            <rect class="entity-header" x="410" y="70" width="240" height="40" rx="6" />
+            <line class="entity-divider" x1="410" y1="110" x2="650" y2="110" />
+            <text class="entity-tag" x="422" y="86">CURRENT RPC TARGET</text>
+            <text class="entity-name" x="422" y="102">appointments</text>
+            <text class="field" x="422" y="136"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
+            <text class="field" x="422" y="158"><tspan class="field-key">→ patient_id / slot_id</tspan></text>
+            <text class="field" x="422" y="180">queue_number · status</text>
+            <text class="field" x="422" y="202">reason · cancellation</text>
           </g>
-
-          <!-- departments -->
-          <g class="entity">
-            <rect class="entity-box" x="336" y="40" width="240" height="104" rx="6" />
-            <rect class="entity-header" x="336" y="40" width="240" height="40" rx="6" />
-            <line class="entity-divider" x1="336" y1="80" x2="576" y2="80" />
-            <text class="entity-tag" x="348" y="56">ENTITY</text>
-            <text class="entity-name" x="348" y="72">departments</text>
-            <text class="field" x="348" y="100"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="348" y="120"><tspan>name</tspan><tspan class="field-ref"> : text</tspan></text>
-            <text class="field" x="348" y="140"><tspan>is_active</tspan><tspan class="field-ref"> : boolean</tspan></text>
+          <g class="entity entity-focal">
+            <rect class="entity-box" x="780" y="70" width="220" height="148" rx="6" />
+            <rect class="entity-header" x="780" y="70" width="220" height="40" rx="6" />
+            <line class="entity-divider" x1="780" y1="110" x2="1000" y2="110" />
+            <text class="entity-tag" x="792" y="86">CURRENT RPC TARGET</text>
+            <text class="entity-name" x="792" y="102">medical_records</text>
+            <text class="field" x="792" y="136"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
+            <text class="field" x="792" y="158"><tspan class="field-key">→ appointment_id</tspan></text>
+            <text class="field" x="792" y="180">patient_id · doctor_id</text>
+            <text class="field" x="792" y="202">prescribed_medications</text>
           </g>
-
-          <!-- doctors -->
-          <g class="entity">
-            <rect class="entity-box" x="624" y="40" width="240" height="128" rx="6" />
-            <rect class="entity-header" x="624" y="40" width="240" height="40" rx="6" />
-            <line class="entity-divider" x1="624" y1="80" x2="864" y2="80" />
-            <text class="entity-tag" x="636" y="56">ENTITY</text>
-            <text class="entity-name" x="636" y="72">doctors</text>
-            <text class="field" x="636" y="100"><tspan class="field-key"># id</tspan><tspan class="field-ref"> → profiles.id</tspan></text>
-            <text class="field" x="636" y="120"><tspan class="field-key">→ department_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="636" y="140"><tspan>specialty</tspan><tspan class="field-ref"> : text</tspan></text>
-            <text class="field" x="636" y="160"><tspan>medical detail</tspan><tspan class="field-ref"> : role=medical</tspan></text>
-          </g>
-
-          <!-- appointment_slots -->
-          <g class="entity">
-            <rect class="entity-box" x="624" y="252" width="240" height="128" rx="6" />
-            <rect class="entity-header" x="624" y="252" width="240" height="40" rx="6" />
-            <line class="entity-divider" x1="624" y1="292" x2="864" y2="292" />
-            <text class="entity-tag" x="636" y="268">ENTITY</text>
-            <text class="entity-name" x="636" y="284">appointment_slots</text>
-            <text class="field" x="636" y="312"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="636" y="332"><tspan class="field-key">→ doctor_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="636" y="352"><tspan>slot_date</tspan><tspan class="field-ref"> : date</tspan></text>
-            <text class="field" x="636" y="372"><tspan>status</tspan><tspan class="field-ref"> : available | full | closed</tspan></text>
-          </g>
-
-          <!-- appointments -->
-          <g class="entity">
-            <rect class="entity-box" x="336" y="252" width="240" height="128" rx="6" />
-            <rect class="entity-header" x="336" y="252" width="240" height="40" rx="6" />
-            <line class="entity-divider" x1="336" y1="292" x2="576" y2="292" />
-            <text class="entity-tag" x="348" y="268">ENTITY</text>
-            <text class="entity-name" x="348" y="284">appointments</text>
-            <text class="field" x="348" y="312"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="348" y="332"><tspan class="field-key">→ patient_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="348" y="352"><tspan class="field-key">→ slot_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="348" y="372"><tspan>status</tspan><tspan class="field-ref"> : pending → completed</tspan></text>
-          </g>
-
-          <!-- medical_records -->
-          <g class="entity">
-            <rect class="entity-box" x="336" y="456" width="240" height="144" rx="6" />
-            <rect class="entity-header" x="336" y="456" width="240" height="40" rx="6" />
-            <line class="entity-divider" x1="336" y1="496" x2="576" y2="496" />
-            <text class="entity-tag" x="348" y="472">ENTITY</text>
-            <text class="entity-name" x="348" y="488">medical_records</text>
-            <text class="field" x="348" y="516"><tspan class="field-key"># id</tspan><tspan> : uuid</tspan></text>
-            <text class="field" x="348" y="536"><tspan class="field-key">→ appointment_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="348" y="556"><tspan class="field-key">→ patient_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="348" y="576"><tspan class="field-key">→ doctor_id</tspan><tspan class="field-ref"> : uuid</tspan></text>
-            <text class="field" x="348" y="596"><tspan>prescribed_medications</tspan><tspan class="field-ref"> : jsonb</tspan></text>
-          </g>
-
-          <line class="legend-rule" x1="40" y1="616" x2="1000" y2="616" />
-          <text class="legend" x="40" y="632"># PK</text>
-          <text class="legend" x="92" y="632">→ FK / reference</text>
-          <text class="legend legend-accent" x="252" y="632">profiles = aggregate root</text>
-          <text class="note" x="512" y="632">cardinality: 1 · N · 0..1</text>
+          <text class="note" x="40" y="316">appointments.slot_id links to appointment_slots; appointment and record actions belong to PAI</text>
         </svg>
       </div>
     </figure>

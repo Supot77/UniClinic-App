@@ -8,7 +8,6 @@ import type {
   ScheduleDoctor,
   ScheduleService,
   ScheduleSlot,
-  DoctorWeeklySchedule,
 } from '@/types/schedule';
 import { formatProfileName } from '@/lib/profileName';
 
@@ -98,30 +97,4 @@ export const MOCK_DAILY_SERVICE_OFFERINGS: DailyServiceOffering[] = Array.from(
       },
     ]),
   ).values(),
-);
-
-const weekdays = [1, 2, 3, 4, 5] as const;
-export const MOCK_WEEKLY_SCHEDULES: DoctorWeeklySchedule[] = MOCK_DOCTORS.flatMap((doctor) =>
-  weekdays.flatMap((weekday) => [
-    {
-      id: `weekly-${doctor.id}-${weekday}-am`,
-      doctorId: doctor.id,
-      weekday,
-      startTime: '08:30',
-      endTime: '12:00',
-      slotDurationMinutes: 30,
-      defaultCapacity: 1,
-      isActive: true,
-    },
-    {
-      id: `weekly-${doctor.id}-${weekday}-pm`,
-      doctorId: doctor.id,
-      weekday,
-      startTime: '13:00',
-      endTime: '16:30',
-      slotDurationMinutes: 30,
-      defaultCapacity: 1,
-      isActive: true,
-    },
-  ]),
 );

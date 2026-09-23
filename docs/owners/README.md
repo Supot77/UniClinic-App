@@ -1,6 +1,6 @@
 # Owner Documentation Views
 
-เอกสารชุดนี้เป็นมุมมองแยกตามผู้รับผิดชอบ โดยอ้างอิง code path ปัจจุบันใน repository ณ 20 กันยายน 2569 และไม่แทนที่เอกสารกลาง
+เอกสารชุดนี้เป็นมุมมองแยกตามผู้รับผิดชอบ โดยอ้างอิง code path ปัจจุบันใน repository ณ 23 กันยายน 2569 และไม่แทนที่เอกสารกลาง
 
 กำหนดส่งรอบปัจจุบันคือ **25 กันยายน 2569**. ความคืบหน้า code โดยรวมประมาณ 90% เป็น progress estimate เท่านั้น ไม่ใช่หลักฐาน acceptance, deployment, RLS หรือ browser QA
 
@@ -22,6 +22,14 @@
 2. อ่าน `README.md` ของเจ้าของเพื่อดูขอบเขตและ dependency
 3. อ่าน `as-built.md` เพื่อ trace จาก requirement ไปยัง code และ test
 4. อ่าน `status.md` เพื่อดูหลักฐาน ข้อจำกัด และงานค้าง
+
+## เอกสาร Scheduling ของสุพจน์
+
+รายละเอียด User Stories, Use Cases และ ER ของโมดูลช้อป (สุพจน์) แยกเก็บใน [โฟลเดอร์ owner](shop-supot/README.md) โดยอิง code path ปัจจุบัน ส่วนเอกสารกลางคงข้อกำหนด เกณฑ์ตรวจรับ และข้อสรุปทีม
+
+- [User Stories](shop-supot/user-stories.md)
+- [Use Cases](shop-supot/use-cases.md)
+- [ER](shop-supot/er.md)
 
 ลำดับ source of truth คือ [10 ข้อสรุปทีม](../10_team_decisions.md) → [08 กติกาและเกณฑ์ตรวจรับ](../08_system_rules_and_acceptance.md) → [09 แผนพัฒนา](../09_implementation_plan.md) → [11 Functional Requirements](../11_functional_requirements.md) ส่วน `as-built` ตัดสินจาก code/test ที่พบจริง
 
