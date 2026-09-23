@@ -8,6 +8,8 @@ import type { UserRole } from '@/types/database';
 import { formatProfileName } from '@/lib/profileName';
 
 const supabase = createClient();
+const SESSION_LIMIT_MS = 60 * 60 * 1000;
+const loginKey = (id: string) => `uniclinic_login_at:${id}`;
 
 interface AuthContextType extends AuthSession {
   signOut: () => Promise<void>;
@@ -95,7 +97,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!session.user) return;
+    const id = session.user.id;
+    const checkExpiry = async () => {
+      const raw = localStorage.getItem(loginKey(id));
+      // Older sessions have no login timestamp; start their one-hour window now.
+      const loginAt = raw ? Number(raw) : Date.now();
+      if (!raw || !Number.isFinite(loginAt)) localStorage.setItem(loginKey(id), String(Date.now()));
+      if (Number.isFinite(loginAt) && Date.now() - loginAt >= SESSION_LIMIT_MS) {
+        localStorage.removeItem(loginKey(id));
+        await supabase.auth.signOut();
+        setSession({ user: null, isLoading: false, isAuthenticated: false });
+        router.replace('/login?expired=1');
+        router.refresh();
+      }
+    };
+    void checkExpiry();
+    const timer = window.setInterval(() => { void checkExpiry(); }, 1000);
+    const onFocus = () => { void checkExpiry(); };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('storage', onFocus);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); window.removeEventListener('storage', onFocus); };
+  }, [session.user?.id, router]);
+
   const signOut = async () => {
+    if (session.user) localStorage.removeItem(loginKey(session.user.id));
     try {
       await supabase.auth.signOut();
     } catch (error) {
