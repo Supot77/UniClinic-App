@@ -8,18 +8,23 @@ export default function PasswordSecurityCard() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasMinLength = newPassword.length >= 8;
+  const hasUppercase = /[A-Z]/.test(newPassword);
+  const hasLowercase = /[a-z]/.test(newPassword);
+  const hasNumber = /\d/.test(newPassword);
+  const passwordIsValid = hasMinLength && hasUppercase && hasLowercase && hasNumber && !/\s/.test(newPassword);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSuccess(false);
 
-    if (newPassword.length < 8) {
-      setError('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร');
+    if (!passwordIsValid) {
+      setError('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข โดยไม่มีช่องว่าง');
       return;
     }
     if (currentPassword === newPassword) {
@@ -63,20 +68,33 @@ export default function PasswordSecurityCard() {
 
         <div>
           <label htmlFor="current-password" className="mb-2 block text-sm font-semibold text-slate-600">รหัสผ่านปัจจุบัน</label>
-          <input id="current-password" type={showPassword ? 'text' : 'password'} required autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={isSubmitting} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 disabled:bg-slate-50" />
+          <input id="current-password" type={showPasswords ? 'text' : 'password'} required autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={isSubmitting} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 disabled:bg-slate-50" />
         </div>
         <div className="space-y-4">
           <div>
             <label htmlFor="profile-new-password" className="mb-2 block text-sm font-semibold text-slate-600">รหัสผ่านใหม่</label>
-            <input id="profile-new-password" type={showPassword ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={isSubmitting} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 disabled:bg-slate-50" />
+            <input id="profile-new-password" type={showPasswords ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={isSubmitting} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 disabled:bg-slate-50" />
           </div>
           <div>
             <label htmlFor="profile-confirm-password" className="mb-2 block text-sm font-semibold text-slate-600">ยืนยันรหัสผ่านใหม่</label>
-            <input id="profile-confirm-password" type={showPassword ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={isSubmitting} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 disabled:bg-slate-50" />
+            <input id="profile-confirm-password" type={showPasswords ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={isSubmitting} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 disabled:bg-slate-50" />
           </div>
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500"><input type="checkbox" checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} className="size-4 rounded border-slate-300 accent-teal-600" />{showPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />} แสดงรหัสผ่าน</label>
-        <p className="text-xs text-slate-400">รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร</p>
+        <button type="button" onClick={() => setShowPasswords((shown) => !shown)} aria-pressed={showPasswords} className="inline-flex items-center gap-2 rounded-lg text-sm text-slate-600 hover:text-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500">
+          {showPasswords ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+          {showPasswords ? 'ซ่อนรหัสผ่านทั้งหมด' : 'แสดงรหัสผ่านทั้งหมด'}
+        </button>
+        <div aria-live="polite" className="text-xs text-slate-600">
+          <p>รหัสผ่านใหม่ต้องมีครบทุกข้อและไม่มีช่องว่าง:</p>
+          <ul className="mt-1 space-y-1">
+            <li className={newPassword && hasMinLength ? 'text-emerald-700' : ''}>{newPassword && hasMinLength ? '✓' : '○'} อย่างน้อย 8 ตัวอักษร</li>
+            <li className={newPassword && hasUppercase ? 'text-emerald-700' : ''}>{newPassword && hasUppercase ? '✓' : '○'} ตัวพิมพ์ใหญ่ A–Z</li>
+            <li className={newPassword && hasLowercase ? 'text-emerald-700' : ''}>{newPassword && hasLowercase ? '✓' : '○'} ตัวพิมพ์เล็ก a–z</li>
+            <li className={newPassword && hasNumber ? 'text-emerald-700' : ''}>{newPassword && hasNumber ? '✓' : '○'} ตัวเลข 0–9</li>
+          </ul>
+          {newPassword && /\s/.test(newPassword) && <p className="mt-1 text-rose-600">รหัสผ่านต้องไม่มีช่องว่าง</p>}
+          {confirmPassword && <p className={`mt-2 ${confirmPassword === newPassword ? 'text-emerald-700' : 'text-rose-600'}`}>{confirmPassword === newPassword ? 'รหัสผ่านตรงกัน' : 'รหัสผ่านไม่ตรงกัน'}</p>}
+        </div>
         <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60">
           {isSubmitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
           {isSubmitting ? 'กำลังเปลี่ยนรหัสผ่าน…' : 'เปลี่ยนรหัสผ่าน'}

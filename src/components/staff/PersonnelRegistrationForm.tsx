@@ -16,6 +16,9 @@ type AccountKind = 'patient' | PersonnelKind;
 export default function PersonnelRegistrationForm({ departments }: Props) {
   const [kind, setKind] = useState<AccountKind>('patient');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [passwordDraft, setPasswordDraft] = useState('');
+  const [confirmDraft, setConfirmDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -62,6 +65,8 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? 'สร้างบัญชีไม่สำเร็จ ลองใหม่');
       formElement.reset();
+      setPasswordDraft('');
+      setConfirmDraft('');
       setSuccess(`สร้างบัญชี${kind === 'doctor' ? 'แพทย์' : 'เจ้าหน้าที่'}แล้ว`);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'สร้างบัญชีไม่สำเร็จ ลองใหม่');
@@ -89,13 +94,13 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
         <header className="border-b border-brand-border-soft bg-gradient-to-r from-brand-soft via-brand-surface to-brand-surface px-6 py-7 sm:px-10">
           <div className="flex items-start gap-4">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-strong text-white"><UserCog className="size-6" /></span>
-            <div><p className="text-sm font-semibold text-brand-strong">การจัดการบุคลากร</p><h1 className="mt-1 text-2xl font-bold text-brand-ink sm:text-3xl">เพิ่มบัญชีบุคลากร</h1><p className="mt-2 text-sm text-brand-muted">เพิ่มบัญชีแพทย์หรือเจ้าหน้าที่ พร้อมข้อมูลสำหรับเข้าสู่ระบบ</p></div>
+            <div><p className="text-sm font-semibold text-brand-strong">การจัดการบัญชี</p><h1 className="mt-1 text-2xl font-bold text-brand-ink sm:text-3xl">เพิ่มบัญชีผู้ใช้งาน</h1><p className="mt-2 text-sm text-brand-muted">เพิ่มบัญชีผู้ป่วย แพทย์ หรือเจ้าหน้าที่</p></div>
           </div>
         </header>
 
         <div className="space-y-9 px-6 py-8 sm:px-10">
-          <fieldset><legend className="mb-3 font-semibold text-brand-ink">ประเภทบุคลากร</legend><div className="grid gap-3 sm:grid-cols-2">
-            {([{ value: 'doctor', label: 'แพทย์', description: 'มีใบประกอบวิชาชีพและประจำแผนก', icon: Stethoscope }, { value: 'staff', label: 'เจ้าหน้าที่', description: 'ดูแลงานบริหารและบริการของคลินิก', icon: ShieldCheck }] as const).map((option) => {
+          <fieldset><legend className="mb-3 font-semibold text-brand-ink">ประเภทบัญชี</legend><div className="grid gap-3 md:grid-cols-3">
+            {([{ value: 'patient', label: 'ผู้ป่วย', description: 'เพิ่มบัญชีผู้ป่วยโดยเจ้าหน้าที่', icon: UserPlus }, { value: 'doctor', label: 'แพทย์', description: 'มีใบประกอบวิชาชีพและประจำแผนก', icon: Stethoscope }, { value: 'staff', label: 'เจ้าหน้าที่', description: 'ดูแลงานบริหารและบริการของคลินิก', icon: ShieldCheck }] as const).map((option) => {
               const Icon = option.icon; const selected = kind === option.value;
               return <button key={option.value} type="button" onClick={() => { setKind(option.value); setError(null); setSuccess(null); }} aria-pressed={selected} className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition ${selected ? 'border-brand-strong bg-brand-soft ring-1 ring-brand-strong' : 'border-brand-border-soft hover:border-brand-border-strong'}`}><span className={`flex size-11 items-center justify-center rounded-xl ${selected ? 'bg-brand-strong text-white' : 'bg-brand-page text-brand-strong'}`}><Icon className="size-5" /></span><span><strong className="block text-brand-ink">{option.label}</strong><span className="text-sm text-brand-muted">{option.description}</span></span>{selected && <CheckCircle2 className="ml-auto size-5 text-brand-strong" />}</button>;
             })}
@@ -130,8 +135,8 @@ export default function PersonnelRegistrationForm({ departments }: Props) {
           </div></section>}
 
           <fieldset className="space-y-5"><legend className="mb-1 text-lg font-bold text-brand-ink">ข้อมูลเข้าสู่ระบบ</legend><div className="grid gap-5 sm:grid-cols-2">
-            <label><span className="mb-2 block text-sm font-semibold text-brand-ink">รหัสผ่าน *</span><span className="relative block"><input name="password" type={showPassword ? 'text' : 'password'} minLength={8} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}" title="อย่างน้อย 8 ตัว มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข" required className={`${inputClass} pr-12`} /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted" aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}>{showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}</button></span><span className="mt-2 block text-xs text-brand-muted">อย่างน้อย 8 ตัว มี A–Z, a–z และตัวเลข</span></label>
-            <label><span className="mb-2 block text-sm font-semibold text-brand-ink">ยืนยันรหัสผ่าน *</span><input name="confirmPassword" type={showPassword ? 'text' : 'password'} minLength={8} required className={inputClass} /></label>
+            <label><span className="mb-2 block text-sm font-semibold text-brand-ink">รหัสผ่าน *</span><span className="relative block"><input name="password" type={showPassword ? 'text' : 'password'} minLength={8} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}" title="อย่างน้อย 8 ตัว มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข" required value={passwordDraft} onChange={(event) => setPasswordDraft(event.target.value)} className={`${inputClass} pr-12`} /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted" aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}>{showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}</button></span><span role="status" className={`mt-2 block text-xs ${passwordDraft && !/^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(passwordDraft) ? "text-rose-600" : "text-brand-muted"}`}>{passwordDraft && /^(?=\S{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(passwordDraft) ? "รหัสผ่านผ่านเงื่อนไขแล้ว" : "อย่างน้อย 8 ตัว มี A–Z, a–z และตัวเลข"}</span></label>
+            <label><span className="mb-2 block text-sm font-semibold text-brand-ink">ยืนยันรหัสผ่าน *</span><span className="relative block"><input name="confirmPassword" type={showConfirm ? 'text' : 'password'} minLength={8} required value={confirmDraft} onChange={(event) => setConfirmDraft(event.target.value)} className={`${inputClass} pr-12`} /><button type="button" onClick={() => setShowConfirm((value) => !value)} aria-label={showConfirm ? "ซ่อนรหัสผ่านยืนยัน" : "แสดงรหัสผ่านยืนยัน"} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted">{showConfirm ? <EyeOff className="size-5" /> : <Eye className="size-5" />}</button></span>{confirmDraft && <span role="status" className={`mt-2 block text-xs ${confirmDraft === passwordDraft ? "text-emerald-600" : "text-rose-600"}`}>{confirmDraft === passwordDraft ? "รหัสผ่านตรงกัน" : "รหัสผ่านไม่ตรงกัน"}</span>}</label>
           </div></fieldset>
 
           {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}

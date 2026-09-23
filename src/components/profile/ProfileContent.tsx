@@ -39,6 +39,7 @@ type HealthStatus = "yes" | "no" | "unknown";
 
 interface DoctorInfo {
   specialty: string | null;
+  license_number: string | null;
   department: { name: string } | null;
 }
 
@@ -68,6 +69,11 @@ export default function ProfileContent() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null);
+  const [licenseDraft, setLicenseDraft] = useState('');
+  const [editingLicense, setEditingLicense] = useState(false);
+  const [confirmLicense, setConfirmLicense] = useState(false);
+  const [savingLicense, setSavingLicense] = useState(false);
+  const [licenseError, setLicenseError] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,11 +151,12 @@ export default function ProfileContent() {
     if (data?.role === "medical") {
       const { data: medicalData } = await supabase
         .from("doctors")
-        .select("specialty, department:departments(name)")
+        .select("specialty, license_number, department:departments(name)")
         .eq("id", user.id)
         .maybeSingle();
 
       setDoctorInfo(medicalData as unknown as DoctorInfo);
+      setLicenseDraft(medicalData?.license_number ?? "");
     } else {
       setDoctorInfo(null);
     }
@@ -276,6 +283,23 @@ export default function ProfileContent() {
       setHealthError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ");
     } finally {
       setSavingHealth(false);
+    }
+  }
+
+  async function saveLicense() {
+    setSavingLicense(true);
+    setLicenseError(null);
+    try {
+      const { error: saveError } = await supabase.rpc('update_own_doctor_license', { new_license: licenseDraft.trim() });
+      if (saveError) throw saveError;
+      await loadProfile();
+      setEditingLicense(false);
+      setConfirmLicense(false);
+    } catch (err) {
+      setLicenseError(err instanceof Error ? err.message : 'บันทึกเลขใบประกอบวิชาชีพไม่สำเร็จ');
+      setConfirmLicense(false);
+    } finally {
+      setSavingLicense(false);
     }
   }
 
@@ -1184,6 +1208,14 @@ export default function ProfileContent() {
                         </div>
                       </div>
 
+                      {role === "medical" && (
+                        <div className="mt-5 border-t border-slate-100 pt-5">
+                        <div className="flex items-center justify-between gap-3"><p className="text-xs text-slate-500">เลขใบประกอบวิชาชีพเวชกรรม</p>{!editingLicense && <button type="button" onClick={() => setEditingLicense(true)} className="text-sm font-semibold text-sky-600">แก้ไข</button>}</div>
+                        {editingLicense ? <div className="mt-3 space-y-3"><input aria-label="เลขใบประกอบวิชาชีพเวชกรรม" value={licenseDraft} onChange={(event) => setLicenseDraft(event.target.value)} maxLength={30} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800" placeholder="ว.12345" /><div className="flex gap-3"><button type="button" onClick={() => { setLicenseError(null); setConfirmLicense(true); }} className="rounded-lg bg-sky-600 px-4 py-2 text-sm text-white">บันทึก</button><button type="button" onClick={() => { setLicenseDraft(doctorInfo?.license_number ?? ''); setEditingLicense(false); setLicenseError(null); }} className="text-sm text-slate-600">ยกเลิก</button></div></div> : <p className="mt-2 text-sm font-semibold text-slate-700">{doctorInfo?.license_number || 'ยังไม่ได้ระบุ'}</p>}
+                        {licenseError && <p role="alert" className="mt-2 text-sm text-rose-600">{licenseError}</p>}
+                        </div>
+                      )}
+
                       {/* =================================================
                           Contact tiles
                       ================================================== */}
@@ -1272,6 +1304,8 @@ export default function ProfileContent() {
                         </p>
                       </div>
 
+
+
                       {/* Department */}
 
                       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -1333,6 +1367,7 @@ export default function ProfileContent() {
               </div>
             )}
           </div>
+          {confirmLicense && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="license-confirm-title"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"><h2 id="license-confirm-title" className="text-lg font-bold text-slate-800">ยืนยันการแก้ไขเลขใบประกอบวิชาชีพ</h2><p className="mt-3 text-sm leading-6 text-slate-600">เลขใบประกอบวิชาชีพเป็นข้อมูลสำคัญที่ใช้ยืนยันสถานะผู้ประกอบวิชาชีพ กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนบันทึก ระบบจะเก็บประวัติการแก้ไขเพื่อตรวจสอบย้อนหลัง</p><p className="mt-3 font-semibold text-slate-800">{licenseDraft}</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setConfirmLicense(false)} disabled={savingLicense} className="rounded-lg px-4 py-2 text-slate-600">ยกเลิก</button><button type="button" onClick={() => void saveLicense()} disabled={savingLicense} className="rounded-lg bg-sky-600 px-4 py-2 text-white disabled:opacity-50">{savingLicense ? 'กำลังบันทึก…' : 'ยืนยันและบันทึก'}</button></div></div></div>}
         </main>
       </div>
     </div>
