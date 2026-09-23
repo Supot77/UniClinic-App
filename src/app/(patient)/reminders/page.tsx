@@ -21,7 +21,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Pencil,
-  Search,
   Clock,
   User,
   Stethoscope,
@@ -276,8 +275,6 @@ export default function RemindersPage() {
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // State ค้นหารายการยา
-  const [searchQuery, setSearchQuery] = useState('');
 
   // ---------------------------------------------------------------------------
   // 3. State สำหรับ Modal หน้าต่างการทำงานต่างๆ (Modals State)
@@ -359,36 +356,7 @@ export default function RemindersPage() {
     );
   }, [allPatients, selectedPatientId]);
 
-  // กรองรายการยาตามคำค้นหา (ชื่อยา, หมวดหมู่, มื้ออาหาร, ขนาดยา)
-  const filteredMedications = useMemo(() => {
-    return medicationList.filter((med) => {
-      const q = searchQuery.trim().toLowerCase();
-      return (
-        !q ||
-        med.name.toLowerCase().includes(q) ||
-        (med.category && med.category.toLowerCase().includes(q)) ||
-        (med.mealTiming && med.mealTiming.toLowerCase().includes(q)) ||
-        med.dosageInstruction.toLowerCase().includes(q)
-      );
-    });
-  }, [medicationList, searchQuery]);
 
-  // กรองรายการใบสั่งยาตามคำค้นหา (ชื่อผู้ป่วย, ชื่อแพทย์, รายการยา)
-  const filteredOrders = useMemo(() => {
-    return patientOrders.filter((order) => {
-      const q = searchQuery.trim().toLowerCase();
-      if (!q) return true;
-      const matchPatient = order.patient_name.toLowerCase().includes(q);
-      const matchDoctor = order.doctor_name.toLowerCase().includes(q);
-      const matchMed = order.prescribed_medications.some(
-        (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.dosage.toLowerCase().includes(q) ||
-          m.frequency.toLowerCase().includes(q)
-      );
-      return matchPatient || matchDoctor || matchMed;
-    });
-  }, [patientOrders, searchQuery]);
 
   // ---------------------------------------------------------------------------
   // 4. การดึงข้อมูลรายการยาและการแจ้งเตือน (Data Fetching)
@@ -893,62 +861,41 @@ export default function RemindersPage() {
               )}
               <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">
                 {patientOrders.length > 0
-                  ? `ใบสั่งยา ${filteredOrders.length} รายการ`
-                  : `รายการยา ${filteredMedications.length} รายการ`}
+                  ? `ใบสั่งยา ${patientOrders.length} รายการ`
+                  : `รายการยา ${medicationList.length} รายการ`}
               </span>
             </div>
           </div>
 
-          {/* ฝั่งขวา: ตัวเลือกเปลี่ยนผู้ป่วยสำหรับเจ้าหน้าที่, แถบเตือนประวัติแพ้ยา, และช่องค้นหารายการยา */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* แถบเตือนประวัติการแพ้ยา (Allergy Badge) */}
-            {currentPatient.allergies && (
-              <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
-                <AlertTriangle size={15} className="text-rose-600 shrink-0" />
-                <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
-              </div>
-            )}
+          {/* ฝั่งขวา: ตัวเลือกเปลี่ยนผู้ป่วยสำหรับเจ้าหน้าที่ และแถบเตือนประวัติแพ้ยา */}
+          {(canManageMedication || currentPatient.allergies) && (
+            <div className="flex flex-wrap items-center gap-3">
+              {/* แถบเตือนประวัติการแพ้ยา (Allergy Badge) */}
+              {currentPatient.allergies && (
+                <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
+                  <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                  <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
+                </div>
+              )}
 
-            {canManageMedication && (
-              <label className="flex items-center gap-2 text-sm text-brand-body">
-                <span className="text-xs font-semibold text-brand-ink whitespace-nowrap">ผู้ป่วย:</span>
-                <select
-                  value={selectedPatientId}
-                  onChange={(e) => setSelectedPatientOverride(e.target.value)}
-                  className="h-10 rounded-lg border border-brand-border-strong bg-white px-3 text-xs text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-                >
-                  {allPatients.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.studentId}) {p.allergies ? `[⚠️ ${p.allergies}]` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            {/* ช่องค้นหารายการยา (Search Input) */}
-            <div className="relative w-full sm:w-64 md:w-72 lg:w-80">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-muted" aria-hidden="true" />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหารายการยา…"
-                className="h-10 w-full min-w-0 rounded-lg border border-brand-border-strong bg-white pl-9 pr-8 text-sm text-brand-ink placeholder:text-brand-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-                aria-label="ค้นหารายการยา"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink p-1 cursor-pointer"
-                  title="ล้างคำค้นหา"
-                  aria-label="ล้างคำค้นหา"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+              {canManageMedication && (
+                <label className="flex items-center gap-2 text-sm text-brand-body">
+                  <span className="text-xs font-semibold text-brand-ink whitespace-nowrap">ผู้ป่วย:</span>
+                  <select
+                    value={selectedPatientId}
+                    onChange={(e) => setSelectedPatientOverride(e.target.value)}
+                    className="h-10 rounded-lg border border-brand-border-strong bg-white px-3 text-xs text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+                  >
+                    {allPatients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.studentId}) {p.allergies ? `[⚠️ ${p.allergies}]` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
             </div>
-          </div>
+          )}
         </section>
 
         {/* === รายการยาและการ์ดแจ้งเตือน (Medication Cards List / Grid) === */}
@@ -970,27 +917,9 @@ export default function RemindersPage() {
               ))}
             </div>
           ) : patientOrders.length > 0 ? (
-            filteredOrders.length === 0 ? (
-              /* กรณีค้นหาแล้วไม่พบรายการยาที่ตรงกับเงื่อนไข */
-              <div className="rounded-xl border border-dashed border-brand-border-strong bg-white/60 p-10 text-center space-y-3">
-                <p className="text-sm font-semibold text-brand-ink">
-                  ไม่พบรายการยาที่ตรงกับเงื่อนไข
-                </p>
-                <p className="text-xs text-brand-muted">
-                  ลองปรับคำค้นหา
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
-                >
-                  ล้างคำค้นหา
-                </button>
-              </div>
-            ) : (
-              /* แสดงรายการใบสั่งยาในรูปแบบการ์ดแจ้งเตือน (Prescription Order Cards) */
-              <div className="space-y-6">
-                {filteredOrders.map((order) => {
+            /* แสดงรายการใบสั่งยาในรูปแบบการ์ดแจ้งเตือน (Prescription Order Cards) */
+            <div className="space-y-6">
+              {patientOrders.map((order) => {
                   const hasShortage = order.prescribed_medications.some((item) => {
                     const med = availableMeds.find(
                       (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
@@ -1127,7 +1056,6 @@ export default function RemindersPage() {
                   );
                 })}
               </div>
-            )
           ) : medicationList.length === 0 ? (
             /* กรณีไม่มีรายการยาในระบบเลย (Empty State) */
             <div className="rounded-2xl border border-dashed border-brand-border-strong p-10 text-center space-y-4 bg-white/40">
@@ -1156,27 +1084,10 @@ export default function RemindersPage() {
                 </div>
               )}
             </div>
-          ) : filteredMedications.length === 0 ? (
-            /* กรณีค้นหาแล้วไม่พบรายการยาที่ตรงกับเงื่อนไข */
-            <div className="rounded-xl border border-dashed border-brand-border-strong bg-white/60 p-10 text-center space-y-3">
-              <p className="text-sm font-semibold text-brand-ink">
-                ไม่พบรายการยาที่ตรงกับเงื่อนไข
-              </p>
-              <p className="text-xs text-brand-muted">
-                ลองปรับคำค้นหา
-              </p>
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
-              >
-                ล้างคำค้นหา
-              </button>
-            </div>
           ) : (
             /* แสดงรายการยาในรูปแบบ Grid การ์ด */
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
-              {filteredMedications.map((med) => (
+              {medicationList.map((med) => (
                 <article
                   key={med.id}
                   className={`rounded-xl border bg-white p-4 sm:p-5 shadow-2xs transition-all duration-150 hover:shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 ${

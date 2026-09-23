@@ -71,6 +71,9 @@ describe('Reminders Page - Prescription Order Cards', () => {
     expect(screen.queryByRole('tab', { name: /เปิดเตือน/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /ปิดแจ้งเตือน/ })).toBeNull();
 
+    // Verify search input has been removed
+    expect(screen.queryByLabelText('ค้นหารายการยา')).toBeNull();
+
     // Verify the prescription table header is rendered
     expect(screen.getByText(/รายการยาตามใบสั่ง/)).toBeDefined();
 
@@ -86,28 +89,18 @@ describe('Reminders Page - Prescription Order Cards', () => {
     expect(screen.getByText('Amoxicillin 500mg')).toBeDefined();
   });
 
-  it('filters prescription cards by search input', async () => {
+  it('renders patient meta info with order count badge and doctor info', async () => {
     render(<MedicationRemindersPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Paracetamol 500mg')).toBeDefined();
     });
 
-    const searchInput = screen.getByLabelText('ค้นหารายการยา');
-    fireEvent.change(searchInput, { target: { value: 'NonexistentMedicine' } });
+    // Verify order count badge
+    expect(screen.getByText('ใบสั่งยา 1 รายการ')).toBeDefined();
 
-    await waitFor(() => {
-      expect(screen.getByText(/ไม่พบรายการยาที่ตรงกับเงื่อนไข/)).toBeDefined();
-      expect(screen.queryByText('Paracetamol 500mg')).toBeNull();
-    });
-
-    // Clear search
-    const clearButton = screen.getAllByRole('button', { name: 'ล้างคำค้นหา' })[0];
-    fireEvent.click(clearButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Paracetamol 500mg')).toBeDefined();
-    });
+    // Verify doctor name
+    expect(screen.getByText(/สมชาย ใจดี/)).toBeDefined();
   });
 });
 
