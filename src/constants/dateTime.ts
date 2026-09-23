@@ -16,6 +16,7 @@ export const WEEKDAY_NAMES = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ
 export const CLINIC_TIME_BLOCKS = [
   { label: 'ช่วงเช้า 08:30–12:00', startTime: '08:30', endTime: '12:00' },
   { label: 'ช่วงบ่าย 13:00–16:30', startTime: '13:00', endTime: '16:30' },
+  { label: 'ทั้งวัน 08:30–16:30', startTime: '08:30', endTime: '16:30' },
 ] as const;
 
 export const LEAVE_REASONS = ['ไปราชการ', 'ลาป่วย', 'ประชุมวิชาการ', 'อบรม', 'อื่น ๆ'] as const;
