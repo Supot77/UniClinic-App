@@ -20,6 +20,7 @@ import {
 } from '@/services/dashboardService';
 import type { AppointmentStatus } from '@/types/database';
 import SegmentedControl from '@/components/common/SegmentedControl';
+import Toast from '@/components/common/Toast';
 
 const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   pending: 'รอการยืนยัน', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'ตรวจเสร็จแล้ว',
@@ -101,6 +102,22 @@ function appointmentStartTimestamp(appointment: DashboardAppointment): number | 
   return Number.isNaN(timestamp) ? null : timestamp;
 }
 
+function formatAppointmentCountdownValue(appointment: DashboardAppointment, nowTimestamp: number): string {
+  const startTimestamp = appointmentStartTimestamp(appointment);
+  if (startTimestamp === null) return '—';
+  const remainingMinutes = Math.ceil((startTimestamp - nowTimestamp) / 60_000);
+  if (remainingMinutes <= 0) return 'ถึงเวลานัดแล้ว';
+
+  const days = Math.floor(remainingMinutes / (24 * 60));
+  const hours = Math.floor((remainingMinutes % (24 * 60)) / 60);
+  const parts = [
+    days > 0 ? `${days} วัน` : null,
+    hours > 0 ? `${hours} ชม.` : null,
+  ].filter((part): part is string => part !== null);
+
+  return parts.length > 0 ? parts.join(' ') : 'น้อยกว่า 1 ชม.';
+}
+
 export function getUpcomingAppointmentsWithinWindow(
   queue: DashboardView['appointmentQueue'],
   now = new Date(),
@@ -168,13 +185,16 @@ function filterAppointmentsWithinDateRange(
   return queue.filter((appointment) => appointment.date >= startDate && appointment.date <= endDate);
 }
 
-function Section({ title, description, action, children, className = '', headerClassName = '', hideHeader = false }: {
-  title?: ReactNode; description?: string; action?: ReactNode; children: ReactNode; className?: string; headerClassName?: string; hideHeader?: boolean;
+const patientSectionTitleClass = 'text-base font-semibold text-brand-ink sm:text-lg';
+const patientSectionDescriptionClass = 'mt-1 text-xs leading-5 text-brand-muted sm:text-sm';
+
+function Section({ title, description, action, children, className = '', headerClassName = '', hideHeader = false, titleClassName = 'text-lg font-semibold text-brand-ink', descriptionClassName = 'mt-1 text-xs leading-5 text-brand-muted' }: {
+  title?: ReactNode; description?: string; action?: ReactNode; children: ReactNode; className?: string; headerClassName?: string; hideHeader?: boolean; titleClassName?: string; descriptionClassName?: string;
 }) {
   return (
     <section className={`overflow-hidden ${className}`}>
       {!hideHeader && <div className={`flex items-start justify-between gap-3 border-b border-brand-border-soft pb-3 ${headerClassName}`}>
-        <div className="min-w-0"><h2 className="text-lg font-semibold text-brand-ink">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-brand-muted">{description}</p>}</div>
+        <div className="min-w-0"><h2 className={titleClassName}>{title}</h2>{description && <p className={descriptionClassName}>{description}</p>}</div>
         {action}
       </div>}
       {children}
@@ -305,11 +325,13 @@ const dashboardContentWidthClass = 'mx-auto w-full max-w-[1600px]';
 function DashboardActionLink({
   href,
   children = 'ดูทั้งหมด',
+  compactOnMobile = false,
 }: {
   href: string;
   children?: ReactNode;
+  compactOnMobile?: boolean;
 }) {
-  return <Link href={href} className="inline-flex min-h-9 shrink-0 whitespace-nowrap items-center justify-center gap-1.5 rounded-lg border border-brand-strong bg-brand-strong px-3 text-xs font-semibold text-white transition hover:bg-brand-hover sm:min-h-10 sm:gap-2 sm:px-3.5 sm:text-sm">
+  return <Link href={href} className={`inline-flex shrink-0 whitespace-nowrap items-center justify-center rounded-lg border border-brand-strong bg-brand-strong font-semibold text-white transition hover:bg-brand-hover ${compactOnMobile ? 'min-h-8 gap-1 px-2.5 text-[11px]' : 'min-h-9 gap-1.5 px-3 text-xs'} sm:min-h-10 sm:gap-2 sm:px-3.5 sm:text-sm`}>
     {children}
     <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" />
   </Link>;
@@ -357,6 +379,7 @@ function PatientNextAppointmentSummary({
   fallbackAppointment?: DashboardView['nextAppointment'];
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
   const appointmentList = appointments && appointments.length > 0
     ? appointments
     : fallbackAppointment
@@ -365,40 +388,60 @@ function PatientNextAppointmentSummary({
   const activeIndex = Math.min(selectedIndex, Math.max(0, appointmentList.length - 1));
   const appointment = appointmentList[activeIndex] ?? null;
   const hasMultipleAppointments = appointmentList.length > 1;
-  const showNavigation = hasMultipleAppointments;
+  const countdownValue = appointment ? formatAppointmentCountdownValue(appointment, nowTimestamp) : null;
 
   useEffect(() => {
     setSelectedIndex(0);
   }, [appointments, fallbackAppointment]);
 
-  return <div className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all" role="region" aria-label="นัดหมายถัดไป">
-    {!appointment ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="text-[11px] sm:text-xs font-semibold text-brand-muted">คิวถัดไป</p>
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTimestamp(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return <div className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3 sm:p-4 shadow-xs transition-all" role="region" aria-label="นัดหมายถัดไป">
+    {!appointment ? <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="pr-36 sm:pr-0">
+        <p className="text-xs sm:text-sm font-semibold text-brand-muted">นัดหมายถัดไป</p>
         <p className="mt-0.5 text-sm sm:text-base font-semibold text-brand-ink">ยังไม่มีนัดหมายที่กำลังจะถึง</p>
       </div>
-      <Link href="/appointments" className="inline-flex min-h-8 sm:min-h-10 w-full sm:w-fit items-center justify-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-brand-button border border-brand-strong bg-white px-3 sm:px-3.5 text-xs sm:text-sm font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">ดูนัดหมายทั้งหมด <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
-    </div> : <div className="flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex min-w-0 items-center gap-3">
+      <Link href="/appointments" className="absolute right-0 top-0 inline-flex min-h-8 w-fit items-center justify-center gap-1 px-2.5 rounded-lg border border-brand-strong bg-white text-[11px] font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:static sm:min-h-10 sm:gap-2 sm:rounded-brand-button sm:px-3.5 sm:text-sm">ดูนัดหมายทั้งหมด <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
+    </div> : <div className="relative flex flex-col gap-2.5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
         <span className="flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-strong"><CalendarDays className="size-4 sm:size-5" aria-hidden="true" /></span>
         <div className="min-w-0">
-          <p className="text-[11px] sm:text-xs font-semibold text-brand-muted">คิวถัดไป{hasMultipleAppointments && ` · ${activeIndex + 1}/${appointmentList.length}`}</p>
-          <p className="text-base sm:text-lg font-bold text-brand-ink">คิว #{appointment.queueNumber ?? '—'}</p>
-          <p className="text-xs sm:text-sm text-brand-body truncate">{formatThaiDate(appointment.date)} · {appointment.startTime.slice(0, 5)} น.</p>
+          <p className="text-xs font-medium text-brand-muted">นัดหมายถัดไป{hasMultipleAppointments && ` · ${activeIndex + 1}/${appointmentList.length}`}</p>
+          <p className="text-lg font-bold leading-tight text-brand-ink sm:text-xl">คิว #{appointment.queueNumber ?? '—'}</p>
         </div>
+        </div>
+        <Link href="/appointments" className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-brand-strong bg-brand-strong px-2.5 text-[11px] font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-9 sm:gap-2 sm:px-3 sm:text-xs">ดูนัดหมาย <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
       </div>
-      <dl className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-2 text-xs sm:text-sm sm:grid-cols-3 lg:flex-1 lg:pl-4">
-        <div><dt className="text-[11px] sm:text-xs text-brand-muted">แพทย์</dt><dd className="mt-0.5 font-semibold text-brand-ink truncate">{appointment.doctorName}</dd></div>
-        <div><dt className="text-[11px] sm:text-xs text-brand-muted">แผนก</dt><dd className="mt-0.5 font-semibold text-brand-ink truncate">{appointment.departmentName}</dd></div>
-        <div className="col-span-2 sm:col-span-1"><dt className="text-[11px] sm:text-xs text-brand-muted">สถานะ</dt><dd className="mt-0.5"><span className={`inline-flex rounded-full px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-semibold ${appointmentStatusClasses[appointment.status]}`}>{appointmentStatusLabels[appointment.status]}</span></dd></div>
+      <dl className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)]" aria-label="รายละเอียดวันเวลาและข้อมูลนัดหมาย">
+        <div className="col-span-2 min-w-0 rounded-xl border border-brand-border-soft bg-brand-page/45 px-3 py-2.5 sm:col-span-1 sm:px-4 sm:py-3">
+          <dt className="text-xs font-medium text-brand-muted">วันนัด</dt>
+          <dd className="mt-1 break-words text-base font-bold leading-6 text-brand-ink sm:text-lg">{formatThaiDate(appointment.date)}</dd>
+        </div>
+        <div className="min-w-0 rounded-xl border border-brand-border-soft bg-brand-page/45 px-3 py-2.5 sm:px-4 sm:py-3">
+          <dt className="text-xs font-medium text-brand-muted">เวลา</dt>
+          <dd className="mt-1 text-lg font-bold leading-6 text-brand-ink sm:text-xl">{appointment.startTime.slice(0, 5)} น.</dd>
+        </div>
+        <div className="min-w-0 rounded-xl border border-brand-strong/35 bg-brand-soft/55 px-3 py-2.5 sm:px-4 sm:py-3">
+          <dt className="flex items-center gap-1 text-xs font-semibold text-brand-strong"><Clock3 className="size-3.5 shrink-0" aria-hidden="true" />เหลือเวลา</dt>
+          <dd className="mt-1 text-lg font-bold leading-6 text-brand-strong sm:text-xl">{countdownValue}</dd>
+        </div>
+        <div className="min-w-0 px-1 py-1.5 lg:px-2"><dt className="text-[11px] text-brand-muted sm:text-xs">แพทย์</dt><dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-brand-ink">{appointment.doctorName}</dd></div>
+        <div className="min-w-0 px-1 py-1.5 lg:px-2"><dt className="text-[11px] text-brand-muted sm:text-xs">แผนก</dt><dd className="mt-0.5 truncate text-sm font-semibold text-brand-ink">{appointment.departmentName}</dd></div>
+        <div className="col-span-2 min-w-0 px-1 py-1.5 sm:col-span-1 lg:px-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0"><dt className="text-[11px] text-brand-muted sm:text-xs">สถานะ</dt><dd className="mt-0.5"><span className={`inline-flex rounded-full px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-semibold ${appointmentStatusClasses[appointment.status]}`}>{appointmentStatusLabels[appointment.status]}</span></dd></div>
+            <div className="flex shrink-0 items-center gap-1 lg:absolute lg:right-[7.5rem] lg:top-0" aria-label="เลื่อนดูนัดหมาย">
+              <button type="button" aria-label="นัดหมายก่อนหน้า" title="นัดหมายก่อนหน้า" disabled={activeIndex === 0} onClick={() => setSelectedIndex((current) => Math.max(0, current - 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronLeft className="size-4 sm:size-5" aria-hidden="true" /></button>
+              <button type="button" aria-label="นัดหมายถัดไป" title="นัดหมายถัดไป" disabled={activeIndex === appointmentList.length - 1} onClick={() => setSelectedIndex((current) => Math.min(appointmentList.length - 1, current + 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronRight className="size-4 sm:size-5" aria-hidden="true" /></button>
+            </div>
+          </div>
+        </div>
       </dl>
-      <div className="flex w-full shrink-0 items-center gap-2 sm:w-fit">
-        {showNavigation && <div className="flex items-center gap-1" aria-label="เลื่อนดูนัดหมาย">
-          <button type="button" aria-label="นัดหมายก่อนหน้า" title="นัดหมายก่อนหน้า" disabled={activeIndex === 0} onClick={() => setSelectedIndex((current) => Math.max(0, current - 1))} className="inline-flex size-8 items-center justify-center rounded-lg border border-brand-border-soft bg-white text-brand-strong transition hover:border-brand-strong hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"><ChevronLeft className="size-4" aria-hidden="true" /></button>
-          <button type="button" aria-label="นัดหมายถัดไป" title="นัดหมายถัดไป" disabled={activeIndex === appointmentList.length - 1} onClick={() => setSelectedIndex((current) => Math.min(appointmentList.length - 1, current + 1))} className="inline-flex size-8 items-center justify-center rounded-lg border border-brand-border-soft bg-white text-brand-strong transition hover:border-brand-strong hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"><ChevronRight className="size-4" aria-hidden="true" /></button>
-        </div>}
-        <Link href="/appointments" className="inline-flex min-h-9 sm:min-h-10 flex-1 sm:flex-none items-center justify-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-brand-button border border-brand-strong bg-brand-strong px-3 sm:px-3.5 text-xs sm:text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">ดูรายละเอียด <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
-      </div>
     </div>}
   </div>;
 }
@@ -581,20 +624,20 @@ function PatientMedicationLog({ medication, onRefresh }: {
   if (doses.length === 0) return null;
 
   return <div className="mt-3.5 border-t border-brand-border-soft pt-3">
-    <p className="text-[11px] sm:text-xs font-semibold text-brand-muted">บันทึกการกินยาวันนี้</p>
+    <p className="text-xs font-semibold text-brand-muted sm:text-sm">บันทึกการกินยาวันนี้</p>
     <div className="mt-2 flex flex-wrap gap-2">
       {doses.map((dose) => dose.status === 'taken' ? (
-        <span key={dose.scheduledAt} className="inline-flex min-h-7 sm:min-h-8 items-center rounded-lg bg-status-success-bg px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold text-status-success">
+        <span key={dose.scheduledAt} className="inline-flex min-h-7 sm:min-h-8 items-center rounded-lg bg-status-success-bg px-2.5 sm:px-3 text-xs font-semibold text-status-success sm:text-sm">
           {dose.time} น. · กินแล้ว
         </span>
       ) : (
         <div key={dose.scheduledAt} className="inline-flex items-center gap-2 rounded-lg border border-brand-border-soft bg-brand-surface px-2 py-1">
-          <span className="text-[11px] sm:text-xs text-brand-body">{dose.time} น. · ยังไม่ได้บันทึก</span>
+          <span className="text-xs text-brand-body sm:text-sm">{dose.time} น. · ยังไม่ได้บันทึก</span>
           <button
             type="button"
             disabled={busyDose === dose.scheduledAt}
             onClick={() => void recordTaken(dose.scheduledAt)}
-            className="inline-flex min-h-7 sm:min-h-8 items-center rounded-md bg-brand-strong px-2 sm:px-2.5 text-[11px] sm:text-xs font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-7 sm:min-h-8 items-center rounded-md bg-brand-strong px-2 sm:px-2.5 text-xs font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
           >
             {busyDose === dose.scheduledAt ? 'กำลังบันทึก…' : 'กินแล้ว'}
           </button>
@@ -602,6 +645,25 @@ function PatientMedicationLog({ medication, onRefresh }: {
       ))}
     </div>
     {actionError && <p role="alert" className="mt-2 text-xs text-status-critical">{actionError}</p>}
+  </div>;
+}
+
+function PatientExamStatDetails({
+  title,
+  appointments,
+}: {
+  title: string;
+  appointments: DashboardView['appointmentQueue'];
+}) {
+  return <div id="patient-exam-stat-details" role="region" aria-live="polite" aria-label={title} className="rounded-xl border border-brand-border-soft bg-brand-page/35 px-3 py-3 sm:col-span-3 sm:order-2 sm:px-4">
+    {appointments.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border-soft px-3 py-3 text-xs text-brand-muted sm:text-sm">ไม่พบรายการนัดหมายในช่วงนี้</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {appointments.map((appointment) => <Link key={appointment.id} href={`/records?appointment=${encodeURIComponent(appointment.id)}`} className="min-w-0 rounded-lg border border-brand-border-soft bg-white px-3 py-3 text-left transition hover:border-brand-strong hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">
+        <div className="flex items-start justify-between gap-2"><p className="min-w-0 truncate text-sm font-semibold text-brand-ink sm:text-base">คิว #{appointment.queueNumber ?? '—'}</p><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${appointmentStatusClasses[appointment.status]}`}>{appointmentStatusLabels[appointment.status]}</span></div>
+        <p className="mt-1 truncate text-xs text-brand-body sm:text-sm">{formatThaiDate(appointment.date)} · {appointment.startTime} น.</p>
+        <p className="mt-1 truncate text-xs font-medium text-brand-ink sm:text-sm">{appointment.doctorName}</p>
+        <p className="mt-0.5 truncate text-xs text-brand-muted sm:text-sm">{appointment.departmentName}</p>
+      </Link>)}
+    </div>}
   </div>;
 }
 
@@ -614,51 +676,54 @@ function PatientExamStatsSection({ view }: { view: DashboardView }) {
   const pendingCount = statuses.find((s) => s.status === 'pending')?.count ?? 0;
   const activeCount = inProgressCount + confirmedCount + pendingCount;
   const [selectedStat, setSelectedStat] = useState<'all' | 'active' | 'completed' | null>(null);
-  const selectedDetails = selectedStat === null ? null : {
-    title: selectedStat === 'all' ? 'สรุปนัดหมายทั้งหมด' : selectedStat === 'active' ? 'สรุปนัดที่กำลังรอหรือกำลังตรวจ' : 'สรุปนัดที่ตรวจเสร็จแล้ว',
-    description: selectedStat === 'all' ? 'ดูจำนวนนัดหมายตามสถานะในช่วงที่เลือก' : selectedStat === 'active' ? 'นัดหมายที่กำลังรอรับบริการหรือกำลังตรวจ' : 'นัดหมายที่ตรวจเสร็จแล้วในช่วงที่เลือก',
-  };
+  const selectedDetailsTitle = selectedStat === null ? null : selectedStat === 'all' ? 'สรุปนัดหมายทั้งหมด' : selectedStat === 'active' ? 'สรุปนัดที่กำลังรอหรือกำลังตรวจ' : 'สรุปนัดที่ตรวจเสร็จแล้ว';
+  const visibleAppointments = useMemo(() => {
+    if (selectedStat === null) return [];
+    const rangeAppointments = sortAppointmentsByStartTime(filterAppointmentsWithinDateRange(view.appointmentQueue, view.startDate, view.date));
+    if (selectedStat === 'active') return rangeAppointments.filter((appointment) => upcomingAppointmentStatuses.has(appointment.status));
+    if (selectedStat === 'completed') return rangeAppointments.filter((appointment) => appointment.status === 'completed');
+    return rangeAppointments;
+  }, [selectedStat, view.appointmentQueue, view.startDate, view.date]);
 
   const toggleStat = (stat: 'all' | 'active' | 'completed') => {
     setSelectedStat((current) => current === stat ? null : stat);
   };
+  const statButtonClass = (selected: boolean) => `relative w-full rounded-xl border p-2.5 text-left transition-[background-color,border-color,box-shadow,transform] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:p-3 ${selected ? 'border-brand-strong bg-brand-soft ring-2 ring-brand-strong/35' : 'border-brand-border-soft bg-brand-page/40 hover:border-brand-border-strong hover:bg-brand-soft/50'}`;
 
   return (
-    <section aria-label="สรุปนัดหมายและการตรวจ" className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-1.5 border-b border-brand-border-soft pb-3">
-        <div>
-          <h2 className="text-base sm:text-lg font-bold text-brand-ink">สรุปนัดหมายและการตรวจ</h2>
-          <p className="text-xs text-brand-muted">ดูจำนวนนัดหมายตามสถานะในช่วงที่เลือก</p>
+    <section aria-label="สรุปสถานะนัดหมาย" className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all">
+      <div className="flex items-start justify-between gap-2 border-b border-brand-border-soft pb-3 sm:items-center sm:gap-1.5">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-brand-ink sm:text-lg">สรุปสถานะนัดหมาย</h2>
+          <p className="text-xs text-brand-muted sm:text-sm">ดูจำนวนนัดหมายแยกตามสถานะ</p>
         </div>
-        <DashboardActionLink href="/appointments">ดูนัดหมายทั้งหมด</DashboardActionLink>
+        <DashboardActionLink href="/appointments" compactOnMobile>ดูนัดหมายทั้งหมด</DashboardActionLink>
       </div>
 
       <div className="mt-4 space-y-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
-          <button type="button" aria-expanded={selectedStat === 'all'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('all')} className={`relative w-full rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:p-3 ${selectedStat === 'all' ? 'border-brand-strong bg-brand-soft/50 ring-2 ring-brand-soft' : 'border-brand-border-soft bg-brand-page/40 hover:border-brand-strong hover:bg-brand-soft/30'}`}>
-            <span className="text-[11px] sm:text-xs font-medium text-brand-muted">นัดหมายทั้งหมด</span>
-            <p className="mt-1 text-lg sm:text-2xl font-bold tabular-nums text-brand-ink">{totalAppointments}</p>
-            <span className="text-[10px] sm:text-[11px] text-brand-muted">รายการในช่วงนี้</span>
+        <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+          <button type="button" aria-expanded={selectedStat === 'all'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('all')} className={statButtonClass(selectedStat === 'all')}>
+            <span className="text-xs font-medium text-brand-muted sm:text-sm">นัดหมายทั้งหมด</span>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-brand-strong sm:text-3xl">{totalAppointments}</p>
+            <span className="text-xs text-brand-muted sm:text-sm">รายการในช่วงนี้</span>
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'all' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
-          <button type="button" aria-expanded={selectedStat === 'active'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('active')} className={`relative w-full rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:p-3 ${selectedStat === 'active' ? 'border-sky-500 bg-sky-100/70 ring-2 ring-sky-100' : 'border-sky-100 bg-sky-50/50 hover:border-sky-300 hover:bg-sky-100/60'}`}>
-            <span className="text-[11px] sm:text-xs font-medium text-sky-800">กำลังรอหรือกำลังตรวจ</span>
-            <p className="mt-1 text-lg sm:text-2xl font-bold tabular-nums text-sky-600">{activeCount}</p>
-            <span className="text-[10px] sm:text-[11px] text-sky-700/80">นัดที่ยังไม่เสร็จ</span>
-            <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-sky-700/70 transition-transform sm:right-3 sm:top-3 ${selectedStat === 'active' ? 'rotate-180 text-sky-700' : ''}`} aria-hidden="true" />
+          {selectedStat === 'all' && selectedDetailsTitle && <PatientExamStatDetails title={selectedDetailsTitle} appointments={visibleAppointments} />}
+          <button type="button" aria-expanded={selectedStat === 'active'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('active')} className={statButtonClass(selectedStat === 'active')}>
+            <span className="text-xs font-medium text-brand-muted sm:text-sm">กำลังรอหรือกำลังตรวจ</span>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-brand-strong sm:text-3xl">{activeCount}</p>
+            <span className="text-xs text-brand-muted sm:text-sm">นัดที่ยังไม่เสร็จ</span>
+            <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'active' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
-          <button type="button" aria-expanded={selectedStat === 'completed'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('completed')} className={`relative col-span-2 w-full rounded-xl border p-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:col-span-1 sm:p-3 ${selectedStat === 'completed' ? 'border-emerald-500 bg-emerald-100/70 ring-2 ring-emerald-100' : 'border-emerald-100 bg-emerald-50/50 hover:border-emerald-300 hover:bg-emerald-100/60'}`}>
-            <span className="text-[11px] sm:text-xs font-medium text-emerald-800">ตรวจเสร็จแล้ว</span>
-            <p className="mt-1 text-lg sm:text-2xl font-bold tabular-nums text-emerald-600">{completedCount}</p>
-            <span className="text-[10px] sm:text-[11px] text-emerald-700/80">นัดที่ตรวจเสร็จแล้ว</span>
-            <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-emerald-700/70 transition-transform sm:right-3 sm:top-3 ${selectedStat === 'completed' ? 'rotate-180 text-emerald-700' : ''}`} aria-hidden="true" />
+          {selectedStat === 'active' && selectedDetailsTitle && <PatientExamStatDetails title={selectedDetailsTitle} appointments={visibleAppointments} />}
+          <button type="button" aria-expanded={selectedStat === 'completed'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('completed')} className={statButtonClass(selectedStat === 'completed')}>
+            <span className="text-xs font-medium text-brand-muted sm:text-sm">ตรวจเสร็จแล้ว</span>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-brand-strong sm:text-3xl">{completedCount}</p>
+            <span className="text-xs text-brand-muted sm:text-sm">นัดที่ตรวจเสร็จแล้ว</span>
+            <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'completed' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
+          {selectedStat === 'completed' && selectedDetailsTitle && <PatientExamStatDetails title={selectedDetailsTitle} appointments={visibleAppointments} />}
         </div>
-
-        {selectedDetails && <div id="patient-exam-stat-details" role="region" aria-live="polite" aria-label={selectedDetails.title} className="rounded-xl border border-brand-border-soft bg-brand-page/35 px-3 py-3 sm:px-4">
-          <p className="text-xs font-semibold text-brand-ink">{selectedDetails.title}</p>
-          <p className="mt-1 text-[11px] text-brand-muted">{selectedDetails.description}</p>
-        </div>}
       </div>
     </section>
   );
@@ -684,23 +749,27 @@ function PatientTreatmentHistorySection({
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [rangeFilteredHistory]);
 
-  const historyControls = <DashboardActionLink href="/records">ดูประวัติทั้งหมด</DashboardActionLink>;
+  const historyControls = <DashboardActionLink href="/records" compactOnMobile>ดูประวัติทั้งหมด</DashboardActionLink>;
 
-  const historyDescription = `ผลตรวจของคุณ${range === 'today' ? ' วันนี้' : ` ในช่วง ${dashboardRangeLabels[range]}`}`;
+  const historyDescription = range === 'today'
+    ? 'ผลตรวจวันนี้'
+    : range === '7d'
+      ? 'ผลตรวจใน 7 วันที่ผ่านมา'
+      : 'ผลตรวจใน 30 วันที่ผ่านมา';
   const historyTitle = <span>ประวัติการรักษา</span>;
 
-  return <Section title={historyTitle} description={historyDescription} headerClassName="flex-col lg:flex-row lg:items-center" action={historyControls}>
+  return <Section title={historyTitle} description={historyDescription} titleClassName={patientSectionTitleClass} descriptionClassName={patientSectionDescriptionClass} headerClassName="lg:items-center" action={historyControls}>
     {rangeFilteredHistory.length === 0 ? <div className="border-y border-brand-border-soft"><EmptyState message={history.length > 0 ? 'ไม่พบประวัติการรักษาในช่วงนี้' : 'ยังไม่มีประวัติการรักษา'} /></div> : <div className="mt-4 space-y-4">
-      <p className="text-xs text-brand-muted" aria-live="polite">แสดง {filteredHistory.length} จาก {rangeFilteredHistory.length} รายการ</p>
+      <p className="text-xs text-brand-muted sm:text-sm" aria-live="polite">แสดง {filteredHistory.length} จาก {rangeFilteredHistory.length} รายการ</p>
       <div className="overflow-hidden border-y border-brand-border-soft">
         <table className="w-full table-fixed text-left text-xs sm:text-sm">
-          <thead className="bg-brand-page/55 text-[11px] font-semibold text-brand-muted sm:text-xs">
+          <thead className="bg-brand-page/55 text-xs font-semibold text-brand-muted sm:text-sm">
             <tr>
               <th scope="col" className="w-[17%] px-2 py-2.5 sm:w-[18%] sm:px-4 sm:py-3">วันที่</th>
               <th scope="col" className="w-[18%] px-2 py-2.5 sm:px-4 sm:py-3">แผนก</th>
               <th scope="col" className="w-[23%] px-2 py-2.5 sm:w-[22%] sm:px-4 sm:py-3">แพทย์</th>
               <th scope="col" className="w-[30%] px-2 py-2.5 sm:w-[32%] sm:px-4 sm:py-3">ผลตรวจ</th>
-              <th scope="col" className="w-[12%] px-2 py-2.5 text-right sm:w-[10%] sm:px-4 sm:py-3">ยา</th>
+              <th scope="col" className="w-[12%] px-2 py-2.5 text-right sm:w-[10%] sm:px-4 sm:py-3">รายการยา</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border-soft">
@@ -709,7 +778,7 @@ function PatientTreatmentHistorySection({
               <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{record.departmentName}</td>
               <td className="break-words px-2 py-3 font-medium text-brand-ink sm:px-4 sm:py-4">{record.doctorName}</td>
               <td className="break-words px-2 py-3 text-brand-ink sm:px-4 sm:py-4"><p className="font-medium">{record.summary}</p></td>
-              <td className="break-words px-2 py-3 text-right text-[10px] text-brand-muted sm:px-4 sm:py-4 sm:text-xs">{record.medicationCount > 0 ? `${record.medicationCount} รายการ` : 'ไม่ได้สั่งยา'}</td>
+              <td className="break-words px-2 py-3 text-right text-xs text-brand-muted sm:px-4 sm:py-4 sm:text-sm">{record.medicationCount > 0 ? `${record.medicationCount} รายการ` : 'ไม่ได้สั่งยา'}</td>
             </tr>)}
           </tbody>
         </table>
@@ -723,14 +792,16 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
   const history = view.patientTreatmentHistory ?? [];
 
   return (
-    <div className={`${dashboardContentWidthClass} space-y-6 sm:space-y-8`}>
+    <div className="w-full space-y-6 sm:space-y-8">
       <PatientExamStatsSection view={view} />
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6 sm:gap-8 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs">
           <Section
-            title="ยาที่ใช้ตอนนี้"
-            description="ยาที่แพทย์สั่งให้คุณใช้ตอนนี้"
+            title="ยาที่กำลังใช้อยู่"
+            description="ยาที่แพทย์สั่งให้ใช้ตามแผนการรักษา"
+            titleClassName={patientSectionTitleClass}
+            descriptionClassName={patientSectionDescriptionClass}
             action={<DashboardActionLink href="/reminders">ดูทั้งหมด</DashboardActionLink>}
           >
             {medications.length === 0 ? (
@@ -752,8 +823,8 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="font-bold text-base sm:text-lg text-brand-ink">{medication.name}</p>
-                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">ตามแผนการรักษา</span>
-                              {medication.endDate && <span className="text-[11px] text-brand-muted">ถึง {formatThaiDate(medication.endDate)}</span>}
+                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">ตามแผนการรักษา</span>
+                              {medication.endDate && <span className="text-xs text-brand-muted sm:text-sm">ถึง {formatThaiDate(medication.endDate)}</span>}
                             </div>
                             <p className="mt-1 text-xs sm:text-sm leading-5 text-brand-body">
                               <span className="font-medium text-brand-ink">ขนาดยา:</span> {medication.dosage}
@@ -766,26 +837,26 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
                         <div className="w-full sm:w-64 shrink-0 space-y-2">
                           {totalDoses > 0 ? (
                             <div aria-label={`ทานยาแล้ว ${takenDoses} จาก ${totalDoses} ครั้ง`}>
-                              <div className="flex items-center justify-between text-xs font-semibold text-brand-body">
+                              <div className="flex items-center justify-between text-xs font-semibold text-brand-body sm:text-sm">
                                 <span>กินแล้ว {takenDoses} ครั้ง</span>
                                 <span>เหลือ {remainingDoses} ครั้ง</span>
                               </div>
                               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={totalDoses} aria-valuenow={takenDoses}>
                                 <div className="h-full rounded-full bg-brand-strong transition-[width]" style={{ width: `${progress}%` }} />
                               </div>
-                              <p className="mt-1 text-[11px] text-brand-muted">จากทั้งหมด {totalDoses} ครั้ง</p>
+                              <p className="mt-1 text-xs text-brand-muted sm:text-sm">จากทั้งหมด {totalDoses} ครั้ง</p>
                             </div>
                           ) : (
-                            <p className="text-xs text-brand-muted">เวลา {medication.reminderTimes.length > 0 ? medication.reminderTimes.map((time) => `${time} น.`).join(' · ') : 'ยังไม่ตั้งเวลา'}</p>
+                            <p className="text-xs text-brand-muted sm:text-sm">เวลา {medication.reminderTimes.length > 0 ? medication.reminderTimes.map((time) => `${time} น.`).join(' · ') : 'ยังไม่ตั้งเวลา'}</p>
                           )}
 
                           <div className="flex items-center justify-between gap-2 pt-1">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-strong">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-strong sm:text-sm">
                               <Clock3 className="size-3.5" aria-hidden="true" />
                               ครั้งถัดไป: {medication.nextDoseTime ? `${medication.nextDoseTime} น.` : 'ยังไม่ตั้งเวลา'}
                             </span>
-                            <span className="rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                              รอกินยา
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                              รอบถัดไป
                             </span>
                           </div>
                         </div>
@@ -989,11 +1060,15 @@ export default function DashboardScreen({
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [appointmentToastMessage, setAppointmentToastMessage] = useState<string | null>(null);
   const [appointmentFilter, setAppointmentFilter] = useState<AppointmentQueueFilter>(role === 'medical' ? 'appointments' : 'all');
   const [medicalWorkFilter, setMedicalWorkFilter] = useState<MedicalWorkFilter>('all');
   const [chartMode, setChartMode] = useState<DashboardChartMode>('status');
   const [databaseStatus, setDatabaseStatus] = useState<DatabaseStatus>('checking');
-  const dashboardWidthClass = 'relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-6 lg:px-8';
+  const dashboardWidthClass = role === 'patient'
+    ? 'relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8'
+    : 'relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-6 lg:px-8';
+  const dashboardGapClass = role === 'patient' ? 'gap-6 sm:gap-8' : 'gap-4 sm:gap-6';
   const refreshDashboard = () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
@@ -1033,6 +1108,21 @@ export default function DashboardScreen({
     };
   }, [actorId, range, refreshToken, role]);
 
+  useEffect(() => {
+    if (!view || typeof window === 'undefined') return;
+
+    const isPending = sessionStorage.getItem('login_appointment_toast');
+    if (!isPending) return;
+
+    sessionStorage.removeItem('login_appointment_toast');
+    if (role !== 'patient') return;
+
+    const nextAppointment = view.upcomingAppointments?.[0] ?? view.nextAppointment;
+    if (!nextAppointment) return;
+
+    setAppointmentToastMessage(`นัดหมายถัดไป: ${formatThaiDate(nextAppointment.date)} เวลา ${nextAppointment.startTime.slice(0, 5)} น.`);
+  }, [role, view]);
+
   if (loading && !view) {
     return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none space-y-8 sm:space-y-10`} aria-busy="true" aria-label="กำลังโหลดแดชบอร์ด">{role === 'staff_admin' && <div className="flex justify-end"><DatabaseStatusChip status={databaseStatus} /></div>}<div className="space-y-3 border-b border-brand-border-soft pb-6"><div className="h-8 w-2/5 rounded bg-brand-border-soft" /><div className="h-4 w-3/5 rounded bg-brand-border-soft" /></div>{role !== 'staff_admin' && <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 border-y border-brand-border-soft bg-brand-page/50" />)}</div>}<div className="h-64 border-y border-brand-border-soft bg-brand-page/50" /></div>;
   }
@@ -1069,13 +1159,19 @@ export default function DashboardScreen({
   const examinationPercent = examinationTotal > 0 ? Math.round((completedAppointments / examinationTotal) * 100) : 0;
   const medicalMetricDropdownFilter: MedicalMetricAppointmentFilter | null = isMedicalDoctorDashboard ? doctorAppointmentFilter : null;
   return (
-    <main className={`dashboard-shell ${dashboardWidthClass} max-w-none flex flex-col gap-4 sm:gap-6 pb-8 sm:pb-10`}>
+    <main className={`dashboard-shell ${dashboardWidthClass} max-w-none flex flex-col ${dashboardGapClass} pb-8 sm:pb-10`}>
+      <Toast
+        message={appointmentToastMessage}
+        onDismiss={() => setAppointmentToastMessage(null)}
+        variant="info"
+        position="top-right-below"
+        duration={5000}
+      />
       <header className="relative flex flex-col gap-3 sm:gap-4 border-b border-brand-border-soft pb-4 sm:pb-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3 pr-12 sm:min-w-0 sm:flex-1 sm:pr-0">
-          <span aria-hidden="true" className="mt-1 h-8 sm:h-10 w-1 shrink-0 rounded-full bg-brand-strong" />
+        <div className="min-w-0 pr-12 sm:flex-1 sm:pr-0">
           <div>
-          <h1 className="text-2xl font-bold leading-tight tracking-tight text-brand-ink sm:text-3xl">{view.title}</h1>
-          <p className="mt-1 sm:mt-2 max-w-2xl text-xs sm:text-sm leading-5 sm:leading-6 text-brand-body">{view.description}</p>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">{view.title}</h1>
+            <p className="mt-1 sm:mt-2 max-w-2xl text-xs sm:text-sm leading-5 sm:leading-6 text-brand-body">{view.description}</p>
           </div>
         </div>
         <div className="absolute right-0 top-0 flex flex-wrap items-center justify-end gap-2 sm:static sm:self-start">

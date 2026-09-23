@@ -356,6 +356,7 @@ export async function signIn(
 
   if (typeof window !== 'undefined') {
     sessionStorage.setItem('login_welcome_toast', 'true');
+    sessionStorage.setItem('login_appointment_toast', 'true');
   }
 
   return data;
