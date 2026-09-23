@@ -2,24 +2,43 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
-## แสดงอาการหรือเหตุผลที่มาพบแพทย์ในหน้าผลตรวจ — 23 กันยายน 2569
+## ถอด weekly/recurring/template path โดยคงปุ่มสร้าง — 23 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
 
-- แสดง `appointment.reason` ใต้ตัวเลือกคิวในฟอร์มบันทึกผลตรวจแบบอ่านอย่างเดียว ด้วยสไตล์ muted เพื่อให้แพทย์เห็นบริบทของผู้ป่วยโดยไม่แย่งความเด่นจากฟอร์ม
-- แสดง `ไม่ได้ระบุ` เมื่อข้อมูลอาการหรือเหตุผลไม่มีค่า โดยไม่เปลี่ยน data contract หรือการบันทึกข้อมูล
+- ลบ contract, type, mock fixture และ implementation สำหรับ weekly schedule, recurring generation และ availability template ออกจาก Scheduling
+- คงปุ่มสร้างหลาย slot, preview, การยืนยัน และ manual batch API ไว้
+- ปรับ D25, FR/as-built map และ owner docs ให้ระบุว่าการสร้างหลาย slot เป็นคำสั่งที่ผู้ใช้เริ่มเอง ส่วน weekly/recurring/template และ automatic generation อยู่นอก scope
 
 ### ไฟล์หลัก
 
-- `src/features/medical-records.tsx`
-- `tests/appointments-records-runtime-ui.test.tsx`
+- src/features/scheduling/context/SchedulingProvider.tsx, data/apiRepository.ts, data/databaseRepository.ts, data/mockRepository.ts, domain/repository.ts
+- src/types/schedule.ts, src/mocks/scheduleData.ts, tests/mock-scheduling-repository.test.ts
+- docs/10_team_decisions.md, docs/04_system_architecture_and_tech_stack.md, docs/11_functional_requirements.md
+- docs/owners/shop-supot/user-stories.md, use-cases.md, as-built.md
+
+### การตรวจ
+
+- ไม่ได้รัน automated tests; ถอด tests เฉพาะ weekly/template ที่ลบออก และคง tests ของ manual batch creation
+- ไม่ได้ตรวจ browser หรือฐานจริง/RLS; ปุ่มสร้างและ batch API คงเดิม
+- git diff --check ผ่าน
+
+## แยกเอกสาร Scheduling ของสุพจน์ตาม owner — 23 กันยายน 2569
+
+### ขอบเขตและไฟล์
+
+- เขียน User Stories, Use Cases และ ER ใหม่ใน `docs/owners/shop-supot/` โดยเทียบกับ route, UI, domain rule, repository และ migrations ปัจจุบัน
+- ย้ายรายละเอียด Scheduling ออกจาก `docs/02_user_stories.md`, `docs/03_database_design_and_er.md` และแผนภาพ ER กลาง; คงภาพรวมและลิงก์อ้างอิงข้ามโมดูล
+- เอา `docs/diagrams/shop_use_case.html` ที่เนื้อหาไม่ครบตาม code ปัจจุบันออก และคง use case กลางเป็นภาพรวมพร้อมลิงก์ owner docs
+- บันทึกความต่าง D25 ที่ตัด batch generation กับ code/FR-SCH-03 ที่มี batch แบบผู้ใช้เริ่มเอง โดยไม่แก้ข้อยุติทีม
+
+ไฟล์ owner ใหม่: `docs/owners/shop-supot/user-stories.md`, `docs/owners/shop-supot/use-cases.md`, `docs/owners/shop-supot/er.md`. ปรับ `docs/00_reading_guide.md`, `docs/02_user_stories.md`, `docs/03_database_design_and_er.md`, `docs/14_change_log.md`, `docs/diagrams/clinic-er-diagram.html`, `docs/diagrams/wu_clinic_use_case.html`, `docs/owners/README.md` และ `docs/owners/shop-supot/README.md`
 
 ### Verification
 
-- `npx.cmd --no-install vitest run tests/appointments-records-runtime-ui.test.tsx`: ผ่าน 1 file / 30 tests
-- `npx.cmd --no-install tsc --noEmit`: ผ่าน
-- `git diff --check`: ผ่าน
-- Browser QA และ database/RLS: ไม่ได้ตรวจในรอบนี้
+- `git diff --check`: ผ่านหลังตรวจเอกสาร
+- Automated tests ไม่ได้รัน เพราะเป็นการเปลี่ยนเอกสารเท่านั้น
+- การแก้เอกสารนี้ไม่ได้ตรวจ browser, Supabase target หรือ RLS
 
 ## ถอด Mock/Demo ออกจาก Runtime และอนุญาตทำงานบน develop — 23 กันยายน 2569
 

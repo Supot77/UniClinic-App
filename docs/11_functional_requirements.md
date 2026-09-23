@@ -27,7 +27,7 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
 | กลุ่ม FR | เส้นทาง/ข้อมูลที่พบ | สถานะที่สรุปได้ |
 | --- | --- | --- |
 | `FR-AUTH-*` | `authService`, auth pages, `profiles`, route guards บางหน้า | มี flow Supabase; guard ไม่สม่ำเสมอทุกหน้า ต้องตรวจ session/RLS จริง; `/register` ยังไม่รับ allergy/chronic disease fields ตาม health-profile target |
-| `FR-SCH-*` | `ScheduleWorkspace` → `SchedulingProvider` → `ApiSchedulingRepository` → Route Handlers; `services`, `daily_service_offerings`, `appointment_slots`, `doctor_leaves` | Runtime ไม่มี mock fallback; CRUD ที่มี Route Handler เรียก API, ส่วน weekly schedule/templates ยังไม่มี Route Handler และแสดงข้อผิดพลาด/ค่าว่างแทนการเก็บ mock state; DB/RLS ยังต้องตรวจจริง |
+| `FR-SCH-*` | `ScheduleWorkspace` → `SchedulingProvider` → `ApiSchedulingRepository` → Route Handlers; services, daily_service_offerings, appointment_slots, doctor_leaves | Runtime ไม่มี mock fallback; ปุ่มสร้างหลาย slot เรียก manual batch API; ไม่มี weekly/recurring/template path หรือ automatic generation; DB/RLS ยังต้องตรวจจริง |
 | `FR-APT-*` | `appointments.tsx` → `clinic-care.tsx` → `pai_*` RPC → `appointments` | active appointment route; ไม่มี reschedule ในเส้นทางนี้; ไม่มี preview แยกใน runtime |
 | `FR-MED-*` | `medical-records.tsx` → `clinic-care.tsx` → `pai_save_record` → `medical_records` | active record route; บันทึกผลตรวจ/รายการยาก่อนจบตรวจ; `pai_*` เป็นชื่อ RPC ไม่ใช่ชื่อตารางปัจจุบัน |
 | `FR-PHA-*` | `/pharmacy`, `medicationService` → `/api/medications` | ใช้ API runtime; ยังไม่พบการเชื่อม dispense กับ PAI appointment แบบ end-to-end |

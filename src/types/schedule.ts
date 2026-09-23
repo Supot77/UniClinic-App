@@ -93,29 +93,6 @@ export interface ScheduleSlot {
   hasHistory?: boolean;
 }
 
-export interface DoctorWeeklySchedule {
-  id: string;
-  doctorId: string;
-  weekday: 1 | 2 | 3 | 4 | 5;
-  startTime: string;
-  endTime: string;
-  slotDurationMinutes: 30 | 60;
-  defaultCapacity: number;
-  isActive: boolean;
-}
-
-export interface DoctorAvailabilityTemplate {
-  id: string;
-  doctorId: string;
-  label?: string;
-  startTime: string;
-  endTime: string;
-  defaultCapacity: number;
-  usageCount: number;
-  lastUsedAt: string;
-}
-
-
 export interface DoctorAccountOption {
   profileId: string;
   fullName: string;

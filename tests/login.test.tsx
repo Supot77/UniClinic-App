@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import LoginPage from '@/app/(auth)/login/page';
 import * as authService from '@/services/authService';
@@ -70,9 +70,8 @@ describe('LoginPage', () => {
     // During authentication
     expect(screen.getByRole('button', { name: /กำลังเข้าสู่ระบบ/i })).toBeDisabled();
 
-    // Resolve sign in
+    // Resolve sign in; the redirect overlay is shown while the auth state is still false
     resolveSignIn({ user: { id: 'test-user' } });
-    authState.isAuthenticated = true;
 
     await waitFor(() => {
       expect(screen.getByText('เข้าสู่ระบบสำเร็จ')).toBeInTheDocument();
