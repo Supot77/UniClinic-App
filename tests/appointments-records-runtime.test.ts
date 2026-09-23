@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { allowedActions, bangkokDate, createClinicDatabaseRepository, createClinicMockRepository } from '@/features/clinic-care';
+import { allowedActions, bangkokDate, createClinicDatabaseRepository } from '@/features/clinic-care';
+import { createClinicMockRepository } from './clinic-care-mock-repository';
 import { appointmentId, fixture, medicationId, patientId, slotId, withAppointment } from './clinic-care-fixtures';
 
 describe('Clinic manual contract', () => {

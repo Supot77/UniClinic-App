@@ -8,7 +8,7 @@
 
 1. ใช้ FR ใน [11](11_functional_requirements.md) และเกณฑ์ใน [08](08_system_rules_and_acceptance.md) เป็นขอบเขตปัจจุบัน
 2. ตัด worker, cron, email, retry, catch-up, status transition ตามเวลา และ schema สำหรับแบ่งจ่าย/กันยา/ยาค้างออกจากงานใหม่
-3. แยก UI จาก service/repository contract ใช้ Supabase database repository เป็น runtime หลัก และใช้ mock ที่ deterministic เฉพาะ automated tests/offline demo
+3. แยก UI จาก service/repository contract ใช้ Supabase database repository เป็น runtime เท่านั้น และใช้ mock ที่ deterministic เฉพาะ automated tests; ห้ามมี offline demo หรือ mock fallback ในแอป
 4. แก้เฉพาะไฟล์ในขอบเขตของโมดูล เพิ่ม test สำหรับ success, validation, permission และยืนยันว่า error ไม่เปลี่ยน state
 5. รัน migration/seed หรือ database integration กับ development/staging ได้หลังยืนยัน target, review diff, สำรองข้อมูลตามความเสี่ยง และได้รับอนุญาตก่อนกระทบ remote database
 6. ทุก role มี guarded entry page/dashboard และแยก role-specific page/container เมื่อ data, action หรือ permission ต่างกัน โดย reuse shared presentational components

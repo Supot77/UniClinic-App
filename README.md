@@ -6,7 +6,7 @@
 
 ## เอกสารหลัก
 
-เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md), [แผนพัฒนา](docs/09_implementation_plan.md), [Owner views](docs/owners/README.md) และ [บันทึกการเปลี่ยนแปลง](docs/14_change_log.md) เป้าหมาย runtime เป็น database-first ผ่าน Supabase repository; mock ใช้สำหรับ automated tests และ offline demo ที่ระบุชัด
+เริ่มที่ [คู่มืออ่าน](docs/00_reading_guide.md), [ข้อสรุปทีม](docs/10_team_decisions.md), [เกณฑ์ตรวจรับ](docs/08_system_rules_and_acceptance.md), [แผนพัฒนา](docs/09_implementation_plan.md), [Owner views](docs/owners/README.md) และ [บันทึกการเปลี่ยนแปลง](docs/14_change_log.md) Runtime ใช้ Supabase ผ่าน repository; mock/fixture ใช้เฉพาะ automated tests และไม่มี demo fallback ในแอป
 
 ## ขอบเขต
 
@@ -23,7 +23,7 @@
 | กลอง | รายการเตือนแบบ manual | กัญจน์ |
 | เฮิร์บ | Broadcast และ Dashboard | ฟีม |
 
-สถานะรายโมดูลและหลักฐานล่าสุดอยู่ใน [owner index](docs/owners/README.md) โดยแยก `ทำแล้วใน code`, `ทำบางส่วน/ยังมี mock`, `เป็น target ยังไม่พบ code`, `ยังไม่ยืนยัน DB/RLS`, `ยังไม่ตรวจ browser` และ `นอก scope` ออกจากกัน
+สถานะรายโมดูลและหลักฐานล่าสุดอยู่ใน [owner index](docs/owners/README.md) โดยแยก `ทำแล้วใน code`, `ทำบางส่วน/ยังมีช่องว่าง`, `เป็น target ยังไม่พบ code`, `ยังไม่ยืนยัน DB/RLS`, `ยังไม่ตรวจ browser` และ `นอก scope` ออกจากกัน
 
 ## เริ่มต้นพัฒนา
 

@@ -1,6 +1,6 @@
 # 11. ตาราง Functional Requirements (FR)
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — เพิ่ม interaction แก้ไข/ยกเลิกวันลาจากปฏิทินตาม D28 พร้อม reverse-engineered as-built map; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 23 กันยายน 2569 (2026-09-23) — เพิ่มข้อกำหนด D29/D30 เรื่องไม่มี mock runtime และอนุญาตทำงานบน develop ตามคำสั่ง พร้อมปรับ as-built Scheduling; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูล deploy/ตรวจรับแล้ว
 
 เอกสารนี้ระบุเฉพาะความสามารถที่คงไว้สำหรับมินิโปรเจกต์ รายการ FR ที่ไม่ปรากฏในฉบับนี้ถือว่าอยู่นอก scope ไม่ต้องพัฒนาและไม่ต้องทำเป็นข้อยกเว้นเพิ่มเติม ระบบไม่มีงานเบื้องหลังและไม่เปลี่ยนสถานะเองตามเวลา
 
@@ -20,20 +20,20 @@
 
 FR ที่มีคำว่า “ระบบ” หมายถึง validation หรือการสร้างผลจากคำสั่งของผู้ใช้ ไม่ได้หมายถึง automation เมื่อไม่มีผู้ใช้กดคำสั่ง ระบบต้องไม่เปลี่ยนสถานะเอง และเมื่อคำสั่งไม่ผ่านต้องไม่สร้างข้อมูลค้างหรือตัดข้อมูลเดิม
 
-## Reverse-engineered as-built map (2026-09-09)
+## Reverse-engineered as-built map (2026-09-23)
 
 ตารางนี้อ่านจาก route, component, service/repository, migration และ test ที่มีอยู่จริง ใช้ตรวจช่องว่างระหว่าง FR เป้าหมายกับ implementation; ไม่เปลี่ยน requirement และไม่ถือว่า migration ถูก deploy แล้ว
 
 | กลุ่ม FR | เส้นทาง/ข้อมูลที่พบ | สถานะที่สรุปได้ |
 | --- | --- | --- |
 | `FR-AUTH-*` | `authService`, auth pages, `profiles`, route guards บางหน้า | มี flow Supabase; guard ไม่สม่ำเสมอทุกหน้า ต้องตรวจ session/RLS จริง; `/register` ยังไม่รับ allergy/chronic disease fields ตาม health-profile target |
-| `FR-SCH-*` | `ScheduleWorkspace` → `SchedulingProvider` → `DatabaseSchedulingRepository` หรือ `MockSchedulingRepository`; `services`, `daily_service_offerings`, `appointment_slots`, `doctor_leaves` | มี service/daily offering, วันลา และ validation; factory กับ weekly schedule ยังมี mock path |
+| `FR-SCH-*` | `ScheduleWorkspace` → `SchedulingProvider` → `ApiSchedulingRepository` → Route Handlers; `services`, `daily_service_offerings`, `appointment_slots`, `doctor_leaves` | Runtime ไม่มี mock fallback; CRUD ที่มี Route Handler เรียก API, ส่วน weekly schedule/templates ยังไม่มี Route Handler และแสดงข้อผิดพลาด/ค่าว่างแทนการเก็บ mock state; DB/RLS ยังต้องตรวจจริง |
 | `FR-APT-*` | `appointments.tsx` → `clinic-care.tsx` → `pai_*` RPC → `appointments` | active appointment route; ไม่มี reschedule ในเส้นทางนี้; ไม่มี preview แยกใน runtime |
 | `FR-MED-*` | `medical-records.tsx` → `clinic-care.tsx` → `pai_save_record` → `medical_records` | active record route; บันทึกผลตรวจ/รายการยาก่อนจบตรวจ; `pai_*` เป็นชื่อ RPC ไม่ใช่ชื่อตารางปัจจุบัน |
-| `FR-PHA-*` | `/pharmacy`, `medicationService`, old `medications`/`inventory_logs`, mock/local storage | มี UI/service แยก แต่ยังไม่พบการเชื่อม dispense กับ PAI appointment แบบ end-to-end |
-| `FR-REM-*` | `/reminders`, `reminderService`, `medication_reminders`/`medication_logs` | มี CRUD, log และ pause/resume; มี mock fallback และไม่ตรง target D22 บางข้อ |
-| `FR-NOT-*` | `dashboardService`/notifications RPC, BroadcastPanel, mock dashboard repository | Broadcast/notifications ใช้ Supabase service แต่ metric dashboard บางส่วนมาจาก mock |
-| `FR-SYS-*` | route guards, repository contracts, RLS/RPC migrations | PAI มี DB boundary ชัด; ยังมีหน้า/adapter ที่ไม่สอดคล้องกับ DB-first target |
+| `FR-PHA-*` | `/pharmacy`, `medicationService` → `/api/medications` | ใช้ API runtime; ยังไม่พบการเชื่อม dispense กับ PAI appointment แบบ end-to-end |
+| `FR-REM-*` | `/reminders`, `reminderService` → `/api/reminders`, `/api/medications`, `/api/medical-records` | ใช้ API runtime; sample reminder seeder ถูกถอด และยังมี gap ตาม target D22 |
+| `FR-NOT-*` | `dashboardService` → Supabase client, BroadcastPanel และ notifications RPC | query dashboard/notifications จาก Supabase; DB/RLS ยังต้องยืนยันกับ session จริง |
+| `FR-SYS-*` | route guards, API/repository contracts, RLS/RPC migrations | ไม่มี mock/demo runtime fallback; deployment, RLS และ integration ยังแยกตรวจ |
 
 ### ข้อควรระวังในการอ่าน FR
 
@@ -184,7 +184,7 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
 - **`FR-MED-01`, `FR-MED-03` (ผลตรวจและประวัติการรักษา)**: รายการยาที่สั่งจ่ายเชื่อมโยงกับประวัติการรักษาและคำแนะนำของแพทย์ เพื่อให้ผู้ป่วยเปิดดูควบคู่กับผลตรวจได้
 - **`FR-PHA-01`, `FR-PHA-02` (คลังยาและการจ่ายยา)**: ตัวยาที่นำมาสั่งจ่ายอ้างอิงจากตารางคลังยา `medications`
 - **`FR-NOT-04` (Dashboard สรุปข้อมูลผู้ป่วย)**: ข้อมูลรายการเตือนยาที่บันทึกไว้จะถูกนำไปสรุปแสดงในภาพรวมหน้า Dashboard ของผู้ป่วย
-- **`FR-SYS-01` ถึง `FR-SYS-06` (ข้อกำหนดร่วมของระบบ)**: แสดงผลเวลาในเขต `Asia/Bangkok`, ใช้สถาปัตยกรรม Database-first ผ่าน Supabase (พร้อม Mock fallback สำหรับการทดสอบ), และรองรับมาตรฐานการเข้าถึง Accessible Underline Tabs
+- **`FR-SYS-01` ถึง `FR-SYS-06` (ข้อกำหนดร่วมของระบบ)**: แสดงผลเวลาในเขต `Asia/Bangkok`, ใช้ Supabase เป็น runtime และจำกัด mock ไว้ที่ automated tests, พร้อมรองรับ Accessible Underline Tabs
 - **ข้อตกลง D22 ใน [10_team_decisions.md](10_team_decisions.md)**: ทำงานแบบ Manual UI-driven ภายในหน้าเว็บ ไม่มี background automation, ไม่มี email/SMS/Web Push, ไม่มีการตัดสถานะ missed อัตโนมัติ
 
 ## 7. Broadcast และ Dashboard แบบ manual
@@ -201,7 +201,7 @@ FR ที่มีคำว่า “ระบบ” หมายถึง valid
 | รหัส | โมดูล | Functional requirement | เกณฑ์สำเร็จ/ข้อจำกัด | เจ้าของ |
 | --- | --- | --- | --- | --- |
 | FR-SYS-01 | เวลา | แสดงวันเวลาใน `Asia/Bangkok` | ไม่รองรับ timezone อื่นหรือรอบข้ามวัน | ทุกคน |
-| FR-SYS-02 | Architecture | UI เรียกผ่าน service/repository contract และ runtime ใช้ Supabase database repository | mock ใช้เฉพาะ automated tests/offline demo; production ไม่มี silent mock fallback | ทุกคน |
+| FR-SYS-02 | Architecture | UI เรียกผ่าน service/repository contract และ runtime ใช้ Supabase database repository | mock ใช้เฉพาะ automated tests; ไม่มี offline demo หรือ silent mock fallback ในแอป | ทุกคน |
 | FR-SYS-03 | Validation/error | ตรวจข้อมูลก่อนบันทึกและแสดง error ที่เข้าใจได้ | คำสั่งที่ไม่ผ่านต้องไม่เปลี่ยน state | ทุกคน |
 | FR-SYS-04 | Accessibility/UI | Flow หลักใช้ keyboard และรองรับ 360px/1280px | มี loading, empty และ error ที่จำเป็น | ทุกคน |
 | FR-SYS-05 | Security | ตรวจ session, role และ ownership ที่ route, service/repository และ Supabase RLS/RPC | ห้ามพึ่งการซ่อนเมนูอย่างเดียวหรือใช้ `service_role` ใน browser | ทุกคน |

@@ -21,7 +21,7 @@
 
 ## Git และตรวจงาน
 
-ใช้แนวทาง feature → develop → main ตามกิ่งจริงใน repository ไม่มีการสร้าง เปลี่ยนชื่อ หรือ merge branch ในงานเอกสารนี้
+ใช้ `develop` เป็น branch สำหรับงานร่วมได้เมื่อเจ้าของงานสั่งให้เริ่มบน branch นี้โดยตรง; งานอื่นใช้แนวทาง feature → develop → main ตามปกติ ห้าม agent เปลี่ยน branch, commit หรือ push เองโดยไม่ได้รับคำสั่ง
 
 - ก่อนส่ง PR ดึงงานร่วมและแก้ conflict ตรวจ diff ว่าอยู่ในขอบเขต
 - คู่ตรวจรับผิดชอบตรวจซึ่งกันและกัน: ฟีม↔เฮิร์บ ช้อป↔ปาย กัญจน์↔กลอง
@@ -51,13 +51,13 @@ wu-clinic-booking/
 
 ## วงจร Git รายวัน
 
-1. เริ่มจาก `develop` ล่าสุด สร้างกิ่ง `feat/<module>-<summary>` ของตน
+1. ตรวจ branch และ working tree ก่อนเริ่ม; เมื่อได้รับคำสั่งให้ทำบน `develop` ให้แก้บน branch ปัจจุบันโดยตรงและรักษา commit เดิม ส่วนงานที่กำหนดให้แยกงานให้สร้าง `feat/<module>-<summary>` จาก `develop` ล่าสุด
 2. แก้เฉพาะโมดูลและ contract ที่ตกลง หากต้องแก้ไฟล์กลางให้แจ้งใน PR
 3. ก่อนเปิด PR ดึง `develop` มาแก้ conflict และรัน gate ที่เกี่ยวข้อง
-4. เปิด PR จาก feature ไป `develop`; คู่ตรวจตรวจสิทธิ์, contract และกรณีทดสอบ ไม่รวมเข้า `main` ตรง
+4. งานบน feature branch เปิด PR ไป `develop`; งานที่สั่งให้ทำตรงบน `develop` ต้องตรวจ diff/quality gates และไม่ต้องสร้าง PR ซ้ำ คู่ตรวจตรวจสิทธิ์, contract และกรณีทดสอบ ไม่รวมเข้า `main` ตรง
 5. ผู้รวมงาน merge หลังผ่าน lint, typecheck, build และกรณีหลัก; เก็บหลักฐาน SCN ก่อนนำเสนอ
 
-ตัวอย่างคำสั่งใช้ได้เมื่อเริ่มพัฒนา: `git switch develop`, `git pull`, `git switch -c feat/<module>-<summary>`, `git status`, `git add`, `git commit`, `git push -u origin <branch>` ห้าม commit key หรือข้อมูลจริง
+ตัวอย่างคำสั่งเริ่มงาน: `git status`, `git switch -c feat/<module>-<summary>` (เมื่อแยก feature branch ตาม scope) ห้ามเปลี่ยน branch, commit หรือ push โดยไม่มีคำสั่ง ห้าม commit key หรือข้อมูลจริง
 
 ## หลักแยกความรับผิดชอบของไฟล์
 
@@ -66,7 +66,7 @@ wu-clinic-booking/
 | `src/app` และ `src/components` | route, role entry page, shared UI และการแสดงสถานะ | แยก role-specific container เมื่อ data/action ต่างกัน ไม่ฝัง query หรือกติกาสิทธิ์แทน service |
 | `src/services`, `src/hooks`, `src/features` | คำสั่ง การประสานงาน และ repository ของโมดูล | runtime ใช้ Supabase repository ผ่าน contract และคืน error ที่ UI ใช้ได้ |
 | `src/types` | type/contract ที่หลายโมดูลใช้ร่วมกัน | เปลี่ยนต้องตรวจผู้ใช้ทุกจุดและแจ้งเจ้าของไฟล์กลาง |
-| `src/mocks` และ mock repository | ข้อมูลสังเคราะห์สำหรับ test/offline demo | ต้อง deterministic ไม่เรียก network/ฐานจริง และไม่ถูกเลือกเป็น production runtime |
+| `src/mocks` และ mock repository | fixture และ repository สำหรับ automated tests | ต้อง deterministic ไม่เรียก network/ฐานจริง และห้ามถูก import หรือเลือกเป็น production runtime |
 | `supabase/migrations` | schema, RLS, RPC และ migration ที่ใช้กับ runtime จริง | รันได้หลังยืนยัน target/review/backup; ห้าม reset production และห้ามถือว่า deploy แล้วหากไม่มีหลักฐาน |
 | `docs` และ `tests` | ข้อกำหนด/แผน และหลักฐานพฤติกรรม | ต้องสอดคล้องกับ role 3 ค่าและ scope manual |
 

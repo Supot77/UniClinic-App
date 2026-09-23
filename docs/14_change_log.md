@@ -2,6 +2,31 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## ถอด Mock/Demo ออกจาก Runtime และอนุญาตทำงานบน develop — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ปรับ `AGENTS.md`, `docs/05_folder_and_git_workflow.md` และ skill `sync-develop` ให้ทำงานบน `develop` ได้เมื่อเจ้าของสั่ง โดย agent ไม่เปลี่ยน branch/commit/push เอง
+- ถอด `ClinicMockProvider` ออกจาก root layout และย้าย appointment mock repository ไป test-only fixture
+- Scheduling runtime เริ่มจาก snapshot ว่างและเรียก `ApiSchedulingRepository` เท่านั้น; ไม่มี mock factory/fallback
+- Weekly schedule และ doctor templates ยังไม่มี Route Handler จึงคืน error/ค่าว่างแทนการเปลี่ยนข้อมูลจำลองใน memory
+- ลบ `seedSampleReminders` ซึ่งสร้าง reminder ตัวอย่างลงฐานจริงได้ ทั้งที่ไม่มี caller
+- คง mock adapters/fixtures ที่ tests ใช้ไว้ และอัปเดตกติกา/เอกสาร as-built ตาม D29/D30
+
+### ไฟล์หลัก
+
+- `AGENTS.md`, `.agents/skills/sync-develop/SKILL.md`, `README.md`
+- `docs/00_reading_guide.md`, `docs/01_project_overview.md`, `docs/02_user_stories.md`, `docs/03_database_design_and_er.md`, `docs/04_system_architecture_and_tech_stack.md`, `docs/05_folder_and_git_workflow.md`, `docs/07_foundation_and_scope.md`, `docs/09_implementation_plan.md`, `docs/10_team_decisions.md`, `docs/11_functional_requirements.md`, `docs/appointments-and-medical-records.md`, `docs/owners/README.md`, `docs/owners/_shared/{as-built,status}.md`, `docs/owners/{herb,kan,pai,shop-supot}/{as-built,status}.md`
+- `src/app/layout.tsx`, `src/features/clinic-care.tsx`, `src/features/mock-database/ClinicMockProvider.tsx`, `src/features/scheduling/context/SchedulingProvider.tsx`, `src/features/scheduling/data/repositoryFactory.ts`, `src/features/scheduling/domain/repository.ts`, `src/services/reminderService.ts`, `src/types/schedule.ts`
+- `tests/clinic-care-mock-repository.ts`, `tests/appointments-records-runtime.test.ts`, `tests/appointments-records-runtime-ui.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- `git diff --check`: ผ่าน
+- Automated tests ไม่ได้รันในรอบนี้
+- Browser QA และ live Supabase/RLS ไม่ได้ตรวจ
+
 ## แก้ JSX ของฟอร์มลงทะเบียนบุคลากร — 23 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
