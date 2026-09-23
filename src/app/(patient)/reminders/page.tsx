@@ -27,6 +27,7 @@ import {
   Stethoscope,
   Calendar,
   CheckCircle2,
+  BellOff,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatProfileName } from '@/lib/profileName';
@@ -100,6 +101,7 @@ interface PatientPrescriptionOrder {
   dispensed_at?: string | null;
   pharmacist_name?: string | null;
   prescribed_medications: PrescribedMedication[];
+  isActive?: boolean;
 }
 
 /**
@@ -274,9 +276,8 @@ export default function RemindersPage() {
   const [notice, setNotice] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // State ค้นหาและกรองสถานะรายการยา (ทั้งหมด / เปิดเตือน)
+  // State ค้นหารายการยา
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
 
   // ---------------------------------------------------------------------------
   // 3. State สำหรับ Modal หน้าต่างการทำงานต่างๆ (Modals State)
@@ -358,44 +359,34 @@ export default function RemindersPage() {
     );
   }, [allPatients, selectedPatientId]);
 
-  // คำนวณจำนวนรายการยาตามสถานะเพื่อแสดงในแท็บ Badge
-  const activeCount = useMemo(() => medicationList.filter((m) => m.isActive).length, [medicationList]);
-
-  // กรองรายการยาตามคำค้นหา (ชื่อยา, หมวดหมู่, มื้ออาหาร, ขนาดยา) และแท็บสถานะ
+  // กรองรายการยาตามคำค้นหา (ชื่อยา, หมวดหมู่, มื้ออาหาร, ขนาดยา)
   const filteredMedications = useMemo(() => {
     return medicationList.filter((med) => {
       const q = searchQuery.trim().toLowerCase();
-      const matchesSearch =
+      return (
         !q ||
         med.name.toLowerCase().includes(q) ||
         (med.category && med.category.toLowerCase().includes(q)) ||
         (med.mealTiming && med.mealTiming.toLowerCase().includes(q)) ||
-        med.dosageInstruction.toLowerCase().includes(q);
-
-      const matchesStatus =
-        filterStatus === 'all' ||
-        (filterStatus === 'active' && med.isActive);
-
-      return matchesSearch && matchesStatus;
+        med.dosageInstruction.toLowerCase().includes(q)
+      );
     });
-  }, [medicationList, searchQuery, filterStatus]);
+  }, [medicationList, searchQuery]);
 
   // กรองรายการใบสั่งยาตามคำค้นหา (ชื่อผู้ป่วย, ชื่อแพทย์, รายการยา)
   const filteredOrders = useMemo(() => {
     return patientOrders.filter((order) => {
       const q = searchQuery.trim().toLowerCase();
-      if (q) {
-        const matchPatient = order.patient_name.toLowerCase().includes(q);
-        const matchDoctor = order.doctor_name.toLowerCase().includes(q);
-        const matchMed = order.prescribed_medications.some(
-          (m) =>
-            m.name.toLowerCase().includes(q) ||
-            m.dosage.toLowerCase().includes(q) ||
-            m.frequency.toLowerCase().includes(q)
-        );
-        if (!matchPatient && !matchDoctor && !matchMed) return false;
-      }
-      return true;
+      if (!q) return true;
+      const matchPatient = order.patient_name.toLowerCase().includes(q);
+      const matchDoctor = order.doctor_name.toLowerCase().includes(q);
+      const matchMed = order.prescribed_medications.some(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.dosage.toLowerCase().includes(q) ||
+          m.frequency.toLowerCase().includes(q)
+      );
+      return matchPatient || matchDoctor || matchMed;
     });
   }, [patientOrders, searchQuery]);
 
@@ -456,6 +447,9 @@ export default function RemindersPage() {
         const patientStudentId = patientProfile?.student_id || patientInfo?.studentId || null;
         const doctorName = formatProfileName(doctorProfile) || 'นพ.สมชาย ใจดี';
 
+        const savedStatus = typeof window !== 'undefined' ? localStorage.getItem(`order_reminder_status_${r.id}`) : null;
+        const isActive = savedStatus !== null ? savedStatus === 'true' : true;
+
         return {
           id: r.id,
           appointment_id: r.appointment_id,
@@ -468,6 +462,7 @@ export default function RemindersPage() {
           dispensed_at: r.prescribed_medications[0]?.dispensed_at || r.created_at,
           pharmacist_name: r.prescribed_medications[0]?.dispensed_by ? 'ภก.สมชาย' : null,
           prescribed_medications: r.prescribed_medications,
+          isActive,
         };
       });
       setPatientOrders(orders);
@@ -500,7 +495,7 @@ export default function RemindersPage() {
   }, [loadData, selectedPatientId]);
 
   // ---------------------------------------------------------------------------
-  // 5. จัดการการเปิด/ปิดแจ้งเตือนยา (Toggle Status Active / Paused)
+  // 5. จัดการการเปิด/ปิดแจ้งเตือนยา (Toggle Status Active / Inactive)
   // ---------------------------------------------------------------------------
   const handleToggle = async (id: string) => {
     const item = medicationList.find((m) => m.id === id);
@@ -879,28 +874,41 @@ export default function RemindersPage() {
           )}
         </div>
 
-        {/* === ข้อมูลผู้ป่วยและตัวเลือกสลับผู้ป่วย (Patient Meta & Selector) === */}
+        {/* === ข้อมูลผู้ป่วย ตัวเลือกสลับผู้ป่วย และช่องค้นหารายการยา (Patient Meta, Selector & Search) === */}
         <section aria-label="ข้อมูลผู้ป่วย" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-brand-border-soft text-sm">
-          {/* ฝั่งซ้าย: ข้อมูลผู้ป่วยปัจจุบัน (ชื่อ, รหัสนักศึกษา, เบอร์โทร) */}
-          <div className="flex items-center gap-3">
+          {/* ฝั่งซ้าย: ข้อมูลผู้ป่วยปัจจุบัน (ชื่อ, รหัสนักศึกษา, เบอร์โทร, ป้ายจำนวนใบสั่งยา) */}
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <div className="w-9 h-9 rounded-full bg-brand-soft text-brand-strong font-bold text-sm flex items-center justify-center border border-brand-border-soft shrink-0">
               {currentPatient.name.charAt(0)}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-brand-ink">{currentPatient.name}</span>
-              <span className="text-xs text-brand-muted tabular-nums">
-                รหัสนักศึกษา: {currentPatient.studentId}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="font-bold text-brand-ink text-base">{currentPatient.name}</span>
+              <span className="rounded-md bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                {currentPatient.studentId}
               </span>
               {currentPatient.phone && (
                 <span className="text-xs text-brand-muted">
                   · โทร: {currentPatient.phone}
                 </span>
               )}
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">
+                {patientOrders.length > 0
+                  ? `ใบสั่งยา ${filteredOrders.length} รายการ`
+                  : `รายการยา ${filteredMedications.length} รายการ`}
+              </span>
             </div>
           </div>
 
-          {/* ฝั่งขวา: ตัวเลือกเปลี่ยนผู้ป่วยสำหรับเจ้าหน้าที่ และแถบเตือนประวัติแพ้ยา */}
+          {/* ฝั่งขวา: ตัวเลือกเปลี่ยนผู้ป่วยสำหรับเจ้าหน้าที่, แถบเตือนประวัติแพ้ยา, และช่องค้นหารายการยา */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* แถบเตือนประวัติการแพ้ยา (Allergy Badge) */}
+            {currentPatient.allergies && (
+              <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
+                <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
+              </div>
+            )}
+
             {canManageMedication && (
               <label className="flex items-center gap-2 text-sm text-brand-body">
                 <span className="text-xs font-semibold text-brand-ink whitespace-nowrap">ผู้ป่วย:</span>
@@ -918,108 +926,33 @@ export default function RemindersPage() {
               </label>
             )}
 
-            {/* แถบเตือนประวัติการแพ้ยา (Allergy Badge) */}
-            {currentPatient.allergies && (
-              <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
-                <AlertTriangle size={15} className="text-rose-600 shrink-0" />
-                <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
-              </div>
-            )}
+            {/* ช่องค้นหารายการยา (Search Input) */}
+            <div className="relative w-full sm:w-64 md:w-72 lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-muted" aria-hidden="true" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ค้นหารายการยา…"
+                className="h-10 w-full min-w-0 rounded-lg border border-brand-border-strong bg-white pl-9 pr-8 text-sm text-brand-ink placeholder:text-brand-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+                aria-label="ค้นหารายการยา"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink p-1 cursor-pointer"
+                  title="ล้างคำค้นหา"
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         </section>
 
-        {/* === แถบเลือกกรองสถานะ และช่องค้นหารายการยา (Status Tabs & Search) === */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border-soft pb-1.5">
-          {/* แท็บสถานะการเตือนยา (ทั้งหมด / เปิดเตือน) */}
-          <div
-            className="flex flex-wrap items-center gap-2"
-            role="tablist"
-            aria-label="เลือกกรองสถานะการเตือนยา"
-          >
-            {([
-              ['all', 'ทั้งหมด', patientOrders.length > 0 ? patientOrders.length : medicationList.length],
-              ['active', 'เปิดเตือน', patientOrders.length > 0 ? patientOrders.length : activeCount],
-            ] as const).map(([tab, label, count]) => {
-              const isSelected = filterStatus === tab;
-              return (
-                <button
-                  key={tab}
-                  id={`${tab}-tab`}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  aria-controls="reminders-panel"
-                  tabIndex={isSelected ? 0 : -1}
-                  onClick={() => setFilterStatus(tab)}
-                  onKeyDown={(e) => {
-                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
-                    e.preventDefault();
-                    const tabs: ('all' | 'active')[] = ['all', 'active'];
-                    const currentIndex = tabs.indexOf(tab);
-                    let nextTab: 'all' | 'active';
-                    if (e.key === 'Home') nextTab = 'all';
-                    else if (e.key === 'End') nextTab = 'active';
-                    else if (e.key === 'ArrowRight') nextTab = tabs[(currentIndex + 1) % tabs.length];
-                    else nextTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
-                    setFilterStatus(nextTab);
-                    document.getElementById(`${nextTab}-tab`)?.focus();
-                  }}
-                  className={`group relative inline-flex min-h-11 items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong cursor-pointer ${
-                    isSelected
-                      ? 'bg-brand-soft text-brand-strong font-bold shadow-2xs'
-                      : 'text-brand-body hover:bg-brand-soft/70 hover:text-brand-ink'
-                  }`}
-                >
-                  <span>{label}</span>
-                  <span
-                    className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums transition-colors ${
-                      isSelected
-                        ? 'bg-brand-strong text-white shadow-2xs'
-                        : 'bg-white border border-brand-border-soft text-brand-muted group-hover:border-brand-border-strong group-hover:text-brand-ink'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                  {/* เส้นขีดบอกสถานะ Active ใต้แท็บ */}
-                  <span
-                    className={`absolute -bottom-[7px] left-2 right-2 h-0.5 rounded-full transition-all duration-150 ${
-                      isSelected
-                        ? 'bg-brand-strong'
-                        : 'bg-transparent group-hover:bg-brand-border-strong/70'
-                    }`}
-                    aria-hidden="true"
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ช่องค้นหารายการยาทางด้านขวา (Search Input) */}
-          <div className="relative w-full sm:w-80 md:w-96">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-muted" aria-hidden="true" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหารายการยา…"
-              className="h-10 w-full min-w-0 rounded-lg border border-brand-border-strong bg-white pl-9 pr-8 text-sm text-brand-ink placeholder:text-brand-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-              aria-label="ค้นหารายการยา"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-ink p-1 cursor-pointer"
-                title="ล้างคำค้นหา"
-                aria-label="ล้างคำค้นหา"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* === รายการยาและการ์ดแจ้งเตือน (Medication Cards List / Grid) === */}
-        <section id="reminders-panel" role="tabpanel" aria-labelledby={`${filterStatus}-tab`} aria-busy={isLoading}>
+        <section aria-label="รายการยาและการแจ้งเตือน" aria-busy={isLoading}>
           {/* สถานะกำลังโหลด (Loading Skeleton) */}
           {isLoading ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
@@ -1044,17 +977,14 @@ export default function RemindersPage() {
                   ไม่พบรายการยาที่ตรงกับเงื่อนไข
                 </p>
                 <p className="text-xs text-brand-muted">
-                  ลองปรับคำค้นหา หรือเลือกดูสถานะทั้งหมด
+                  ลองปรับคำค้นหา
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilterStatus('all');
-                  }}
+                  onClick={() => setSearchQuery('')}
                   className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
                 >
-                  ล้างคำค้นหาและตัวกรอง
+                  ล้างคำค้นหา
                 </button>
               </div>
             ) : (
@@ -1106,7 +1036,7 @@ export default function RemindersPage() {
                           </div>
                         </div>
 
-                        {/* Status Badge: "แจ้งกินยา" (เปลี่ยนจาก ตัดสต๊อกแล้ว ตามที่ผู้ใช้ระบุ) */}
+                        {/* Status Badge: "แจ้งกินยา" */}
                         <div>
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                             <CheckCircle2 className="h-4 w-4" />
@@ -1233,17 +1163,14 @@ export default function RemindersPage() {
                 ไม่พบรายการยาที่ตรงกับเงื่อนไข
               </p>
               <p className="text-xs text-brand-muted">
-                ลองปรับคำค้นหา หรือเลือกดูสถานะทั้งหมด
+                ลองปรับคำค้นหา
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setFilterStatus('all');
-                }}
+                onClick={() => setSearchQuery('')}
                 className="text-xs font-semibold text-brand-strong hover:underline cursor-pointer"
               >
-                ล้างคำค้นหาและตัวกรอง
+                ล้างคำค้นหา
               </button>
             </div>
           ) : (
