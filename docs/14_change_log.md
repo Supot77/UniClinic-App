@@ -462,3 +462,29 @@
 - `git diff --check` — ตรวจหลังแก้ไข
 - `npx.cmd --no-install tsc --noEmit` — ผ่านหลังแก้ nullable description
 - Automated tests และ browser QA — ไม่ได้รัน
+
+# แยก component ตารางตรวจ — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- แยก UI ของ dialog จัดการรอบเดี่ยว, รอบหลายวัน, วันลา และบริการ ออกจาก `ScheduleWorkspace`
+- แยก header actions, ตัวกรอง/ตัวควบคุมปฏิทิน และ renderer ปฏิทินวัน/สัปดาห์/เดือนเป็น component เฉพาะ
+- คง state orchestration, callbacks, validation, role checks และ data access ไว้ใน flow เดิม; ไม่เปลี่ยน UI behavior หรือ permission
+- `ScheduleWorkspace.tsx` ลดจาก 2,142 เป็น 983 บรรทัด
+
+### ไฟล์หลัก
+
+- `src/components/schedules/ScheduleWorkspace.tsx`
+- `src/components/schedules/BatchScheduleDialog.tsx`
+- `src/components/schedules/DoctorLeaveDialog.tsx`
+- `src/components/schedules/SlotEditorDialog.tsx`
+- `src/components/schedules/ServiceDialog.tsx`
+- `src/components/schedules/ScheduleWorkspaceToolbar.tsx`
+- `src/components/schedules/ScheduleCalendar.tsx`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint ทั้ง 7 ไฟล์ — ผ่าน ไม่มี warnings
+- `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
+- Automated tests และ browser QA — ไม่ได้รัน
