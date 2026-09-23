@@ -1139,7 +1139,6 @@ export default function RemindersPage() {
                                 <th className="px-3.5 py-2.5 font-semibold">รายการยาและเวชภัณฑ์</th>
                                 <th className="px-3.5 py-2.5 font-semibold">ขนาดยาและวิธีใช้</th>
                                 <th className="px-3.5 py-2.5 font-semibold text-center">จำนวนที่สั่ง</th>
-                                <th className="px-3.5 py-2.5 font-semibold text-center">สต็อกในคลัง</th>
                                 <th className="px-3.5 py-2.5 font-semibold text-right">สถานะการจ่าย</th>
                               </tr>
                             </thead>
@@ -1169,15 +1168,6 @@ export default function RemindersPage() {
                                     </td>
                                     <td className="px-3.5 py-2.5 text-center font-bold text-slate-900">
                                       {item.quantity}
-                                    </td>
-                                    <td className="px-3.5 py-2.5 text-center font-semibold">
-                                      {med ? (
-                                        <span className={currentStock < item.quantity ? 'text-rose-600 font-bold' : 'text-slate-700'}>
-                                          {currentStock}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400">-</span>
-                                      )}
                                     </td>
                                     <td className="px-3.5 py-2.5 text-right">
                                       {!med ? (
