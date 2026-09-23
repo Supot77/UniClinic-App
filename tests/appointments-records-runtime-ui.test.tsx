@@ -307,7 +307,7 @@ describe('Clinic database-backed role containers with injected offline repositor
 
     fireEvent.click(await screen.findByRole('button', { name: 'เริ่มตรวจ' }));
 
-    expect(await screen.findByRole('heading', { name: 'สัญญาณชีพ' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'การตรวจร่างกายเบื้องต้น' })).toBeInTheDocument();
     expect(screen.getByLabelText('ส่วนสูง (ซม.)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ถัดไป' })).toBeInTheDocument();
     expect((await repo.load()).appointments[0]).toMatchObject({ status: 'in_progress', has_record: false });
