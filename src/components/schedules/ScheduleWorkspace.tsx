@@ -263,7 +263,16 @@ export function getNextAvailableTimeSlot(
   };
 }
 
-export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; actorId: string }) {
+export default function ScheduleWorkspace({
+  role,
+  actorId,
+  canBook: canBookOverride,
+}: {
+  role: UserRole;
+  actorId: string;
+  canBook?: boolean;
+}) {
+  const canBook = canBookOverride ?? role === 'patient';
   const {
     departments,
     doctors,
@@ -1648,7 +1657,8 @@ export default function ScheduleWorkspace({ role, actorId }: { role: UserRole; a
             canCreate={role !== 'patient'}
             doctorLeaves={visibleDoctorLeaves}
             canCreateForDate={canCreateForDate}
-            canBook={role === 'patient'}
+            canBook={canBook}
+            loginToBook={!canBook && role === 'patient'}
             onCreate={openSlotForm}
             onEdit={openSlotForm}
             onToggle={toggleClosed}
@@ -1904,6 +1914,7 @@ function CalendarBoard({
   doctorLeaves = [],
   canCreateForDate = () => true,
   canBook = false,
+  loginToBook = false,
   canModifyLeave = false,
   onCreate,
   onEdit,
@@ -1923,6 +1934,7 @@ function CalendarBoard({
   doctorLeaves?: DoctorLeave[];
   canCreateForDate?: (date: string) => boolean;
   canBook?: boolean;
+  loginToBook?: boolean;
   canModifyLeave?: boolean;
   onCreate: (slot?: ScheduleSlot, suggestedDate?: string) => void;
   onEdit: (slot?: ScheduleSlot, suggestedDate?: string) => void;
@@ -1953,7 +1965,7 @@ function CalendarBoard({
                   onToggleClosed={() => onToggle(slot)}
                 />
               </div>
-              {canBook && slot.status !== 'closed' && (
+              {(canBook || loginToBook) && slot.status !== 'closed' && (
                 slot.status === 'full' || slot.bookedCount >= slot.maxCapacity ? (
                   <button
                     type="button"
@@ -1961,15 +1973,17 @@ function CalendarBoard({
                     aria-label="จองไม่ได้ รอบตรวจเต็มแล้ว"
                     className="inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-4 text-sm font-semibold text-slate-500"
                   >
-                    จอง (เต็มแล้ว)
+                    {canBook ? 'จอง (เต็มแล้ว)' : 'รอบตรวจเต็มแล้ว'}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </button>
                 ) : (
                 <Link
-                  href={{ pathname: '/appointments', query: { slotId: slot.id } }}
+                  href={canBook
+                    ? { pathname: '/appointments', query: { slotId: slot.id } }
+                    : { pathname: '/login', query: { redirect: `/appointments?slotId=${slot.id}` } }}
                   className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white shadow-xs hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-sky-600"
                 >
-                  จอง
+                  {canBook ? 'จอง' : 'เข้าสู่ระบบเพื่อจอง'}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 )
