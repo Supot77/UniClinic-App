@@ -451,6 +451,7 @@
 ### ขอบเขตและพฤติกรรม
 
 - `fetchLandingServices` อ่าน `is_active` จาก `/api/services` แล้ว map เป็น `isActive` ให้ตรงกับ UI; บริการที่เปิดใช้งานจึงผ่านตัวกรองบนหน้า Landing
+- แปลง `description: null` จาก API เป็น `''` เพราะ `ScheduleService.description` ต้องเป็น string; แก้ TypeScript error ที่พบใน Vercel build
 
 ### ไฟล์หลัก
 
@@ -459,4 +460,5 @@
 ### Verification
 
 - `git diff --check` — ตรวจหลังแก้ไข
-- Automated tests, typecheck และ browser QA — ไม่ได้รัน
+- `npx.cmd --no-install tsc --noEmit` — ผ่านหลังแก้ nullable description
+- Automated tests และ browser QA — ไม่ได้รัน
