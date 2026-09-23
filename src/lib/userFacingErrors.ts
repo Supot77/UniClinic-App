@@ -69,11 +69,11 @@ export function toNotificationErrorMessage(error: unknown, fallback: string): st
   const text = `${details.code} ${details.message}`;
 
   if (details.code === '42501' || includesAny(text, ['permission denied', 'not authorized', 'unauthorized'])) {
-    return 'คุณไม่มีสิทธิ์ทำรายการนี้';
+    return 'คุณไม่มีสิทธิ์ดำเนินการนี้';
   }
 
   if (isNetworkError(details)) {
-    return 'เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+    return 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
   }
 
   return fallback;

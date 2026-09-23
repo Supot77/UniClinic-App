@@ -14,12 +14,12 @@ describe('user-facing error messages', () => {
 
   it('maps a permission error without exposing provider details', () => {
     expect(toNotificationErrorMessage({ code: '42501', message: 'permission denied for table notifications' }, 'fallback'))
-      .toBe('คุณไม่มีสิทธิ์ทำรายการนี้');
+      .toBe('คุณไม่มีสิทธิ์ดำเนินการนี้');
   });
 
   it('maps a notification network error without exposing provider details', () => {
     expect(toNotificationErrorMessage(new Error('Failed to fetch'), 'fallback'))
-      .toBe('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+      .toBe('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
   });
 
   it('uses the operation-specific fallback for unknown notification errors', () => {

@@ -65,12 +65,12 @@ describe('Reminders Page - Prescription Order Cards', () => {
     // Verify the prescription table header is rendered
     expect(screen.getByText(/รายการยาตามใบสั่ง/)).toBeDefined();
 
-    // Verify 5 table column headers
+    // Verify 4 table column headers (สต็อกในคลัง has been removed)
     expect(screen.getByText('รายการยาและเวชภัณฑ์')).toBeDefined();
     expect(screen.getByText('ขนาดยาและวิธีใช้')).toBeDefined();
     expect(screen.getByText('จำนวนที่สั่ง')).toBeDefined();
-    expect(screen.getByText('สต็อกในคลัง')).toBeDefined();
     expect(screen.getByText('สถานะการจ่าย')).toBeDefined();
+    expect(screen.queryByText('สต็อกในคลัง')).toBeNull();
 
     // Verify doctor-prescribed medications are displayed
     expect(screen.getByText('Paracetamol 500mg')).toBeDefined();

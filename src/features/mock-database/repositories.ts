@@ -889,7 +889,7 @@ export function createClinicRepositories(
               range === 'today'
                 ? 'คิวที่เหลือ'
                 : 'คิวในช่วงที่เลือก',
-              'ยืนยันแล้วและกำลังตรวจ',
+              'นัดที่ยืนยันแล้วหรือกำลังตรวจ',
               '/appointments',
               'amber',
             ),
@@ -905,7 +905,7 @@ export function createClinicRepositories(
                 ? `นัดของฉัน${rangeSuffix}`
                 : `นัดหมาย${rangeSuffix}`,
               isDoctorActor
-                ? 'เฉพาะตารางแพทย์ที่เข้าสู่ระบบ'
+                ? 'ตารางและคิวของคุณ'
                 : 'ข้อมูลนัดที่บันทึกแล้ว',
               '/appointments',
               'blue',
@@ -922,10 +922,10 @@ export function createClinicRepositories(
                 ? range === 'today'
                   ? 'คิวของฉันที่เหลือ'
                   : 'คิวของฉันในช่วงที่เลือก'
-                : 'รอจ่ายยา',
+                : 'ใบสั่งยารอจ่าย',
               isDoctorActor
-                ? 'ยืนยันแล้วและกำลังตรวจ'
-                : 'ใบสั่งยาที่มีรายการยา',
+                ? 'นัดที่ยืนยันแล้วหรือกำลังตรวจ'
+                : 'ใบสั่งยาที่ต้องจ่าย',
               isDoctorActor
                 ? '/appointments'
                 : '/pharmacy',
@@ -952,8 +952,8 @@ export function createClinicRepositories(
                 ? `ตรวจเสร็จ${rangeSuffix}`
                 : 'ยาใกล้หมด',
               isDoctorActor
-                ? 'นับสถานะเสร็จสิ้น'
-                : 'สต๊อกต่ำกว่าหรือเท่าจุดสั่งซื้อ',
+                ? 'นัดที่ตรวจเสร็จแล้ว'
+                : 'ยาเหลือถึงจุดสั่งซื้อ',
               isDoctorActor
                 ? '/appointments'
                 : '/pharmacy',
@@ -966,7 +966,7 @@ export function createClinicRepositories(
               expired.length,
               'expired',
               'ยาหมดอายุ',
-              'แยกออกจากรายการยาใกล้หมด',
+              'แสดงแยกจากยาใกล้หมด',
               '/pharmacy',
               'violet',
             )]),
@@ -976,8 +976,8 @@ export function createClinicRepositories(
             metric(
               patientMedicationIds.size,
               'my-medications',
-              'ยาที่กำลังใช้',
-              'นับจากรายการเตือนยาที่ใช้งาน',
+              'ยาที่ใช้ตอนนี้',
+              'ยาที่มีการตั้งเตือน',
               '/reminders',
               'violet',
             ),
@@ -995,7 +995,7 @@ export function createClinicRepositories(
               unreadNotifications,
               'unread-notifications',
               'การแจ้งเตือน',
-              'ข้อความของบัญชีนี้ที่ยังไม่ได้อ่าน',
+              'ข้อความที่ยังไม่ได้อ่าน',
               '/notifications',
               'emerald',
             ),
@@ -1008,7 +1008,7 @@ export function createClinicRepositories(
         }> = [
           {
             status: 'pending',
-            label: 'รอยืนยัน',
+            label: 'รอการยืนยัน',
           },
           {
             status: 'confirmed',
@@ -1020,7 +1020,7 @@ export function createClinicRepositories(
           },
           {
             status: 'completed',
-            label: 'เสร็จสิ้น',
+            label: 'ตรวจเสร็จแล้ว',
           },
         ];
 
@@ -1142,7 +1142,7 @@ export function createClinicRepositories(
 
                   patientName:
                   formatProfileName(patient) ||
-                  'ไม่พบบัญชีผู้ป่วย',
+                  'ไม่พบข้อมูลผู้ป่วย',
 
                 doctorName:
                   formatProfileName(doctor) ||
@@ -1174,7 +1174,7 @@ export function createClinicRepositories(
                   date: slot?.slot_date ?? '',
                   startTime: slot?.start_time?.slice(0, 5) ?? '',
                   status: appointment.status,
-                  patientName: formatProfileName(patient) || 'ไม่พบบัญชีผู้ป่วย',
+                  patientName: formatProfileName(patient) || 'ไม่พบข้อมูลผู้ป่วย',
                   doctorName: formatProfileName(doctor) || 'ไม่พบแพทย์',
                   departmentName: department?.name ?? 'ไม่ระบุแผนก',
                 };
@@ -1218,7 +1218,7 @@ export function createClinicRepositories(
                   date: record.created_at,
                   doctorName: formatProfileName(tables.profiles.find((profile) => profile.id === record.doctor_id)) || 'ไม่พบแพทย์',
                   departmentName: doctorRecord?.department_id ? tables.departments.find((department) => department.id === doctorRecord.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
-                  summary: record.diagnosis || record.treatment_notes || 'ไม่มีสรุปการรักษา',
+                  summary: record.diagnosis || record.treatment_notes || 'ยังไม่มีสรุปการรักษา',
                   medicationCount: record.prescribed_medications?.length ?? 0,
                 };
               })
@@ -1239,7 +1239,7 @@ export function createClinicRepositories(
                     ? tables.departments.find((department) => department.id === doctorRecord.department_id)?.name ?? 'ไม่ระบุแผนก'
                     : 'ไม่ระบุแผนก',
                   date: record.created_at,
-                  diagnosis: record.diagnosis || record.treatment_notes || 'ไม่ได้ระบุอาการ',
+                  diagnosis: record.diagnosis || record.treatment_notes || 'ยังไม่ได้ระบุอาการ',
                   medicationCount: medications.length,
                   dispensedCount,
                 };
@@ -1258,20 +1258,20 @@ export function createClinicRepositories(
         > = {
           staff_admin: {
             title:
-              'ภาพรวมงานคลินิกและผู้ดูแลระบบ',
+              'ภาพรวมคลินิก',
 
             description:
-              'ติดตามนัดหมาย คิว แผนก และบัญชีของคลินิก',
+              'ดูนัดหมาย คิว แผนก และบัญชีผู้ใช้',
           },
 
           medical: {
             title:
-              'ภาพรวมงานแพทย์',
+              isDoctorActor ? 'ภาพรวมงานแพทย์' : 'ภาพรวมงานเภสัชกรรม',
 
             description:
               isDoctorActor
-                ? 'แสดงเฉพาะตารางและคิวของแพทย์ที่เข้าสู่ระบบ พร้อมข้อมูลยา'
-                : 'ติดตามงานจ่ายยาและสถานะคลังยา',
+                ? 'ดูตาราง คิว และรายการยาที่ต้องตรวจสอบ'
+                : 'ดูใบสั่งยารอจ่ายและสถานะคลังยา',
           },
 
           patient: {
@@ -1279,7 +1279,7 @@ export function createClinicRepositories(
               'ภาพรวมสุขภาพของฉัน',
 
             description:
-              'นัดหมาย ยา การเตือน และข้อความของบัญชีนี้เท่านั้น',
+              'ดูนัดหมาย ยา การเตือน และข้อความของคุณ',
           },
         };
 

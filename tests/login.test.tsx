@@ -1,15 +1,20 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import LoginPage from '@/app/(auth)/login/page';
 import * as authService from '@/services/authService';
 
 const routerState = vi.hoisted(() => ({
   push: vi.fn(),
+  replace: vi.fn(),
   refresh: vi.fn(),
 }));
 
 const searchParamsState = vi.hoisted(() => ({
   get: vi.fn().mockReturnValue(null),
+}));
+
+const authState = vi.hoisted(() => ({
+  isAuthenticated: false,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -21,9 +26,14 @@ vi.mock('@/services/authService', () => ({
   signIn: vi.fn(),
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => authState,
+}));
+
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.isAuthenticated = false;
   });
 
   it('renders login form properly', () => {
@@ -62,12 +72,12 @@ describe('LoginPage', () => {
 
     // Resolve sign in
     resolveSignIn({ user: { id: 'test-user' } });
+    authState.isAuthenticated = true;
 
-    // Expect redirect overlay and button text
     await waitFor(() => {
       expect(screen.getByText('เข้าสู่ระบบสำเร็จ')).toBeInTheDocument();
       expect(within(screen.getByRole('status')).getByText('กำลังเปิดหน้าถัดไป…')).toBeInTheDocument();
-      expect(routerState.push).toHaveBeenCalledWith('/profile');
+      expect(routerState.push).toHaveBeenCalledWith('/dashboard');
       expect(routerState.refresh).toHaveBeenCalled();
     });
   });

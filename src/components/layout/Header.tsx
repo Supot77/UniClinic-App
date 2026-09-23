@@ -224,7 +224,7 @@ export default function Header() {
           {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </button>
 
-        <Link href={isAuthenticated ? "/dashboard" : "/"} onClick={closeMobileMenu} className="flex shrink-0 items-center gap-2 rounded-brand-sm font-bold tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent">
+        <Link href="/" onClick={closeMobileMenu} className="flex shrink-0 items-center gap-2 rounded-brand-sm font-bold tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent">
           <span className="flex h-8 w-8 items-center justify-center rounded-brand-sm bg-brand-accent text-brand-ink" aria-hidden="true"><Hospital className="h-[18px] w-[18px]" /></span>
           <span className="text-[15px] sm:text-base">WU Clinic</span>
         </Link>
@@ -277,14 +277,14 @@ export default function Header() {
                   ? "แจ้งเตือน ดูประกาศจากผู้ดูแลระบบ"
                   : activeUnreadCount !== null && activeUnreadCount > 0
                   ? `แจ้งเตือน มี ${activeUnreadCount} รายการที่ยังไม่ได้อ่าน`
-                  : "แจ้งเตือน ไม่มีรายการค้างอ่าน"
+                  : "แจ้งเตือน ไม่มีรายการที่ยังไม่ได้อ่าน"
               }
               title={
                 isAdmin
                   ? "แจ้งเตือน (ประกาศจากผู้ดูแลระบบ)"
                   : activeUnreadCount !== null && activeUnreadCount > 0
                   ? `แจ้งเตือน (${activeUnreadCount} รายการที่ยังไม่ได้อ่าน)`
-                  : "แจ้งเตือน (ไม่มีรายการค้างอ่าน)"
+                  : "แจ้งเตือน (ไม่มีรายการที่ยังไม่ได้อ่าน)"
               }
               className="relative flex size-10 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
             >

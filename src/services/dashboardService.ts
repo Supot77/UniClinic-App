@@ -491,7 +491,7 @@ export async function getDashboardView(
   const actor = profiles.find((profile) => profile.id === actorId);
 
   if (!actor || actor.role !== role || actor.is_active === false) {
-    throw new Error('บัญชีที่เข้าสู่ระบบไม่มีสิทธิ์เปิด Dashboard ของบทบาทนี้');
+    throw new Error('บัญชีที่เข้าสู่ระบบไม่มีสิทธิ์เปิดแดชบอร์ดของบทบาทนี้');
   }
 
   const isDoctorActor = role === 'medical' && doctors.some((doctor) => doctor.id === actorId);
@@ -578,8 +578,9 @@ export async function getDashboardView(
     : role === 'patient'
       ? appointments.filter((appointment) => {
           if (!patientAppointmentStatuses.includes(appointment.status)) return false;
-          if (range !== 'today') return true;
           const slot = scopedSlots.find((candidate) => candidate.id === appointment.slot_id);
+          if (!slot || slot.slot_date < startDate || slot.slot_date > today) return false;
+          if (range !== 'today') return true;
           return isUpcomingToday(slot?.slot_date, slot?.start_time, today, currentBangkokTime);
         })
     : range === 'today'
@@ -645,21 +646,21 @@ export async function getDashboardView(
     ],
     medical: isDoctorActor
       ? [
-          metric(activeAppointments.length, 'own-appointments', `นัดของฉัน${rangeSuffix}`, 'เฉพาะตารางแพทย์ที่เข้าสู่ระบบ', '/appointments', 'blue'),
-          metric(queueRemaining, 'own-queue', range === 'today' ? 'คิวของฉันที่เหลือ' : 'คิวของฉันในช่วงที่เลือก', 'ยืนยันแล้วและกำลังตรวจ', '/appointments', 'amber'),
+          metric(activeAppointments.length, 'own-appointments', `นัดของฉัน${rangeSuffix}`, 'ตารางและคิวของคุณ', '/appointments', 'blue'),
+          metric(queueRemaining, 'own-queue', range === 'today' ? 'คิวของฉันที่เหลือ' : 'คิวของฉันในช่วงที่เลือก', 'นัดที่ยืนยันแล้วหรือกำลังตรวจ', '/appointments', 'amber'),
           metric(inProgressInRange, 'in-progress-in-range', `กำลังตรวจ${rangeSuffix}`, 'นัดหมายที่กำลังตรวจ', '/appointments', 'violet'),
-          metric(completedInRange, 'completed-in-range', `ตรวจเสร็จ${rangeSuffix}`, 'นับสถานะเสร็จสิ้น', '/appointments', 'emerald'),
+          metric(completedInRange, 'completed-in-range', `ตรวจเสร็จ${rangeSuffix}`, 'นัดที่ตรวจเสร็จแล้ว', '/appointments', 'emerald'),
         ]
       : [
           metric(activeAppointments.length, 'appointments-in-range', `นัดหมาย${rangeSuffix}`, 'ข้อมูลนัดที่บันทึกแล้ว', '/appointments', 'blue'),
-          metric(pendingDispensing, 'pending-dispensing', 'รอจ่ายยา', 'ใบสั่งยาที่มีรายการยา', '/pharmacy', 'amber'),
-          metric(lowStock.length, 'low-stock', 'ยาใกล้หมด', 'สต๊อกต่ำกว่าหรือเท่าจุดสั่งซื้อ', '/pharmacy', 'rose'),
-          metric(expired.length, 'expired', 'ยาหมดอายุ', 'แยกออกจากรายการยาใกล้หมด', '/pharmacy', 'violet'),
+          metric(pendingDispensing, 'pending-dispensing', 'ใบสั่งยารอจ่าย', 'ใบสั่งยาที่ต้องจ่าย', '/pharmacy', 'amber'),
+          metric(lowStock.length, 'low-stock', 'ยาใกล้หมด', 'ยาเหลือถึงจุดสั่งซื้อ', '/pharmacy', 'rose'),
+          metric(expired.length, 'expired', 'ยาหมดอายุ', 'แสดงแยกจากยาใกล้หมด', '/pharmacy', 'violet'),
     ],
     patient: [
-      metric(patientMedicationIds.size, 'my-medications', 'ยาที่กำลังใช้', 'นับจากรายการเตือนยาที่ใช้งาน', '/reminders', 'violet'),
+      metric(patientMedicationIds.size, 'my-medications', 'ยาที่ใช้ตอนนี้', 'ยาที่มีการตั้งเตือน', '/reminders', 'violet'),
       metric(upcomingPatientAppointmentCount, 'next-appointment', 'นัดหมายถัดไป', 'นัดหมายที่กำลังจะถึง', '/appointments', 'blue'),
-      metric(unreadNotifications, 'unread-notifications', 'การแจ้งเตือน', 'ข้อความของบัญชีนี้ที่ยังไม่ได้อ่าน', '/notifications', 'emerald'),
+      metric(unreadNotifications, 'unread-notifications', 'การแจ้งเตือน', 'ข้อความที่ยังไม่ได้อ่าน', '/notifications', 'emerald'),
     ],
   };
 
@@ -679,7 +680,7 @@ export async function getDashboardView(
         startTime: slot?.start_time?.slice(0, 5) ?? '',
         status: appointment.status,
         cancelRequestedAt: appointment.cancel_requested_at ?? null,
-        patientName: formatProfileName(profilesById.get(appointment.patient_id ?? appointment.user_id ?? '')) || 'ไม่พบบัญชีผู้ป่วย',
+        patientName: formatProfileName(profilesById.get(appointment.patient_id ?? appointment.user_id ?? '')) || 'ไม่พบข้อมูลผู้ป่วย',
         doctorName: slot ? formatProfileName(profilesById.get(slot.doctor_id)) || 'ไม่พบแพทย์' : 'ไม่พบแพทย์',
         departmentName: doctor?.department_id
           ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก'
@@ -700,15 +701,33 @@ export async function getDashboardView(
       ? patientAppointmentStatuses.includes(appointment.status)
       : activeAppointmentStatuses.includes(appointment.status))
     .map(mapAppointment);
-  const nextAppointment = [...mappedAppointmentQueue, ...mappedFutureAppointments]
+  const patientAppointments = Array.from(new Map(
+    [...mappedAppointmentQueue, ...mappedFutureAppointments].map((appointment) => [appointment.id, appointment]),
+  ).values());
+  const upcomingAppointments = patientAppointments
     .filter((appointment) => (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'in_progress')
       && isUpcomingAppointment(appointment.date, appointment.startTime, today, currentBangkokTime))
-    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))[0] ?? null;
-  const patientAppointmentQueue = [...mappedAppointmentQueue, ...mappedFutureAppointments]
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+  const nextAppointment = upcomingAppointments[0] ?? null;
+  const patientAppointmentQueue = [...patientAppointments]
     .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
   const appointmentQueue = role === 'patient'
     ? patientAppointmentQueue
     : mappedAppointmentQueue.sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`)).slice(0, 8);
+
+  const patientRangeAppointments = role === 'patient'
+    ? mappedAppointmentQueue.filter((appointment) => appointment.date >= startDate && appointment.date <= today)
+    : [];
+  const patientScheduledAppointments = patientRangeAppointments.filter((appointment) => appointment.status !== 'cancelled');
+  const patientCompletedAppointments = patientScheduledAppointments.filter((appointment) => appointment.status === 'completed').length;
+  const patientOverviewAppointments = role === 'patient'
+    ? {
+        total: patientScheduledAppointments.length,
+        completed: patientCompletedAppointments,
+        remaining: patientScheduledAppointments.length - patientCompletedAppointments,
+        cancelled: patientRangeAppointments.filter((appointment) => appointment.status === 'cancelled').length,
+      }
+    : undefined;
 
   const medicationById = new Map(medications.map((medication) => [medication.id, medication]));
   const patientMedications = role === 'patient'
@@ -741,6 +760,21 @@ export async function getDashboardView(
         };
       })
     : [];
+  const patientRangeMedicationLogs = role === 'patient'
+    ? medicationLogs.filter((log) => {
+        const logDate = toBangkokDate(log.scheduled_datetime);
+        return logDate >= startDate && logDate <= today;
+      })
+    : [];
+  const patientOverviewMedication = role === 'patient'
+    ? {
+        totalDoses: patientRangeMedicationLogs.length,
+        takenDoses: patientRangeMedicationLogs.filter((log) => log.status === 'taken').length,
+        pendingDoses: patientRangeMedicationLogs.filter((log) => log.status === 'pending').length,
+        missedDoses: patientRangeMedicationLogs.filter((log) => log.status === 'missed').length,
+        activeMedicationCount: patientMedicationIds.size,
+      }
+    : undefined;
   const patientTreatmentHistory = role === 'patient'
     ? medicalRecords
       .filter((record) => record.patient_id === actorId && (!record.appointment?.status || record.appointment.status === 'completed'))
@@ -751,7 +785,7 @@ export async function getDashboardView(
           date: record.created_at,
           doctorName: formatProfileName(profilesById.get(record.doctor_id)) || 'ไม่พบแพทย์',
           departmentName: doctor?.department_id ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
-          summary: record.diagnosis || record.treatment_notes || 'ไม่มีสรุปการรักษา',
+          summary: record.diagnosis || record.treatment_notes || 'ยังไม่มีสรุปการรักษา',
           advice: record.treatment_notes || '',
           medicationNames: (record.prescribed_medications ?? []).map((medication) => medication.name).filter(Boolean),
           medicationCount: record.prescribed_medications?.length ?? 0,
@@ -774,7 +808,7 @@ export async function getDashboardView(
             ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก'
             : 'ไม่ระบุแผนก',
           date: record.created_at,
-          diagnosis: record.diagnosis || record.treatment_notes || 'ไม่ได้ระบุอาการ',
+          diagnosis: record.diagnosis || record.treatment_notes || 'ยังไม่ได้ระบุอาการ',
           medicationCount: medications.length,
           dispensedCount,
         };
@@ -859,12 +893,12 @@ export async function getDashboardView(
       : ['pending', 'confirmed', 'in_progress', 'completed'];
 
   const copyByRole: Record<UserRole, { title: string; description: string }> = {
-    staff_admin: { title: 'ภาพรวมงานคลินิกของผู้ดูแลระบบ', description: 'ติดตามนัดหมาย คิว แผนก และบัญชีของคลินิก' },
+    staff_admin: { title: 'ภาพรวมคลินิก', description: 'ดูนัดหมาย คิว แผนก และบัญชีผู้ใช้' },
     medical: {
-      title: 'ภาพรวมงานแพทย์',
-      description: isDoctorActor ? 'แสดงเฉพาะตารางและคิวของแพทย์ที่เข้าสู่ระบบ พร้อมข้อมูลยาที่หควรตรวจสอบ' : 'ติดตามงานจ่ายยาและสถานะคลังยา',
+      title: isDoctorActor ? 'ภาพรวมงานแพทย์' : 'ภาพรวมงานเภสัชกรรม',
+      description: isDoctorActor ? 'ดูตาราง คิว และรายการยาที่ต้องตรวจสอบ' : 'ดูใบสั่งยารอจ่ายและสถานะคลังยา',
     },
-    patient: { title: 'ภาพรวมสุขภาพของฉัน', description: 'นัดหมาย ยา การเตือน และข้อความของบัญชีนี้เท่านั้น' },
+    patient: { title: 'ภาพรวมสุขภาพของฉัน', description: 'ดูนัดหมาย ยา การเตือน และข้อความของคุณ' },
   };
 
   return {
@@ -890,15 +924,19 @@ export async function getDashboardView(
     doctorGenderCounts: role === 'staff_admin' ? doctorGenderCounts : undefined,
     appointmentStatuses: appointmentStatusList.map((status) => ({
       status,
-      label: status === 'pending' ? 'รอยืนยัน' : status === 'confirmed' ? 'ยืนยันแล้ว' : status === 'in_progress' ? 'กำลังตรวจ' : status === 'completed' ? 'เสร็จสิ้น' : status === 'cancelled' ? 'ยกเลิก' : 'ไม่มาตามนัด',
+      label: status === 'pending' ? 'รอการยืนยัน' : status === 'confirmed' ? 'ยืนยันแล้ว' : status === 'in_progress' ? 'กำลังตรวจ' : status === 'completed' ? 'ตรวจเสร็จแล้ว' : status === 'cancelled' ? 'ยกเลิก' : 'ไม่มาตามนัด',
       count: statusAppointments.filter((appointment) => appointment.status === status).length,
     })),
     appointmentQueue,
     servedAppointmentCount: role === 'staff_admin' ? servedAppointmentCount : undefined,
     doctorStatuses,
     nextAppointment,
+    upcomingAppointments: role === 'patient' ? upcomingAppointments : undefined,
     patientMedications,
     patientTreatmentHistory,
+    patientOverview: role === 'patient' && patientOverviewAppointments && patientOverviewMedication
+      ? { appointments: patientOverviewAppointments, medication: patientOverviewMedication }
+      : undefined,
     departmentLoads,
     pendingPrescriptions,
     medicationAlerts: activeMedications

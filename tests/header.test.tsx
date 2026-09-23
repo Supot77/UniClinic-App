@@ -205,7 +205,7 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /Doctor Demo/ })).not.toBeInTheDocument();
   });
 
-  it("navigates to dashboard when authenticated and to home when guest on logo click", () => {
+  it("navigates to the public home page for guests and authenticated users on logo click", () => {
     const { unmount } = render(<Header />);
     expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/");
     unmount();
@@ -215,7 +215,7 @@ describe("Header", () => {
     authState.role = "patient";
 
     render(<Header />);
-    expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: /WU Clinic/ })).toHaveAttribute("href", "/");
   });
 
   it("renders an unread count badge with exact number when unread notifications exist", async () => {
