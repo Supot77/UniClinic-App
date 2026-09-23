@@ -35,6 +35,12 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByRole('heading', { level: 2, name: 'ผลตรวจของผู้ป่วยในความดูแล' })).toBeInTheDocument();
     expect(screen.getByText('โปรดตรวจสอบข้อมูลให้เรียบร้อยก่อนยืนยัน เนื่องจากหลังบันทึกแล้วจะแก้ไขไม่ได้')).toBeInTheDocument();
   });
+  it('shows the patient visit reason as read-only context under the queue selector', async () => {
+    render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
+
+    const reasonLabel = await screen.findByText('อาการหรือเหตุผลที่มาพบแพทย์:', { selector: 'span' });
+    expect(reasonLabel.parentElement).toHaveTextContent('ทดสอบ');
+  });
   it('gives the patient record page a clear empty state', async () => {
     render(<PatientRecordsPage repository={createClinicMockRepository(fixture('patient'))} />);
 
