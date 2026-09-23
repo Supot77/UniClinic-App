@@ -2,6 +2,25 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## แสดงอาการหรือเหตุผลที่มาพบแพทย์ในหน้าผลตรวจ — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- แสดง `appointment.reason` ใต้ตัวเลือกคิวในฟอร์มบันทึกผลตรวจแบบอ่านอย่างเดียว ด้วยสไตล์ muted เพื่อให้แพทย์เห็นบริบทของผู้ป่วยโดยไม่แย่งความเด่นจากฟอร์ม
+- แสดง `ไม่ได้ระบุ` เมื่อข้อมูลอาการหรือเหตุผลไม่มีค่า โดยไม่เปลี่ยน data contract หรือการบันทึกข้อมูล
+
+### ไฟล์หลัก
+
+- `src/features/medical-records.tsx`
+- `tests/appointments-records-runtime-ui.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/appointments-records-runtime-ui.test.tsx`: ผ่าน 1 file / 30 tests
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- `git diff --check`: ผ่าน
+- Browser QA และ database/RLS: ไม่ได้ตรวจในรอบนี้
+
 ## ถอด Mock/Demo ออกจาก Runtime และอนุญาตทำงานบน develop — 23 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
