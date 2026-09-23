@@ -17,7 +17,7 @@ export async function fetchLandingServices(): Promise<ScheduleService[]> {
     id: row.id,
     code: row.code,
     name: row.name,
-    description: row.description,
+    description: row.description ?? '',
     isActive: row.is_active,
     hasHistory: true, // always true for landing page; history is not relevant for public catalog
   }));
