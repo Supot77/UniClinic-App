@@ -1,6 +1,7 @@
 import { requireApiAuth } from '../../_lib/auth';
 import { errorResponse, isResponse, parseDate, parsePositiveInt, parseUuid, readJson } from '../../_lib/http';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
 
 type SlotInput = {
   doctorId?: string; doctor_id?: string; serviceId?: string; service_id?: string;
@@ -47,8 +48,8 @@ async function validateDoctorAndService(supabase: SupabaseClient, doctorId: stri
 }
 
 export async function GET(request: Request) {
-  const auth = await requireApiAuth();
-  if (!auth.ok) return auth.response;
+  let supabase;
+  try { supabase = await createClient(); } catch (error) { return errorResponse(error, 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า Supabase'); }
   const url = new URL(request.url);
   const doctorId = url.searchParams.get('doctorId');
   const date = url.searchParams.get('date');
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
   if (doctorId && !parseUuid(doctorId)) return Response.json({ error: 'รหัสแพทย์ไม่ถูกต้อง' }, { status: 400 });
   if (serviceId && !parseUuid(serviceId)) return Response.json({ error: 'รหัสบริการไม่ถูกต้อง' }, { status: 400 });
   if (date && !parseDate(date)) return Response.json({ error: 'วันที่ไม่ถูกต้อง' }, { status: 400 });
-  let query = auth.supabase.from('appointment_slots').select('*, offering:daily_service_offerings(service_id, offering_date, is_active), doctor:doctors(id, profile:profiles(id, title, first_name, last_name), department:departments(id, name))').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
+  let query = supabase.from('appointment_slots').select('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, booked_count, status, offering:daily_service_offerings(service_id, offering_date, is_active)').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
   if (doctorId) query = query.eq('doctor_id', doctorId);
   if (date) query = query.eq('slot_date', date);
   if (serviceId) query = query.eq('daily_service_offerings.service_id', serviceId);

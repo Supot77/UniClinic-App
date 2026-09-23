@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import MedicationRemindersPage from '@/app/(patient)/reminders/page';
 
 const mockPush = vi.fn();
@@ -53,7 +53,7 @@ describe('Reminders Page - Prescription Order Cards', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the prescription order card with "แจ้งกินยา" badge at the top right', async () => {
+  it('renders the prescription order card with "แจ้งกินยา" badge and without toggle switch or status tabs', async () => {
     render(<MedicationRemindersPage />);
 
     // Verify top-right badge is "แจ้งกินยา"
@@ -61,6 +61,18 @@ describe('Reminders Page - Prescription Order Cards', () => {
       const badges = screen.getAllByText('แจ้งกินยา');
       expect(badges.length).toBeGreaterThan(0);
     });
+
+    // Verify toggle switch has been removed from the prescription card
+    expect(screen.queryByRole('button', { name: 'เปิด/ปิดการแจ้งเตือนยา' })).toBeNull();
+
+    // Verify status tabs have been removed: ทั้งหมด, เปิดเตือน, ปิดแจ้งเตือน
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('tab', { name: /ทั้งหมด/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /เปิดเตือน/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /ปิดแจ้งเตือน/ })).toBeNull();
+
+    // Verify search input has been removed
+    expect(screen.queryByLabelText('ค้นหารายการยา')).toBeNull();
 
     // Verify the prescription table header is rendered
     expect(screen.getByText(/รายการยาตามใบสั่ง/)).toBeDefined();
@@ -75,9 +87,20 @@ describe('Reminders Page - Prescription Order Cards', () => {
     // Verify doctor-prescribed medications are displayed
     expect(screen.getByText('Paracetamol 500mg')).toBeDefined();
     expect(screen.getByText('Amoxicillin 500mg')).toBeDefined();
+  });
 
-    // Verify footer status has been removed
-    expect(screen.queryByText('จ่ายยาครบถ้วนแล้ว')).toBeNull();
-    expect(screen.queryByText(/ตัดจ่ายแล้วเมื่อ/)).toBeNull();
+  it('renders patient meta info with order count badge and doctor info', async () => {
+    render(<MedicationRemindersPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paracetamol 500mg')).toBeDefined();
+    });
+
+    // Verify order count badge
+    expect(screen.getByText('ใบสั่งยา 1 รายการ')).toBeDefined();
+
+    // Verify doctor name
+    expect(screen.getByText(/สมชาย ใจดี/)).toBeDefined();
   });
 });
+

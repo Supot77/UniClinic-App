@@ -398,3 +398,93 @@
 - `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
 - `npm.cmd run lint` — ไม่ผ่านจาก 3 errors เดิมใน `src/app/(patient)/reminders/page.tsx` และ `src/components/dashboard/DashboardScreen.tsx`; changed file ไม่พบ lint error และมี warnings เดิม 10 รายการในไฟล์อื่น
 - Automated tests และ browser QA — ไม่รัน; งานนี้เป็น syntax-only และไม่เปลี่ยน behavior
+
+# ปรับปลายทางโลโก้ Header ตาม role — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เมื่อเข้าสู่ระบบแล้ว การกดโลโก้ WU Clinic ใน Header ไปยัง dashboard ของ role ปัจจุบัน (`patient`, `medical`, `staff_admin`) จากทุกหน้า
+- ผู้ใช้ที่ยังไม่เข้าสู่ระบบยังกดโลโก้กลับหน้าแรก `/`
+
+### ไฟล์หลัก
+
+- `src/components/layout/Header.tsx`
+- `tests/header.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/header.test.tsx` — ผ่าน 1 file / 15 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA — ไม่ได้ตรวจในรอบนี้
+
+# เปิดตารางแพทย์ให้ guest ดูแบบ read-only — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ผู้ใช้ที่ยังไม่เข้าสู่ระบบดูรายชื่อแพทย์ที่เปิดใช้งาน บริการ และรอบตรวจที่เปิดให้บริการได้
+- รอบว่างแสดงทางเข้าสู่ระบบเพื่อจองและพากลับไปยัง slot ที่เลือก; guest ไม่มีลิงก์สร้างนัดหมาย
+- คง guard ของการสร้างนัดหมายและคำสั่งเขียนไว้เหมือนเดิม; account options และเหตุผลวันลายังไม่เปิดเผยแก่ guest
+- ใช้ public-read RLS policies เดิม; ไม่มี migration ใหม่ และยังไม่ได้ตรวจ RLS บนฐานจริง
+
+### ไฟล์หลัก
+
+- `src/app/(clinic)/schedules/page.tsx`
+- `src/app/api/doctors/route.ts`
+- `src/app/api/schedules/offerings/route.ts`
+- `src/app/api/schedules/slots/route.ts`
+- `src/components/schedules/ScheduleWorkspace.tsx`
+- `src/features/scheduling/data/apiRepository.ts`
+- `tests/api-route-handlers.test.ts`
+- `tests/schedule-workspace-department-filter.test.tsx`
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/api-route-handlers.test.ts tests/schedule-workspace-department-filter.test.tsx tests/header.test.tsx` — ผ่าน 3 files / 56 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint สำหรับไฟล์ที่เปลี่ยน — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA และ live DB/RLS — ไม่ได้ตรวจในรอบนี้
+
+# แก้การ map บริการบน Landing — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `fetchLandingServices` อ่าน `is_active` จาก `/api/services` แล้ว map เป็น `isActive` ให้ตรงกับ UI; บริการที่เปิดใช้งานจึงผ่านตัวกรองบนหน้า Landing
+- แปลง `description: null` จาก API เป็น `''` เพราะ `ScheduleService.description` ต้องเป็น string; แก้ TypeScript error ที่พบใน Vercel build
+
+### ไฟล์หลัก
+
+- `src/services/landingService.ts`
+
+### Verification
+
+- `git diff --check` — ตรวจหลังแก้ไข
+- `npx.cmd --no-install tsc --noEmit` — ผ่านหลังแก้ nullable description
+- Automated tests และ browser QA — ไม่ได้รัน
+
+# แยก component ตารางตรวจ — 23 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- แยก UI ของ dialog จัดการรอบเดี่ยว, รอบหลายวัน, วันลา และบริการ ออกจาก `ScheduleWorkspace`
+- แยก header actions, ตัวกรอง/ตัวควบคุมปฏิทิน และ renderer ปฏิทินวัน/สัปดาห์/เดือนเป็น component เฉพาะ
+- คง state orchestration, callbacks, validation, role checks และ data access ไว้ใน flow เดิม; ไม่เปลี่ยน UI behavior หรือ permission
+- `ScheduleWorkspace.tsx` ลดจาก 2,142 เป็น 983 บรรทัด
+
+### ไฟล์หลัก
+
+- `src/components/schedules/ScheduleWorkspace.tsx`
+- `src/components/schedules/BatchScheduleDialog.tsx`
+- `src/components/schedules/DoctorLeaveDialog.tsx`
+- `src/components/schedules/SlotEditorDialog.tsx`
+- `src/components/schedules/ServiceDialog.tsx`
+- `src/components/schedules/ScheduleWorkspaceToolbar.tsx`
+- `src/components/schedules/ScheduleCalendar.tsx`
+
+### Verification
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint ทั้ง 7 ไฟล์ — ผ่าน ไม่มี warnings
+- `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
+- Automated tests และ browser QA — ไม่ได้รัน

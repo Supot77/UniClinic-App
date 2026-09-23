@@ -39,7 +39,7 @@ export class ApiSchedulingRepository {
   }
 
   async fetchDailyServiceOfferings(): Promise<DailyServiceOffering[]> {
-    const rows = await apiClient<Array<{ id: string; service_id: string; doctor_id: string; offering_date: string; is_active: boolean; created_by: string | null }>>('/api/schedules/offerings');
+    const rows = await apiClient<Array<{ id: string; service_id: string; doctor_id: string; offering_date: string; is_active: boolean; created_by?: string | null }>>('/api/schedules/offerings');
     return rows.map((row) => ({ id: row.id, serviceId: row.service_id, doctorId: row.doctor_id, offeringDate: row.offering_date, isActive: row.is_active, createdBy: row.created_by ?? undefined }));
   }
 
@@ -53,11 +53,16 @@ export class ApiSchedulingRepository {
   }
 
   async fetchDoctorAccounts(): Promise<DoctorAccountOption[]> {
-    const rows = await apiClient<Array<{ profileId: string; fullName: string; email: string }>>('/api/doctors/accounts');
-    return rows.map((row) => {
-      const fullName = row.fullName?.trim() || 'ไม่ระบุชื่อ';
-      return { profileId: row.profileId, fullName, email: row.email ?? '', initials: initials(fullName, 'MD') };
-    });
+    try {
+      const rows = await apiClient<Array<{ profileId: string; fullName: string; email: string }>>('/api/doctors/accounts');
+      return rows.map((row) => {
+        const fullName = row.fullName?.trim() || 'ไม่ระบุชื่อ';
+        return { profileId: row.profileId, fullName, email: row.email ?? '', initials: initials(fullName, 'MD') };
+      });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return [];
+      throw error;
+    }
   }
 
   async fetchDoctorLeaves(): Promise<DoctorLeave[]> {
@@ -65,7 +70,7 @@ export class ApiSchedulingRepository {
     try {
       rows = await apiClient<ApiLeave[]>('/api/doctors/leaves');
     } catch (error) {
-      if (error instanceof ApiError && error.status === 403) return [];
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return [];
       throw error;
     }
     return rows.map((row) => ({ id: row.id, doctorId: row.doctor_id, startDate: row.start_date, endDate: row.end_date, reason: row.reason ?? undefined, createdBy: row.created_by ?? undefined, createdAt: row.created_at ?? undefined }));
