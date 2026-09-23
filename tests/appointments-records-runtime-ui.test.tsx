@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AppointmentPage from '@/features/appointments';
 import { MedicalRecordsPage, PatientRecordsPage } from '@/features/medical-records';
-import { createClinicMockRepository, type ClinicRepository } from '@/features/clinic-care';
+import { type ClinicRepository } from '@/features/clinic-care';
+import { createClinicMockRepository } from './clinic-care-mock-repository';
 import { fixture, slotId, withAppointment } from './clinic-care-fixtures';
 
 describe('Clinic database-backed role containers with injected offline repository', () => {

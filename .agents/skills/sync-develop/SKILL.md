@@ -10,7 +10,7 @@ Skill สำหรับซิงค์อัปเดตล่าสุดจ�
 ## หลักการสำคัญ (Repository Rules)
 
 1. **ไม่ทำลายงานเดิม**: ตรวจ `git status` ก่อนเสมอ หากมี uncommitted changes ค้างอยู่ ต้องไม่ overwrite หรือ discard โดยพลการ
-2. **ห้ามทำงานตรงบน main/develop**: ต้องทำบน feature branch ของตนเองเท่านั้น (`feat/<module>-<summary>`)
+2. ใช้ skill นี้เฉพาะบน feature branch; ห้ามทำงานบน `main`. หากผู้ใช้สั่งให้ทำงานบน `develop` ให้คง branch ปัจจุบันและข้ามการ sync/merge
 3. **หยุดทันทีเมื่อเกิด Conflict**: หากเกิด merge conflict ให้หยุดทันที รักษางานเดิม และรายงานไฟล์ที่ชนกันให้ผู้ใช้ทราบเพื่อประสานเจ้าของโมดูล
 4. **ต้องตรวจ Quality Gates**: หลัง merge สำเร็จ ต้องรัน typecheck และ test เพื่อยืนยันว่าโค้ดที่รวมมาไม่ทำให้ระบบพัง
 
@@ -24,7 +24,7 @@ Skill สำหรับซิงค์อัปเดตล่าสุดจ�
 git status
 ```
 - **เงื่อนไขตรวจสอบ**:
-  - ตรวจสอบชื่อ branch ปัจจุบัน: หากอยู่ที่ `main` หรือ `develop` ให้แจ้งเตือนผู้ใช้ทันทีว่าควรสลับไปยัง feature branch ก่อน
+  - ตรวจสอบชื่อ branch ปัจจุบัน: หากอยู่บน `develop` และผู้ใช้กำหนดให้ทำงานตรง branch นี้ ให้หยุดขั้นตอน sync แล้วทำงานบน `develop` โดยไม่เปลี่ยน branch; หากอยู่บน `main` ให้หยุดและแจ้งผู้ใช้
   - หาก working tree **ไม่สะอาด** (มี modified/untracked files ที่ยังไม่ commit): หยุดและแจ้งผู้ใช้ให้ commit หรือ stash ก่อนซิงค์
 
 ### 2. Fetch origin develop

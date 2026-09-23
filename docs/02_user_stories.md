@@ -1,6 +1,6 @@
 # 02. Requirements และ User Stories
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — เพิ่ม interaction แก้ไข/ยกเลิกวันลาจากปฏิทินตาม D28 และผล reverse-engineer ล่าสุด; ยังไม่ใช่หลักฐานว่า migration ถูก deploy หรือระบบผ่านการตรวจรับแล้ว
+ปรับปรุง 23 กันยายน 2569 (2026-09-23) — ปรับ as-built ให้ตรงกับ runtime ที่ไม่มี mock fallback; ยังไม่ใช่หลักฐานว่า migration ถูก deploy หรือระบบผ่านการตรวจรับแล้ว
 
 Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.md); ใช้ตาราง as-built ด้านล่างเพื่ออธิบาย behavior จาก code และไม่ใช้ story target แทนหลักฐาน runtime
 
@@ -19,11 +19,11 @@ Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.
 ส่วนนี้บอกสิ่งที่พบในโค้ดปัจจุบัน แยกจาก user story เป้าหมายด้านล่าง:
 
 - นัดหมายที่ route `/appointments` ใช้ PAI runtime และ Supabase RPC (`pai_workspace`, `pai_book_appointment`, `pai_transition_appointment`, `pai_save_record`) เมื่อมี session จริง; ไม่พบการเลื่อนนัดใน route นี้
-- ตาราง schedule รองรับ `service → daily offering → slot` และการกรองตามบริการ/แพทย์/วัน แต่ `SchedulingProvider` ยังมี mock composition และบางคำสั่ง weekly schedule ใช้ mock จึงยังสรุปว่า database runtime ครบไม่ได้
+- ตาราง schedule รองรับ `service → daily offering → slot` และการกรองตามบริการ/แพทย์/วัน; `SchedulingProvider` ใช้ API runtime ไม่มี mock fallback แต่ weekly schedule/templates ยังไม่มี Route Handler และยังไม่บันทึกผ่านฐานจริง
 - `appointments`/`medical_records` เดิมเป็น schema legacy; runtime ปัจจุบันรวมอยู่ใน `appointments.tsx`, `medical-records.tsx` และ `clinic-care.tsx`
-- หน้า pharmacy เป็นเส้นทางแยกที่อ่าน Supabase ตรงและมี mock/local-storage fallback; PAI บันทึกเฉพาะรายการยาที่สั่งในผลตรวจ ยังไม่ใช่หลักฐานว่า dispense เชื่อมกับนัดแบบ end-to-end
-- หน้า reminders รองรับ CRUD, pause/resume และ medication log ผ่าน service พร้อม fallback mock บางกรณี ซึ่งเกิน/ไม่ตรงกับ target manual ที่ตัด pause และ automation ออก
-- Dashboard ใช้ mock dashboard repository สำหรับ metric บางส่วน ส่วน notifications/Broadcast ใช้ Supabase service/RPC; ต้องแยกผลตรวจจาก runtime จริงเมื่อทดสอบ deployment
+- หน้า pharmacy อ่าน/เขียนผ่าน medication API; PAI บันทึกเฉพาะรายการยาที่สั่งในผลตรวจ ยังไม่ใช่หลักฐานว่า dispense เชื่อมกับนัดแบบ end-to-end
+- หน้า reminders ใช้ reminder/medication API และไม่มี mock fallback; sample reminder seeder ถูกถอด แต่ behavior บางส่วนยังไม่ตรง target manual D22
+- Dashboard และ notifications/Broadcast ใช้ Supabase client/API/RPC; deployment และ RLS ต้องตรวจแยก
 
 ## ฟีม — สมาชิกและโปรไฟล์
 
@@ -63,7 +63,7 @@ Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.
 
 ## กัญจน์ — คลังและการจ่าย
 
-- `medical` ในหน้าที่เภสัชกรเพิ่ม/แก้/ระงับยา รับเข้า/ปรับยอด ดูวันหมดอายุและประวัติคลัง; `medical` ในหน้าที่แพทย์อ่านสต๊อกได้แต่ไม่แก้ยอด (เป็น target story; เส้นทาง pharmacy ปัจจุบันยังมี mock/local-storage fallback)
+- `medical` ในหน้าที่เภสัชกรเพิ่ม/แก้/ระงับยา รับเข้า/ปรับยอด ดูวันหมดอายุและประวัติคลัง; `medical` ในหน้าที่แพทย์อ่านสต๊อกได้แต่ไม่แก้ยอด (เป็น target story; เส้นทาง runtime ใช้ API แต่ยังต้องตรวจ permission/DB จริง)
 - `medical` ในหน้าที่เภสัชกรดูชื่อ ประวัติแพ้ยา ใบสั่งและประวัติจ่าย โดยไม่เห็นวินิจฉัย
 - `medical` ตรวจ stock และจ่ายเต็มตามจำนวนที่สั่งในครั้งเดียว
 - หากยาไม่พอ `medical` ปฏิเสธการจ่ายและบันทึกเหตุผล ไม่มีแบ่งจ่าย กันยา หรือยาค้าง
@@ -110,8 +110,8 @@ Owner trace ล่าสุดอยู่ที่ [docs/owners](owners/README.
 | Story | เส้นทางที่พบ | สถานะจากหลักฐานใน repository |
 | --- | --- | --- |
 | สมาชิก/โปรไฟล์ | `authService`, auth pages, `profiles` | มีโค้ด Supabase; ต้องตรวจ session/RLS จริง |
-| แผนก/ตาราง | `ScheduleWorkspace`/`DepartmentWorkspace`/`DepartmentDetailWorkspace` → `SchedulingProvider` → mock หรือ `DatabaseSchedulingRepository` | มี route `/departments/[departmentId]`, ชิปวันลา edit/cancel และทั้งสอง adapter; ยังไม่ยืนยันว่า production ใช้ DB ครบทุกคำสั่ง |
+| แผนก/ตาราง | `ScheduleWorkspace`/`DepartmentWorkspace`/`DepartmentDetailWorkspace` → `SchedulingProvider` → `ApiSchedulingRepository` | มี route `/departments/[departmentId]`, ชิปวันลา edit/cancel และ API-backed CRUD; weekly schedule/templates ยังไม่มี API; DB/RLS ยังไม่ยืนยัน |
 | นัด/ผลตรวจ | `appointments.tsx`/`medical-records.tsx` → `clinic-care.tsx` → `pai_*` RPC | active route; ไม่มี reschedule ใน route หลัก |
-| คลัง/การจ่าย | `/pharmacy`, `medicationService`, mock/local storage | เส้นทางแยก; ยังไม่เชื่อม dispense กับ PAI appointment แบบครบวงจร |
-| รายการเตือน | `/reminders`, `reminderService`, mock fallback | มี CRUD/log/pause-resume; ไม่ตรง target D22 บางส่วน |
-| ข้อความ/Dashboard | `dashboardService`, `DashboardScreen`, mock dashboard repository | Broadcast/notification แยกจาก metric dashboard; ต้องตรวจฐานจริง |
+| คลัง/การจ่าย | `/pharmacy`, `medicationService` → medication API | เส้นทางแยก; ยังไม่เชื่อม dispense กับ PAI appointment แบบครบวงจร |
+| รายการเตือน | `/reminders`, `reminderService` → reminder API | มี CRUD/log/pause-resume; ไม่ตรง target D22 บางส่วน |
+| ข้อความ/Dashboard | `dashboardService`, `DashboardScreen`, Supabase client/RPC | Broadcast/notification แยกตาม service; ต้องตรวจฐานจริง |

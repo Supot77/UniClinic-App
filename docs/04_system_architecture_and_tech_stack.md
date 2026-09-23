@@ -1,6 +1,6 @@
 # 04. สถาปัตยกรรมและจุดเชื่อมระบบ
 
-ปรับปรุง 20 กันยายน 2569 (2026-09-20) — target architecture ตาม scope manual และหมายเหตุ as-built จาก code path; ยังไม่ใช่หลักฐานว่าโค้ดหรือฐานข้อมูลทำครบแล้ว
+ปรับปรุง 23 กันยายน 2569 (2026-09-23) — target architecture และ runtime boundary หลังถอด mock/demo fallback; ยังไม่ใช่หลักฐาน DB/RLS acceptance
 
 package.json เป็นแหล่งอ้างอิงเวอร์ชันจริงของ Next.js, React, TypeScript, Tailwind CSS, Supabase และ Vitest ห้ามยึดเอกสารเวอร์ชันเก่าแทน package ที่ติดตั้งจริง
 
@@ -8,7 +8,7 @@ Role contract กลางมี 3 ค่าเท่านั้น: `patient`,
 
 ## หมายเหตุจากการ reverse-engineer
 
-เอกสารนี้ยังเป็น target architecture; จาก code path ปัจจุบัน route นัดหมาย/ผลตรวจใช้ PAI database repository และ RPC ตามที่ออกแบบ แต่ schedule บางคำสั่ง, dashboard metric, reminders และ pharmacy ยังมี mock/direct-service/local-storage path. ให้ใช้ [02](02_user_stories.md), [03](03_database_design_and_er.md) และ [11](11_functional_requirements.md) เป็นตาราง as-built gap และอย่าอ้างส่วน target ด้านล่างเป็นหลักฐานว่า runtime ทุกโมดูลใช้ DB จริงแล้ว
+เอกสารนี้ยังเป็น target architecture; code path ของ runtime ใช้ Supabase ผ่าน API/repository และไม่มี mock data fallback ในแอป. Scheduling โหลด/เขียนผ่าน Route Handlers ที่มีอยู่; ตารางประจำสัปดาห์และแม่แบบยังไม่มี Route Handler จึงไม่บันทึกข้อมูลจนกว่าจะพัฒนา contract จริง. ข้อความนี้ไม่ยืนยัน deployment หรือ DB/RLS acceptance
 
 งาน UI ที่ยังต้องเก็บรายละเอียดในรอบนี้อยู่ที่ Scheduling และ Herb dashboard; การมี component หรือ route แล้วไม่ปิด browser QA จนกว่าจะมีหลักฐานตาม [owner views](owners/README.md)
 
@@ -18,7 +18,7 @@ Role contract กลางมี 3 ค่าเท่านั้น: `patient`,
 - role-specific pages/containers: แยก data loader, action และ permission boundary เมื่อ role เห็นข้อมูลหรือทำคำสั่งต่างกัน
 - services/hooks: เรียกข้อมูลและคำสั่งผ่าน repository contract
 - database repository: implementation หลักของ runtime เชื่อม Supabase ด้วย session ของผู้ใช้และ RLS/RPC
-- mock repository: implementation สำหรับ automated tests และ offline demo ต้อง deterministic และใช้ contract เดียวกับ database repository
+- mock repository: implementation สำหรับ automated tests เท่านั้น ต้อง deterministic และใช้ contract เดียวกับ database repository; ห้ามต่อเข้า production runtime
 - ไม่มี worker, cron, queue, email provider, Web Push หรือการเปลี่ยนสถานะตามเวลา
 
 ## หลักการธุรกรรมและสิทธิ์

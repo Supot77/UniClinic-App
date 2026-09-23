@@ -17,7 +17,7 @@
 
 ## งานค้าง/ข้อจำกัด
 
-- Dashboard metric บางส่วนยังใช้ mock repository ตาม as-built note
+- Dashboard service อ่านข้อมูลผ่าน Supabase client; deployment และ session-based RLS ยังไม่ยืนยัน
 - Notifications ยังไม่ปรับ behavior เพิ่มในรอบนี้ เพราะ function path ปัจจุบันมี inbox/filter/read/delete และ Broadcast history แล้ว
 - ยังไม่ยืนยัน Broadcast RPC/RLS บนฐาน development/staging
 - DB snapshot พบ Broadcast RPC และตาราง `broadcasts` แต่ไม่พบ `broadcast_recipients`; repository migration `05_simplify_broadcast_recipients.sql` ระบุว่าตั้งใจยุบ recipient snapshot ลง `notifications.broadcast_id` และ unique `(broadcast_id, user_id)`. ผู้ใช้ยืนยันให้ใช้ design นี้ต่อไป; เหลือตรวจ session/RLS จริง

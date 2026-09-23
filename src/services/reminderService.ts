@@ -40,43 +40,6 @@ export async function deleteReminder(id: string) {
   await apiClient(`/api/reminders/${id}`, { method: 'DELETE' });
 }
 
-export async function seedSampleReminders(userId: string): Promise<MedicationReminderWithMedication[]> {
-  const meds = await getAvailableMedications();
-  if (!meds || meds.length === 0) return [];
-
-  const sampleItems = [
-    { medName: 'Paracetamol', times: ['08:00', '12:00', '18:00'] },
-    { medName: 'Amoxicillin', times: ['08:00', '13:00', '20:00'] },
-    { medName: 'Omeprazole', times: ['07:30'] },
-    { medName: 'Cetirizine', times: ['21:00'] },
-  ];
-
-  const now = new Date();
-  const startDate = now.toISOString().split('T')[0];
-  const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-  const toInsert = sampleItems
-    .map((sample) => {
-      const match = meds.find((m) => m.name.toLowerCase().includes(sample.medName.toLowerCase()));
-      if (!match) return null;
-      return {
-        user_id: userId,
-        medication_id: match.id,
-        reminder_times: sample.times,
-        start_date: startDate,
-        end_date: endDate,
-        status: 'active',
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-  if (toInsert.length === 0) return [];
-
-  const created: MedicationReminderWithMedication[] = [];
-  for (const item of toInsert) created.push(await createReminder(item));
-  return created;
-}
-
 export async function pauseReminder(id: string) {
   return updateReminder(id, { status: 'paused' });
 }

@@ -12,7 +12,7 @@
 - `/records` ตรวจ role ที่ server; เฉพาะผู้ป่วยและแพทย์ เจ้าหน้าที่ไม่เปิด diagnosis
 - `src/features/appointments.tsx` เป็นหน้า appointment และ role containers ของ patient/medical/staff_admin
 - `src/features/medical-records.tsx` เป็นหน้าผลตรวจสำหรับ patient/medical
-- `src/features/clinic-care.tsx` รวม contract, database/mock repository, hook และ shared UI; mock ใช้เฉพาะ test/offline ไม่ import ใน production
+- `src/features/clinic-care.tsx` รวม contract, database/API repository, hook และ shared UI; test repository แยกอยู่ใน `tests/clinic-care-mock-repository.ts`
 - ไม่มี preview workspace หรือ adapter ซ้ำในเส้นทาง runtime
 
 ผู้ป่วยเลือกรอบจากตารางเดิม กรอกเหตุผลและจองเป็น pending มีเลขคิวรายรอบ ปฏิเสธรอบเต็ม/ปิด/เริ่มแล้ว/แพทย์หรือแผนกไม่ active และจองซ้ำ ผู้ป่วยส่งคำขอยกเลิกได้ โดยยังไม่เปลี่ยนสถานะหรือคืนความจุจนเจ้าหน้าที่กดยกเลิก

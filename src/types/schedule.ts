@@ -11,12 +11,10 @@ export interface ScheduleItem {
 
 
 /**
- * View models for Scheduling's mock-first UI.
+ * View models consumed by Scheduling UI.
  *
- * INTEGRATION: Keep presentation-only fields (code, room, tone, initials)
- * outside the shared database interfaces. When Supabase is connected,
- * scheduleService should map Department/Doctor/AppointmentSlot rows into
- * these shapes so the UI components do not need to know where data came from.
+ * Keep presentation-only fields (code, room, tone, initials) outside the shared
+ * database interfaces. The API repository maps database rows into these shapes.
  */
 
 export type DepartmentTone = 'sky' | 'teal' | 'amber' | 'violet';

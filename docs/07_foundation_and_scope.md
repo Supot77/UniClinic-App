@@ -21,7 +21,7 @@
 
 ## สถานะ implementation
 
-Design spec และ migration รุ่นเก่ายังเป็นข้อมูลอ้างอิงทางประวัติศาสตร์ ให้ใช้ data contract และลำดับ migration ปัจจุบันใน [03](03_database_design_and_er.md) Runtime เป้าหมายเป็น Supabase database repository; mock เหลือสำหรับ tests/offline demo การ deploy migration/RLS/RPC ต้องมีหลักฐานแยกจากการแก้เอกสาร
+Design spec และ migration รุ่นเก่ายังเป็นข้อมูลอ้างอิงทางประวัติศาสตร์ ให้ใช้ data contract และลำดับ migration ปัจจุบันใน [03](03_database_design_and_er.md) Runtime ใช้ Supabase database repository/API; mock เหลือเฉพาะ automated tests การ deploy migration/RLS/RPC ต้องมีหลักฐานแยกจากการแก้เอกสาร
 
 แต่ละ role ต้องมี entry page/dashboard ที่ guard ด้วย session จริง และแยก role-specific container/component เมื่อข้อมูลหรือคำสั่งต่างกัน Shared presentational component ใช้ร่วมกันได้ แต่ production UI ต้องไม่มีตัวเลือกสลับ role แทนการตรวจสิทธิ์
 

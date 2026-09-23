@@ -3,7 +3,7 @@
 ## ภาพรวมล่าสุด
 
 - Shared contract ปัจจุบันใช้ role `patient`, `medical`, `staff_admin`
-- มี Supabase client แยก browser/server/middleware และมี mock adapter สำหรับ test/offline
+- มี Supabase client แยก browser/server/middleware และมี mock adapter สำหรับ automated tests เท่านั้น
 - มี constants กลางสำหรับ Bangkok date, clinic time blocks และ leave reasons
 - `ConfirmationModal` เป็น shared component ที่ schedule และ department workspace ใช้ยืนยันคำสั่งสำคัญ
 - Shared inventory ไม่ได้ปิดสถานะของโมดูลที่ใช้งานอยู่: PAI, Scheduling, pharmacy, reminders และ dashboard ต้องอ้าง owner view ของตน
