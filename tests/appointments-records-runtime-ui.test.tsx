@@ -4,7 +4,14 @@ import AppointmentPage from '@/features/appointments';
 import { MedicalRecordsPage, PatientRecordsPage } from '@/features/medical-records';
 import { type ClinicRepository } from '@/features/clinic-care';
 import { createClinicMockRepository } from './clinic-care-mock-repository';
-import { fixture, slotId, withAppointment } from './clinic-care-fixtures';
+import { appointmentId, doctorId, fixture, patientId, serviceId, slotId, universalServiceId, withAppointment } from './clinic-care-fixtures';
+
+const editableRecordId = '00000000-0000-4000-8000-000000000019';
+function recordSeed(createdAt: string) {
+  const seed = withAppointment('medical');
+  seed.records = [{ id: editableRecordId, appointment_id: appointmentId, patient_id: patientId, doctor_id: doctorId, patient: 'ผู้ป่วยทดสอบ', doctor: 'แพทย์ทดสอบ', diagnosis: 'เดิม', treatment_notes: '', prescribed_medications: [], created_at: createdAt, completed: true, height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null }];
+  return seed;
+}
 
 describe('Clinic database-backed role containers with injected offline repository', () => {
   afterEach(() => vi.useRealTimers());
@@ -33,13 +40,47 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByRole('heading', { level: 1, name: 'ผลตรวจและรายการยา' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'บันทึกผลตรวจ' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'ผลตรวจของผู้ป่วยในความดูแล' })).toBeInTheDocument();
-    expect(screen.getByText('โปรดตรวจสอบข้อมูลให้เรียบร้อยก่อนยืนยัน เนื่องจากหลังบันทึกแล้วจะแก้ไขไม่ได้')).toBeInTheDocument();
+    expect(screen.getByText('โปรดตรวจสอบข้อมูลให้เรียบร้อยก่อนยืนยัน หลังบันทึกแล้วจะแก้ไขได้ภายใน 15 นาที')).toBeInTheDocument();
   });
   it('shows the patient visit reason as read-only context under the queue selector', async () => {
     render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
 
     const reasonLabel = await screen.findByText('อาการหรือเหตุผลที่มาพบแพทย์:', { selector: 'span' });
     expect(reasonLabel.parentElement).toHaveTextContent('ทดสอบ');
+  });
+  it('allows the owning doctor to edit at minute 14 through the UI', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-08T08:14:00+07:00'));
+    const repo = createClinicMockRepository(recordSeed('2026-09-08T08:00:00+07:00'), new Date('2026-09-08T08:14:00+07:00'));
+    render(<MedicalRecordsPage repository={repo} />);
+    expect(await screen.findByText(/แก้ไขได้อีก/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขผลตรวจ' }));
+    fireEvent.change(screen.getByLabelText('ผลวินิจฉัยที่แก้ไข'), { target: { value: 'แก้ไขผ่าน UI' } });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+    await waitFor(() => expect(screen.getByText(/ผลวินิจฉัย:/).parentElement).toHaveTextContent('แก้ไขผ่าน UI'));
+  });
+  it('keeps meal timing editable when amending a prescribed medication', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-08T08:14:00+07:00'));
+    const seed = recordSeed('2026-09-08T08:00:00+07:00');
+    seed.records[0].prescribed_medications = [{ medication_id: seed.medications[0].id, name: seed.medications[0].name, dosage: '1 เม็ด', frequency: 'หลังอาหาร · เช้า', duration_days: 1, quantity: 1 }];
+    const repo = createClinicMockRepository(seed, new Date('2026-09-08T08:14:00+07:00'));
+    render(<MedicalRecordsPage repository={repo} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'แก้ไขผลตรวจ' }));
+    const mealButton = screen.getByRole('button', { name: 'การใช้ยากับอาหาร รายการที่ 1' });
+    expect(mealButton).toHaveTextContent('หลังอาหาร');
+    fireEvent.click(mealButton);
+    fireEvent.click(screen.getByRole('option', { name: 'ก่อนอาหาร' }));
+    fireEvent.change(screen.getByDisplayValue('เช้า'), { target: { value: 'เช้า เย็น' } });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+    await waitFor(async () => expect((await repo.load()).records[0].prescribed_medications?.[0].frequency).toBe('ก่อนอาหาร · เช้า เย็น'));
+  });
+  it('disables the edit action at minute 16 through the UI', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-08T08:16:00+07:00'));
+    render(<MedicalRecordsPage repository={createClinicMockRepository(recordSeed('2026-09-08T08:00:00+07:00'), new Date('2026-09-08T08:16:00+07:00'))} />);
+    expect(await screen.findByText('หมดเวลาแก้ไข')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'แก้ไขไม่ได้' })).toBeDisabled();
   });
   it('gives the patient record page a clear empty state', async () => {
     render(<PatientRecordsPage repository={createClinicMockRepository(fixture('patient'))} />);
@@ -64,11 +105,14 @@ describe('Clinic database-backed role containers with injected offline repositor
     const addMedicationButton = screen.getByRole('button', { name: 'เพิ่มรายการยา' });
     expect(addMedicationButton).toHaveClass('bg-brand-surface', 'text-brand-ink', 'hover:bg-brand-soft');
     fireEvent.click(addMedicationButton);
-    expect(screen.getByRole('button', { name: 'ลบยารายการที่ 1' })).toHaveClass('text-status-critical', 'hover:bg-status-critical-bg');
+    const removeMedicationButton = screen.getByRole('button', { name: 'ลบยารายการที่ 1' });
+    expect(removeMedicationButton).toHaveClass('text-status-critical', 'hover:bg-status-critical-bg', 'shrink-0');
+    expect(removeMedicationButton).not.toHaveClass('absolute');
     fireEvent.click(screen.getByRole('button', { name: 'ยารายการที่ 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'ยาทดสอบ · เม็ด' }));
     fireEvent.change(screen.getByLabelText('ขนาดยาต่อครั้ง'), { target: { value: '2 เม็ด' } });
     fireEvent.click(screen.getByRole('button', { name: 'การใช้ยากับอาหาร รายการที่ 1' }));
+    expect(screen.getByRole('listbox', { name: 'การใช้ยากับอาหาร รายการที่ 1' })).toHaveClass('bottom-full', 'mb-2');
     fireEvent.click(screen.getByRole('option', { name: 'หลังอาหาร' }));
     fireEvent.change(screen.getByLabelText('วิธีใช้ / ความถี่ รายการที่ 1'), { target: { value: 'เช้า เที่ยง เย็น' } });
     fireEvent.change(screen.getByLabelText('ระยะเวลา (วัน)'), { target: { value: '3' } });
@@ -128,6 +172,34 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.queryByRole('option', { name: /09:00–09:30/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /10:00–10:30/ })).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: /11:00–11:30/ })).toBeInTheDocument();
+  });
+  it('filters a specific service while including universal-service rounds and keeping full rounds hidden', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-09T08:00:00+07:00'));
+    const seed = fixture('patient');
+    const universalSlotId = '00000000-0000-4000-8000-000000000020';
+    const fullSpecificSlotId = '00000000-0000-4000-8000-000000000021';
+    const availableSpecificSlotId = '00000000-0000-4000-8000-000000000022';
+    seed.slots = [
+      { ...seed.slots[0], id: fullSpecificSlotId, service_id: serviceId, service: 'เวชปฏิบัติทั่วไป', start_time: '09:00:00', booked_count: 1 },
+      { ...seed.slots[0], id: universalSlotId, service_id: universalServiceId, service: 'ทุกบริการ', start_time: '10:00:00', end_time: '10:30:00', booked_count: 0 },
+      { ...seed.slots[0], id: availableSpecificSlotId, service_id: serviceId, service: 'เวชปฏิบัติทั่วไป', start_time: '11:00:00', end_time: '11:30:00', booked_count: 0 },
+    ];
+    const allServicesView = render(<AppointmentPage role="patient" repository={createClinicMockRepository(seed)} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'บริการ' }));
+    fireEvent.click(screen.getByRole('option', { name: 'ทุกบริการ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'รอบตรวจ' }));
+    expect(screen.queryByRole('option', { name: /09:00–09:30/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /10:00–10:30/ })).toHaveTextContent('มีรอบนี้');
+    expect(screen.getByRole('option', { name: /11:00–11:30/ })).toHaveTextContent('มีรอบนี้');
+    allServicesView.unmount();
+    render(<AppointmentPage role="patient" repository={createClinicMockRepository(seed)} />);
+    expect(await screen.findByRole('heading', { name: 'จองนัดใหม่' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'บริการ' }));
+    fireEvent.click(screen.getByRole('option', { name: 'เวชปฏิบัติทั่วไป' }));
+    fireEvent.click(screen.getByRole('button', { name: 'รอบตรวจ' }));
+    expect(screen.queryByRole('option', { name: /09:00–09:30/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /10:00–10:30/ })).toHaveTextContent('มีรอบนี้');
   });
   it.each(['cancelled', 'rejected', 'no_show'] as const)('shows a slot again after the patient appointment is %s', async (status) => {
     const seed = fixture('patient');

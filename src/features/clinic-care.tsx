@@ -27,17 +27,23 @@ export const physicalExamSchema = z.object({
   blood_pressure: z.string().trim().regex(/^\d{2,3}\/\d{2,3}$/, 'ความดันโลหิตต้องอยู่ในรูปแบบ systolic/diastolic เช่น 120/80').nullable().default(null),
   pulse_bpm: z.number().int().min(20, 'ชีพจรต้องอยู่ระหว่าง 20–250 ครั้ง/นาที').max(250, 'ชีพจรต้องอยู่ระหว่าง 20–250 ครั้ง/นาที').nullable().default(null),
 });
-export const recordInputSchema = z.object({
-  appointmentId: z.string().uuid(), diagnosis: z.string().trim().min(1, 'กรุณากรอกผลวินิจฉัย').max(5000),
-  advice: z.string().trim().max(5000), prescriptions: z.array(prescriptionSchema).max(50), complete: z.boolean(),
+const recordFieldsSchema = z.object({
+  diagnosis: z.string().trim().min(1, 'กรุณากรอกผลวินิจฉัย').max(5000),
+  advice: z.string().trim().max(5000), prescriptions: z.array(prescriptionSchema).max(50),
   ...physicalExamSchema.shape,
-}).refine((value) => new Set(value.prescriptions.map((prescription) => prescription.medication_id)).size === value.prescriptions.length, 'รายการยาซ้ำ');
+});
+const uniquePrescriptions = <T extends { prescriptions: Array<{ medication_id: string }> }>(value: T) => new Set(value.prescriptions.map((prescription) => prescription.medication_id)).size === value.prescriptions.length;
+export const recordInputSchema = recordFieldsSchema.extend({ appointmentId: z.string().uuid(), complete: z.boolean() }).refine(uniquePrescriptions, 'รายการยาซ้ำ');
 export type RecordInput = z.infer<typeof recordInputSchema>;
+export const recordUpdateInputSchema = recordFieldsSchema.extend({ recordId: z.string().uuid() }).refine(uniquePrescriptions, 'รายการยาซ้ำ');
+export type RecordUpdateInput = z.infer<typeof recordUpdateInputSchema>;
 export const snapshotSchema = z.object({
   actor: z.object({ id: z.string().uuid(), role: roleSchema }),
   departments: z.array(z.string()).optional(),
+  services: z.array(z.object({ id: z.string().uuid(), code: z.string(), name: z.string() })).default([]),
   slots: z.array(z.object({
     id: z.string().uuid(), doctor_id: z.string().uuid(), doctor: z.string(), department: z.string(),
+    service_id: z.string().uuid().optional(), service: z.string().optional(),
     slot_date: z.string(), start_time: z.string(), end_time: z.string(), max_capacity: z.number(),
     booked_count: z.number(), status: z.string(), bookable: z.boolean(),
   })),
@@ -63,6 +69,7 @@ export interface ClinicRepository {
   book(slotId: string, reason: string): Promise<void>;
   transition(appointmentId: string, action: ClinicAction, reason?: string): Promise<void>;
   saveRecord(input: RecordInput): Promise<void>;
+  updateRecord(input: RecordUpdateInput): Promise<void>;
 }
 
 export function allowedActions(
@@ -137,9 +144,28 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
       const current = await actor(['patient', 'medical', 'staff_admin']);
       const parsed = snapshotSchema.safeParse(await rpc('pai_workspace'));
       if (!parsed.success || parsed.data.actor.id !== current.id || parsed.data.actor.role !== current.role) throw new Error('ข้อมูลไม่ตรงกับบัญชีปัจจุบัน กรุณาโหลดใหม่');
-      const departments = await client.from('departments').select('name').eq('is_active', true).order('name');
-      if (departments.error) throw new Error('ไม่สามารถโหลดรายการบริการได้ กรุณาลองใหม่อีกครั้ง');
-      parsed.data.departments = z.array(z.object({ name: z.string().trim().min(1) })).parse(departments.data).map((item) => item.name);
+      const slotIds = parsed.data.slots.map((slot) => slot.id);
+      const [services, slotServices] = await Promise.all([
+        client.from('services').select('id, code, name').eq('is_active', true).order('name'),
+        slotIds.length
+          ? client.from('appointment_slots').select('id, offering:daily_service_offerings(service_id, service:services(id, name))').in('id', slotIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (services.error || slotServices.error) throw new Error('ไม่สามารถโหลดข้อมูลบริการของรอบตรวจได้ กรุณาโหลดใหม่อีกครั้ง');
+      const serviceRows = z.array(z.object({ id: z.string().uuid(), code: z.string(), name: z.string() })).parse(services.data ?? []);
+      const serviceById = new Map(serviceRows.map((service) => [service.id, service]));
+      const slotServiceById = new Map<string, { id: string; name: string }>();
+      for (const row of (slotServices.data ?? []) as Array<{ id: string; offering?: { service_id?: string; service?: { id?: string; name?: string } | null } | Array<{ service_id?: string; service?: { id?: string; name?: string } | null }> | null }>) {
+        const offering = Array.isArray(row.offering) ? row.offering[0] : row.offering;
+        const service = offering?.service;
+        const serviceId = service?.id ?? offering?.service_id;
+        if (serviceId && service?.name) slotServiceById.set(row.id, { id: serviceId, name: service.name });
+      }
+      parsed.data.services = serviceRows;
+      parsed.data.slots = parsed.data.slots.map((slot) => {
+        const service = slotServiceById.get(slot.id) ?? (slot.service_id ? serviceById.get(slot.service_id) : undefined);
+        return { ...slot, service_id: service?.id ?? slot.service_id, service: service?.name ?? slot.service };
+      });
       if (current.role !== 'patient' && parsed.data.appointments.length) {
         const patientIds = [...new Set(parsed.data.appointments.map((appointment) => appointment.user_id))];
         const profiles = await client.from('profiles').select('id, phone').in('id', patientIds);
@@ -180,6 +206,21 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
         p_complete: parsed.data.complete,
       });
     },
+    async updateRecord(input: RecordUpdateInput) {
+      const parsed = recordUpdateInputSchema.safeParse(input);
+      if (!parsed.success) throw new Error(parsed.error.issues[0].message);
+      await actor(['medical']);
+      await rpc('update_medical_record', {
+        p_record_id: parsed.data.recordId,
+        p_diagnosis: parsed.data.diagnosis,
+        p_advice: parsed.data.advice,
+        p_prescriptions: parsed.data.prescriptions,
+        p_height_cm: parsed.data.height_cm,
+        p_weight_kg: parsed.data.weight_kg,
+        p_blood_pressure: parsed.data.blood_pressure,
+        p_pulse_bpm: parsed.data.pulse_bpm,
+      });
+    },
   };
 }
 
@@ -187,7 +228,8 @@ export function createClinicDatabaseRepository(client: SupabaseClient, expectedR
 export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepository {
   type ApiSlot = {
     id: string; doctor_id: string; slot_date: string; start_time: string; end_time: string;
-    max_capacity: number; booked_count: number; status: string;
+    service_id?: string; max_capacity: number; booked_count: number; status: string;
+    offering?: { service_id?: string; service?: { id?: string; code?: string; name?: string } | null } | Array<{ service_id?: string; service?: { id?: string; code?: string; name?: string } | null }> | null;
     doctor?: { profile?: ProfileNameFields | null; department?: { name?: string | null } | null } | null;
   };
   type ApiAppointment = {
@@ -209,16 +251,21 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
 
   return {
     async load() {
-      const [appointments, slots, departments, records, medications] = await Promise.all([
+      const [appointments, slots, services, records, medications] = await Promise.all([
         apiClient<ApiAppointment[]>('/api/appointments'),
         apiClient<ApiSlot[]>('/api/schedules/slots'),
-        apiClient<Array<{ name: string }>>('/api/departments'),
+        apiClient<Array<{ id: string; code: string; name: string }>>('/api/services'),
         expectedRole === 'staff_admin' ? Promise.resolve([] as ApiRecord[]) : apiClient<ApiRecord[]>('/api/medical-records'),
         expectedRole === 'medical' ? apiClient<Array<{ id: string; name: string; type: string }>>('/api/medications') : Promise.resolve([]),
       ]);
       const actor = await apiClient<{ profile: { id: string }; role: ClinicRole }>('/api/auth/me');
       const recordIds = new Set(records.map((record) => record.appointment_id));
       const slotRows = slots.map((slot) => ({
+        ...(() => {
+          const offering = Array.isArray(slot.offering) ? slot.offering[0] : slot.offering;
+          const service = offering?.service;
+          return { service_id: slot.service_id ?? service?.id ?? offering?.service_id, service: service?.name };
+        })(),
         id: slot.id,
         doctor_id: slot.doctor_id,
         doctor: formatProfileName(slot.doctor?.profile) || 'ไม่ระบุแพทย์',
@@ -233,7 +280,7 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
       }));
       return snapshotSchema.parse({
         actor: { id: actor.profile.id, role: actor.role },
-        departments: departments.map((department) => department.name),
+        services,
         slots: slotRows,
         appointments: appointments.map((appointment) => ({
           id: appointment.id,
@@ -276,6 +323,9 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
     },
     async saveRecord(input) {
       await apiClient('/api/medical-records', { method: 'POST', body: JSON.stringify(input) });
+    },
+    async updateRecord(input) {
+      await apiClient(`/api/medical-records/${input.recordId}`, { method: 'PATCH', body: JSON.stringify(input) });
     },
   };
 }
@@ -459,8 +509,8 @@ export function ClinicDatePicker({ label, value, onChange, min, markedDates = []
 }
 
 export type ClinicSelectOption = { value: string; label: string; disabled?: boolean };
-export function ClinicSelect({ value, onChange, options, placeholder, ariaLabel, disabled = false, className = '' }: {
-  value: string; onChange: (value: string) => void; options: ClinicSelectOption[]; placeholder: string; ariaLabel: string; disabled?: boolean; className?: string;
+export function ClinicSelect({ value, onChange, options, placeholder, ariaLabel, disabled = false, className = '', menuPlacement = 'bottom' }: {
+  value: string; onChange: (value: string) => void; options: ClinicSelectOption[]; placeholder: string; ariaLabel: string; disabled?: boolean; className?: string; menuPlacement?: 'top' | 'bottom';
 }) {
   const { text } = useLocale();
   const id = useId();
@@ -504,7 +554,7 @@ export function ClinicSelect({ value, onChange, options, placeholder, ariaLabel,
       <span className={`min-w-0 truncate ${selected ? 'text-brand-ink' : 'text-brand-muted'}`}>{label}</span>
       <ChevronDown className={`h-4 w-4 shrink-0 text-brand-muted transition ${open ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
     </button>
-    {open && <div ref={menu} id={id} role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-30 mt-2 max-h-64 w-full min-w-[14rem] overflow-y-auto rounded-2xl border border-brand-border bg-white p-1.5 shadow-xl ring-1 ring-slate-950/5">
+    {open && <div ref={menu} id={id} role="listbox" aria-label={ariaLabel} className={`absolute left-0 z-30 max-h-64 w-full min-w-[14rem] overflow-y-auto rounded-2xl border border-brand-border bg-white p-1.5 shadow-xl ring-1 ring-slate-950/5 ${menuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
       {options.length ? options.map((option, index) => <button key={option.value} type="button" role="option" aria-selected={value === option.value} disabled={option.disabled} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(option)}
         className={`flex min-h-10 w-full items-center rounded-xl px-3 py-2 text-left text-sm transition ${value === option.value ? 'bg-brand-soft font-semibold text-brand-strong' : index === activeIndex ? 'bg-brand-surface text-brand-ink' : 'text-brand-ink hover:bg-brand-surface'} disabled:cursor-not-allowed disabled:text-brand-muted/50`}>{option.label}</button>) : <p className="px-3 py-2 text-sm text-brand-muted">{text('ไม่มีตัวเลือก', 'No options available')}</p>}
     </div>}
