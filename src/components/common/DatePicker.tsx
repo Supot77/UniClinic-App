@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useId } from 'react';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { THAI_MONTHS, THAI_MONTHS_SHORT, THAI_WEEKDAYS } from '@/constants/dateTime';
+import { useLocale } from '@/context/LocaleContext';
 
 export interface DatePickerProps {
   mode?: 'single' | 'range';
@@ -34,8 +35,12 @@ function getTodayString(): string {
   return `${y}-${m}-${d}`;
 }
 
-export function formatThaiDisplayDate(dateStr: string, isShort = false): string {
+export function formatThaiDisplayDate(dateStr: string, isShort = false, locale: 'en' | 'th' = 'th'): string {
   if (!dateStr) return '';
+  if (locale === 'en') {
+    const date = new Date(`${dateStr}T12:00:00Z`);
+    return Number.isNaN(date.getTime()) ? dateStr : new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: isShort ? 'short' : 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
+  }
   const [yStr, mStr, dStr] = dateStr.split('-');
   const y = Number(yStr);
   const m = Number(mStr) - 1;
@@ -66,6 +71,7 @@ export default function DatePicker({
   triggerClassName,
   align = 'left',
 }: DatePickerProps) {
+  const { locale, text } = useLocale();
   const generatedId = useId();
   const id = customId || generatedId;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -184,14 +190,14 @@ export default function DatePicker({
   if (displayCustomText) {
     displayLabel = displayCustomText;
   } else if (mode === 'single') {
-    displayLabel = value ? formatThaiDisplayDate(value, true) : (placeholder || 'เลือกวันที่');
+    displayLabel = value ? formatThaiDisplayDate(value, true, locale) : (placeholder || text('เลือกวันที่', 'Choose a date'));
   } else {
     if (startDate && endDate) {
-      displayLabel = `${formatThaiDisplayDate(startDate, true)} – ${formatThaiDisplayDate(endDate, true)}`;
+      displayLabel = `${formatThaiDisplayDate(startDate, true, locale)} – ${formatThaiDisplayDate(endDate, true, locale)}`;
     } else if (startDate) {
-      displayLabel = `${formatThaiDisplayDate(startDate, true)} – …`;
+      displayLabel = `${formatThaiDisplayDate(startDate, true, locale)} – …`;
     } else {
-      displayLabel = placeholder || 'เลือกช่วงวันที่';
+      displayLabel = placeholder || text('เลือกช่วงวันที่', 'Choose a date range');
     }
   }
 
@@ -211,7 +217,7 @@ export default function DatePicker({
       <input
         id={id}
         type="date"
-        aria-label={ariaLabel || label || (mode === 'range' ? 'ช่วงวันที่' : 'เลือกวันที่')}
+        aria-label={ariaLabel || label || (mode === 'range' ? text('ช่วงวันที่', 'Date range') : text('เลือกวันที่', 'Choose a date'))}
         min={minDate}
         max={maxDate}
         value={mode === 'range' ? (startDate || '') : (value || '')}
@@ -265,7 +271,7 @@ export default function DatePicker({
       {isOpen && (
         <div
           role="dialog"
-          aria-label={label || 'ปฏิทินเลือกวันที่'}
+          aria-label={label || text('ปฏิทินเลือกวันที่', 'Date picker calendar')}
           className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 z-50 w-[min(21rem,calc(100vw-2rem))] rounded-2xl border border-brand-border-soft bg-white p-3.5 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xs animate-in fade-in zoom-in-95 duration-150`}
         >
           {/* Header Controls */}
@@ -274,20 +280,20 @@ export default function DatePicker({
               type="button"
               onClick={() => changeMonth(-1)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-body hover:bg-brand-soft hover:text-brand-ink transition"
-              aria-label="เดือนก่อนหน้า"
+              aria-label={text('เดือนก่อนหน้า', 'Previous month')}
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
 
             <span className="text-sm font-bold text-brand-ink" aria-live="polite">
-              {THAI_MONTHS[month]} {year + 543}
+              {locale === 'th' ? `${THAI_MONTHS[month]} ${year + 543}` : new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(viewDate)}
             </span>
 
             <button
               type="button"
               onClick={() => changeMonth(1)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-brand-body hover:bg-brand-soft hover:text-brand-ink transition"
-              aria-label="เดือนถัดไป"
+              aria-label={text('เดือนถัดไป', 'Next month')}
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -295,7 +301,7 @@ export default function DatePicker({
 
           {/* Weekday Labels */}
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-brand-strong mb-1">
-            {THAI_WEEKDAYS.map((w) => (
+            {(locale === 'th' ? THAI_WEEKDAYS : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']).map((w) => (
               <span key={w} className="py-1">
                 {w}
               </span>
@@ -358,7 +364,7 @@ export default function DatePicker({
                         : ''
                       : 'rounded-xl'
                   }`}
-                  aria-label={`วันที่ ${formatThaiDisplayDate(dateStr)}${hasSlot ? ' (มีรอบตรวจ)' : ''}`}
+                  aria-label={`${text('วันที่', 'Date')} ${formatThaiDisplayDate(dateStr, false, locale)}${hasSlot ? text(' (มีรอบตรวจ)', ' (appointment available)') : ''}`}
                   aria-pressed={isSelected || isRangeStart || isRangeEnd}
                 >
                   <span>{dayNum}</span>
@@ -383,12 +389,12 @@ export default function DatePicker({
               className="inline-flex items-center gap-1 font-semibold text-brand-strong hover:underline"
             >
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
-              วันนี้
+              {text('วันนี้', 'Today')}
             </button>
 
             {mode === 'range' && rangeSelectingStart && (
               <span className="text-[11px] text-brand-muted animate-pulse">
-                เลือกวันสิ้นสุด
+                {text('เลือกวันสิ้นสุด', 'Choose an end date')}
               </span>
             )}
 
@@ -406,7 +412,7 @@ export default function DatePicker({
                 }}
                 className="text-slate-400 hover:text-rose-600 transition"
               >
-                ล้างค่า
+                {text('ล้างค่า', 'Clear')}
               </button>
             )}
           </div>

@@ -2,6 +2,43 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## แปลเมนูบัญชีเป็นภาษาอังกฤษสำหรับ patient — 24 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เมนูบัญชีที่เปิดจาก Header ใช้ภาษาอังกฤษเมื่อ role เป็น `patient` และเลือก EN; เมื่อเลือกไทยจะแสดงข้อความไทย
+- แปลชื่อเมนู ปุ่ม และ accessibility labels รวมถึงหน้าความปลอดภัยและรหัสผ่าน
+- เฉพาะ patient ใช้ภาษาอังกฤษตาม locale; role อื่นคงข้อความเมนูภาษาไทยเดิม (หัวข้อ `Profile` คงพฤติกรรมเดิม)
+
+### ไฟล์หลัก
+
+- `src/components/profile/ProfileAccountDrawer.tsx`
+
+### การตรวจ
+
+- `git diff --check` — ผ่าน
+- ไม่ได้รัน automated tests, typecheck หรือ browser QA สำหรับการเปลี่ยนข้อความนี้
+
+## เพิ่มปุ่มเตรียมเปลี่ยนภาษาใน Header — 24 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มปุ่ม `EN` ใน Header สำหรับหน้าที่ `html lang` เป็นภาษาไทย และแสดง `ไทย` เมื่อหน้าเป็นภาษาอังกฤษ
+- แสดงไอคอน Font Awesome `faLanguage` คู่กับป้ายภาษา
+- ปุ่มยัง disabled; ยังไม่มีการสลับภาษา, route หรือข้อความ และยังไม่มี locale/i18n runtime
+- Header อ่านการเปลี่ยนค่า `lang` ของเอกสาร เพื่อให้ป้ายแสดงภาษาปลายทางตามหน้าในอนาคต
+
+### ไฟล์หลัก
+
+- `src/components/layout/Header.tsx`, `package.json`, `package-lock.json`
+
+### การตรวจ
+
+- `npm.cmd install --save @fortawesome/react-fontawesome @fortawesome/free-solid-svg-icons`: สำเร็จ
+- `npx.cmd --no-install tsc --noEmit`: ผ่านหลังเพิ่มไอคอน
+- `git diff --check`: ผ่าน
+- ไม่ได้รัน automated tests หรือ browser QA; ตอนนี้แอปยังไม่มีหน้าอังกฤษหรือระบบ locale
+
 ## ถอด weekly/recurring/template path โดยคงปุ่มสร้าง — 23 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม

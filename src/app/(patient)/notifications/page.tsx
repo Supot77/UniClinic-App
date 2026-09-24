@@ -16,6 +16,7 @@ import type { Notification, NotificationType, UnreadNotificationRecipient, UserR
 import Toast from '@/components/common/Toast';
 import SegmentedControl from '@/components/common/SegmentedControl';
 import { toNotificationErrorMessage } from '@/lib/userFacingErrors';
+import { useLocale } from '@/context/LocaleContext';
 
 type InboxFilter = 'all' | 'unread' | 'read' | NotificationType;
 type UnreadRoleFilter = 'all' | UserRole;
@@ -46,15 +47,24 @@ const notificationPeriods: Array<{ value: NotificationPeriod; label: string }> =
   { value: '30d', label: 'ย้อนหลัง 30 วัน' },
 ];
 
-const typeMeta: Record<NotificationType, { label: string; icon: typeof Bell; className: string }> = {
-  appointment: { label: 'นัดหมาย', icon: CalendarDays, className: 'bg-status-info-bg text-status-info' },
-  reminder: { label: 'เตือนกินยา', icon: Pill, className: 'bg-status-warning-bg text-status-warning' },
-  broadcast: { label: 'ประกาศ', icon: Megaphone, className: 'bg-status-warning-bg text-status-warning' },
-  system: { label: 'ระบบ', icon: BellRing, className: 'bg-status-neutral-bg text-status-neutral' },
+const typeMeta: Record<NotificationType, { thai: string; english: string; icon: typeof Bell; className: string }> = {
+  appointment: { thai: 'นัดหมาย', english: 'Appointment', icon: CalendarDays, className: 'bg-status-info-bg text-status-info' },
+  reminder: { thai: 'เตือนกินยา', english: 'Medication reminder', icon: Pill, className: 'bg-status-warning-bg text-status-warning' },
+  broadcast: { thai: 'ประกาศ', english: 'Announcement', icon: Megaphone, className: 'bg-status-warning-bg text-status-warning' },
+  system: { thai: 'ระบบ', english: 'System', icon: BellRing, className: 'bg-status-neutral-bg text-status-neutral' },
+};
+const notificationErrorEnglish: Record<string, string> = {
+  'คุณไม่มีสิทธิ์ดำเนินการนี้': 'You are not allowed to perform this action.',
+  'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่': 'Could not connect. Check your internet connection and try again.',
+  'ส่งประกาศไม่สำเร็จ ลองใหม่': 'Could not send the announcement. Please try again.',
+  'โหลดการแจ้งเตือนไม่สำเร็จ ลองใหม่': 'Could not load notifications. Please try again.',
+  'โหลดประวัติประกาศไม่สำเร็จ ลองใหม่': 'Could not load announcement history. Please try again.',
+  'ทำเครื่องหมายว่าอ่านแล้วไม่สำเร็จ ลองใหม่': 'Could not mark the notification as read. Please try again.',
+  'ลบการแจ้งเตือนไม่สำเร็จ ลองใหม่': 'Could not delete the notification. Please try again.',
 };
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('th-TH', {
+function formatDateTime(value: string, locale: 'en' | 'th' = 'th'): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     timeZone: 'Asia/Bangkok',
   }).format(new Date(value));
@@ -76,8 +86,8 @@ function notificationDateRange(period: NotificationPeriod): { startAt: string; e
   return { startAt: start.toISOString(), endAt: now.toISOString() };
 }
 
-function formatBangkokDate(value = new Date()): string {
-  return new Intl.DateTimeFormat('th-TH', {
+function formatBangkokDate(value = new Date(), locale: 'en' | 'th' = 'th'): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok',
   }).format(value);
 }
@@ -138,6 +148,12 @@ function AdminBroadcastHistory({ history, loading }: { history: BroadcastHistory
 
 export default function NotificationsPage() {
   const auth = useAuth();
+  const { locale, text } = useLocale();
+  const localizedFilters = filters.map((item) => ({ ...item, label: text(item.label, item.value === 'all' ? 'All' : item.value === 'read' ? 'Read' : 'Unread') }));
+  const localizedPeriods = notificationPeriods.map((item) => ({
+    ...item,
+    label: text(item.label, item.value === 'today' ? 'Today' : item.value === '7d' ? 'Last 7 days' : 'Last 30 days'),
+  }));
   const inboxUserId = auth.user?.id ?? null;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadRecipients, setUnreadRecipients] = useState<UnreadNotificationRecipient[]>([]);
@@ -296,36 +312,36 @@ export default function NotificationsPage() {
       <header>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl">ศูนย์แจ้งเตือน</h1>
+            <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl">{text('ศูนย์แจ้งเตือน', 'Notifications')}</h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2">{auth.role === 'staff_admin' && <button onClick={() => setIsBroadcastOpen(true)} aria-expanded={isBroadcastOpen} aria-controls="notification-broadcast-panel" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"><Send className="size-4" aria-hidden="true" />ส่งประกาศ</button>}<button type="button" aria-label="รีเฟรช" title="รีเฟรช" onClick={() => void reloadInbox()} disabled={loading || auth.isLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-brand-button bg-brand-strong text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:gap-2 sm:px-3">
-              <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" /><span className="hidden sm:inline">รีเฟรช</span>
+          <div className="flex shrink-0 items-center gap-2">{auth.role === 'staff_admin' && <button onClick={() => setIsBroadcastOpen(true)} aria-expanded={isBroadcastOpen} aria-controls="notification-broadcast-panel" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"><Send className="size-4" aria-hidden="true" />ส่งประกาศ</button>}<button type="button" aria-label={text('รีเฟรช', 'Refresh')} title={text('รีเฟรช', 'Refresh')} onClick={() => void reloadInbox()} disabled={loading || auth.isLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-brand-button bg-brand-strong text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:gap-2 sm:px-3">
+              <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" /><span className="hidden sm:inline">{text('รีเฟรช', 'Refresh')}</span>
           </button></div>
         </div>
-        {!auth.isLoading && !auth.isAuthenticated && <p className="mt-2 text-xs font-semibold text-amber-700">เข้าสู่ระบบเพื่อดูการแจ้งเตือน</p>}
-        <div className="mt-5 overflow-hidden border-b border-brand-border-soft pb-2" aria-label="ตัวกรองการแจ้งเตือน">
-          <time suppressHydrationWarning dateTime={bangkokDate()} className="mb-2 block px-1 text-right text-xs text-brand-muted">{formatBangkokDate()}</time>
-          <div className="flex min-w-0 flex-col gap-3 pb-1 sm:flex-row sm:items-center" role="toolbar" aria-label="ตัวกรองการแจ้งเตือน">
+        {!auth.isLoading && !auth.isAuthenticated && <p className="mt-2 text-xs font-semibold text-amber-700">{text('เข้าสู่ระบบเพื่อดูการแจ้งเตือน', 'Sign in to view your notifications.')}</p>}
+        <div className="mt-5 overflow-hidden border-b border-brand-border-soft pb-2" aria-label={text('ตัวกรองการแจ้งเตือน', 'Notification filters')}>
+          <time suppressHydrationWarning dateTime={bangkokDate()} className="mb-2 block px-1 text-right text-xs text-brand-muted">{formatBangkokDate(new Date(), locale)}</time>
+          <div className="flex min-w-0 flex-col gap-3 pb-1 sm:flex-row sm:items-center" role="toolbar" aria-label={text('ตัวกรองการแจ้งเตือน', 'Notification filters')}>
             <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-              <div className="flex shrink-0 items-center gap-2 px-1 text-sm font-semibold text-brand-ink"><Filter className="size-4 text-brand-strong" aria-hidden="true" />ช่วงเวลา</div>
+              <div className="flex shrink-0 items-center gap-2 px-1 text-sm font-semibold text-brand-ink"><Filter className="size-4 text-brand-strong" aria-hidden="true" />{text('ช่วงเวลา', 'Period')}</div>
               <div className="scrollbar-none min-w-0 overflow-x-auto">
                 <SegmentedControl
                   className="w-max max-w-none"
-                  ariaLabel="เลือกช่วงเวลา"
+                  ariaLabel={text('เลือกช่วงเวลา', 'Select a period')}
                   value={period}
-                  options={notificationPeriods}
+                  options={localizedPeriods}
                   onChange={selectPeriod}
                 />
               </div>
             </div>
-            <div className="flex min-w-0 items-center gap-2 sm:ml-auto sm:shrink-0" role="group" aria-label="เลือกสถานะการอ่าน">
+            <div className="flex min-w-0 items-center gap-2 sm:ml-auto sm:shrink-0" role="group" aria-label={text('เลือกสถานะการอ่าน', 'Select read status')}>
               <span className="hidden h-7 w-px shrink-0 bg-brand-border-soft sm:block" aria-hidden="true" />
               <div className="scrollbar-none min-w-0 overflow-x-auto">
                 <SegmentedControl
                   className="w-max max-w-none"
-                  ariaLabel="เลือกสถานะการอ่าน"
+                  ariaLabel={text('เลือกสถานะการอ่าน', 'Select read status')}
                   value={filter === 'read' || filter === 'unread' || filter === 'all' ? filter : 'all'}
-                  options={filters}
+                  options={localizedFilters}
                   onChange={setFilter}
                 />
               </div>
@@ -399,14 +415,14 @@ export default function NotificationsPage() {
         </div>
       </section>}
 
-      {error && <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert"><span>{error.message}</span>{error.canReload && <button type="button" onClick={() => void reloadInbox()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RefreshCw className="size-4" aria-hidden="true" /> โหลดข้อมูลใหม่</button>}</div>}
+      {error && <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert"><span>{locale === 'en' ? notificationErrorEnglish[error.message] ?? 'Could not complete this action. Please try again.' : error.message}</span>{error.canReload && <button type="button" onClick={() => void reloadInbox()} className="inline-flex shrink-0 items-center gap-1 font-semibold"><RefreshCw className="size-4" aria-hidden="true" /> {text('โหลดข้อมูลใหม่', 'Reload')}</button>}</div>}
 
-      {auth.role === 'staff_admin' ? <div id="notification-content" role="tabpanel" aria-label="เนื้อหาการแจ้งเตือน"><AdminBroadcastHistory history={visibleBroadcastHistory} loading={loading || auth.isLoading} /></div> : <div id="notification-content" role="tabpanel" aria-label="เนื้อหาการแจ้งเตือน">
+      {auth.role === 'staff_admin' ? <div id="notification-content" role="tabpanel" aria-label="เนื้อหาการแจ้งเตือน"><AdminBroadcastHistory history={visibleBroadcastHistory} loading={loading || auth.isLoading} /></div> : <div id="notification-content" role="tabpanel" aria-label={text('เนื้อหาการแจ้งเตือน', 'Notification content')}>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs" aria-live="polite">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
-          <div><h2 className="font-semibold text-slate-950">การแจ้งเตือน</h2><p className="mt-1 text-xs leading-5 text-slate-500">พบ {visibleNotifications.length} จาก {notifications.length} ข้อความ</p></div>
+          <div><h2 className="font-semibold text-slate-950">{text('การแจ้งเตือน', 'Messages')}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{text(`พบ ${visibleNotifications.length} จาก ${notifications.length} ข้อความ`, `Showing ${visibleNotifications.length} of ${notifications.length} messages`)}</p></div>
         </div>
-        {loading || auth.isLoading ? <div className="space-y-3 p-5" aria-label="กำลังโหลดการแจ้งเตือน">{Array.from({ length: 3 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}</div> : visibleNotifications.length === 0 ? <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center"><span className="rounded-2xl bg-slate-100 p-4 text-slate-400"><Inbox className="size-8" /></span><h2 className="mt-4 font-semibold text-slate-800">ไม่พบการแจ้งเตือน</h2><p className="mt-1 text-sm text-slate-500">เมื่อมีข้อความใหม่ จะแสดงที่นี่</p></div> : <div className="divide-y divide-slate-100">{visibleNotifications.map((notification) => {
+        {loading || auth.isLoading ? <div className="space-y-3 p-5" aria-label={text('กำลังโหลดการแจ้งเตือน', 'Loading notifications')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}</div> : visibleNotifications.length === 0 ? <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center"><span className="rounded-2xl bg-slate-100 p-4 text-slate-400"><Inbox className="size-8" /></span><h2 className="mt-4 font-semibold text-slate-800">{text('ไม่พบการแจ้งเตือน', 'No notifications')}</h2><p className="mt-1 text-sm text-slate-500">{text('เมื่อมีข้อความใหม่ จะแสดงที่นี่', 'New messages will appear here.')}</p></div> : <div className="divide-y divide-slate-100">{visibleNotifications.map((notification) => {
           const meta = typeMeta[notification.type]; const Icon = meta.icon; const busy = workingId === notification.id;
           return (
             <article key={notification.id} className={`group flex gap-3 px-5 py-4 transition sm:gap-4 sm:px-6 ${notification.is_read ? 'bg-white' : 'bg-sky-50/30'}`}>
@@ -417,32 +433,32 @@ export default function NotificationsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
                     <h2 className={`truncate text-sm sm:text-base ${notification.is_read ? 'font-medium text-slate-700' : 'font-semibold text-slate-950'}`}>{notification.title}</h2>
-                    {!notification.is_read && <span className="size-2 shrink-0 rounded-full bg-rose-500" aria-label="ยังไม่ได้อ่าน" />}
+                    {!notification.is_read && <span className="size-2 shrink-0 rounded-full bg-rose-500" aria-label={text('ยังไม่ได้อ่าน', 'Unread')} />}
                   </div>
                   <p className="mt-0.5 text-sm leading-6 text-slate-600">{notification.message}</p>
-                  {notification.type === 'broadcast' && <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>ผู้ส่ง:</span><span className="font-medium text-slate-500">{notification.sender_name ?? 'ผู้ดูแลระบบ'}</span><span className="rounded-full bg-brand-soft px-2 py-0.5 font-medium text-brand-strong">{notification.sender_role === 'staff_admin' ? 'ผู้ดูแลระบบ' : notification.sender_role === 'medical' ? 'แพทย์' : 'ผู้ดูแลระบบ'}</span></div>}
-                  <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">{meta.label}</span>
+                  {notification.type === 'broadcast' && <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>{text('ผู้ส่ง:', 'From:')}</span><span className="font-medium text-slate-500">{notification.sender_name ?? text('ผู้ดูแลระบบ', 'Clinic administrator')}</span><span className="rounded-full bg-brand-soft px-2 py-0.5 font-medium text-brand-strong">{notification.sender_role === 'staff_admin' ? text('ผู้ดูแลระบบ', 'Clinic administrator') : notification.sender_role === 'medical' ? text('แพทย์', 'Medical staff') : text('ผู้ดูแลระบบ', 'Clinic administrator')}</span></div>}
+                  <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">{text(meta.thai, meta.english)}</span>
                 </div>
                 <div className="flex shrink-0 flex-row items-center gap-2 sm:flex-col sm:items-end">
-                  <time className="text-xs text-slate-400">{formatDateTime(notification.created_at)}</time>
+                  <time className="text-xs text-slate-400">{formatDateTime(notification.created_at, locale)}</time>
                   {notification.is_read ? (
-                    <span className="inline-flex min-h-9 items-center rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600 ring-1 ring-inset ring-emerald-200" aria-label={`${notification.title} อ่านแล้ว`}>
-                      อ่านแล้ว
+                    <span className="inline-flex min-h-9 items-center rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600 ring-1 ring-inset ring-emerald-200" aria-label={`${notification.title} ${text('อ่านแล้ว', 'read')}`}>
+                      {text('อ่านแล้ว', 'Read')}
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => void markRead(notification)}
                       disabled={busy || Boolean(workingId)}
-                      aria-label={`ทำเครื่องหมายว่าอ่านแล้ว: ${notification.title}`}
+                      aria-label={`${text('ทำเครื่องหมายว่าอ่านแล้ว', 'Mark as read')}: ${notification.title}`}
                       className="inline-flex min-h-9 items-center rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 ring-1 ring-inset ring-rose-200 transition hover:bg-rose-600 hover:text-white hover:ring-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {busy ? 'กำลังอัปเดต…' : 'ทำเครื่องหมายว่าอ่านแล้ว'}
+                      {busy ? text('กำลังอัปเดต…', 'Updating…') : text('ทำเครื่องหมายว่าอ่านแล้ว', 'Mark as read')}
                     </button>
                   )}
                 </div>
               </div>
-              <button type="button" onClick={() => void deleteNotification(notification)} disabled={busy} aria-label={`ลบการแจ้งเตือน: ${notification.title}`} className="shrink-0 self-start rounded-lg bg-rose-50 p-2 text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 disabled:opacity-40"><Trash2 className="size-4" /></button>
+              <button type="button" onClick={() => void deleteNotification(notification)} disabled={busy} aria-label={`${text('ลบการแจ้งเตือน', 'Delete notification')}: ${notification.title}`} className="shrink-0 self-start rounded-lg bg-rose-50 p-2 text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 disabled:opacity-40"><Trash2 className="size-4" /></button>
             </article>
           );
         })}</div>}
@@ -451,7 +467,7 @@ export default function NotificationsPage() {
 
       {auth.role === 'staff_admin' && isBroadcastOpen && <div id="notification-broadcast-panel" className="clinic-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center bg-brand-ink/20 p-2 backdrop-blur-sm sm:p-6" role="presentation"><div className="relative z-10 max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-brand-border-soft bg-brand-surface px-4 py-5 shadow-2xl sm:max-h-[90vh] sm:px-8 sm:py-6" role="dialog" aria-modal="true" aria-label="ส่งประกาศ"><BroadcastComposer draft={broadcastDraft} onDraftChange={setBroadcastDraft} onClose={() => setIsBroadcastOpen(false)} onCancel={cancelBroadcast} onSent={reloadInbox} /></div></div>}
 
-      <p className="text-center text-xs leading-5 text-slate-400">การอ่านและลบมีผลเฉพาะกับข้อความของคุณ</p>
+      <p className="text-center text-xs leading-5 text-slate-400">{text('การอ่านและลบมีผลเฉพาะกับข้อความของคุณ', 'Reading and deleting messages affects only your inbox.')}</p>
     </main>
   );
 }

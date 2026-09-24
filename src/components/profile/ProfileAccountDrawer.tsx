@@ -5,6 +5,7 @@ import { ArrowLeft, FileClock, LogOut, Settings, ShieldCheck, Stethoscope, UserR
 import { useEffect, useState } from 'react';
 import type { UserRole } from '@/types/database';
 import PasswordSecurityCard from '@/components/profile/PasswordSecurityCard';
+import { useLocale } from '@/context/LocaleContext';
 
 interface ProfileAccountDrawerProps {
   open: boolean;
@@ -13,26 +14,28 @@ interface ProfileAccountDrawerProps {
   onSignOut: () => void;
 }
 
-type AccountMenuItem = { href: string; label: string; icon: typeof UserRound; active?: boolean };
+type AccountMenuItem = { href: string; label: string; englishLabel: string; icon: typeof UserRound; active?: boolean };
 
 const accountItemsByRole: Record<UserRole, AccountMenuItem[]> = {
   patient: [
-    { href: '/records', label: 'ประวัติการรักษา', icon: FileClock },
-    { href: '/reminders', label: 'เตือนยา', icon: Stethoscope },
+    { href: '/records', label: 'ประวัติการรักษา', englishLabel: 'Medical records', icon: FileClock },
+    { href: '/reminders', label: 'เตือนยา', englishLabel: 'Medication reminders', icon: Stethoscope },
   ],
   medical: [
-    { href: '/records', label: 'บันทึกการรักษา', icon: Stethoscope },
-    { href: '/appointments', label: 'นัดหมายผู้ป่วย', icon: FileClock },
+    { href: '/records', label: 'บันทึกการรักษา', englishLabel: 'Medical records', icon: Stethoscope },
+    { href: '/appointments', label: 'นัดหมายผู้ป่วย', englishLabel: 'Patient appointments', icon: FileClock },
   ],
-  staff_admin: [{ href: '/staff/accounts', label: 'จัดการผู้ใช้งาน', icon: UsersRound }],
+  staff_admin: [{ href: '/staff/accounts', label: 'จัดการผู้ใช้งาน', englishLabel: 'Manage users', icon: UsersRound }],
 };
 
 export default function ProfileAccountDrawer({ open, onClose, onSignOut, role }: ProfileAccountDrawerProps) {
+  const { text } = useLocale();
   const [view, setView] = useState<'menu' | 'security'>('menu');
+  const displayText = (thai: string, english: string) => role === 'patient' ? text(thai, english) : thai;
   const menuItems: AccountMenuItem[] = [
-    { href: '/profile', label: 'ข้อมูลส่วนตัว', icon: UserRound, active: true },
+    { href: '/profile', label: 'ข้อมูลส่วนตัว', englishLabel: 'Profile', icon: UserRound, active: true },
     ...(role ? accountItemsByRole[role] : []),
-    { href: '/settings', label: 'ตั้งค่า', icon: Settings },
+    { href: '/settings', label: 'ตั้งค่า', englishLabel: 'Settings', icon: Settings },
   ];
 
   function handleClose() {
@@ -56,26 +59,26 @@ export default function ProfileAccountDrawer({ open, onClose, onSignOut, role }:
 
   return (
     <div className={`fixed inset-0 z-[60] ${open ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!open}>
-      <button type="button" onClick={handleClose} aria-label="ปิดเมนูบัญชี" className={`absolute inset-0 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`} />
-      <aside className={`absolute bottom-0 right-0 top-0 flex max-w-[92vw] flex-col bg-white shadow-2xl transition-[transform,width] duration-300 ease-out ${view === 'security' ? 'w-[430px]' : 'w-[332px]'} ${open ? 'translate-x-0' : 'translate-x-full'}`} aria-label="เมนูบัญชี">
+      <button type="button" onClick={handleClose} aria-label={displayText('ปิดเมนูบัญชี', 'Close account menu')} className={`absolute inset-0 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`} />
+      <aside className={`absolute bottom-0 right-0 top-0 flex max-w-[92vw] flex-col bg-white shadow-2xl transition-[transform,width] duration-300 ease-out ${view === 'security' ? 'w-[430px]' : 'w-[332px]'} ${open ? 'translate-x-0' : 'translate-x-full'}`} aria-label={displayText('เมนูบัญชี', 'Account menu')}>
         <div className="flex min-h-20 items-center justify-between gap-3 border-b border-slate-100 px-5 sm:px-7">
           <div className="flex min-w-0 items-center gap-2">
-            {view === 'security' && <button type="button" onClick={() => setView('menu')} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100" aria-label="กลับไปเมนูบัญชี"><ArrowLeft className="size-5" aria-hidden="true" /></button>}
-            <h2 className={`${view === 'security' ? 'text-lg' : 'text-2xl'} truncate font-bold text-slate-950`}>{view === 'security' ? 'ความปลอดภัยและรหัสผ่าน' : 'Profile'}</h2>
+            {view === 'security' && <button type="button" onClick={() => setView('menu')} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100" aria-label={displayText('กลับไปเมนูบัญชี', 'Back to account menu')}><ArrowLeft className="size-5" aria-hidden="true" /></button>}
+            <h2 className={`${view === 'security' ? 'text-lg' : 'text-2xl'} truncate font-bold text-slate-950`}>{view === 'security' ? displayText('ความปลอดภัยและรหัสผ่าน', 'Security and password') : 'Profile'}</h2>
           </div>
-          <button type="button" onClick={handleClose} className="flex size-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100" aria-label="ปิด"><X className="size-6" aria-hidden="true" /></button>
+          <button type="button" onClick={handleClose} className="flex size-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100" aria-label={displayText('ปิด', 'Close')}><X className="size-6" aria-hidden="true" /></button>
         </div>
         {view === 'menu' ? (
-          <nav className="space-y-1 overflow-y-auto p-2" aria-label="รายการเมนูบัญชี">
+          <nav className="space-y-1 overflow-y-auto p-2" aria-label={displayText('รายการเมนูบัญชี', 'Account navigation')}>
             {menuItems.slice(0, -1).map((item) => {
               const Icon = item.icon;
               const active = item.active ?? false;
-              return <Link key={item.href} href={item.href} onClick={handleClose} className={`flex min-h-14 items-center gap-4 rounded-xl px-5 text-base transition ${active ? 'bg-gradient-to-r from-teal-50 to-cyan-50 font-semibold text-teal-800' : 'font-medium text-slate-600 hover:bg-slate-50 hover:text-teal-800'}`}><Icon className={`size-6 shrink-0 ${active ? 'text-teal-700' : 'text-slate-500'}`} aria-hidden="true" /><span>{item.label}</span></Link>;
+              return <Link key={item.href} href={item.href} onClick={handleClose} className={`flex min-h-14 items-center gap-4 rounded-xl px-5 text-base transition ${active ? 'bg-gradient-to-r from-teal-50 to-cyan-50 font-semibold text-teal-800' : 'font-medium text-slate-600 hover:bg-slate-50 hover:text-teal-800'}`}><Icon className={`size-6 shrink-0 ${active ? 'text-teal-700' : 'text-slate-500'}`} aria-hidden="true" /><span>{displayText(item.label, item.englishLabel)}</span></Link>;
             })}
-            <button type="button" onClick={() => setView('security')} className="flex min-h-14 w-full items-center gap-4 rounded-xl px-5 text-left text-base font-medium text-slate-600 transition hover:bg-slate-50 hover:text-teal-800"><ShieldCheck className="size-6 shrink-0 text-slate-500" aria-hidden="true" /><span>ความปลอดภัยและรหัสผ่าน</span></button>
-            {menuItems.slice(-1).map((item) => { const Icon = item.icon; return <Link key={item.href} href={item.href} onClick={handleClose} className="flex min-h-14 items-center gap-4 rounded-xl px-5 text-base font-medium text-slate-600 transition hover:bg-slate-50 hover:text-teal-800"><Icon className="size-6 shrink-0 text-slate-500" aria-hidden="true" /><span>{item.label}</span></Link>; })}
+            <button type="button" onClick={() => setView('security')} className="flex min-h-14 w-full items-center gap-4 rounded-xl px-5 text-left text-base font-medium text-slate-600 transition hover:bg-slate-50 hover:text-teal-800"><ShieldCheck className="size-6 shrink-0 text-slate-500" aria-hidden="true" /><span>{displayText('ความปลอดภัยและรหัสผ่าน', 'Security and password')}</span></button>
+            {menuItems.slice(-1).map((item) => { const Icon = item.icon; return <Link key={item.href} href={item.href} onClick={handleClose} className="flex min-h-14 items-center gap-4 rounded-xl px-5 text-base font-medium text-slate-600 transition hover:bg-slate-50 hover:text-teal-800"><Icon className="size-6 shrink-0 text-slate-500" aria-hidden="true" /><span>{displayText(item.label, item.englishLabel)}</span></Link>; })}
             <div className="mx-1 my-2 border-t border-slate-200" />
-            <button type="button" onClick={onSignOut} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50"><LogOut className="size-5 shrink-0" aria-hidden="true" /><span>ออกจากระบบ</span></button>
+            <button type="button" onClick={onSignOut} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50"><LogOut className="size-5 shrink-0" aria-hidden="true" /><span>{displayText('ออกจากระบบ', 'Sign out')}</span></button>
           </nav>
         ) : (
           <div className="flex-1 overflow-y-auto"><PasswordSecurityCard /></div>

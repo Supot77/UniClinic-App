@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Laptop, Moon, Palette, Sun, Text } from "lucide-react";
+import { useLocale } from "@/context/LocaleContext";
 
 type Theme = "light" | "dark" | "system";
 type FontSize = "normal" | "large";
@@ -66,6 +67,7 @@ function OptionCard({ selected, onClick, icon, title, description }: {
 }
 
 export default function SettingsContent() {
+  const { text } = useLocale();
   const [theme, setTheme] = useState<Theme>("system");
   const [fontSize, setFontSize] = useState<FontSize>("normal");
   const [ready, setReady] = useState(false);
@@ -124,9 +126,9 @@ export default function SettingsContent() {
           <div className="flex items-start gap-3">
             <span className="mt-1 h-10 w-1 shrink-0 rounded-full bg-brand-strong" aria-hidden="true" />
             <div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">การตั้งค่า</h1>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{text("การตั้งค่า", "Settings")}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--settings-muted)]">
-                ปรับรูปแบบการแสดงผลให้เหมาะกับการใช้งานของคุณ
+                {text("ปรับรูปแบบการแสดงผลให้เหมาะกับการใช้งานของคุณ", "Adjust the display to suit your preferences.")}
               </p>
             </div>
           </div>
@@ -138,8 +140,8 @@ export default function SettingsContent() {
               <Palette className="size-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">การแสดงผล</h2>
-              <p className="mt-0.5 text-xs text-[var(--settings-muted)]">การตั้งค่าจะถูกบันทึกไว้ในอุปกรณ์นี้</p>
+              <h2 className="text-lg font-bold">{text("การแสดงผล", "Appearance")}</h2>
+              <p className="mt-0.5 text-xs text-[var(--settings-muted)]">{text("การตั้งค่าจะถูกบันทึกไว้ในอุปกรณ์นี้", "Your settings are saved on this device.")}</p>
             </div>
           </div>
 
@@ -148,8 +150,8 @@ export default function SettingsContent() {
               <div className="mb-5 flex items-start gap-3">
                 <Sun className="mt-0.5 size-5 shrink-0 text-brand-strong" aria-hidden="true" />
                 <div>
-                  <h3 className="text-sm font-bold">ธีม</h3>
-                  <p className="mt-1 text-xs leading-5 text-[var(--settings-muted)]">เลือกรูปแบบสีของหน้าจอ</p>
+                  <h3 className="text-sm font-bold">{text("ธีม", "Theme")}</h3>
+                  <p className="mt-1 text-xs leading-5 text-[var(--settings-muted)]">{text("เลือกรูปแบบสีของหน้าจอ", "Choose a color theme.")}</p>
                 </div>
               </div>
 
@@ -158,24 +160,24 @@ export default function SettingsContent() {
                   selected={theme === "light"}
                   onClick={() => changeTheme("light")}
                   icon={<Sun className="size-7 sm:size-8" />}
-                  title="สว่าง"
-                  description="เหมาะสำหรับการใช้งานในที่สว่าง"
+                  title={text("สว่าง", "Light")}
+                  description={text("เหมาะสำหรับการใช้งานในที่สว่าง", "Best for bright environments.")}
                 />
 
                 <OptionCard
                   selected={theme === "dark"}
                   onClick={() => changeTheme("dark")}
                   icon={<Moon className="size-7 sm:size-8" />}
-                  title="มืด"
-                  description="เหมาะสำหรับการใช้งานในที่แสงน้อย"
+                  title={text("มืด", "Dark")}
+                  description={text("เหมาะสำหรับการใช้งานในที่แสงน้อย", "Best for low-light environments.")}
                 />
 
                 <OptionCard
                   selected={theme === "system"}
                   onClick={() => changeTheme("system")}
                   icon={<Laptop className="size-7 sm:size-8" />}
-                  title="ตามอุปกรณ์"
-                  description="ใช้การตั้งค่าของอุปกรณ์"
+                  title={text("ตามอุปกรณ์", "System")}
+                  description={text("ใช้การตั้งค่าของอุปกรณ์", "Follow your device settings.")}
                 />
               </div>
             </div>
@@ -184,20 +186,20 @@ export default function SettingsContent() {
               <div className="mb-5 flex items-start gap-3">
                 <Text className="mt-0.5 size-5 shrink-0 text-brand-strong" aria-hidden="true" />
                 <div>
-                  <h3 className="text-sm font-bold">ขนาดตัวอักษร</h3>
-                  <p className="mt-1 text-xs leading-5 text-[var(--settings-muted)]">ปรับขนาดข้อความให้อ่านได้สะดวก</p>
+                  <h3 className="text-sm font-bold">{text("ขนาดตัวอักษร", "Text size")}</h3>
+                  <p className="mt-1 text-xs leading-5 text-[var(--settings-muted)]">{text("ปรับขนาดข้อความให้อ่านได้สะดวก", "Choose a comfortable reading size.")}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="ขนาดตัวอักษร">
-                <OptionButton selected={fontSize === "normal"} onClick={() => changeFontSize("normal")} label="ปกติ" />
-                <OptionButton selected={fontSize === "large"} onClick={() => changeFontSize("large")} label="ใหญ่" />
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label={text("ขนาดตัวอักษร", "Text size")}>
+                <OptionButton selected={fontSize === "normal"} onClick={() => changeFontSize("normal")} label={text("ปกติ", "Normal")} />
+                <OptionButton selected={fontSize === "large"} onClick={() => changeFontSize("large")} label={text("ใหญ่", "Large")} />
               </div>
             </div>
           </div>
         </section>
 
         <p aria-live="polite" className={`mt-4 flex min-h-6 items-center justify-end gap-2 text-xs font-medium text-brand-strong transition-opacity ${showSaved ? "opacity-100" : "opacity-0"}`}>
-          <Check className="size-4" aria-hidden="true" />บันทึกการตั้งค่าแล้ว
+          <Check className="size-4" aria-hidden="true" />{text("บันทึกการตั้งค่าแล้ว", "Settings saved.")}
         </p>
       </div>
     </main>

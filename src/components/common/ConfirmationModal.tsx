@@ -3,6 +3,7 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocale } from '@/context/LocaleContext';
 
 export type ConfirmationModalTone = 'danger' | 'primary';
 
@@ -38,6 +39,7 @@ export default function ConfirmationModal({ request, onCancel, isBusy = false }:
   const descriptionId = useId();
   const isOpen = Boolean(request);
   const pending = isBusy || isConfirming;
+  const { text } = useLocale();
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return;
@@ -137,7 +139,7 @@ export default function ConfirmationModal({ request, onCancel, isBusy = false }:
             onClick={onCancel}
             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-brand-border-soft bg-white px-4 text-sm font-semibold text-brand-body transition hover:bg-brand-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-50"
           >
-            ยกเลิก
+            {text('ยกเลิก', 'Cancel')}
           </button>
           <button
             ref={confirmButtonRef}
@@ -148,7 +150,7 @@ export default function ConfirmationModal({ request, onCancel, isBusy = false }:
             className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${confirmClass}`}
           >
             {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {pending ? 'กำลังดำเนินการ…' : request.confirmLabel}
+            {pending ? text('กำลังดำเนินการ…', 'Working…') : request.confirmLabel}
           </button>
         </div>
       </div>
