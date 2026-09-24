@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   AlertCircle,
   Building2,
+  ClipboardList,
   Loader2,
   Pencil,
   Plus,
@@ -21,6 +22,7 @@ import type {
   DoctorAvailability,
   ScheduleDepartment,
   ScheduleDoctor,
+  ScheduleService,
   DoctorLeave,
 } from '@/types/schedule';
 import { getBangkokToday, isDoctorOnLeave } from '@/features/scheduling/domain/rules';
@@ -30,7 +32,7 @@ const inputClass =
   'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
-type WorkspaceTab = 'departments' | 'doctors';
+type WorkspaceTab = 'departments' | 'doctors' | 'services';
 
 function formatLeaveDate(dateValue: string) {
   const [year, month, day] = dateValue.split('-').map(Number);
@@ -58,6 +60,12 @@ interface DoctorDraft {
   availability: DoctorAvailability;
 }
 
+interface ServiceDraft {
+  code: string;
+  name: string;
+  description: string;
+}
+
 const emptyDepartmentDraft: DepartmentDraft = {
   name: '',
   description: '',
@@ -73,10 +81,17 @@ const emptyDoctorDraft: DoctorDraft = {
   availability: 'active',
 };
 
+const emptyServiceDraft: ServiceDraft = {
+  code: '',
+  name: '',
+  description: '',
+};
+
 export default function DepartmentWorkspace() {
   const {
     departments,
     doctors,
+    services,
     slots,
     doctorLeaves = [],
     doctorAccounts,
@@ -85,6 +100,8 @@ export default function DepartmentWorkspace() {
     toggleDepartment: persistDepartmentToggle,
     saveDoctor: persistDoctor,
     toggleDoctor: persistDoctorToggle,
+    saveService: persistService,
+    toggleService: persistServiceToggle,
     deleteDoctorLeave: persistDoctorLeaveDelete,
   } = useScheduling();
 
@@ -96,11 +113,14 @@ export default function DepartmentWorkspace() {
   // Drawer state
   const [departmentDrawerOpen, setDepartmentDrawerOpen] = useState(false);
   const [doctorDrawerOpen, setDoctorDrawerOpen] = useState(false);
+  const [serviceDrawerOpen, setServiceDrawerOpen] = useState(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft>(emptyDepartmentDraft);
   const [doctorDraft, setDoctorDraft] = useState<DoctorDraft>(emptyDoctorDraft);
+  const [serviceDraft, setServiceDraft] = useState<ServiceDraft>(emptyServiceDraft);
   const [formError, setFormError] = useState('');
   const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -109,13 +129,14 @@ export default function DepartmentWorkspace() {
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (confirmation || (!departmentDrawerOpen && !doctorDrawerOpen)) return;
+    if (confirmation || (!departmentDrawerOpen && !doctorDrawerOpen && !serviceDrawerOpen)) return;
     const drawer = drawerRef.current;
     drawer?.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), textarea')?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (departmentDrawerOpen) setDepartmentDrawerOpen(false);
         if (doctorDrawerOpen) setDoctorDrawerOpen(false);
+        if (serviceDrawerOpen) setServiceDrawerOpen(false);
       }
       if (e.key === 'Tab' && drawer) {
         const controls = drawer.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)');
@@ -135,7 +156,7 @@ export default function DepartmentWorkspace() {
       window.removeEventListener('keydown', handleKeyDown);
       drawerTriggerRef.current?.focus();
     };
-  }, [confirmation, departmentDrawerOpen, doctorDrawerOpen]);
+  }, [confirmation, departmentDrawerOpen, doctorDrawerOpen, serviceDrawerOpen]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase('th');
 
@@ -161,6 +182,17 @@ export default function DepartmentWorkspace() {
         return matchesSearch && matchesDepartment && matchesStatus;
       }),
     [departmentFilter, doctors, normalizedSearch, showInactive],
+  );
+
+  const visibleServices = useMemo(
+    () =>
+      services.filter((service) => {
+        const matchesSearch = `${service.code} ${service.name} ${service.description}`
+          .toLocaleLowerCase('th')
+          .includes(normalizedSearch);
+        return matchesSearch && (showInactive || service.isActive);
+      }),
+    [normalizedSearch, services, showInactive],
   );
 
   const openDepartmentForm = (department?: ScheduleDepartment) => {
@@ -290,6 +322,76 @@ export default function DepartmentWorkspace() {
     closeDoctorDrawer();
   };
 
+  const openServiceForm = (service?: ScheduleService) => {
+    drawerTriggerRef.current = document.activeElement as HTMLElement;
+    setFormError('');
+    setNotice('');
+    setEditingServiceId(service?.id ?? null);
+    setServiceDraft(
+      service
+        ? { code: service.code, name: service.name, description: service.description }
+        : emptyServiceDraft,
+    );
+    setServiceDrawerOpen(true);
+  };
+
+  const closeServiceDrawer = () => {
+    setServiceDrawerOpen(false);
+    setEditingServiceId(null);
+    setServiceDraft(emptyServiceDraft);
+    setFormError('');
+  };
+
+  const saveService = async () => {
+    setFormError('');
+    setIsSaving(true);
+    const wasEditing = Boolean(editingServiceId);
+    try {
+      const result = await persistService(serviceDraft, editingServiceId ?? undefined);
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
+
+      setNotice(wasEditing ? 'อัปเดตบริการแล้ว' : 'เพิ่มบริการแล้ว');
+      closeServiceDrawer();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'บันทึกบริการไม่สำเร็จ');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmToggleService = async (service: ScheduleService) => {
+    setIsSaving(true);
+    const result = await persistServiceToggle(service.id);
+    setIsSaving(false);
+
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+
+    if (result.value === 'disabled') setShowInactive(true);
+    setConfirmation(null);
+    setNotice(result.value === 'deleted' ? 'ลบบริการแล้ว' : result.value === 'enabled' ? 'เปิดใช้งานบริการแล้ว' : 'ปิดใช้งานบริการแล้ว');
+  };
+
+  const toggleService = (service: ScheduleService) => {
+    setFormError('');
+    setNotice('');
+    const action = service.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน';
+    setConfirmation({
+      title: `ยืนยันการ${action}บริการ`,
+      message: service.isActive
+        ? `ปิดใช้งานบริการ “${service.name}”? ข้อมูลบริการและรอบตรวจเดิมจะยังคงอยู่`
+        : `เปิดใช้งานบริการ “${service.name}” อีกครั้ง?`,
+      confirmLabel: action,
+      tone: service.isActive ? 'danger' : 'primary',
+      onConfirm: () => confirmToggleService(service),
+    });
+  };
+
   const confirmToggleDoctor = async (doctor: ScheduleDoctor) => {
     setIsSaving(true);
     const result = await persistDoctorToggle(doctor.id);
@@ -355,15 +457,19 @@ export default function DepartmentWorkspace() {
   return (
     <div className="min-w-0 space-y-6 sm:space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-5">
-        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">จัดการแผนกและแพทย์</h1>
+        <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">จัดการแผนก แพทย์ และบริการ</h1>
         <button
           type="button"
           disabled={isLoading}
-          onClick={() => (activeTab === 'departments' ? openDepartmentForm() : openDoctorForm())}
+          onClick={() => {
+            if (activeTab === 'departments') openDepartmentForm();
+            else if (activeTab === 'doctors') openDoctorForm();
+            else openServiceForm();
+          }}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-5 text-sm font-semibold text-white shadow-brand-button transition hover:-translate-y-0.5 hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
-          {activeTab === 'departments' ? 'เพิ่มแผนก' : 'เพิ่มแพทย์'}
+          {activeTab === 'departments' ? 'เพิ่มแผนก' : activeTab === 'doctors' ? 'เพิ่มแพทย์' : 'เพิ่มบริการ'}
         </button>
       </header>
 
@@ -371,6 +477,7 @@ export default function DepartmentWorkspace() {
         {([
           ['departments', 'แผนก', departments.length, Building2],
           ['doctors', 'แพทย์', doctors.length, Stethoscope],
+          ['services', 'บริการ', services.length, ClipboardList],
         ] as const).map(([tab, label, count, Icon]) => {
           const isActive = activeTab === tab;
           return (
@@ -386,17 +493,17 @@ export default function DepartmentWorkspace() {
               onKeyDown={(event) => {
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                 event.preventDefault();
-                const tabs: WorkspaceTab[] = ['departments', 'doctors'];
+                const tabs: WorkspaceTab[] = ['departments', 'doctors', 'services'];
                 const currentIndex = tabs.indexOf(tab);
                 const nextTab = event.key === 'Home'
                   ? 'departments'
                   : event.key === 'End'
-                    ? 'doctors'
+                    ? 'services'
                     : tabs[(currentIndex + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
                 changeTab(nextTab);
                 document.getElementById(`${nextTab}-tab`)?.focus();
               }}
-              className={`group relative flex min-h-12 items-center gap-2.5 rounded-t-2xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong ${
+              className={`group relative flex min-h-12 items-center gap-2.5 rounded-t-2xl px-3 py-3 text-sm font-semibold transition-all duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:px-5 ${
                 isActive
                   ? '-mb-[2px] z-10 border-t-4 border-t-brand border-x-2 border-b-2 border-x-brand-border-soft border-b-white bg-white text-brand-strong shadow-xs'
                   : 'border-t-2 border-x border-b-0 border-transparent bg-slate-100/80 text-brand-body hover:bg-brand-surface hover:text-brand-strong'
@@ -420,13 +527,13 @@ export default function DepartmentWorkspace() {
 
       <section aria-label="ค้นหาและกรองรายการ" className="flex flex-wrap items-end gap-4 border-y border-brand-border-soft bg-brand-surface/60 px-4 py-4">
         <label className="grid w-full gap-2 text-sm text-brand-body sm:w-80">
-          <span>{activeTab === 'departments' ? 'ค้นหาแผนก' : 'ค้นหาแพทย์'}</span>
+          <span>{activeTab === 'departments' ? 'ค้นหาแผนก' : activeTab === 'doctors' ? 'ค้นหาแพทย์' : 'ค้นหาบริการ'}</span>
           <span className="relative">
             <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-brand-body" aria-hidden="true" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={activeTab === 'departments' ? 'ชื่อแผนกหรือคำอธิบาย' : 'ชื่อแพทย์ ความเชี่ยวชาญ หรืออีเมล'}
+              placeholder={activeTab === 'departments' ? 'ชื่อแผนกหรือคำอธิบาย' : activeTab === 'doctors' ? 'ชื่อแพทย์ ความเชี่ยวชาญ หรืออีเมล' : 'รหัส ชื่อ หรือคำอธิบายบริการ'}
               className={`${inputClass} pl-9`}
             />
           </span>
@@ -452,7 +559,7 @@ export default function DepartmentWorkspace() {
         isBusy={isSaving}
       />
       <div aria-live="polite" className="space-y-3 empty:hidden">
-        {formError && !departmentDrawerOpen && !doctorDrawerOpen && (
+        {formError && !departmentDrawerOpen && !doctorDrawerOpen && !serviceDrawerOpen && (
           <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">
             <span className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
@@ -602,6 +709,61 @@ export default function DepartmentWorkspace() {
           )}
         </section>
       )}
+      {activeTab === 'services' && (
+        <section id="services-panel" role="tabpanel" aria-labelledby="services-tab" aria-busy={isLoading} className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300 ease-out">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-brand-ink">รายการบริการ</h2>
+            <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium tabular-nums text-brand-strong">{visibleServices.length} บริการ</span>
+          </div>
+          {isLoading ? (
+            <ListLoading label="กำลังโหลดรายการบริการ" />
+          ) : visibleServices.length === 0 ? (
+            <EmptyPanel
+              title={services.length === 0 ? 'ยังไม่มีบริการ' : 'ไม่พบบริการ'}
+              detail={services.length === 0 ? 'เพิ่มบริการเพื่อใช้กำหนดรอบตรวจที่เปิดรับจอง' : 'ลองเปลี่ยนคำค้นหา หรือเลือก “แสดงรายการที่ปิดใช้งาน”'}
+            />
+          ) : (
+            <div className="border-y border-brand-border-soft">
+              <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_150px_180px] gap-6 border-b border-brand-border-soft bg-brand-surface/60 px-3 py-4 text-sm text-brand-body lg:grid">
+                <span>รหัสบริการ</span><span>รายละเอียด</span><span>สถานะ</span><span className="text-right">จัดการ</span>
+              </div>
+              <div className="divide-y divide-brand-border-soft">
+                {visibleServices.map((service) => (
+                  <article key={service.id} className="grid gap-4 py-5 transition-colors hover:bg-brand-surface/60 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_150px_180px] lg:items-center lg:gap-6">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-brand-body lg:hidden">รหัสบริการ</p>
+                      <p className="break-all font-mono text-sm font-semibold text-brand-strong">{service.code}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="break-words text-base font-semibold text-brand-ink">{service.name}</h3>
+                      {service.description && <p className="mt-1 break-words text-sm leading-6 text-brand-body">{service.description}</p>}
+                    </div>
+                    <p className={`flex items-center gap-2 text-sm ${service.isActive ? 'text-status-success' : 'text-status-neutral'}`}>
+                      <span className={`h-2 w-2 rounded-full ${service.isActive ? 'bg-status-success' : 'bg-status-neutral'}`} aria-hidden="true" />
+                      {service.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 lg:justify-end">
+                      <button type="button" onClick={() => openServiceForm(service)} className={`${textActionClass} text-brand-strong`} aria-label={`แก้ไข ${service.name}`}>
+                        <Pencil className="h-4 w-4" aria-hidden="true" />แก้ไข
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => toggleService(service)}
+                        className={`${textActionClass} ${service.isActive ? 'text-status-critical' : 'text-status-success'}`}
+                        aria-label={`${service.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} ${service.name}`}
+                      >
+                        <Power className="h-4 w-4" aria-hidden="true" />{service.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Slide-over Drawer: Department */}
       {departmentDrawerOpen && (
         <div ref={drawerRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="department-drawer-title" role="dialog" aria-modal="true">
@@ -848,6 +1010,107 @@ export default function DepartmentWorkspace() {
                   ) : (
                     <span>บันทึกข้อมูลแพทย์</span>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Slide-over Drawer: Service */}
+      {serviceDrawerOpen && (
+        <div ref={drawerRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="service-drawer-title" role="dialog" aria-modal="true">
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            onClick={closeServiceDrawer}
+            aria-hidden="true"
+          />
+
+          <div className="fixed inset-y-0 right-0 flex w-full max-w-md sm:pl-6">
+            <div className="flex h-full min-h-0 w-full flex-col justify-between bg-white shadow-xl">
+              <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+                <div>
+                  <h2 id="service-drawer-title" className="mt-1 text-xl font-bold text-slate-900">
+                    {editingServiceId ? 'แก้ไขบริการ' : 'เพิ่มบริการ'}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">บริการนี้ใช้กำหนดรอบตรวจที่เปิดรับจอง</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={closeServiceDrawer}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-teal-600 disabled:opacity-50"
+                  aria-label="ปิดแผงแก้ไขบริการ"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+                {formError && (
+                  <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label htmlFor="service-code" className="text-sm font-semibold text-slate-800">
+                    รหัสบริการ <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    id="service-code"
+                    value={serviceDraft.code}
+                    onChange={(event) => setServiceDraft((current) => ({ ...current, code: event.target.value }))}
+                    placeholder="เช่น GEN-CONSULT"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="service-name" className="text-sm font-semibold text-slate-800">
+                    ชื่อบริการ <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    id="service-name"
+                    value={serviceDraft.name}
+                    onChange={(event) => setServiceDraft((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="เช่น ตรวจโรคทั่วไป"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="service-description" className="text-sm font-semibold text-slate-800">คำอธิบายบริการ</label>
+                  <textarea
+                    id="service-description"
+                    rows={4}
+                    value={serviceDraft.description}
+                    onChange={(event) => setServiceDraft((current) => ({ ...current, description: event.target.value }))}
+                    placeholder="รายละเอียดสำหรับผู้รับบริการ"
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-3 border-t border-brand-border-soft px-6 py-4">
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={closeServiceDrawer}
+                  className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200/70 disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  aria-busy={isSaving}
+                  onClick={saveService}
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                  {isSaving ? 'กำลังบันทึก…' : 'บันทึกบริการ'}
                 </button>
               </div>
             </div>
