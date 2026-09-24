@@ -12,6 +12,7 @@ import {
 import type { Medication } from '@/types/database';
 import type { PatientPrescriptionOrder } from './types';
 import { formatDisplayDateTime } from './utils';
+import { useLocale } from '@/context/LocaleContext';
 
 export interface PrescriptionOrderCardProps {
   order: PatientPrescriptionOrder;
@@ -27,6 +28,7 @@ export function PrescriptionOrderCard({
   order,
   availableMeds = [],
 }: PrescriptionOrderCardProps) {
+  const { locale, text } = useLocale();
   const hasShortage = order.prescribed_medications.some((item) => {
     const med = availableMeds.find(
       (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
@@ -41,11 +43,11 @@ export function PrescriptionOrderCard({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
           <span className="inline-flex items-center gap-1.5 text-slate-600">
             <Stethoscope className="h-4 w-4 text-sky-600" />
-            สั่งจ่ายโดย : <strong>{order.doctor_name}</strong>
+            {text('สั่งจ่ายโดย:', 'Prescribed by:')} <strong>{order.doctor_name}</strong>
           </span>
           <span className="inline-flex items-center gap-1.5 text-slate-500">
             <Calendar className="h-4 w-4 text-slate-400" />
-            {formatDisplayDateTime(order.created_at)}
+            {formatDisplayDateTime(order.created_at, locale)}
           </span>
         </div>
 
@@ -53,7 +55,7 @@ export function PrescriptionOrderCard({
         <div className="flex items-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
             <CheckCircle2 className="h-4 w-4" />
-            แจ้งกินยา
+            {text('แจ้งกินยา', 'Medication reminders')}
           </span>
         </div>
       </div>
@@ -64,13 +66,13 @@ export function PrescriptionOrderCard({
           <div className="flex items-center gap-2">
             <Pill className="h-4 w-4 text-sky-600" />
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              รายการยาตามใบสั่ง ({order.prescribed_medications.length} รายการ)
+              {text(`รายการยาตามใบสั่ง (${order.prescribed_medications.length} รายการ)`, `Prescribed medications (${order.prescribed_medications.length})`)}
             </h4>
           </div>
           {hasShortage && (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600">
               <AlertTriangle className="h-3.5 w-3.5" />
-              สต็อกยาไม่พอสำหรับบางรายการ
+              {text('สต็อกยาไม่พอสำหรับบางรายการ', 'Some medications are out of stock.')}
             </span>
           )}
         </div>
@@ -79,10 +81,10 @@ export function PrescriptionOrderCard({
           <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
-                <th className="px-3.5 py-2.5 font-semibold">รายการยาและเวชภัณฑ์</th>
-                <th className="px-3.5 py-2.5 font-semibold">ขนาดยาและวิธีใช้</th>
-                <th className="px-3.5 py-2.5 font-semibold text-center">จำนวนที่สั่ง</th>
-                <th className="px-3.5 py-2.5 font-semibold text-right">สถานะการจ่าย</th>
+                <th className="px-3.5 py-2.5 font-semibold">{text('รายการยาและเวชภัณฑ์', 'Medication')}</th>
+                <th className="px-3.5 py-2.5 font-semibold">{text('ขนาดยาและวิธีใช้', 'Dose and instructions')}</th>
+                <th className="px-3.5 py-2.5 font-semibold text-center">{text('จำนวนที่สั่ง', 'Quantity')}</th>
+                <th className="px-3.5 py-2.5 font-semibold text-right">{text('สถานะการจ่าย', 'Dispensing status')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -106,7 +108,7 @@ export function PrescriptionOrderCard({
                     <td className="px-3.5 py-2.5 text-slate-600">
                       <div>{item.dosage}</div>
                       <div className="text-[11px] text-slate-500">
-                        {item.frequency} {item.duration_days ? `· ${item.duration_days} วัน` : ''}
+                        {item.frequency} {item.duration_days ? `· ${item.duration_days} ${text('วัน', 'days')}` : ''}
                       </div>
                     </td>
                     <td className="px-3.5 py-2.5 text-center font-bold text-slate-900">
@@ -115,17 +117,17 @@ export function PrescriptionOrderCard({
                     <td className="px-3.5 py-2.5 text-right">
                       {!med ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                          ไม่พบยาในคลัง
+                          {text('ไม่พบยาในคลัง', 'Not in stock')}
                         </span>
                       ) : isSufficient ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                           <CheckCircle2 className="h-3 w-3" />
-                          พร้อมจ่าย
+                          {text('พร้อมจ่าย', 'Available')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20">
                           <AlertTriangle className="h-3 w-3" />
-                          สต็อกขาด {item.quantity - currentStock}
+                          {text(`สต็อกขาด ${item.quantity - currentStock}`, `Short by ${item.quantity - currentStock}`)}
                         </span>
                       )}
                     </td>

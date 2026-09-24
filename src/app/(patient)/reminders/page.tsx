@@ -26,6 +26,7 @@ import type {
   MedicalRecord,
 } from '@/types/database';
 import { getPatients, getProfile } from '@/services/authService';
+import { useLocale } from '@/context/LocaleContext';
 
 import {
   PatientOption,
@@ -42,6 +43,7 @@ export default function RemindersPage() {
   // 1. ระบบยืนยันตัวตน และการตรวจสอบสิทธิ์การใช้งาน (Auth & Role Check)
   // ---------------------------------------------------------------------------
   const { user, role, isLoading: authLoading } = useAuth();
+  const { text } = useLocale();
 
   // State สำหรับบันทึกตัวเลือกผู้ป่วยที่บุคลากรทางการแพทย์เลือกดู
   const [selectedPatientOverride, setSelectedPatientOverride] = useState<string | null>(null);
@@ -302,10 +304,10 @@ export default function RemindersPage() {
         <header className="flex flex-wrap items-center justify-between gap-5">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">
-              รายการยาและการแจ้งเตือน
+              {text('รายการยาและการแจ้งเตือน', 'Medications and reminders')}
             </h1>
             <p className="mt-1 text-sm text-brand-muted">
-              ตารางเวลาและคำแนะนำการรับประทานยาสำหรับผู้ป่วย
+              {text('ตารางเวลาและคำแนะนำการรับประทานยาสำหรับผู้ป่วย', 'Your medication schedule and instructions.')}
             </p>
           </div>
 
@@ -317,7 +319,7 @@ export default function RemindersPage() {
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50 cursor-pointer"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              สั่งจ่ายยา
+              {text('สั่งจ่ายยา', 'Prescribe medication')}
             </button>
           )}
         </header>
@@ -335,7 +337,7 @@ export default function RemindersPage() {
                 type="button"
                 onClick={() => setNotice('')}
                 className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                aria-label="ปิดแจ้งเตือน"
+                aria-label={text('ปิดแจ้งเตือน', 'Dismiss notification')}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -356,7 +358,7 @@ export default function RemindersPage() {
                 type="button"
                 onClick={() => setErrorMessage('')}
                 className="rounded-lg p-1 text-rose-700 hover:bg-rose-100 cursor-pointer"
-                aria-label="ปิดข้อความแจ้งเตือน"
+                aria-label={text('ปิดข้อความแจ้งเตือน', 'Dismiss message')}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -375,7 +377,7 @@ export default function RemindersPage() {
         />
 
         {/* === รายการใบสั่งยาและการ์ดแจ้งเตือน (Prescription Cards List) === */}
-        <section aria-label="รายการยาและการแจ้งเตือน" aria-busy={isLoading}>
+        <section aria-label={text('รายการยาและการแจ้งเตือน', 'Medications and reminders')} aria-busy={isLoading}>
           {/* สถานะกำลังโหลด (Loading Skeleton) */}
           {isLoading ? (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
@@ -415,13 +417,13 @@ export default function RemindersPage() {
               <div>
                 <h3 className="text-base font-bold text-brand-ink">
                   {isPatient
-                    ? 'คุณยังไม่มีรายการยาในระบบ'
-                    : `ยังไม่มีรายการยาสำหรับ ${currentPatient.name}`}
+                    ? text('คุณยังไม่มีรายการยาในระบบ', 'You do not have any medications yet.')
+                    : text(`ยังไม่มีรายการยาสำหรับ ${currentPatient.name}`, `There are no medications for ${currentPatient.name} yet.`)}
                 </h3>
                 <p className="text-xs sm:text-sm text-brand-muted mt-1 max-w-md mx-auto">
                   {isPatient
-                    ? 'เมื่อแพทย์สั่งจ่ายยา รายการยาและเวลาแจ้งเตือนจะแสดงที่นี่'
-                    : 'กดปุ่ม "สั่งจ่ายยา" เพื่อบันทึกรายการยาและตั้งเวลาเตือน'}
+                    ? text('เมื่อแพทย์สั่งจ่ายยา รายการยาและเวลาแจ้งเตือนจะแสดงที่นี่', 'Medications and reminder times will appear here after your clinician prescribes them.')
+                    : text('กดปุ่ม "สั่งจ่ายยา" เพื่อบันทึกรายการยาและตั้งเวลาเตือน', 'Select “Prescribe medication” to record a medication and set a reminder.')}
                 </p>
               </div>
               {canManageMedication && (
@@ -431,7 +433,7 @@ export default function RemindersPage() {
                     onClick={() => setIsAddModalOpen(true)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover cursor-pointer"
                   >
-                    <Plus size={16} /> สั่งจ่ายยา
+                    <Plus size={16} /> {text('สั่งจ่ายยา', 'Prescribe medication')}
                   </button>
                 </div>
               )}

@@ -11,11 +11,13 @@ import { signIn } from '@/services/authService';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { toLoginErrorMessage } from '@/lib/userFacingErrors';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocale } from '@/context/LocaleContext';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const { text, locale } = useLocale();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] =
@@ -53,12 +55,12 @@ function LoginForm() {
         normalizedEmail,
       )
     ) {
-      setError('กรุณากรอกอีเมลให้ถูกต้อง');
+      setError(text('กรุณากรอกอีเมลให้ถูกต้อง', 'Enter a valid email address.'));
       return;
     }
 
     if (!password) {
-      setError('กรุณากรอกรหัสผ่าน');
+      setError(text('กรุณากรอกรหัสผ่าน', 'Enter your password.'));
       return;
     }
 
@@ -87,9 +89,15 @@ function LoginForm() {
       }
       setIsSubmitting(false);
 
-      setError(
-        toLoginErrorMessage(err),
-      );
+      const thaiError = toLoginErrorMessage(err);
+      const englishError: Record<string, string> = {
+        'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ': 'Please verify your email before signing in.',
+        'อีเมลหรือรหัสผ่านไม่ถูกต้อง': 'The email or password is incorrect.',
+        'ลองเข้าสู่ระบบอีกครั้งภายหลัง': 'Please try signing in again later.',
+        'เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่': 'Could not connect. Check your internet connection and try again.',
+        'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่': 'Sign-in failed. Please try again.',
+      };
+      setError(locale === 'en' ? englishError[thaiError] ?? 'Sign-in failed. Please try again.' : thaiError);
     }
   }
 
@@ -110,22 +118,22 @@ function LoginForm() {
           </div>
 
           <h2 className="text-base font-bold text-zinc-900">
-            เข้าสู่ระบบสำเร็จ
+            {text('เข้าสู่ระบบสำเร็จ', 'Signed in successfully')}
           </h2>
 
           <p className="mt-1 max-w-xs text-sm text-zinc-500">
-            กำลังเปิดหน้าถัดไป…
+            {text('กำลังเปิดหน้าถัดไป…', 'Opening the next page…')}
           </p>
         </div>
       )}
 
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold text-zinc-900">
-          เข้าสู่ระบบ
+          {text('เข้าสู่ระบบ', 'Sign in')}
         </h1>
 
         <p className="mt-2 text-zinc-500">
-          ระบบคลินิกสุขภาพมหาวิทยาลัย
+          {text('ระบบคลินิกสุขภาพมหาวิทยาลัย', 'University health clinic')}
         </p>
       </div>
 
@@ -147,7 +155,7 @@ function LoginForm() {
             htmlFor="login-email"
             className="mb-1 block text-sm font-medium text-zinc-700"
           >
-            อีเมล
+            {text('อีเมล', 'Email')}
           </label>
 
           <input
@@ -174,7 +182,7 @@ function LoginForm() {
             id="login-email-help"
             className="mt-1.5 text-xs text-zinc-500"
           >
-            ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail.wu.ac.th
+            {text('ผู้ป่วยใช้อีเมลที่ลงท้ายด้วย @mail.wu.ac.th', 'Patients must use an @mail.wu.ac.th email address.')}
           </p>
         </div>
 
@@ -184,14 +192,14 @@ function LoginForm() {
               htmlFor="login-password"
               className="block text-sm font-medium text-zinc-700"
             >
-              รหัสผ่าน
+              {text('รหัสผ่าน', 'Password')}
             </label>
 
             <Link
               href="/forgot-password"
               className="text-sm font-medium text-sky-600 hover:underline"
             >
-              ลืมรหัสผ่าน?
+              {text('ลืมรหัสผ่าน?', 'Forgot password?')}
             </Link>
           </div>
 
@@ -213,7 +221,7 @@ function LoginForm() {
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               disabled={isLoading}
-              aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+              aria-label={showPassword ? text('ซ่อนรหัสผ่าน', 'Hide password') : text('แสดงรหัสผ่าน', 'Show password')}
               aria-pressed={showPassword}
               className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-zinc-400 transition hover:text-sky-600 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -239,19 +247,19 @@ function LoginForm() {
           )}
 
           {isRedirecting || isRoutePending
-            ? 'กำลังเปิดหน้าถัดไป…'
+            ? text('กำลังเปิดหน้าถัดไป…', 'Opening the next page…')
             : isSubmitting
-              ? 'กำลังเข้าสู่ระบบ…'
-              : 'เข้าสู่ระบบ'}
+              ? text('กำลังเข้าสู่ระบบ…', 'Signing in…')
+              : text('เข้าสู่ระบบ', 'Sign in')}
         </button>
 
         <p className="text-center text-sm text-zinc-500">
-          ยังไม่มีบัญชีผู้ป่วย?{' '}
+          {text('ยังไม่มีบัญชีผู้ป่วย?', 'New patient?')}{' '}
           <Link
             href="/register"
             className="font-medium text-sky-500 hover:underline"
           >
-            สมัครสมาชิก
+            {text('สมัครสมาชิก', 'Create an account')}
           </Link>
         </p>
       </form>
@@ -260,12 +268,13 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const { text } = useLocale();
   return (
     <Suspense
       fallback={
         <LoadingSpinner
           center
-          label="กำลังโหลดหน้าเข้าสู่ระบบ…"
+          label={text('กำลังโหลดหน้าเข้าสู่ระบบ…', 'Loading sign-in page…')}
         />
       }
     >

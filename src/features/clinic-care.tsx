@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, FileHeart, RefreshCw, X } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { formatProfileName, type ProfileNameFields } from '@/lib/profileName';
+import { useLocale } from '@/context/LocaleContext';
 
 export const inputClass = 'min-h-11 w-full rounded-xl border border-brand-border-soft bg-white px-3 py-2 text-sm text-brand-ink outline-none focus:border-brand-strong focus:ring-4 focus:ring-brand-soft disabled:bg-brand-surface';
 export const primaryButtonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
@@ -347,15 +348,16 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
   role: ClinicRole; section: 'appointments' | 'records'; error: string; message: string; busy: boolean;
   reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[]; wide?: boolean;
 }) {
+  const { text } = useLocale();
   const title = section === 'records'
-    ? role === 'patient' ? 'ประวัติการรักษา' : 'ผลตรวจและรายการยา'
-    : role === 'patient' ? 'นัดหมายของฉัน' : role === 'medical' ? 'นัดหมายและคิวตรวจ' : 'รายการนัดทั้งหมด';
+    ? role === 'patient' ? text('ประวัติการรักษา', 'Medical records') : 'ผลตรวจและรายการยา'
+    : role === 'patient' ? text('นัดหมายของฉัน', 'My appointments') : role === 'medical' ? 'นัดหมายและคิวตรวจ' : 'รายการนัดทั้งหมด';
   const description = section === 'records'
     ? role === 'patient'
-      ? 'ดูนัดหมาย ผลตรวจ และรายการยาของคุณ'
+      ? text('ดูนัดหมาย ผลตรวจ และรายการยาของคุณ', 'View your appointments, results, and medications.')
       : 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ'
     : role === 'patient'
-      ? 'ติดตามสถานะนัดหมายและรายละเอียดการเข้ารับบริการ'
+      ? text('ติดตามสถานะนัดหมายและรายละเอียดการเข้ารับบริการ', 'Track your appointment status and visit details.')
       : role === 'medical'
         ? 'ติดตามคิวตรวจและบันทึกข้อมูลการรักษาของผู้ป่วยที่รับผิดชอบ'
         : 'จัดการคำขอนัดและติดตามคิวของผู้รับบริการจากระบบปัจจุบัน';
@@ -366,12 +368,12 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">{title}</h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-brand-muted">{description}</p>
         </div>
-        <button aria-label="โหลดข้อมูลใหม่" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-brand-strong px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-50" disabled={busy} onClick={() => void reload()}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" />รีเฟรช</button>
+        <button aria-label={text('โหลดข้อมูลใหม่', 'Reload data')} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-brand-strong px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-50" disabled={busy} onClick={() => void reload()}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" />{text('รีเฟรช', 'Refresh')}</button>
       </div>
     </header>
-    <nav aria-label="นัดหมายและผลตรวจ" className="flex items-center gap-5 overflow-x-auto border-b border-brand-border-soft px-1">
-      <Link href="/appointments" aria-current={section === 'appointments' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'appointments' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><CalendarDays className="h-4 w-4" aria-hidden="true" />นัดหมายและคิว</Link>
-      {role !== 'staff_admin' && <Link href="/records" aria-current={section === 'records' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'records' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><FileHeart className="h-4 w-4" aria-hidden="true" />ผลตรวจและรายการยา</Link>}
+    <nav aria-label={text('นัดหมายและผลตรวจ', 'Appointments and results')} className="flex items-center gap-5 overflow-x-auto border-b border-brand-border-soft px-1">
+      <Link href="/appointments" aria-current={section === 'appointments' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'appointments' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><CalendarDays className="h-4 w-4" aria-hidden="true" />{text('นัดหมายและคิว', 'Appointments')}</Link>
+      {role !== 'staff_admin' && <Link href="/records" aria-current={section === 'records' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'records' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><FileHeart className="h-4 w-4" aria-hidden="true" />{text('ผลตรวจและรายการยา', 'Results and medications')}</Link>}
     </nav>
     {error && <p role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />{error}</p>}
     {message && <p role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />{message}</p>}
@@ -381,12 +383,13 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
 
 const dateValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const asDate = (value: string) => new Date(`${value}T12:00:00`);
-const fullDate = (value: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'long' }).format(asDate(value));
+const fullDate = (value: string, locale: 'en' | 'th' = 'th') => new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', { dateStyle: 'long', timeZone: 'Asia/Bangkok' }).format(asDate(value));
 const pickerButtonStyle = 'flex min-h-11 items-center justify-center rounded-xl transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40';
 
 export function ClinicDatePicker({ label, value, onChange, min, markedDates = [], disabled = false, className = '' }: {
   label: string; value: string; onChange: (value: string) => void; min?: string; markedDates?: string[]; disabled?: boolean; className?: string;
 }) {
+  const { locale, text } = useLocale();
   const id = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -424,31 +427,31 @@ export function ClinicDatePicker({ label, value, onChange, min, markedDates = []
   return <>
     <button ref={trigger} type="button" disabled={disabled} aria-label={label} aria-haspopup="dialog" onClick={open}
     className={`flex min-h-11 w-full min-w-0 items-center gap-3 rounded-xl border border-brand-border-strong bg-white px-3 py-2.5 text-left text-sm text-brand-ink shadow-sm transition hover:border-brand-strong hover:bg-brand-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50 ${className}`}>
-      <CalendarDays className="h-4 w-4 shrink-0 text-brand-strong" aria-hidden="true" /><span className="truncate">{value ? fullDate(value) : 'เลือกวันที่'}</span>
+      <CalendarDays className="h-4 w-4 shrink-0 text-brand-strong" aria-hidden="true" /><span className="truncate">{value ? fullDate(value, locale) : text('เลือกวันที่', 'Choose a date')}</span>
     </button>
     <dialog ref={dialog} aria-labelledby={`${id}-title`} onClick={(event) => { if (event.target === event.currentTarget) close(); }}
       className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-3xl border border-brand-border bg-white p-0 text-brand-ink shadow-2xl backdrop:bg-brand-ink/30 backdrop:backdrop-blur-sm">
       <div className="p-4 sm:p-6">
-        <div className="mb-5 flex items-center justify-between gap-3"><div><p className="mb-1 text-xs font-medium text-brand-body">ปฏิทินนัดหมาย</p><h2 id={`${id}-title`} className="text-lg font-semibold">{label}</h2></div><button type="button" aria-label="ปิดปฏิทิน" onClick={close} className={`${pickerButtonStyle} w-11`}><X className="h-5 w-5" /></button></div>
+        <div className="mb-5 flex items-center justify-between gap-3"><div><p className="mb-1 text-xs font-medium text-brand-body">{text('ปฏิทินนัดหมาย', 'Appointment calendar')}</p><h2 id={`${id}-title`} className="text-lg font-semibold">{label}</h2></div><button type="button" aria-label={text('ปิดปฏิทิน', 'Close calendar')} onClick={close} className={`${pickerButtonStyle} w-11`}><X className="h-5 w-5" /></button></div>
         <div className="mb-4 flex items-center justify-between gap-2 rounded-2xl bg-brand-surface p-2">
-          <button type="button" aria-label="เดือนก่อนหน้า" disabled={Boolean(min && month <= min.slice(0, 7))} onClick={() => moveMonth(-1)} className={`${pickerButtonStyle} w-11`}><ChevronLeft className="h-5 w-5" /></button>
-          <p aria-live="polite" className="font-semibold">{new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric' }).format(first)}</p>
-          <button type="button" aria-label="เดือนถัดไป" onClick={() => moveMonth(1)} className={`${pickerButtonStyle} w-11`}><ChevronRight className="h-5 w-5" /></button>
+          <button type="button" aria-label={text('เดือนก่อนหน้า', 'Previous month')} disabled={Boolean(min && month <= min.slice(0, 7))} onClick={() => moveMonth(-1)} className={`${pickerButtonStyle} w-11`}><ChevronLeft className="h-5 w-5" /></button>
+          <p aria-live="polite" className="font-semibold">{new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', { month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' }).format(first)}</p>
+          <button type="button" aria-label={text('เดือนถัดไป', 'Next month')} onClick={() => moveMonth(1)} className={`${pickerButtonStyle} w-11`}><ChevronRight className="h-5 w-5" /></button>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-brand-body" aria-hidden="true">{['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'].map((day) => <span key={day} className="py-2">{day}</span>)}</div>
-        <div className="grid grid-cols-7 gap-1" role="group" aria-label="วันที่ในปฏิทิน">{days.map(({ date, iso }) => {
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-brand-body" aria-hidden="true">{(locale === 'th' ? ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((day) => <span key={day} className="py-2">{day}</span>)}</div>
+        <div className="grid grid-cols-7 gap-1" role="group" aria-label={text('วันที่ในปฏิทิน', 'Calendar dates')}>{days.map(({ date, iso }) => {
           const selected = value === iso;
           return <button key={iso} type="button" data-date={iso} disabled={Boolean(min && iso < min)} tabIndex={focused === iso ? 0 : -1}
-            aria-label={`${fullDate(iso)}${marked.has(iso) ? ' มีนัดหมาย' : ''}`} aria-pressed={selected} aria-current={iso === today ? 'date' : undefined}
+            aria-label={`${fullDate(iso, locale)}${marked.has(iso) ? text(' มีนัดหมาย', ' Appointment scheduled') : ''}`} aria-pressed={selected} aria-current={iso === today ? 'date' : undefined}
             onKeyDown={(event) => navigate(event, iso)} onFocus={() => setFocused(iso)} onClick={() => choose(iso)}
             className={`relative flex min-h-11 min-w-0 flex-col items-center justify-center rounded-xl text-sm transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-strong active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-brand-strong font-semibold text-white shadow-md hover:bg-brand-hover' : `${iso.startsWith(month) ? 'text-brand-ink' : 'text-brand-body'} ${marked.has(iso) ? 'bg-brand-soft' : 'bg-white'} hover:bg-brand-soft ${iso === today ? 'ring-1 ring-inset ring-brand-strong' : ''}`}`}>
             {date.getDate()}{marked.has(iso) && <span aria-hidden="true" className={`absolute bottom-1 h-1 w-1 rounded-full ${selected ? 'bg-white' : 'bg-brand-strong'}`} />}
           </button>;
         })}</div>
-        <p className="mt-4 flex items-center gap-2 text-xs text-brand-body"><span className="h-1.5 w-1.5 rounded-full bg-brand-strong" aria-hidden="true" />วันที่มีนัดหมาย</p>
+        <p className="mt-4 flex items-center gap-2 text-xs text-brand-body"><span className="h-1.5 w-1.5 rounded-full bg-brand-strong" aria-hidden="true" />{text('วันที่มีนัดหมาย', 'Dates with appointments')}</p>
         <div className="mt-4 flex items-center justify-between border-t border-brand-border-soft pt-3">
-          <button type="button" className={`${pickerButtonStyle} px-3 text-sm text-brand-body`} onClick={() => choose('')}>ล้างวันที่</button>
-          <button type="button" disabled={Boolean(min && today < min)} className={`${pickerButtonStyle} px-4 text-sm font-semibold text-brand-strong`} onClick={() => choose(today)}>วันนี้</button>
+          <button type="button" className={`${pickerButtonStyle} px-3 text-sm text-brand-body`} onClick={() => choose('')}>{text('ล้างวันที่', 'Clear date')}</button>
+          <button type="button" disabled={Boolean(min && today < min)} className={`${pickerButtonStyle} px-4 text-sm font-semibold text-brand-strong`} onClick={() => choose(today)}>{text('วันนี้', 'Today')}</button>
         </div>
       </div>
     </dialog>
@@ -459,6 +462,7 @@ export type ClinicSelectOption = { value: string; label: string; disabled?: bool
 export function ClinicSelect({ value, onChange, options, placeholder, ariaLabel, disabled = false, className = '' }: {
   value: string; onChange: (value: string) => void; options: ClinicSelectOption[]; placeholder: string; ariaLabel: string; disabled?: boolean; className?: string;
 }) {
+  const { text } = useLocale();
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -502,14 +506,15 @@ export function ClinicSelect({ value, onChange, options, placeholder, ariaLabel,
     </button>
     {open && <div ref={menu} id={id} role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-30 mt-2 max-h-64 w-full min-w-[14rem] overflow-y-auto rounded-2xl border border-brand-border bg-white p-1.5 shadow-xl ring-1 ring-slate-950/5">
       {options.length ? options.map((option, index) => <button key={option.value} type="button" role="option" aria-selected={value === option.value} disabled={option.disabled} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(option)}
-        className={`flex min-h-10 w-full items-center rounded-xl px-3 py-2 text-left text-sm transition ${value === option.value ? 'bg-brand-soft font-semibold text-brand-strong' : index === activeIndex ? 'bg-brand-surface text-brand-ink' : 'text-brand-ink hover:bg-brand-surface'} disabled:cursor-not-allowed disabled:text-brand-muted/50`}>{option.label}</button>) : <p className="px-3 py-2 text-sm text-brand-muted">ไม่มีตัวเลือก</p>}
+        className={`flex min-h-10 w-full items-center rounded-xl px-3 py-2 text-left text-sm transition ${value === option.value ? 'bg-brand-soft font-semibold text-brand-strong' : index === activeIndex ? 'bg-brand-surface text-brand-ink' : 'text-brand-ink hover:bg-brand-surface'} disabled:cursor-not-allowed disabled:text-brand-muted/50`}>{option.label}</button>) : <p className="px-3 py-2 text-sm text-brand-muted">{text('ไม่มีตัวเลือก', 'No options available')}</p>}
     </div>}
   </div>;
 }
 
 export function ClinicPageLoading() {
-  return <div role="status" aria-label="กำลังโหลดหน้าบริการ" className="space-y-6">
-    <p className="text-sm text-slate-500">กำลังโหลดหน้าบริการ…</p>
+  const { text } = useLocale();
+  return <div role="status" aria-label={text('กำลังโหลดหน้าบริการ', 'Loading clinic page')} className="space-y-6">
+    <p className="text-sm text-slate-500">{text('กำลังโหลดหน้าบริการ…', 'Loading clinic page…')}</p>
     <div aria-hidden="true" className="space-y-6 motion-safe:animate-pulse">
       <div className="h-12 rounded-xl bg-slate-100" />
       <div className="h-10 w-2/3 rounded-xl bg-slate-200" />
