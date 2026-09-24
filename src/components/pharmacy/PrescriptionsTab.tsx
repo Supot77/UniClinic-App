@@ -100,8 +100,8 @@ export default function PrescriptionsTab({
   medications,
   canManage,
   userId,
-  initialStatus = 'all',
-  initialSort = 'newest',
+  initialStatus = 'pending',
+  initialSort = 'oldest',
   statusFilter: controlledStatusFilter,
   onStatusFilterChange,
   sortBy: controlledSortBy,
@@ -128,11 +128,7 @@ export default function PrescriptionsTab({
         try {
           sessionStorage.setItem('clinic_prescription_status_filter', status);
           const url = new URL(window.location.href);
-          if (status === 'all') {
-            url.searchParams.delete('status');
-          } else {
-            url.searchParams.set('status', status);
-          }
+          url.searchParams.set('status', status);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -150,11 +146,7 @@ export default function PrescriptionsTab({
         try {
           sessionStorage.setItem('clinic_prescription_sort_by', sort);
           const url = new URL(window.location.href);
-          if (sort === 'newest') {
-            url.searchParams.delete('sort');
-          } else {
-            url.searchParams.set('sort', sort);
-          }
+          url.searchParams.set('sort', sort);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -476,16 +468,8 @@ export default function PrescriptionsTab({
 
           const url = new URL(window.location.href);
           url.searchParams.set('tab', 'prescriptions');
-          if (statusFilter !== 'all') {
-            url.searchParams.set('status', statusFilter);
-          } else {
-            url.searchParams.delete('status');
-          }
-          if (sortBy !== 'newest') {
-            url.searchParams.set('sort', sortBy);
-          } else {
-            url.searchParams.delete('sort');
-          }
+          url.searchParams.set('status', statusFilter);
+          url.searchParams.set('sort', sortBy);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -640,16 +624,8 @@ export default function PrescriptionsTab({
 
           const url = new URL(window.location.href);
           url.searchParams.set('tab', 'prescriptions');
-          if (statusFilter !== 'all') {
-            url.searchParams.set('status', statusFilter);
-          } else {
-            url.searchParams.delete('status');
-          }
-          if (sortBy !== 'newest') {
-            url.searchParams.set('sort', sortBy);
-          } else {
-            url.searchParams.delete('sort');
-          }
+          url.searchParams.set('status', statusFilter);
+          url.searchParams.set('sort', sortBy);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore

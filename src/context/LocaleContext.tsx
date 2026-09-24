@@ -58,8 +58,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    initializedFor.current = role;
-    setSelectedLocale('th');
+    if (initializedFor.current !== role) {
+      initializedFor.current = role;
+      const timer = setTimeout(() => setSelectedLocale('th'), 0);
+      return () => clearTimeout(timer);
+    }
   }, [isLoading, role]);
 
   useEffect(() => {
@@ -83,8 +86,18 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
+const defaultLocaleValue: LocaleContextValue = {
+  locale: 'th',
+  setLocale: () => {},
+  t: (key: MessageKey, values?: Record<string, string | number>) => translate('th', key, values),
+  text: (thai: string) => thai,
+  formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(localeTag('th'), { timeZone: 'Asia/Bangkok', ...options }).format(date),
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) =>
+    new Intl.NumberFormat(localeTag('th'), options).format(value),
+};
+
 export function useLocale() {
   const value = useContext(LocaleContext);
-  if (!value) throw new Error('useLocale must be used inside LocaleProvider');
-  return value;
+  return value ?? defaultLocaleValue;
 }
