@@ -10,6 +10,35 @@ type SlotInput = {
   dates?: string[]; timeBlocks?: Array<{ startTime?: string; start_time?: string; endTime?: string; end_time?: string; maxCapacity?: number; max_capacity?: number }>;
 };
 
+type EffectiveSlotRow = {
+  id: string;
+  doctor_id: string;
+  daily_service_offering_id: string;
+  service_id?: string;
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  max_capacity: number;
+  booked_count: number;
+  status: string;
+};
+
+type SlotDetailRow = {
+  id: string;
+  offering?: {
+    service_id?: string;
+    offering_date?: string;
+    is_active?: boolean;
+    service?: { id?: string; code?: string; name?: string; is_active?: boolean } | null;
+  } | Array<{
+    service_id?: string;
+    offering_date?: string;
+    is_active?: boolean;
+    service?: { id?: string; code?: string; name?: string; is_active?: boolean } | null;
+  }> | null;
+  doctor?: unknown;
+};
+
 function time(value: unknown): string | null {
   if (typeof value !== 'string' || !/^\d{2}:\d{2}$/.test(value)) return null;
   const [hour, minute] = value.split(':').map(Number);
@@ -57,13 +86,29 @@ export async function GET(request: Request) {
   if (doctorId && !parseUuid(doctorId)) return Response.json({ error: 'รหัสแพทย์ไม่ถูกต้อง' }, { status: 400 });
   if (serviceId && !parseUuid(serviceId)) return Response.json({ error: 'รหัสบริการไม่ถูกต้อง' }, { status: 400 });
   if (date && !parseDate(date)) return Response.json({ error: 'วันที่ไม่ถูกต้อง' }, { status: 400 });
-  let query = supabase.from('appointment_slots').select('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, booked_count, status, offering:daily_service_offerings(service_id, offering_date, is_active)').order('slot_date', { ascending: true }).order('start_time', { ascending: true });
-  if (doctorId) query = query.eq('doctor_id', doctorId);
-  if (date) query = query.eq('slot_date', date);
-  if (serviceId) query = query.eq('daily_service_offerings.service_id', serviceId);
-  const { data, error } = await query;
-  if (error) return errorResponse(error, 'โหลดรอบตรวจไม่สำเร็จ');
-  return Response.json(data ?? []);
+  const [effectiveSlots, details] = await Promise.all([
+    supabase.rpc('get_schedule_slots'),
+    supabase.from('appointment_slots').select('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, status, offering:daily_service_offerings(service_id, offering_date, is_active, service:services(id, code, name, is_active)), doctor:doctors(id, profile:profiles(id, title, first_name, last_name), department:departments(id, name))'),
+  ]);
+  if (effectiveSlots.error) return errorResponse(effectiveSlots.error, 'โหลดรอบตรวจไม่สำเร็จ');
+  if (details.error) return errorResponse(details.error, 'โหลดข้อมูลแพทย์และบริการของรอบตรวจไม่สำเร็จ');
+  const detailRows = (details.data ?? []) as SlotDetailRow[];
+  const effectiveRows = (effectiveSlots.data ?? []) as EffectiveSlotRow[];
+  const detailById = new Map(detailRows.map((row) => [row.id, row]));
+  const data = effectiveRows
+    .map((row) => {
+      const detail = detailById.get(row.id);
+      const offering = Array.isArray(detail?.offering) ? detail.offering[0] : detail?.offering;
+      const service = Array.isArray(offering?.service) ? offering.service[0] : offering?.service;
+      return {
+        ...row,
+        service_id: row.service_id ?? offering?.service_id,
+        offering: { service_id: offering?.service_id ?? row.service_id, offering_date: offering?.offering_date ?? row.slot_date, is_active: offering?.is_active ?? true, service },
+        doctor: detail?.doctor ?? null,
+      };
+    })
+    .filter((row) => (!doctorId || row.doctor_id === doctorId) && (!date || row.slot_date === date) && (!serviceId || row.service_id === serviceId));
+  return Response.json(data);
 }
 
 export async function POST(request: Request) {

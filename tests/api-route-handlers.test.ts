@@ -43,6 +43,7 @@ function builder(result: { data?: unknown; error?: unknown; count?: number | nul
 import { POST as postDepartment } from '@/app/api/departments/route';
 import { GET as getDepartments } from '@/app/api/departments/route';
 import { POST as postAppointment } from '@/app/api/appointments/route';
+import { PATCH as patchMedicalRecord } from '@/app/api/medical-records/[id]/route';
 import { GET as getDoctorAccounts } from '@/app/api/doctors/accounts/route';
 import { GET as getDoctors } from '@/app/api/doctors/route';
 import { GET as getOfferings } from '@/app/api/schedules/offerings/route';
@@ -105,12 +106,13 @@ describe('API Route Handlers', () => {
   it('allows guests to read public schedule slots while keeping appointment writes protected', async () => {
     supabaseMock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
     builders.appointment_slots = builder({ data: [{ id: 'slot-1', doctor_id: 'doctor-1', slot_date: '2026-09-23', status: 'available' }], error: null });
+    supabaseMock.rpc.mockResolvedValue({ data: [], error: null });
 
     const response = await getSlots(new Request('http://localhost/api/schedules/slots'));
 
     expect(response.status).toBe(200);
-    expect(builders.appointment_slots.select).toHaveBeenCalledWith('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, booked_count, status, offering:daily_service_offerings(service_id, offering_date, is_active)');
-    expect(builders.appointment_slots.order).toHaveBeenCalledWith('slot_date', { ascending: true });
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('get_schedule_slots');
+    expect(builders.appointment_slots.select).toHaveBeenCalledWith('id, doctor_id, daily_service_offering_id, slot_date, start_time, end_time, max_capacity, status, offering:daily_service_offerings(service_id, offering_date, is_active, service:services(id, code, name, is_active)), doctor:doctors(id, profile:profiles(id, title, first_name, last_name), department:departments(id, name))');
   });
 
   it('rejects protected department writes without a session', async () => {
@@ -144,6 +146,48 @@ describe('API Route Handlers', () => {
 
     expect(response.status).toBe(400);
     expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it('passes a medical-record amendment to update_medical_record for the owning medical user', async () => {
+    const recordId = '00000000-0000-4000-8000-000000000018';
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'medical-1' } }, error: null });
+    builders.profiles = builder({ data: { id: 'medical-1', role: 'medical', is_active: true }, error: null });
+    supabaseMock.rpc.mockResolvedValue({ data: recordId, error: null });
+
+    const response = await patchMedicalRecord(new Request(`http://localhost/api/medical-records/${recordId}`, {
+      method: 'PATCH', body: JSON.stringify({ diagnosis: 'แก้ไขแล้ว', advice: '', prescriptions: [], height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null }), headers: { 'Content-Type': 'application/json' },
+    }), { params: Promise.resolve({ id: recordId }) });
+
+    expect(response.status).toBe(200);
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('update_medical_record', expect.objectContaining({ p_record_id: recordId, p_diagnosis: 'แก้ไขแล้ว' }));
+  });
+
+  it('returns the database rejection when an amendment is outside the 15-minute window', async () => {
+    const recordId = '00000000-0000-4000-8000-000000000018';
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'medical-1' } }, error: null });
+    builders.profiles = builder({ data: { id: 'medical-1', role: 'medical', is_active: true }, error: null });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: { code: 'P0001', message: 'หมดเวลาแก้ไขผลตรวจแล้ว' } });
+
+    const response = await patchMedicalRecord(new Request(`http://localhost/api/medical-records/${recordId}`, {
+      method: 'PATCH', body: JSON.stringify({ diagnosis: 'แก้ไขแล้ว', advice: '', prescriptions: [] }), headers: { 'Content-Type': 'application/json' },
+    }), { params: Promise.resolve({ id: recordId }) });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'หมดเวลาแก้ไขผลตรวจแล้ว' });
+  });
+
+  it('returns the database rejection when another doctor owns the session', async () => {
+    const recordId = '00000000-0000-4000-8000-000000000018';
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'medical-2' } }, error: null });
+    builders.profiles = builder({ data: { id: 'medical-2', role: 'medical', is_active: true }, error: null });
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: { code: 'P0001', message: 'เฉพาะแพทย์เจ้าของเคสเท่านั้นที่แก้ไขผลตรวจได้' } });
+
+    const response = await patchMedicalRecord(new Request(`http://localhost/api/medical-records/${recordId}`, {
+      method: 'PATCH', body: JSON.stringify({ diagnosis: 'ไม่ควรแก้ได้', advice: '', prescriptions: [] }), headers: { 'Content-Type': 'application/json' },
+    }), { params: Promise.resolve({ id: recordId }) });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'เฉพาะแพทย์เจ้าของเคสเท่านั้นที่แก้ไขผลตรวจได้' });
   });
 
   it('enforces canonical role before protected appointment booking', async () => {
