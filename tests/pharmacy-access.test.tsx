@@ -29,6 +29,8 @@ describe('Pharmacy Page Access Control (Role Guard)', () => {
     expect(pageElement.props.className).toContain('left-1/2');
     expect(pageElement.props.children.props.currentRole).toBe('doctor');
     expect(pageElement.props.children.props.userEmail).toBe('doctor@wu.ac.th');
+    expect(pageElement.props.children.props.initialStatus).toBe('pending');
+    expect(pageElement.props.children.props.initialSort).toBe('oldest');
   });
 
   it('allows access for staff_admin role', async () => {

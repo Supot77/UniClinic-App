@@ -219,8 +219,8 @@ interface PharmacyContentProps {
 
 export default function PharmacyContent({
   initialTab = 'inventory',
-  initialStatus = 'all',
-  initialSort = 'newest',
+  initialStatus = 'pending',
+  initialSort = 'oldest',
   currentRole,
   userName,
   userId,
@@ -250,16 +250,8 @@ export default function PharmacyContent({
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
         if (tab === 'prescriptions') {
-          if (prescriptionStatusFilter !== 'all') {
-            url.searchParams.set('status', prescriptionStatusFilter);
-          } else {
-            url.searchParams.delete('status');
-          }
-          if (prescriptionSortBy !== 'newest') {
-            url.searchParams.set('sort', prescriptionSortBy);
-          } else {
-            url.searchParams.delete('sort');
-          }
+          url.searchParams.set('status', prescriptionStatusFilter);
+          url.searchParams.set('sort', prescriptionSortBy);
         }
         window.history.replaceState({}, '', url.toString());
       } catch {
@@ -274,11 +266,7 @@ export default function PharmacyContent({
       try {
         sessionStorage.setItem('clinic_prescription_status_filter', status);
         const url = new URL(window.location.href);
-        if (status === 'all') {
-          url.searchParams.delete('status');
-        } else {
-          url.searchParams.set('status', status);
-        }
+        url.searchParams.set('status', status);
         window.history.replaceState({}, '', url.toString());
       } catch {
         // ignore
@@ -292,11 +280,7 @@ export default function PharmacyContent({
       try {
         sessionStorage.setItem('clinic_prescription_sort_by', sort);
         const url = new URL(window.location.href);
-        if (sort === 'newest') {
-          url.searchParams.delete('sort');
-        } else {
-          url.searchParams.set('sort', sort);
-        }
+        url.searchParams.set('sort', sort);
         window.history.replaceState({}, '', url.toString());
       } catch {
         // ignore
