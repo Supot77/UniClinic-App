@@ -35,6 +35,12 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByRole('heading', { level: 2, name: 'ผลตรวจของผู้ป่วยในความดูแล' })).toBeInTheDocument();
     expect(screen.getByText('โปรดตรวจสอบข้อมูลให้เรียบร้อยก่อนยืนยัน เนื่องจากหลังบันทึกแล้วจะแก้ไขไม่ได้')).toBeInTheDocument();
   });
+  it('shows the patient visit reason as read-only context under the queue selector', async () => {
+    render(<MedicalRecordsPage repository={createClinicMockRepository(withAppointment())} />);
+
+    const reasonLabel = await screen.findByText('อาการหรือเหตุผลที่มาพบแพทย์:', { selector: 'span' });
+    expect(reasonLabel.parentElement).toHaveTextContent('ทดสอบ');
+  });
   it('gives the patient record page a clear empty state', async () => {
     render(<PatientRecordsPage repository={createClinicMockRepository(fixture('patient'))} />);
 
@@ -307,7 +313,7 @@ describe('Clinic database-backed role containers with injected offline repositor
 
     fireEvent.click(await screen.findByRole('button', { name: 'เริ่มตรวจ' }));
 
-    expect(await screen.findByRole('heading', { name: 'สัญญาณชีพ' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'การตรวจร่างกายเบื้องต้น' })).toBeInTheDocument();
     expect(screen.getByLabelText('ส่วนสูง (ซม.)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ถัดไป' })).toBeInTheDocument();
     expect((await repo.load()).appointments[0]).toMatchObject({ status: 'in_progress', has_record: false });

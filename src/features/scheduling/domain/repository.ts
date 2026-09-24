@@ -5,8 +5,6 @@ import type {
   ScheduleDoctor,
   ScheduleService,
   ScheduleSlot,
-  DoctorWeeklySchedule,
-  DoctorAvailabilityTemplate,
   DoctorLeave,
   DoctorLeaveInput,
 } from '@/types/schedule';
@@ -20,9 +18,7 @@ export interface SchedulingSnapshot {
   dailyServiceOfferings: DailyServiceOffering[];
   slots: ScheduleSlot[];
   doctorAccounts: DoctorAccountOption[];
-  weeklySchedules: DoctorWeeklySchedule[];
   doctorLeaves: DoctorLeave[];
-  availabilityTemplates?: DoctorAvailabilityTemplate[];
 }
 
 /**
@@ -45,8 +41,4 @@ export interface SchedulingRepository {
   saveSlot(input: SlotInput, id?: string, todayDate?: string): SchedulingResult<ScheduleSlot>;
   createSlotBatch(input: SlotBatchInput, todayDate?: string, actorId?: string, role?: UserRole): SchedulingResult<number>;
   toggleSlot(id: string, actorId?: string, role?: UserRole): SchedulingResult<ScheduleSlot>;
-  saveWeeklySchedule(input: Omit<DoctorWeeklySchedule, 'id'>, id?: string): SchedulingResult<DoctorWeeklySchedule>;
-  generateSlotsForRange(startDate: string, endDate: string, today: string, serviceId?: string): SchedulingResult<number>;
-  getDoctorTemplates(doctorId: string): DoctorAvailabilityTemplate[];
-  saveDoctorTemplate(input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>): SchedulingResult<DoctorAvailabilityTemplate>;
 }

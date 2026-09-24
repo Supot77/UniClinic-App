@@ -304,10 +304,10 @@ describe('Supabase dashboard service', () => {
       const view = await getDashboardView('patient', 'patient-1', '2026-09-08', 'today');
 
       expect(view.appointmentStatuses).toEqual([
-        { status: 'pending', label: 'รอยืนยัน', count: 1 },
+        { status: 'pending', label: 'รอการยืนยัน', count: 1 },
         { status: 'confirmed', label: 'ยืนยันแล้ว', count: 0 },
         { status: 'in_progress', label: 'กำลังตรวจ', count: 0 },
-        { status: 'completed', label: 'เสร็จสิ้น', count: 0 },
+        { status: 'completed', label: 'ตรวจเสร็จแล้ว', count: 0 },
         { status: 'cancelled', label: 'ยกเลิก', count: 0 },
       ]);
     } finally {
@@ -439,6 +439,6 @@ describe('Supabase dashboard service', () => {
 
   it('rejects a dashboard role that does not match the signed-in profile', async () => {
     await expect(getDashboardView('staff_admin', 'patient-1', '2026-09-08', 'today'))
-      .rejects.toThrow('ไม่มีสิทธิ์เปิด Dashboard');
+      .rejects.toThrow('บัญชีที่เข้าสู่ระบบไม่มีสิทธิ์เปิดแดชบอร์ดของบทบาทนี้');
   });
 });

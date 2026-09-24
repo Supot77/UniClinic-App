@@ -160,9 +160,4 @@ export class ApiSchedulingRepository {
       return { ok: true, value: { ...target, status: row.status as ScheduleSlot['status'], closedReason: row.status === 'closed' ? 'manual' : undefined } };
     } catch (error) { return failure(error, 'เปลี่ยนสถานะรอบตรวจไม่สำเร็จ'); }
   }
-
-  async generateSlotsForRange(..._ignored: unknown[]): Promise<SchedulingResult<number>> {
-    void _ignored;
-    return { ok: false, error: 'การสร้างรอบจากตารางประจำสัปดาห์ยังไม่มี Route Handler รองรับ' };
-  }
 }

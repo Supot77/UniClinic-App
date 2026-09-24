@@ -4,7 +4,7 @@ import { CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 
 type ToastVariant = 'success' | 'info';
-type ToastPosition = 'top-right' | 'top-center' | 'top-left' | 'bottom-right' | 'bottom-left';
+type ToastPosition = 'top-right' | 'top-right-below' | 'top-center' | 'top-left' | 'bottom-right' | 'bottom-left';
 
 interface ToastProps {
   message: string | null | undefined;
@@ -21,6 +21,7 @@ const variantStyles: Record<ToastVariant, { icon: typeof CheckCircle2; iconClass
 
 const positionClasses: Record<ToastPosition, string> = {
   'top-right': 'top-20 inset-x-4 sm:left-auto sm:right-6 justify-end',
+  'top-right-below': 'top-36 inset-x-4 sm:left-auto sm:right-6 justify-end',
   'top-center': 'top-20 inset-x-4 justify-center',
   'top-left': 'top-20 inset-x-4 sm:right-auto sm:left-6 justify-start',
   'bottom-right': 'bottom-4 inset-x-4 sm:left-auto sm:right-6 justify-end',

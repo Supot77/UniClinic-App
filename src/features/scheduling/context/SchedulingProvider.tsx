@@ -12,8 +12,6 @@ import {
 import { ApiSchedulingRepository } from '../data/apiRepository';
 import type { SchedulingSnapshot } from '../domain/repository';
 import type {
-  DoctorWeeklySchedule,
-  DoctorAvailabilityTemplate,
   ScheduleDepartment,
   ScheduleDoctor,
   ScheduleService,
@@ -57,20 +55,6 @@ interface SchedulingContextValue extends SchedulingSnapshot {
     actorId?: string,
     role?: UserRole,
   ): Promise<SchedulingResult<ScheduleSlot>> | SchedulingResult<ScheduleSlot>;
-  saveWeeklySchedule(
-    input: Omit<DoctorWeeklySchedule, 'id'>,
-    id?: string,
-  ): SchedulingResult<DoctorWeeklySchedule>;
-  generateSlotsForRange(
-    startDate: string,
-    endDate: string,
-    today: string,
-    serviceId?: string,
-  ): Promise<SchedulingResult<number>> | SchedulingResult<number>;
-  getDoctorTemplates(doctorId: string): DoctorAvailabilityTemplate[];
-  saveDoctorTemplate(
-    input: Omit<DoctorAvailabilityTemplate, 'id' | 'usageCount' | 'lastUsedAt'>,
-  ): SchedulingResult<DoctorAvailabilityTemplate>;
 }
 
 const SchedulingContext = createContext<SchedulingContextValue | null>(null);
@@ -84,7 +68,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
     dailyServiceOfferings: [],
     slots: [],
     doctorLeaves: [],
-    weeklySchedules: [],
     doctorAccounts: [],
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -115,7 +98,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
       doctorAccounts: read(results[4], current.doctorAccounts, 'doctor accounts'),
       slots: read(results[5], current.slots, 'slots'),
       doctorLeaves: read(results[6], current.doctorLeaves, 'doctor leaves'),
-      weeklySchedules: current.weeklySchedules,
     }));
   }, [dbRepo]);
 
@@ -426,33 +408,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
     [dbRepo, refresh, snapshot.slots],
   );
 
-  const handleGenerateSlotsForRange = useCallback(
-    async (startDate: string, endDate: string, today: string, serviceId?: string): Promise<SchedulingResult<number>> => {
-      if (dbRepo) {
-        try {
-          const result = await dbRepo.generateSlotsForRange(
-            startDate,
-            endDate,
-            today,
-            snapshot.weeklySchedules,
-            snapshot.slots,
-            snapshot.services,
-            serviceId,
-            snapshot.doctorLeaves,
-          );
-          if (result.ok) {
-            await refresh();
-          }
-          return result;
-        } catch (err) {
-          return { ok: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจ' };
-        }
-      }
-      return { ok: false, error: 'ไม่สามารถใช้ฐานข้อมูลสำหรับสร้างรอบตรวจได้' };
-    },
-    [dbRepo, refresh, snapshot.doctorLeaves, snapshot.services, snapshot.slots, snapshot.weeklySchedules],
-  );
-
   const value = useMemo<SchedulingContextValue>(
     () => ({
       ...snapshot,
@@ -469,10 +424,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
       saveSlot: handleSaveSlot,
       createSlotBatch: handleCreateSlotBatch,
       toggleSlot: handleToggleSlot,
-      saveWeeklySchedule: () => ({ ok: false, error: 'การบันทึกตารางประจำสัปดาห์ยังไม่มี Route Handler รองรับ' }),
-      generateSlotsForRange: handleGenerateSlotsForRange,
-      getDoctorTemplates: () => [],
-      saveDoctorTemplate: () => ({ ok: false, error: 'การบันทึกแม่แบบตารางยังไม่มี Route Handler รองรับ' }),
     }),
     [
       snapshot,
@@ -489,7 +440,6 @@ export function SchedulingProvider({ children }: { children: ReactNode }) {
       handleSaveSlot,
       handleCreateSlotBatch,
       handleToggleSlot,
-      handleGenerateSlotsForRange,
     ],
   );
 

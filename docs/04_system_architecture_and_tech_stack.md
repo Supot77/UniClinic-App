@@ -8,7 +8,7 @@ Role contract กลางมี 3 ค่าเท่านั้น: `patient`,
 
 ## หมายเหตุจากการ reverse-engineer
 
-เอกสารนี้ยังเป็น target architecture; code path ของ runtime ใช้ Supabase ผ่าน API/repository และไม่มี mock data fallback ในแอป. Scheduling โหลด/เขียนผ่าน Route Handlers ที่มีอยู่; ตารางประจำสัปดาห์และแม่แบบยังไม่มี Route Handler จึงไม่บันทึกข้อมูลจนกว่าจะพัฒนา contract จริง. ข้อความนี้ไม่ยืนยัน deployment หรือ DB/RLS acceptance
+เอกสารนี้ยังเป็น target architecture; runtime ใช้ Supabase ผ่าน API/repository และไม่มี mock fallback ในแอป. Scheduling โหลดและเขียนผ่าน Route Handlers; ปุ่มสร้างหลาย slot ใช้ manual batch API เพื่อบันทึก concrete slots. ไม่มี weekly/recurring/template path หรือ automatic generation. ข้อความนี้ไม่ยืนยัน deployment หรือ DB/RLS acceptance
 
 งาน UI ที่ยังต้องเก็บรายละเอียดในรอบนี้อยู่ที่ Scheduling และ Herb dashboard; การมี component หรือ route แล้วไม่ปิด browser QA จนกว่าจะมีหลักฐานตาม [owner views](owners/README.md)
 

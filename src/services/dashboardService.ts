@@ -658,7 +658,7 @@ export async function getDashboardView(
           metric(expired.length, 'expired', 'ยาหมดอายุ', 'แสดงแยกจากยาใกล้หมด', '/pharmacy', 'violet'),
     ],
     patient: [
-      metric(patientMedicationIds.size, 'my-medications', 'ยาที่ใช้ตอนนี้', 'ยาที่มีการตั้งเตือน', '/reminders', 'violet'),
+      metric(patientMedicationIds.size, 'my-medications', 'ยาที่กำลังใช้อยู่', 'ยาที่มีการตั้งเตือน', '/reminders', 'violet'),
       metric(upcomingPatientAppointmentCount, 'next-appointment', 'นัดหมายถัดไป', 'นัดหมายที่กำลังจะถึง', '/appointments', 'blue'),
       metric(unreadNotifications, 'unread-notifications', 'การแจ้งเตือน', 'ข้อความที่ยังไม่ได้อ่าน', '/notifications', 'emerald'),
     ],
@@ -898,7 +898,7 @@ export async function getDashboardView(
       title: isDoctorActor ? 'ภาพรวมงานแพทย์' : 'ภาพรวมงานเภสัชกรรม',
       description: isDoctorActor ? 'ดูตาราง คิว และรายการยาที่ต้องตรวจสอบ' : 'ดูใบสั่งยารอจ่ายและสถานะคลังยา',
     },
-    patient: { title: 'ภาพรวมสุขภาพของฉัน', description: 'ดูนัดหมาย ยา การเตือน และข้อความของคุณ' },
+    patient: { title: 'ภาพรวมสุขภาพของฉัน', description: 'ดูนัดหมายถัดไป ยาที่กำลังใช้ และประวัติการรักษา' },
   };
 
   return {

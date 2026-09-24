@@ -138,14 +138,6 @@ describe('MockSchedulingRepository', () => {
     expect(repository.snapshot().doctors.some((doctor) => doctor.id === result.value.id)).toBe(false);
   });
 
-  it('generates recurring slots for date range', () => {
-    const repository = new MockSchedulingRepository();
-    const generated = repository.generateSlotsForRange(TEST_WEEK_START, TEST_WEEK_START, TEST_WEEK_START);
-    expect(generated).toMatchObject({ ok: true });
-    const slots = repository.snapshot().slots.filter((slot) => slot.slotDate === TEST_WEEK_START);
-    expect(slots.length).toBeGreaterThan(0);
-  });
-
   it('creates concrete slots for selected dates and keeps existing conflicts unchanged', () => {
     const repository = new MockSchedulingRepository();
     const before = repository.snapshot();
@@ -208,23 +200,6 @@ describe('MockSchedulingRepository', () => {
     expect(repository.snapshot()).toEqual(before);
   });
 
-  it('does not allow overlapping weekly schedules', () => {
-    const repository = new MockSchedulingRepository();
-    const schedule = repository.snapshot().weeklySchedules.find((item) => item.doctorId === 'profile-stephen-strange' && item.weekday === 1);
-    expect(schedule).toBeDefined();
-    if (!schedule) return;
-    const scheduleInput = { doctorId: schedule.doctorId, weekday: schedule.weekday, slotDurationMinutes: schedule.slotDurationMinutes, defaultCapacity: schedule.defaultCapacity, isActive: schedule.isActive, startTime: schedule.startTime, endTime: schedule.endTime };
-    expect(repository.saveWeeklySchedule({ ...scheduleInput, startTime: '09:00', endTime: '10:00' })).toMatchObject({ ok: false });
-  });
-  it('requires an active doctor and department before saving recurring schedule', () => {
-    const repository = new MockSchedulingRepository();
-    const doctor = repository.snapshot().doctors[0];
-    expect(doctor).toBeDefined();
-    if (!doctor) return;
-    expect(repository.toggleDoctor(doctor.id)).toMatchObject({ ok: true });
-    expect(repository.saveWeeklySchedule({ doctorId: doctor.id, weekday: 1, startTime: '08:30', endTime: '09:00', slotDurationMinutes: 30, defaultCapacity: 1, isActive: true })).toMatchObject({ ok: false, field: 'doctorId' });
-  });
-
   it('prevents medical role from closing or modifying slots of another doctor', () => {
     const repository = new MockSchedulingRepository();
     const doctors = repository.snapshot().doctors;
@@ -260,57 +235,4 @@ describe('MockSchedulingRepository', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('does not return recommendations when doctor has no prior history', () => {
-    const repository = new MockSchedulingRepository();
-    const doctor = repository.snapshot().doctors[0];
-
-    // ตอนเริ่มต้นหมอยังไม่มีประวัติ
-    const templates = repository.getDoctorTemplates(doctor.id);
-    expect(templates).toEqual([]);
-  });
-
-  it('records doctor availability templates and increments usage count for repeated patterns', () => {
-    const repository = new MockSchedulingRepository();
-    const doctor = repository.snapshot().doctors[0];
-
-    // บันทึกครั้งที่ 1
-    const res1 = repository.saveDoctorTemplate({
-      doctorId: doctor.id,
-      startTime: '08:30',
-      endTime: '12:00',
-      defaultCapacity: 10,
-    });
-    expect(res1.ok).toBe(true);
-
-    const history1 = repository.getDoctorTemplates(doctor.id);
-    expect(history1.length).toBe(1);
-    expect(history1[0].usageCount).toBe(1);
-
-    // บันทึกซ้ำ pattern เดิม
-    const res2 = repository.saveDoctorTemplate({
-      doctorId: doctor.id,
-      startTime: '08:30',
-      endTime: '12:00',
-      defaultCapacity: 10,
-    });
-    expect(res2.ok).toBe(true);
-
-    const history2 = repository.getDoctorTemplates(doctor.id);
-    expect(history2.length).toBe(1);
-    expect(history2[0].usageCount).toBe(2);
-
-    // บันทึกอีก pattern หนึ่ง
-    repository.saveDoctorTemplate({
-      doctorId: doctor.id,
-      startTime: '13:00',
-      endTime: '16:00',
-      defaultCapacity: 8,
-    });
-
-    const history3 = repository.getDoctorTemplates(doctor.id);
-    expect(history3.length).toBe(2);
-    // ตรวจสอบว่า pattern ที่ใช้บ่อยกว่าอยู่ลำดับแรก
-    expect(history3[0].usageCount).toBe(2);
-    expect(history3[1].usageCount).toBe(1);
-  });
 });
