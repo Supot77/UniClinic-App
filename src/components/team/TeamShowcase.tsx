@@ -163,7 +163,7 @@ export default function TeamShowcase() {
                     fill
                     sizes={isLightTheme
                       ? "(max-width: 600px) 90vw, (max-width: 900px) 50vw, 31vw"
-                      : "(max-width: 900px) 78vw, 14vw"}
+                      : "(max-width: 600px) 90vw, (max-width: 900px) 50vw, 31vw"}
                     className={styles.portrait}
                     fetchPriority={index < 3 || member.id === "mallika" ? "high" : "auto"}
                   />

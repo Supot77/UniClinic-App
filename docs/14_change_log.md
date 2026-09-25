@@ -2,6 +2,45 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## เพิ่ม combobox ความเชี่ยวชาญแพทย์ — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ช่องความเชี่ยวชาญในฟอร์มแพทย์กรองตัวเลือกจากค่าที่มีในรายชื่อแพทย์ และเลือกเพิ่มค่าที่พิมพ์ใหม่ได้
+- รองรับการเลื่อนตัวเลือกด้วยลูกศร, ยืนยันด้วย Enter, ปิดรายการด้วย Escape และเลือกด้วยเมาส์
+- คงการบันทึกข้อความลง `specialty` เดิม ไม่เพิ่ม catalog, API หรือ migration
+
+### ไฟล์หลัก
+
+- `src/components/schedules/DepartmentWorkspace.tsx`
+- `docs/owners/shop-supot/user-stories.md`, `use-cases.md`, `as-built.md`, `status.md`
+
+### การตรวจ
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- ไม่ได้เพิ่มหรือรัน automated tests ตามขอบเขตงาน; ยังไม่ได้ตรวจ browser QA
+
+## จัดฟอร์มจัดการแผนก แพทย์ และบริการเป็น modal รองรับธีม — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เปลี่ยนฟอร์มเพิ่ม/แก้ไขแผนก แพทย์ และบริการใน `/departments` จาก drawer ชิดขวาเป็น modal กลางจอ พร้อมปรับขนาดและพื้นที่เลื่อนให้เหมาะกับ viewport
+- ใช้ theme tokens กับพื้นผิว ตัวอักษร เส้นขอบ ช่องกรอก และปุ่มยกเลิก เพื่อให้แสดงผลตาม light/dark theme
+- คงการบันทึก, validation, สถานะกำลังบันทึก, Escape, focus trap, คืน focus และเพิ่มการปิดเมื่อคลิกฉากหลัง
+- ไม่เปลี่ยน repository, API หรือ schema
+
+### ไฟล์หลัก
+
+- `src/components/schedules/DepartmentWorkspace.tsx`
+- `docs/owners/shop-supot/user-stories.md`, `use-cases.md`, `as-built.md`, `status.md`
+
+### การตรวจ
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- ไม่ได้รัน automated tests หรือ browser QA; ยังไม่ได้ยืนยันหน้าจอจริงที่ 360px/1280px และฐานข้อมูล/RLS
+
 ## เพิ่มภาพสีน้ำในหน้า Authentication และจัดชั้น footer — 25 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
