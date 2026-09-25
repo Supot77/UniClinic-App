@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -35,7 +36,7 @@ const textareaClass =
 const modalBackdropClass =
   'clinic-modal-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-xs sm:p-6';
 const modalPanelClass =
-  'flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-brand-border-soft bg-brand-surface text-brand-ink shadow-2xl sm:max-h-[calc(100dvh-3rem)]';
+  'flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-brand-border-strong bg-brand-surface text-brand-ink shadow-[0_24px_80px_rgba(0,0,0,0.3)] ring-1 ring-brand-border-soft sm:max-h-[calc(100dvh-3rem)]';
 const modalHeaderClass =
   'flex shrink-0 items-start justify-between gap-4 border-b border-brand-border-soft px-5 py-4 sm:px-6 sm:py-5';
 const modalBodyClass = 'min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6';
@@ -769,7 +770,7 @@ export default function DepartmentWorkspace() {
       )}
 
       {/* Department modal */}
-      {departmentDrawerOpen && (
+      {departmentDrawerOpen && typeof document !== 'undefined' && createPortal(
         <div className={modalBackdropClass} onMouseDown={(event) => { if (event.target === event.currentTarget) closeDepartmentDrawer(); }}>
           <div ref={modalRef} className={modalPanelClass} aria-labelledby="department-modal-title" role="dialog" aria-modal="true">
               <div className={modalHeaderClass}>
@@ -850,11 +851,12 @@ export default function DepartmentWorkspace() {
                 </button>
               </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Doctor modal */}
-      {doctorDrawerOpen && (
+      {doctorDrawerOpen && typeof document !== 'undefined' && createPortal(
         <div className={modalBackdropClass} onMouseDown={(event) => { if (event.target === event.currentTarget) closeDoctorDrawer(); }}>
           <div ref={modalRef} className={modalPanelClass} aria-labelledby="doctor-modal-title" role="dialog" aria-modal="true">
               <div className={modalHeaderClass}>
@@ -1072,11 +1074,12 @@ export default function DepartmentWorkspace() {
                 </button>
               </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Service modal */}
-      {serviceDrawerOpen && (
+      {serviceDrawerOpen && typeof document !== 'undefined' && createPortal(
         <div className={modalBackdropClass} onMouseDown={(event) => { if (event.target === event.currentTarget) closeServiceDrawer(); }}>
           <div ref={modalRef} className={modalPanelClass} aria-labelledby="service-modal-title" role="dialog" aria-modal="true">
               <div className={modalHeaderClass}>
@@ -1165,7 +1168,8 @@ export default function DepartmentWorkspace() {
                 </button>
               </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
