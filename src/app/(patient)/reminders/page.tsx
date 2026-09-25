@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pill, X, Check, Plus, AlertCircle } from 'lucide-react';
+import { Pill, X, Check, Plus, AlertCircle, Minus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatProfileName } from '@/lib/profileName';
 import {
