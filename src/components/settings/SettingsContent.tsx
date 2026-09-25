@@ -1,20 +1,22 @@
 "use client";
 
+// Appearance choices here stay synchronized with the light/dark switch in the Header.
 import { useEffect, useState } from "react";
 import { Check, Laptop, Moon, Palette, Sun, Text } from "lucide-react";
 import { useLocale } from "@/context/LocaleContext";
+import {
+  applyThemePreference,
+  readThemePreference,
+  saveThemePreference,
+  THEME_PREFERENCE_EVENT,
+  type ThemeChangeDetail,
+  type ThemePreference,
+} from "@/lib/appearance";
 
-type Theme = "light" | "dark" | "system";
+type Theme = ThemePreference;
 type FontSize = "normal" | "large";
 
-const THEME_KEY = "wu-clinic-theme";
 const FONT_SIZE_KEY = "wu-clinic-font-size";
-
-function applyTheme(theme: Theme) {
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.dataset.theme =
-    theme === "system" ? (prefersDark ? "dark" : "light") : theme;
-}
 
 function OptionButton({ selected, onClick, icon, label }: {
   selected: boolean;
@@ -74,18 +76,24 @@ export default function SettingsContent() {
   const [showSaved, setShowSaved] = useState(false);
 
   useEffect(() => {
+    const handleThemePreferenceChange = (event: Event) => {
+      const { preference } = (event as CustomEvent<ThemeChangeDetail>).detail;
+      setTheme(preference);
+    };
+
+    window.addEventListener(THEME_PREFERENCE_EVENT, handleThemePreferenceChange);
+    return () => window.removeEventListener(THEME_PREFERENCE_EVENT, handleThemePreferenceChange);
+  }, []);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
-      const savedTheme = window.localStorage.getItem(THEME_KEY);
       const savedFontSize = window.localStorage.getItem(FONT_SIZE_KEY);
-      const nextTheme: Theme =
-        savedTheme === "light" || savedTheme === "dark" || savedTheme === "system"
-          ? savedTheme
-          : "system";
+      const nextTheme = readThemePreference();
       const nextFontSize: FontSize = savedFontSize === "large" ? "large" : "normal";
 
       setTheme(nextTheme);
       setFontSize(nextFontSize);
-      applyTheme(nextTheme);
+      applyThemePreference(nextTheme);
       document.documentElement.dataset.fontSize = nextFontSize;
       setReady(true);
     }, 0);
@@ -95,7 +103,7 @@ export default function SettingsContent() {
   useEffect(() => {
     if (!ready || theme !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => applyTheme("system");
+    const handleChange = () => applyThemePreference("system");
     media.addEventListener("change", handleChange);
     return () => media.removeEventListener("change", handleChange);
   }, [ready, theme]);
@@ -107,8 +115,7 @@ export default function SettingsContent() {
 
   function changeTheme(value: Theme) {
     setTheme(value);
-    applyTheme(value);
-    window.localStorage.setItem(THEME_KEY, value);
+    saveThemePreference(value);
     flashSaved();
   }
 

@@ -1,5 +1,6 @@
 'use client';
 
+// Patient schedule locale: loading status and screen-reader announcement.
 import { useLocale } from '@/context/LocaleContext';
 
 export default function ScheduleSkeleton() {

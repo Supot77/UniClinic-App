@@ -1,5 +1,6 @@
 'use client';
 
+// Callers can provide a localized accessible label for the dismiss button.
 import { CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 

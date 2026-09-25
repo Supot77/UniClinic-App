@@ -2,6 +2,27 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## เพิ่มสวิตช์ Light/Dark ใน Header — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มสวิตช์ Light/Dark ใน Header สำหรับผู้เยี่ยมชมและทุก role; ป้ายกำกับและสถานะ switch รองรับการอ่านด้วย screen reader
+- บันทึกค่าที่เลือกด้วย preference `wu-clinic-theme` เดิม; Settings รับสถานะจาก Header และ Header อัปเดตตามการเลือกธีมใน Settings รวมถึงการเปลี่ยนตามอุปกรณ์
+- ย่อปุ่มควบคุมใน Header บนจอเล็กเพื่อเว้นพื้นที่ให้สวิตช์ โดยปุ่มเข้าสู่ระบบยังมี accessible name
+
+### ไฟล์หลัก
+
+- `src/components/layout/Header.tsx`, `src/components/settings/SettingsContent.tsx`, `src/components/settings/AppearanceInitializer.tsx`
+- `src/lib/appearance.ts`, `tests/header.test.tsx`
+
+### การตรวจ
+
+- `npx.cmd --no-install vitest run tests/header.test.tsx tests/settings.test.tsx` — ผ่าน 2 ไฟล์ 19 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- ESLint targeted สำหรับไฟล์ที่แก้ — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA, full suite และ build — ไม่ได้รัน
+
 ## เติม English ให้หน้าตารางตรวจสำหรับ patient — 25 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
@@ -715,3 +736,27 @@
 - Brave local browser — ตรวจภาพรวมและภาพที่เลือกที่ 1280px/360px; เห็นศีรษะกับเท้าครบและคำบรรยายอยู่ด้านล่าง, ทดสอบเลือกด้วย keyboard และ Footer link; 360px ไม่มี horizontal overflow; ไม่ได้ตรวจใน Chrome
 - guest HTTP probe — `/team` ได้ 200 และ `/profile` ยัง redirect ไป login ด้วย 307
 - `git diff --check` — ผ่าน; ไม่รัน full test suite เพราะเปลี่ยนเฉพาะหน้า Footer และ public route
+
+# สลับภาพทีมตามธีมและจัดแถวรูปปั้น — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- Light theme แสดงรูปปั้นกรีก และ Dark theme แสดงภาพชุดสูท โดยทั้งสองธีมจัดอาจารย์ไว้กึ่งกลางและไล่ระดับสมาชิกจากด้านข้าง
+- แสดงภาพเต็มตัวและวางคำบรรยายใต้ภาพ; บนมือถือจัดอาจารย์ไว้กึ่งกลางด้านบนและสมาชิกเป็นคู่ด้านล่าง
+- เมื่อเลือกสมาชิกคนใด รูปขยายสูงและกว้างเท่ากับรูปอาจารย์ พร้อม animation ต่อเนื่อง; บนมือถือรูปที่เลือกขยายกลางแถว ส่วนสมาชิกอื่นมืดลงด้านหลัง
+- เปลี่ยนชุดภาพทันทีตาม theme event และคงสมาชิกที่เลือกไว้
+
+### ไฟล์หลัก
+
+- `src/components/team/TeamShowcase.tsx`, `TeamShowcase.module.css`
+- `tests/team-showcase.test.tsx`
+- `public/images/*รูปปั้นกรีก.png` (ภาพที่ผู้ใช้เพิ่มไว้)
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/team-showcase.test.tsx tests/team-public-route.test.ts` — ผ่าน 2 files / 3 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint สำหรับ `TeamShowcase.tsx` และ `team-showcase.test.tsx` — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA บน desktop และ 360px — ตรวจการจัดลำดับทั้งสองธีม, รูปสมาชิกที่เลือกขยายเท่ารูปอาจารย์และยังเห็นเต็มตัว; มือถือไม่มี horizontal overflow
+- Full test suite และ production build — ไม่ได้รันในรอบนี้
