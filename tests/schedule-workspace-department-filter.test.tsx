@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ScheduleWorkspace, { getNextAvailableTimeSlot } from '@/components/schedules/ScheduleWorkspace';
 import type { DoctorLeave, ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot } from '@/types/schedule';
 
+// Patient schedule locale coverage: English controls, date labels, notices, and loading state.
 const localeState = vi.hoisted(() => ({ locale: 'th' as 'en' | 'th' }));
 
 vi.mock('@/context/LocaleContext', () => ({

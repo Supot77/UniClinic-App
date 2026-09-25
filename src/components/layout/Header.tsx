@@ -1,5 +1,6 @@
 "use client";
 
+// Main navigation plus the shared appearance switch for every role and guests.
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ComponentType } from "react";
@@ -13,9 +14,11 @@ import {
   LayoutDashboard,
   LogIn,
   Menu,
+  Moon,
   Package,
   Send,
   Stethoscope,
+  Sun,
   UserRound,
   UserSearch,
   X,
@@ -27,6 +30,12 @@ import { getUnreadCount } from "@/services/dashboardService";
 import { dashboardPathForRole } from "@/features/dashboard/roles";
 import { useLocale } from "@/context/LocaleContext";
 import type { MessageKey } from "@/i18n/messages";
+import {
+  saveThemePreference,
+  THEME_PREFERENCE_EVENT,
+  type ResolvedTheme,
+  type ThemeChangeDetail,
+} from "@/lib/appearance";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLanguage } from "@fortawesome/free-solid-svg-icons";
 
@@ -136,15 +145,30 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, signOut, role } = useAuth();
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale, t, text } = useLocale();
   const logoHref = isAuthenticated && role ? dashboardPathForRole(role) : "/";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
   const isAdmin = role === "staff_admin";
   const activeUnreadCount = isAuthenticated && user?.id && !isAdmin ? unreadCount : null;
+
+  useEffect(() => {
+    const syncThemeFromDocument = () => {
+      setResolvedTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    };
+    const handleThemeChange = (event: Event) => {
+      const { resolvedTheme: nextTheme } = (event as CustomEvent<ThemeChangeDetail>).detail;
+      setResolvedTheme(nextTheme);
+    };
+
+    syncThemeFromDocument();
+    window.addEventListener(THEME_PREFERENCE_EVENT, handleThemeChange);
+    return () => window.removeEventListener(THEME_PREFERENCE_EVENT, handleThemeChange);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
@@ -203,6 +227,11 @@ export default function Header() {
   }, []);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isDarkTheme = resolvedTheme === "dark";
+  const themeSwitchLabel = text(
+    isDarkTheme ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด",
+    isDarkTheme ? "Switch to light mode" : "Switch to dark mode",
+  );
   const visibleGroups = isAuthenticated && role ? navigationByRole[role] : [];
   const isGroupActive = (group: NavigationGroup) => group.items.some((item) => isActive(item.href));
 
@@ -219,7 +248,7 @@ export default function Header() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpenGroup(null);
       }}
     >
-      <nav aria-label={t("header.mainMenu")} className="flex min-h-16 w-full items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
+      <nav aria-label={t("header.mainMenu")} className="flex min-h-16 w-full items-center gap-1 px-4 sm:gap-4 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={() => { setMobileMenuOpen((open) => !open); setOpenGroup(null); }}
@@ -293,7 +322,7 @@ export default function Header() {
                   ? t("header.notificationsUnread", { count: activeUnreadCount })
                   : t("header.notificationsNone")
               }
-              className="relative flex size-10 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+              className="relative flex size-9 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:size-10"
             >
               <span className="relative inline-flex items-center justify-center">
                 <Bell className={`size-[18px] ${isAdmin ? "text-emerald-400" : ""}`} aria-hidden="true" />
@@ -332,13 +361,32 @@ export default function Header() {
             </Link>
           )}
 
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isDarkTheme}
+            aria-label={themeSwitchLabel}
+            title={themeSwitchLabel}
+            onClick={() => saveThemePreference(isDarkTheme ? "light" : "dark")}
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-brand-sm border border-white/15 text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:size-10"
+          >
+            <span
+              aria-hidden="true"
+              className={`relative flex h-5 w-8 items-center rounded-full px-0.5 transition-colors sm:w-9 ${isDarkTheme ? "bg-brand-accent" : "bg-white/25"}`}
+            >
+              <span className={`flex size-4 items-center justify-center rounded-full bg-white text-brand-ink shadow-sm transition-transform ${isDarkTheme ? "translate-x-3 sm:translate-x-4" : "translate-x-0"}`}>
+                {isDarkTheme ? <Moon className="size-2.5" /> : <Sun className="size-2.5" />}
+              </span>
+            </span>
+          </button>
+
           {((isAuthenticated && role === "patient") || (!isLoading && !isAuthenticated)) && (
             <button
               type="button"
               onClick={() => setLocale(locale === "th" ? "en" : "th")}
               aria-label={t(locale === "th" ? "language.switchToEnglish" : "language.switchToThai")}
               title={t(locale === "th" ? "language.switchToEnglish" : "language.switchToThai")}
-              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-brand-sm border border-white/15 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:px-3"
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-brand-sm border border-white/15 px-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:px-3"
             >
               <FontAwesomeIcon icon={faLanguage} aria-hidden="true" className="size-4" />
               <span>{locale === "th" ? "EN" : "ไทย"}</span>
@@ -349,17 +397,17 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setAccountMenuOpen(true)}
-              className="flex min-h-10 items-center gap-1.5 rounded-brand-sm border border-white/10 px-2.5 sm:px-3 text-[13px] font-medium text-brand-footer-text transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+              className="flex min-h-10 items-center gap-1.5 rounded-brand-sm border border-white/10 px-1.5 sm:px-3 text-[13px] font-medium text-brand-footer-text transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
               aria-label={t("header.openAccountMenu")}
               aria-expanded={accountMenuOpen}
             >
               <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="hidden max-w-28 truncate sm:inline">{user?.displayName ?? t("header.account")}</span>
-              <ChevronDown className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150 ${accountMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+              <ChevronDown className={`hidden h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150 sm:block ${accountMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
           ) : (
-            <Link href="/login" className="flex min-h-10 items-center gap-2 rounded-full bg-brand-accent px-3 text-[13px] font-bold text-brand-ink transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:px-4">
-              <LogIn className="h-4 w-4" aria-hidden="true" />{t("header.signIn")}
+            <Link href="/login" aria-label={t("header.signIn")} className="flex min-h-10 items-center gap-2 rounded-full bg-brand-accent px-2 text-[13px] font-bold text-brand-ink transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:px-4">
+              <LogIn className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t("header.signIn")}</span>
             </Link>
           ))}
         </div>

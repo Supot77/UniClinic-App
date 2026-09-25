@@ -1,6 +1,8 @@
+// Header coverage includes the shared appearance switch and its Settings synchronization.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Header from "@/components/layout/Header";
+import SettingsContent from "@/components/settings/SettingsContent";
 
 const authState = vi.hoisted(() => ({
   user: null as null | { id?: string; displayName: string },
@@ -20,8 +22,22 @@ vi.mock("@/services/dashboardService", () => ({
   getUnreadCount: (...args: unknown[]) => dashboardState.getUnreadCount(...args),
 }));
 
+function mockMatchMedia(matches: boolean) {
+  const matchMedia = vi.fn().mockReturnValue({
+    matches,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  });
+  vi.stubGlobal("matchMedia", matchMedia);
+  Object.defineProperty(window, "matchMedia", { configurable: true, value: matchMedia });
+}
+
 describe("Header", () => {
+  const originalMatchMedia = window.matchMedia;
+
   beforeEach(() => {
+    window.localStorage.removeItem("wu-clinic-theme");
+    delete document.documentElement.dataset.theme;
     authState.user = null;
     authState.isAuthenticated = false;
     authState.isLoading = false;
@@ -30,6 +46,11 @@ describe("Header", () => {
     routerState.replace.mockClear();
     dashboardState.getUnreadCount.mockReset();
     dashboardState.getUnreadCount.mockResolvedValue(0);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
 
   it("uses one primary header and avoids duplicate desktop navigation", () => {
@@ -88,6 +109,43 @@ describe("Header", () => {
     expect(loginLink).toBeInTheDocument();
     expect(loginLink).toHaveClass("flex");
     expect(loginLink).not.toHaveClass("hidden");
+  });
+
+  it("toggles and stores an explicit theme without requiring the system preference API", () => {
+    render(<Header />);
+
+    fireEvent.click(screen.getByRole("switch", { name: "เปลี่ยนเป็นโหมดมืด" }));
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(window.localStorage.getItem("wu-clinic-theme")).toBe("dark");
+  });
+
+  it("keeps the Header theme switch and Settings theme cards in sync", async () => {
+    mockMatchMedia(false);
+    document.documentElement.dataset.theme = "light";
+    render(
+      <>
+        <Header />
+        <SettingsContent />
+      </>,
+    );
+
+    const darkModeSwitch = screen.getByRole("switch", { name: "เปลี่ยนเป็นโหมดมืด" });
+    fireEvent.click(darkModeSwitch);
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(window.localStorage.getItem("wu-clinic-theme")).toBe("dark");
+    expect(screen.getByRole("switch", { name: "เปลี่ยนเป็นโหมดสว่าง" })).toHaveAttribute("aria-checked", "true");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^มืด/ })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^สว่าง/ }));
+
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(window.localStorage.getItem("wu-clinic-theme")).toBe("light");
+    expect(screen.getByRole("switch", { name: "เปลี่ยนเป็นโหมดมืด" })).toHaveAttribute("aria-checked", "false");
   });
 
   it("shows patient search to medical users", () => {

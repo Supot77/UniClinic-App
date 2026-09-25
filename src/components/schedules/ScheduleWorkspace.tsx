@@ -1,5 +1,6 @@
 'use client';
 
+// Patient schedule locale: navigation notices and toast accessibility label.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';

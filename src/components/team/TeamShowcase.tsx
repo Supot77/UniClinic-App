@@ -1,8 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale } from "@/context/LocaleContext";
+import {
+  THEME_PREFERENCE_EVENT,
+  type ResolvedTheme,
+  type ThemeChangeDetail,
+} from "@/lib/appearance";
 import styles from "./TeamShowcase.module.css";
 
 const members = [
@@ -11,6 +16,7 @@ const members = [
     nickname: "ฟีม",
     name: "ธัญยพร ทุ่มทอง",
     image: "/images/feemsuit.png",
+    lightImage: "/images/feem-รูปปั้นกรีก.png",
     shortWork: "สมาชิก / โปรไฟล์ / สิทธิ์",
     shortWorkEn: "Accounts / profiles / access",
     work: "สมาชิก โปรไฟล์ สิทธิ์ และ session",
@@ -21,6 +27,7 @@ const members = [
     nickname: "เฮิร์บ",
     name: "ธนกฤต ทิพยฤกษ์",
     image: "/images/herbsuit.png",
+    lightImage: "/images/เฮิร์บ-รูปปั้นกรีก.png",
     shortWork: "Broadcast / Dashboard",
     shortWorkEn: "Broadcast / dashboard",
     work: "Broadcast และ Dashboard",
@@ -31,6 +38,7 @@ const members = [
     nickname: "กลอง",
     name: "วรวิริยะ นวลนก",
     image: "/images/klongsuit.png",
+    lightImage: "/images/กลอง-รูปปั้นกรีก.png",
     shortWork: "รายการเตือนยา",
     shortWorkEn: "Medication reminders",
     work: "รายการเตือนยาแบบ manual",
@@ -41,6 +49,7 @@ const members = [
     nickname: "กัญจน์",
     name: "ณัฐสิทธิ ทินวงค์",
     image: "/images/kunsuit.png",
+    lightImage: "/images/สกรีนช็อต-รูปปั้นกรีก.png",
     shortWork: "คลังยา / จ่ายยา",
     shortWorkEn: "Inventory / dispensing",
     work: "คลังยาและการจ่ายยา",
@@ -51,6 +60,7 @@ const members = [
     nickname: "ปาย",
     name: "ปวริศร์ จันทวรรณ์",
     image: "/images/paisuit.png",
+    lightImage: "/images/ปาย-รูปปั้นกรีก.png",
     shortWork: "นัด / คิว / ผลตรวจ / ยา",
     shortWorkEn: "Visits / records / prescriptions",
     work: "นัดหมาย คิว ผลตรวจ และรายการยา",
@@ -61,6 +71,7 @@ const members = [
     nickname: "ช้อป",
     name: "สุพจน์ บำรุง",
     image: "/images/shopsuit.png",
+    lightImage: "/images/ช้อปp-รูปปั้นกรีก.png",
     shortWork: "แผนก / แพทย์ / ตารางตรวจ",
     shortWorkEn: "Departments / doctors / schedules",
     work: "แผนก แพทย์ วันลา ตารางตรวจ และรอบนัด",
@@ -71,6 +82,7 @@ const members = [
     nickname: "อาจารย์",
     name: "อาจารย์มัลลิกา",
     image: "/images/mallikasuit.png",
+    lightImage: "/images/จารย์เน็ก-รูปปั้นกรีก.png",
     shortWork: "อาจารย์ที่ปรึกษา",
     shortWorkEn: "Faculty advisor",
     work: "อาจารย์ที่ปรึกษาโครงการ WU Clinic",
@@ -80,11 +92,33 @@ const members = [
 
 export default function TeamShowcase() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
   const { text } = useLocale();
   const selected = members.find((member) => member.id === selectedId);
 
+  useEffect(() => {
+    const syncTheme = () => {
+      setResolvedTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    };
+    const handleThemeChange = (event: Event) => {
+      const detail = (event as CustomEvent<ThemeChangeDetail>).detail;
+      setResolvedTheme(detail.resolvedTheme);
+    };
+
+    window.addEventListener(THEME_PREFERENCE_EVENT, handleThemeChange);
+    syncTheme();
+    return () => window.removeEventListener(THEME_PREFERENCE_EVENT, handleThemeChange);
+  }, []);
+
+  const isLightTheme = resolvedTheme === "light";
+  const displayMembers = [members[0], members[1], members[2], members[6], members[3], members[4], members[5]];
+
   return (
-    <section className={styles.page} aria-labelledby="team-heading">
+    <section
+      className={`${styles.page} ${isLightTheme ? styles.lightTheme : ""}`}
+      data-visual-theme={resolvedTheme}
+      aria-labelledby="team-heading"
+    >
       <div className={styles.grain} aria-hidden="true" />
       <div className={styles.intro}>
         <p className={styles.eyebrow}>
@@ -106,29 +140,32 @@ export default function TeamShowcase() {
       <div className={styles.stageShell}>
         <div className={styles.stageLights} aria-hidden="true" />
         <div className={styles.stageTopline} aria-hidden="true">
-          <span>THE TEAM</span>
+          <span>{isLightTheme ? "MARBLE PORTRAITS" : "THE TEAM"}</span>
           <span>01 — {String(members.length).padStart(2, "0")}</span>
         </div>
         <div className={`${styles.roster} ${selected ? styles.hasSelection : ""}`}>
-          {members.map((member, index) => {
+          {displayMembers.map((member, index) => {
             const active = member.id === selectedId;
             return (
               <button
                 key={member.id}
                 type="button"
                 className={`${styles.member} ${active ? styles.selected : ""}`}
+                data-member-id={member.id}
                 aria-pressed={active}
                 aria-label={text(`เลือก ${member.name} งาน ${member.work}`, `Select ${member.name}, ${member.workEn}`)}
                 onClick={() => setSelectedId(active ? null : member.id)}
               >
                 <span className={styles.imageWrap}>
                   <Image
-                    src={member.image}
+                    src={isLightTheme ? member.lightImage : member.image}
                     alt={text(`ภาพสมาชิกทีม ${member.name}`, `Team member ${member.name}`)}
                     fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 900px) 33vw, 14vw"
+                    sizes={isLightTheme
+                      ? "(max-width: 600px) 90vw, (max-width: 900px) 50vw, 31vw"
+                      : "(max-width: 900px) 78vw, 14vw"}
                     className={styles.portrait}
-                    priority={index < 3}
+                    fetchPriority={index < 3 || member.id === "mallika" ? "high" : "auto"}
                   />
                 </span>
                 <span className={styles.cardShade} aria-hidden="true" />

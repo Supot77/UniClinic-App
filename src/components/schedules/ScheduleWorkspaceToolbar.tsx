@@ -1,3 +1,4 @@
+// Patient schedule locale: toolbar labels, filters, and date display.
 import type { Dispatch, SetStateAction } from 'react';
 import { ArrowRight, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Copy, Plus, RefreshCw } from 'lucide-react';
 import DatePicker from '@/components/common/DatePicker';
