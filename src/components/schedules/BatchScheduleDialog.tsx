@@ -2,9 +2,17 @@ import type { Dispatch, SetStateAction } from 'react';
 import { Loader2, X } from 'lucide-react';
 import DatePicker from '@/components/common/DatePicker';
 import { CLINIC_TIME_BLOCKS } from '@/constants/dateTime';
-import { buildSlotBatchPlan, type SlotBatchInput, type SlotBatchTimeBlock } from '@/features/scheduling/domain/rules';
+import {
+  buildSlotBatchPlan,
+  getClinicBatchEndTimeOptions,
+  getCreatableClinicStartTimeOptions,
+  getEarliestCreatableClinicStartTime,
+  type SlotBatchInput,
+  type SlotBatchTimeBlock,
+} from '@/features/scheduling/domain/rules';
 import type { ScheduleDoctor, ScheduleService } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
+import { RestrictedTimeSelect } from './RestrictedTimeSelect';
 
 const weekdayOptions = [
   { value: 1, label: 'จันทร์', shortLabel: 'จ.' },
@@ -46,6 +54,8 @@ type Props = {
   batchIsSaving: boolean;
   inputClass: string;
   today: string;
+  currentDate: string;
+  currentTime: string;
   formatSourceDate: (date: string) => string;
   closeBatchForm: () => void;
   saveBatchSlots: () => void;
@@ -55,9 +65,18 @@ export function BatchScheduleDialog(props: Props) {
   const {
     role, currentDoctor, doctors, activeServices, batchMode, batchDraft, setBatchDraft,
     copySourceDates, effectiveCopySourceDate, copyTimeBlocks, batchDates, batchInput,
-    batchPreview, batchFormError, batchIsSaving, inputClass, today,
+    batchPreview, batchFormError, batchIsSaving, inputClass, today, currentDate, currentTime,
     formatSourceDate, closeBatchForm, saveBatchSlots,
   } = props;
+
+  const datesAreTodayOnly = batchDates.length > 0 && batchDates.every((date) => date === currentDate);
+  const earliestTodayStart = datesAreTodayOnly
+    ? getEarliestCreatableClinicStartTime(currentDate, currentDate, currentTime)
+    : '08:30';
+  const startTimeOptions = earliestTodayStart
+    ? getCreatableClinicStartTimeOptions(earliestTodayStart)
+    : [];
+  const endTimeOptions = getClinicBatchEndTimeOptions(batchDraft.startTime);
 
   return (
     <div
@@ -156,12 +175,15 @@ export function BatchScheduleDialog(props: Props) {
                     <div className="mt-2 flex flex-wrap gap-2">
                       {CLINIC_TIME_BLOCKS.map((block) => {
                         const isSelected = batchDraft.startTime === block.startTime && batchDraft.endTime === block.endTime;
+                        const isPastForSelectedDate = datesAreTodayOnly
+                          && (earliestTodayStart === null || block.startTime < earliestTodayStart);
                         return (
                           <button
                             key={block.label}
                             type="button"
+                            disabled={isPastForSelectedDate}
                             onClick={() => setBatchDraft((current) => ({ ...current, startTime: block.startTime, endTime: block.endTime }))}
-                            className={`${isSelected ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft`}
+                            className={`${isSelected ? 'bg-brand-soft text-brand-strong' : 'bg-slate-50 text-slate-600'} min-h-10 rounded-lg px-3 text-sm font-semibold hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40`}
                           >
                             {block.label}
                           </button>
@@ -171,12 +193,34 @@ export function BatchScheduleDialog(props: Props) {
                   </div>
                   <label className="space-y-1.5">
                     <span className="text-sm font-medium text-slate-700">เวลาเริ่ม</span>
-                    <input type="time" value={batchDraft.startTime} onChange={(event) => setBatchDraft((current) => ({ ...current, startTime: event.target.value }))} className={inputClass} />
+                    <RestrictedTimeSelect
+                      aria-label="เวลาเริ่มสำหรับสร้างรอบหลายวัน"
+                      value={batchDraft.startTime}
+                      options={startTimeOptions}
+                      onChange={(newStartTime) => setBatchDraft((current) => {
+                        const nextEndOptions = getClinicBatchEndTimeOptions(newStartTime);
+                        return {
+                          ...current,
+                          startTime: newStartTime,
+                          endTime: nextEndOptions.includes(current.endTime) ? current.endTime : nextEndOptions[0] ?? '',
+                        };
+                      })}
+                      className={inputClass}
+                    />
                   </label>
                   <label className="space-y-1.5">
                     <span className="text-sm font-medium text-slate-700">เวลาสิ้นสุด</span>
-                    <input type="time" value={batchDraft.endTime} onChange={(event) => setBatchDraft((current) => ({ ...current, endTime: event.target.value }))} className={inputClass} />
+                    <RestrictedTimeSelect
+                      aria-label="เวลาสิ้นสุดสำหรับสร้างรอบหลายวัน"
+                      value={batchDraft.endTime}
+                      options={endTimeOptions}
+                      onChange={(newEndTime) => setBatchDraft((current) => ({ ...current, endTime: newEndTime }))}
+                      className={inputClass}
+                    />
                   </label>
+                  <p className="text-xs text-slate-500 sm:col-span-2">
+                    วันนี้ระบบจะข้ามช่วงที่เริ่มไปแล้วอัตโนมัติ ส่วนวันถัดไปยังสร้างได้ตั้งแต่ 08:30 น. และไม่รวมช่วงพัก 12:00–13:00 น.
+                  </p>
                   <label className="space-y-1.5">
                     <span className="text-sm font-medium text-slate-700">ระยะเวลาต่อรอบ</span>
                     <select value={batchDraft.slotDurationMinutes} onChange={(event) => setBatchDraft((current) => ({ ...current, slotDurationMinutes: Number(event.target.value) as 30 | 60 }))} className={inputClass}>
@@ -225,6 +269,7 @@ export function BatchScheduleDialog(props: Props) {
                 <p className="font-semibold">ตัวอย่างที่จะสร้าง: {batchPreview.value.slots.length} รอบ ใน {batchDates.length - batchPreview.value.skippedLeaveDates.length} วัน</p>
                 {batchPreview.value.skippedLeaveDates.length > 0 && <p className="mt-1 text-xs">ข้ามวันลา {batchPreview.value.skippedLeaveDates.length} วัน</p>}
                 {batchPreview.value.skippedConflictCount > 0 && <p className="mt-1 text-xs">ข้ามรอบที่ซ้ำกับรายการเดิม {batchPreview.value.skippedConflictCount} รอบ</p>}
+                {batchPreview.value.skippedPastTimeCount > 0 && <p className="mt-1 text-xs">ข้ามช่วงเวลาที่ผ่านมาแล้ว {batchPreview.value.skippedPastTimeCount} รอบ</p>}
               </div>
             )}
             {batchInput && batchPreview && !batchPreview.ok && <p className="mt-4 text-sm font-medium text-rose-700" role="alert">{batchPreview.error}</p>}

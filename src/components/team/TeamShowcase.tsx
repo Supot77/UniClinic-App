@@ -66,6 +66,16 @@ const members = [
     work: "แผนก แพทย์ วันลา ตารางตรวจ และรอบนัด",
     workEn: "Departments, doctors, leave, schedules, and slots",
   },
+  {
+    id: "mallika",
+    nickname: "อาจารย์",
+    name: "อาจารย์มัลลิกา",
+    image: "/images/mallikasuit.png",
+    shortWork: "อาจารย์ที่ปรึกษา",
+    shortWorkEn: "Faculty advisor",
+    work: "อาจารย์ที่ปรึกษาโครงการ WU Clinic",
+    workEn: "Faculty advisor for the WU Clinic project",
+  },
 ] as const;
 
 export default function TeamShowcase() {
@@ -82,13 +92,13 @@ export default function TeamShowcase() {
           WU CLINIC <span aria-hidden="true">/</span> {text("เบื้องหลังระบบ", "BEHIND THE SYSTEM")}
         </p>
         <h1 id="team-heading" className={styles.title}>
-          {text("ทีมผู้พัฒนา", "The people behind")}
-          <span>{text("ทั้งหกคน", "WU Clinic")}</span>
+          {text("ทีมพัฒนาและอาจารย์ที่ปรึกษา", "The project team")}
+          <span>{text("WU Clinic", "WU Clinic")}</span>
         </h1>
         <p className={styles.lead}>
           {text(
-            "หกคน หนึ่งระบบ เลือกรูปเพื่อทำความรู้จักคนที่อยู่เบื้องหลังแต่ละส่วน",
-            "Six people, one system. Select a portrait to meet the person behind each part.",
+            "เจ็ดคน หนึ่งระบบ เลือกรูปเพื่อทำความรู้จักทีมและอาจารย์ที่ปรึกษา",
+            "Seven people, one system. Select a portrait to meet the team and faculty advisor.",
           )}
         </p>
       </div>
@@ -97,7 +107,7 @@ export default function TeamShowcase() {
         <div className={styles.stageLights} aria-hidden="true" />
         <div className={styles.stageTopline} aria-hidden="true">
           <span>THE TEAM</span>
-          <span>01 — 06</span>
+          <span>01 — {String(members.length).padStart(2, "0")}</span>
         </div>
         <div className={`${styles.roster} ${selected ? styles.hasSelection : ""}`}>
           {members.map((member, index) => {
@@ -116,13 +126,13 @@ export default function TeamShowcase() {
                     src={member.image}
                     alt={text(`ภาพสมาชิกทีม ${member.name}`, `Team member ${member.name}`)}
                     fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 900px) 33vw, 22vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 900px) 33vw, 14vw"
                     className={styles.portrait}
                     priority={index < 3}
                   />
                 </span>
                 <span className={styles.cardShade} aria-hidden="true" />
-                <span className={styles.cardNumber}>0{index + 1}</span>
+                <span className={styles.cardNumber}>{String(index + 1).padStart(2, "0")}</span>
                 <span className={styles.cardText}>
                   <span className={styles.nickname}>{member.nickname}</span>
                   <span className={styles.name}>{member.name}</span>

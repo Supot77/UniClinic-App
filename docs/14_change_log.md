@@ -2,6 +2,82 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## เติม English ให้หน้าตารางตรวจสำหรับ patient — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ผู้ป่วยที่เลือก English เห็นหัวข้อ ปุ่มเลื่อนช่วง ตัวเลือกมุมมอง/ตัวกรอง จำนวนรอบ และข้อความเมื่อไม่พบรอบเป็นภาษาอังกฤษ
+- แสดงช่วงสัปดาห์และชื่อเดือนตาม locale; ข้อความนำทาง, toast และสถานะกำลังโหลดรองรับ English รวมถึง accessible labels
+- คงชื่อแผนก บริการ และแพทย์ตามข้อมูลที่บันทึกไว้; `medical` และ `staff_admin` ยังคงใช้ภาษาไทยตาม `LocaleContext`
+
+### ไฟล์หลัก
+
+- `src/components/schedules/ScheduleWorkspaceToolbar.tsx`, `ScheduleWorkspace.tsx`, `ScheduleSkeleton.tsx`
+- `src/components/common/Toast.tsx`
+- `tests/schedule-workspace-department-filter.test.tsx`
+
+### การตรวจ
+
+- `npx.cmd --no-install vitest run tests/schedule-workspace-department-filter.test.tsx` — ผ่าน 1 ไฟล์ 35 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- ESLint targeted สำหรับไฟล์ที่แก้ — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA และ full suite/build — ไม่ได้รัน
+
+## เพิ่มอาจารย์ที่ปรึกษาในหน้าทีม — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มอาจารย์มัลลิกาเป็นคนที่ 7 โดยใช้ `public/images/mallikasuit.png` และแสดงบทบาทอาจารย์ที่ปรึกษาโครงการ WU Clinic
+- ปรับหัวข้อ คำอธิบาย metadata และตัวนับให้สะท้อนสมาชิกทั้งเจ็ดคน
+- จัดการ์ดคนสุดท้ายให้อยู่กึ่งกลางแถวเมื่อหน้าจอเป็นแท็บเล็ตหรือมือถือ
+
+### ไฟล์หลัก
+
+- `src/components/team/TeamShowcase.tsx`, `TeamShowcase.module.css`
+- `src/app/team/page.tsx`
+- `tests/team-showcase.test.tsx`
+- `public/images/mallikasuit.png`
+
+### การตรวจ
+
+- `npx.cmd --no-install vitest run tests/team-showcase.test.tsx` — ผ่าน 1 test
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA ที่ 1280px และ 360px; รูปอาจารย์แสดงครบศีรษะและเท้า และเลือกด้วยคลิกหรือ Space เพื่อแสดงรายละเอียดได้
+
+## จำกัดเวลาสร้างรอบตรวจตามเวลาทำการและเวลาปัจจุบัน — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- การสร้างรอบเดี่ยวและการสร้างหลายวันรับเฉพาะช่วงเวลาทำการ 08:30–16:30 และไม่รับช่วงพักกลางวัน 12:00–13:00
+- เมื่อสร้างในวันที่ปัจจุบัน เวลาต่ำสุดจะเริ่มจากเวลาปัจจุบัน; ถ้าอยู่ช่วงพักกลางวันจะเริ่มที่ 13:00 และถ้าพ้นเวลาทำการจะสร้างไม่ได้
+- ล็อกข้อจำกัดในช่องเลือกเวลา และตรวจซ้ำที่ domain, repository และ API; การแก้ไขรอบเดิมไม่ถูกบังคับด้วยกฎเวลาปัจจุบันของการสร้างใหม่
+- ช่องเวลาในฟอร์มสร้างใหม่ใช้รายการแบบ 24 ชั่วโมงที่แสดงเฉพาะค่าที่เลือกได้จริง; ฟอร์มแก้ไขรอบเดิมยังใช้ช่องเวลาเดิม
+- Batch ของวันที่ปัจจุบันข้ามช่วงเวลาที่ผ่านมาแล้ว ส่วนวันที่อนาคตยังใช้ช่วงเวลาทำการปกติ
+
+### ไฟล์หลัก
+
+- `src/features/scheduling/domain/rules.ts`
+- `src/components/schedules/SlotEditorDialog.tsx`, `BatchScheduleDialog.tsx`, `ScheduleWorkspace.tsx`
+- `src/components/schedules/RestrictedTimeSelect.tsx`
+- `src/app/api/schedules/slots/route.ts`
+- `src/features/scheduling/data/databaseRepository.ts`, `mockRepository.ts`
+- `tests/scheduling-rules.test.ts`, `api-route-handlers.test.ts`, `schedule-workspace-department-filter.test.tsx`, `mock-scheduling-repository.test.ts`
+- `docs/08_system_rules_and_acceptance.md`, `docs/owners/shop-supot/{user-stories,use-cases,as-built}.md`
+
+### การตรวจ
+
+- focused Vitest: ผ่าน 4 ไฟล์ 83 tests และ API 1 ไฟล์ 15 tests
+- follow-up restricted-time UI/domain tests: ผ่าน 2 ไฟล์ 57 tests
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- targeted ESLint สำหรับไฟล์ที่แก้: ผ่าน
+- `npm.cmd run build`: ผ่าน
+- `git diff --check`: ผ่าน
+- full `npm.cmd test`: ไม่ผ่านจากปัญหานอกขอบเขตเดิม 16 ไฟล์ / 119 tests (LocaleProvider ในชุดทดสอบหลายไฟล์, fixture วันที่เดิม และ DepartmentWorkspace)
+- `npm.cmd run lint`: ไม่ผ่านจากข้อผิดพลาดเดิม 5 รายการใน reminders, DashboardScreen และ LocaleContext
+- browser ตรวจหน้า guest `/schedules` โหลดได้ แต่ยังไม่มี authenticated staff session จึงยังไม่ยืนยันฟอร์มสร้างรอบ; ยังไม่ได้ตรวจฐานจริง/RLS
+
 ## เพิ่มแท็บบริการในหน้าจัดการแผนกและแพทย์ — 24 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม

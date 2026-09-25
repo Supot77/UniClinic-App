@@ -16,6 +16,8 @@ import type { SchedulingResult, SlotBatchInput, SlotInput } from '../domain/rule
 import {
   buildSlotBatchPlan,
   deriveSlotStatus,
+  getBangkokCurrentTime,
+  getBangkokToday,
   isSlotExpired,
   validateDepartmentName,
   validateDoctorLeave,
@@ -589,7 +591,7 @@ export class DatabaseSchedulingRepository {
     const editWindow = validateSlotEditWindow(existing, input, todayDate);
     if (!editWindow.ok) return editWindow;
     const bookedCount = existing?.bookedCount ?? 0;
-    const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate, doctorLeaves);
+    const valid = validateSlot(input, existingSlots, doctors, services, id, bookedCount, todayDate, doctorLeaves, getBangkokCurrentTime());
     if (!valid.ok) return valid;
 
     const nextStatus = deriveSlotStatus(bookedCount, input.maxCapacity, existing?.status, {
@@ -704,32 +706,47 @@ export class DatabaseSchedulingRepository {
     const permission = validateSlotPermission(input.doctorId, doctors, actorId, role);
     if (!permission.ok) return permission;
 
-    const plan = buildSlotBatchPlan(input, existingSlots, doctors, services, todayDate, doctorLeaves);
+    const plan = buildSlotBatchPlan(input, existingSlots, doctors, services, todayDate, doctorLeaves, getBangkokCurrentTime());
     if (!plan.ok) return plan;
     if (plan.value.slots.length === 0) return { ok: true, value: 0 };
 
-    const { data, error } = await this.client.rpc('create_appointment_slot_batch', {
-      p_doctor_id: input.doctorId,
-      p_service_id: input.serviceId,
-      p_dates: [...new Set(input.dates)].sort(),
-      p_time_blocks: input.timeBlocks.map((block) => ({
-        start_time: block.startTime,
-        end_time: block.endTime,
-        max_capacity: block.maxCapacity,
-      })),
-    });
+    const effectiveToday = todayDate ?? getBangkokToday();
+    const currentTime = getBangkokCurrentTime();
+    const dates = [...new Set(input.dates)].sort();
+    const todayDates = dates.filter((date) => date === effectiveToday);
+    const futureDates = dates.filter((date) => date > effectiveToday);
+    const todayBlocks = input.timeBlocks.filter((block) => block.startTime >= currentTime);
+    const requests = [
+      ...(todayDates.length && todayBlocks.length ? [{ dates: todayDates, timeBlocks: todayBlocks }] : []),
+      ...(futureDates.length ? [{ dates: futureDates, timeBlocks: input.timeBlocks }] : []),
+    ];
+    let createdCount = 0;
 
-    if (error) {
-      if (error.code === 'PGRST202' || error.code === '42883') {
-        return { ok: false, error: 'ยังไม่พร้อมใช้งาน กรุณาติดตั้ง migration 24_batch_create_slots.sql ใน Supabase ก่อน' };
+    for (const request of requests) {
+      const { data, error } = await this.client.rpc('create_appointment_slot_batch', {
+        p_doctor_id: input.doctorId,
+        p_service_id: input.serviceId,
+        p_dates: request.dates,
+        p_time_blocks: request.timeBlocks.map((block) => ({
+          start_time: block.startTime,
+          end_time: block.endTime,
+          max_capacity: block.maxCapacity,
+        })),
+      });
+
+      if (error) {
+        if (error.code === 'PGRST202' || error.code === '42883') {
+          return { ok: false, error: 'ยังไม่พร้อมใช้งาน กรุณาติดตั้ง migration 24_batch_create_slots.sql ใน Supabase ก่อน' };
+        }
+        return { ok: false, error: error.message || 'ไม่สามารถสร้างรอบตรวจหลายวันได้' };
       }
-      return { ok: false, error: error.message || 'ไม่สามารถสร้างรอบตรวจหลายวันได้' };
+
+      const requestCount = typeof data === 'number' ? data : Number(data);
+      if (!Number.isFinite(requestCount)) return { ok: false, error: 'ผลลัพธ์การสร้างรอบตรวจไม่ถูกต้อง' };
+      createdCount += requestCount;
     }
 
-    const createdCount = typeof data === 'number' ? data : Number(data);
-    return Number.isFinite(createdCount)
-      ? { ok: true, value: createdCount }
-      : { ok: false, error: 'ผลลัพธ์การสร้างรอบตรวจไม่ถูกต้อง' };
+    return { ok: true, value: createdCount };
   }
 
   async toggleSlot(
