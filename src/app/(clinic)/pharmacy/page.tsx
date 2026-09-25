@@ -12,7 +12,12 @@ export default async function PharmacyPage({ searchParams }: PharmacyPageProps =
   const metadata = user.user_metadata as { title?: string; first_name?: string; last_name?: string };
   const userName = [metadata.title, metadata.first_name, metadata.last_name].filter(Boolean).join(' ') || undefined;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const initialTab = resolvedSearchParams?.tab === 'prescriptions' ? 'prescriptions' : 'inventory';
+  const initialTab =
+    resolvedSearchParams?.tab === 'prescriptions'
+      ? 'prescriptions'
+      : resolvedSearchParams?.tab === 'procurements'
+      ? 'procurements'
+      : 'inventory';
   const validStatuses = ['all', 'pending', 'dispensed', 'insufficient'] as const;
   const initialStatus = validStatuses.includes(resolvedSearchParams?.status as (typeof validStatuses)[number])
     ? (resolvedSearchParams!.status as (typeof validStatuses)[number])

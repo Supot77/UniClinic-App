@@ -51,12 +51,30 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   return Response.json(data);
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireApiAuth(['medical', 'staff_admin']);
   if (!auth.ok) return auth.response;
   const id = parseUuid((await context.params).id);
   if (!id) return Response.json({ error: 'รหัสยาไม่ถูกต้อง' }, { status: 400 });
-  const { data, error } = await auth.supabase.from('medications').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+
+  const urlObj = new URL(request.url);
+  const isPermanent = urlObj.searchParams.get('permanent') === 'true';
+
+  if (isPermanent) {
+    if (auth.actor.role !== 'medical') return Response.json({ error: 'ไม่มีสิทธิ์ลบยา' }, { status: 403 });
+    const { error } = await auth.supabase.rpc('delete_unused_medication', { p_medication_id: id });
+    if (error) return errorResponse(error, 'ลบยาไม่สำเร็จ');
+    return Response.json({ success: true });
+  }
+
+  // Soft delete (default)
+  const { data, error } = await auth.supabase
+    .from('medications')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
   if (error) return errorResponse(error, 'ปิดใช้งานยาไม่สำเร็จ');
   return Response.json(data);
 }
