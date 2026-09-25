@@ -14,13 +14,20 @@ export default function ResetPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const passwordChecks = [
+    { valid: password.length >= 8, label: text('อย่างน้อย 8 ตัวอักษร', 'At least 8 characters') },
+    { valid: /[A-Z]/.test(password), label: text('มีตัวพิมพ์ใหญ่ (A-Z)', 'An uppercase letter (A-Z)') },
+    { valid: /[a-z]/.test(password), label: text('มีตัวพิมพ์เล็ก (a-z)', 'A lowercase letter (a-z)') },
+    { valid: /\d/.test(password), label: text('มีตัวเลข (0-9)', 'A number (0-9)') },
+    { valid: !/\s/.test(password), label: text('ไม่มีช่องว่าง', 'No spaces') },
+  ];
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError(text('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร', 'Your new password must have at least 8 characters.'));
+    if (!passwordChecks.every((check) => check.valid)) {
+      setError(text('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข โดยไม่มีช่องว่าง', 'Use at least 8 characters, including uppercase and lowercase letters and a number. Spaces are not allowed.'));
       return;
     }
     if (password !== confirmPassword) {
@@ -59,7 +66,7 @@ export default function ResetPasswordForm() {
           <LockKeyhole className="size-6 text-sky-600" aria-hidden="true" />
         </div>
         <h1 className="mt-4 text-2xl font-bold text-zinc-900">{text('ตั้งรหัสผ่านใหม่', 'Reset your password')}</h1>
-        <p className="mt-2 text-sm text-zinc-500">{text('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร', 'Your password must have at least 8 characters.')}</p>
+        <p className="mt-2 text-sm text-zinc-500">{text('รหัสผ่านต้องมีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข', 'Use uppercase and lowercase letters and a number.')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-7 space-y-4">
@@ -72,6 +79,13 @@ export default function ResetPasswordForm() {
               {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
             </button>
           </div>
+          <ul className="mt-2 space-y-1 text-xs" aria-label={text('เงื่อนไขรหัสผ่าน', 'Password requirements')}>
+            {passwordChecks.map((check) => (
+              <li key={check.label} className={password && check.valid ? 'text-emerald-700' : 'text-zinc-500'}>
+                {password && check.valid ? '✓' : '○'} {check.label}
+              </li>
+            ))}
+          </ul>
         </div>
         <div>
           <label htmlFor="confirm-new-password" className="mb-1 block text-sm font-medium text-zinc-700">{text('ยืนยันรหัสผ่านใหม่', 'Confirm new password')}</label>
