@@ -1,8 +1,10 @@
 // Header coverage includes the shared appearance switch and its Settings synchronization.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Header from "@/components/layout/Header";
 import SettingsContent from "@/components/settings/SettingsContent";
+import { AdminDatabaseStatusProvider, useSetAdminDatabaseStatus } from "@/context/AdminDatabaseStatusContext";
 
 const authState = vi.hoisted(() => ({
   user: null as null | { id?: string; displayName: string },
@@ -30,6 +32,12 @@ function mockMatchMedia(matches: boolean) {
   });
   vi.stubGlobal("matchMedia", matchMedia);
   Object.defineProperty(window, "matchMedia", { configurable: true, value: matchMedia });
+}
+
+function SetConnectedDatabaseStatus() {
+  const setStatus = useSetAdminDatabaseStatus();
+  useEffect(() => setStatus("connected"), [setStatus]);
+  return null;
 }
 
 describe("Header", () => {
@@ -80,6 +88,31 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: /แจ้งเตือน/ })).toHaveAttribute("href", "/notifications");
   });
 
+  it("shows a compact admin database indicator beside the bell on mobile", async () => {
+    authState.user = { displayName: "Admin Demo" };
+    authState.isAuthenticated = true;
+    authState.role = "staff_admin";
+
+    render(<AdminDatabaseStatusProvider>
+      <>
+        <SetConnectedDatabaseStatus />
+        <Header />
+      </>
+    </AdminDatabaseStatusProvider>);
+
+    expect(screen.getByRole("banner")).toHaveAttribute("data-admin-header", "true");
+    expect(await screen.findAllByRole("status", { name: "สถานะฐานข้อมูล: เชื่อมต่อแล้ว" })).toHaveLength(2);
+    const databaseDot = screen.getByTestId("database-status-dot");
+    expect(databaseDot).toHaveAttribute("aria-label", "สถานะฐานข้อมูล: เชื่อมต่อแล้ว");
+    expect(databaseDot).toHaveClass("lg:hidden");
+    expect(databaseDot).toHaveTextContent("");
+    expect(databaseDot.firstElementChild).toHaveClass("bg-status-success");
+    expect(databaseDot.nextElementSibling).toHaveAttribute("href", "/notifications");
+
+    fireEvent.click(screen.getByRole("button", { name: "เปิดเมนู" }));
+    expect(screen.getByRole("navigation", { name: "เมนูบนมือถือ" })).toHaveClass("top-16", "max-h-[calc(100vh-4rem)]");
+  });
+
   it("shows Dashboard to patients while hiding restricted admin links", () => {
     authState.user = { displayName: "Patient Demo" };
     authState.isAuthenticated = true;
@@ -88,6 +121,7 @@ describe("Header", () => {
     render(<Header />);
 
     expect(screen.getByRole("link", { name: /ภาพรวม/ })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: /สถานะฐานข้อมูล/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /จัดการแผนก/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /นัดหมาย/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /แจ้งเตือน/ })).toHaveAttribute("href", "/notifications");

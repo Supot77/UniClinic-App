@@ -29,6 +29,7 @@ import ProfileAccountDrawer from "@/components/profile/ProfileAccountDrawer";
 import { getUnreadCount } from "@/services/dashboardService";
 import { dashboardPathForRole } from "@/features/dashboard/roles";
 import { useLocale } from "@/context/LocaleContext";
+import { useAdminDatabaseStatus, type DatabaseStatus } from "@/context/AdminDatabaseStatusContext";
 import type { MessageKey } from "@/i18n/messages";
 import {
   saveThemePreference,
@@ -141,11 +142,49 @@ function linkClasses(active: boolean, compact = false) {
   return `${base} ${sizing} ${color}`;
 }
 
+const databaseStatusLabels: Record<DatabaseStatus, string> = {
+  checking: "กำลังตรวจสอบ",
+  connected: "เชื่อมต่อแล้ว",
+  disconnected: "เชื่อมต่อไม่ได้",
+};
+
+const databaseStatusClasses: Record<DatabaseStatus, string> = {
+  checking: "bg-status-warning-bg text-status-warning",
+  connected: "bg-status-success-bg text-status-success",
+  disconnected: "bg-status-critical-bg text-status-critical",
+};
+
+const databaseStatusDotClasses: Record<DatabaseStatus, string> = {
+  checking: "bg-status-warning",
+  connected: "bg-status-success",
+  disconnected: "bg-status-critical",
+};
+
+function AdminDatabaseStatusBadge({ status }: { status: DatabaseStatus }) {
+  return <div role="status" aria-label={`สถานะฐานข้อมูล: ${databaseStatusLabels[status]}`} className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11px] font-semibold sm:text-xs ${databaseStatusClasses[status]}`}>
+    <span className={`size-1.5 rounded-full ${databaseStatusDotClasses[status]}`} aria-hidden="true" />
+    ฐานข้อมูล · {databaseStatusLabels[status]}
+  </div>;
+}
+
+function AdminDatabaseStatusIndicator({ status }: { status: DatabaseStatus }) {
+  return <span
+    role="status"
+    aria-label={`สถานะฐานข้อมูล: ${databaseStatusLabels[status]}`}
+    title={`ฐานข้อมูล · ${databaseStatusLabels[status]}`}
+    data-testid="database-status-dot"
+    className="inline-flex size-5 shrink-0 items-center justify-center lg:hidden"
+  >
+    <span className={`size-2 rounded-full ring-2 ring-brand-ink ${databaseStatusDotClasses[status]}`} aria-hidden="true" />
+  </span>;
+}
+
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, signOut, role } = useAuth();
   const { locale, setLocale, t, text } = useLocale();
+  const adminDatabaseStatus = useAdminDatabaseStatus();
   const logoHref = isAuthenticated && role ? dashboardPathForRole(role) : "/";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -242,6 +281,7 @@ export default function Header() {
 
   return (
     <header
+      data-admin-header={isAdmin ? "true" : undefined}
       className="fixed inset-x-0 top-0 z-50 min-h-16 border-b border-white/10 bg-brand-ink text-white shadow-sm"
       onMouseLeave={() => setOpenGroup(null)}
       onBlur={(event) => {
@@ -304,6 +344,8 @@ export default function Header() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:ml-0">
+          {isAdmin && <div className="hidden lg:block"><AdminDatabaseStatusBadge status={adminDatabaseStatus} /></div>}
+          {isAdmin && <AdminDatabaseStatusIndicator status={adminDatabaseStatus} />}
           {isAuthenticated && (
             <Link
               href="/notifications"

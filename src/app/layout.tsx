@@ -8,6 +8,7 @@ import BackToTopButton from "@/components/common/BackToTopButton";
 import LoginToastListener from "@/components/common/LoginToastListener";
 import { AuthProvider } from "@/context/AuthContext";
 import { LocaleProvider } from "@/context/LocaleContext";
+import { AdminDatabaseStatusProvider } from "@/context/AdminDatabaseStatusContext";
 import AppearanceInitializer from "@/components/settings/AppearanceInitializer";
 
 const clinicFont = Noto_Sans_Thai({
@@ -33,14 +34,16 @@ export default function RootLayout({
         <AppearanceInitializer />
         <AuthProvider>
           <LocaleProvider>
-            <TopProgressBar />
-            <Header />
-            <LoginToastListener />
-            <main className="flex-1 bg-brand-surface pt-16">
-              {children}
-            </main>
-            <Footer />
-            <BackToTopButton />
+            <AdminDatabaseStatusProvider>
+              <TopProgressBar />
+              <Header />
+              <LoginToastListener />
+              <main className="flex-1 bg-brand-surface pt-16">
+                {children}
+              </main>
+              <Footer />
+              <BackToTopButton />
+            </AdminDatabaseStatusProvider>
           </LocaleProvider>
         </AuthProvider>
       </body>

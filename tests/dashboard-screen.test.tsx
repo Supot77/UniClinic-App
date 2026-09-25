@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import DashboardScreen, { createUpcomingToastPreviewAppointments, filterAppointmentQueue, getUpcomingAppointmentsWithinWindow, sortAppointmentsByStartTime } from '@/components/dashboard/DashboardScreen';
+import { AdminDatabaseStatusProvider, useAdminDatabaseStatus } from '@/context/AdminDatabaseStatusContext';
 import type { DashboardView } from '@/features/dashboard/types';
 
 const getDashboardViewMock = vi.hoisted(() => vi.fn());
@@ -23,6 +24,10 @@ beforeEach(() => {
   navigationMocks.search = '';
   sessionStorage.removeItem('login_appointment_toast');
 });
+
+function DatabaseStatusProbe() {
+  return <span data-testid="database-status-probe">{useAdminDatabaseStatus()}</span>;
+}
 
 const queue: DashboardView['appointmentQueue'] = [
   {
@@ -77,6 +82,13 @@ describe('Dashboard appointment filters', () => {
 
     expect(await screen.findByRole('region', { name: 'ตัวกรองแดชบอร์ด' })).toBeInTheDocument();
     const rangeFilter = screen.getByRole('region', { name: 'ตัวกรองแดชบอร์ด' });
+    if (role === 'patient') {
+      expect(within(rangeFilter).getByRole('button', { name: 'วันนี้' })).toBeInTheDocument();
+      expect(within(rangeFilter).getByRole('button', { name: 'ย้อนหลัง 7 วัน' })).toBeInTheDocument();
+      expect(within(rangeFilter).getByRole('button', { name: 'ย้อนหลัง 30 วัน' })).toBeInTheDocument();
+      const nextAppointmentSummary = screen.getByRole('region', { name: 'นัดหมายถัดไป' });
+      expect(within(nextAppointmentSummary).queryByRole('link', { name: 'ดูนัดหมายทั้งหมด' })).not.toBeInTheDocument();
+    }
     const nextRangeButton = within(rangeFilter).getByRole('button', { name: 'ย้อนหลัง 7 วัน' });
     fireEvent.click(nextRangeButton);
 
@@ -189,6 +201,9 @@ describe('Dashboard appointment filters', () => {
       doctorStatuses: [
         { doctorId: 'doctor-available', doctorName: 'แพทย์ว่าง', departmentId: 'department-1', departmentName: 'เวชทั่วไป', status: 'available' },
         { doctorId: 'doctor-away', doctorName: 'แพทย์ไม่อยู่', departmentId: 'department-1', departmentName: 'เวชทั่วไป', status: 'away' },
+        { doctorId: 'doctor-away-2', doctorName: 'แพทย์ไม่อยู่สอง', departmentId: 'department-1', departmentName: 'เวชทั่วไป', status: 'away' },
+        { doctorId: 'doctor-away-3', doctorName: 'แพทย์ไม่อยู่สาม', departmentId: 'department-1', departmentName: 'เวชทั่วไป', status: 'away' },
+        { doctorId: 'doctor-away-4', doctorName: 'แพทย์ไม่อยู่สี่', departmentId: 'department-1', departmentName: 'เวชทั่วไป', status: 'away' },
         { doctorId: 'doctor-in-progress', doctorName: 'แพทย์กำลังตรวจ', departmentId: 'department-1', departmentName: 'เวชทั่วไป', status: 'in_progress', currentPatientName: 'ผู้ป่วยกำลังตรวจ' },
       ],
       medicationAlerts: [
@@ -200,16 +215,31 @@ describe('Dashboard appointment filters', () => {
     };
     getDashboardViewMock.mockResolvedValue(view);
 
-    render(<DashboardScreen role="staff_admin" actorId="staff-1" />);
-    expect(await screen.findByRole('status', { name: 'สถานะฐานข้อมูล: เชื่อมต่อแล้ว' })).toBeInTheDocument();
+    render(<AdminDatabaseStatusProvider>
+      <>
+        <DashboardScreen role="staff_admin" actorId="staff-1" />
+        <DatabaseStatusProbe />
+      </>
+    </AdminDatabaseStatusProvider>);
+    await waitFor(() => expect(screen.getByTestId('database-status-probe')).toHaveTextContent('connected'));
     const appointmentStatusGroup = await screen.findByRole('group', { name: 'เลือกสถานะนัดหมาย' });
+    const appointmentStatusSection = appointmentStatusGroup.closest('section');
+    const adminMedicationSection = screen.getByRole('heading', { name: 'รายการยาที่ต้องตรวจสอบ' }).closest('section');
+    expect(appointmentStatusSection).toHaveClass('w-full', 'min-w-0');
+    expect(appointmentStatusSection?.firstElementChild).toHaveClass('flex-row', 'items-start', 'gap-2', 'sm:items-center');
+    const manageAppointmentsLink = within(appointmentStatusSection as HTMLElement).getByRole('link', { name: 'จัดการนัดหมาย' });
+    expect(manageAppointmentsLink).toBe(appointmentStatusSection?.firstElementChild?.lastElementChild);
+    expect(manageAppointmentsLink).toHaveClass('shrink-0', 'whitespace-nowrap');
     const medicationFilterGroup = screen.getByRole('group', { name: 'กรองสถานะยา' });
+    expect(within(adminMedicationSection as HTMLElement).getByRole('link', { name: 'ดูคลังยา' })).toHaveAttribute('href', '/pharmacy');
+    expect(adminMedicationSection).toHaveClass('border-y', 'border-brand-border-soft');
+    expect(screen.getByRole('list', { name: 'รายการยา' })).toHaveClass('sm:grid-cols-2', 'lg:grid-cols-2');
     const allMedicationButton = within(medicationFilterGroup).getByRole('button', { name: /ทั้งหมด/ });
     const lowStockMedicationButton = within(medicationFilterGroup).getByRole('button', { name: /ใกล้หมด/ });
     const expiredMedicationButton = within(medicationFilterGroup).getByRole('button', { name: /หมดอายุ/ });
     expect(allMedicationButton).toHaveAttribute('aria-pressed', 'true');
-    expect(medicationFilterGroup).toHaveClass('w-fit', 'min-w-0', 'border-b', 'border-brand-border-soft');
-    expect(allMedicationButton).toHaveClass('min-h-9', 'rounded-t-xl', 'border-t-brand-strong');
+    expect(medicationFilterGroup).toHaveClass('w-full', 'min-w-max', 'border-b', 'border-brand-border-soft');
+    expect(allMedicationButton).toHaveClass('min-h-11', 'sm:min-h-12', 'rounded-t-2xl', 'border-t-brand-strong', 'text-xs', 'sm:text-sm');
     expect(allMedicationButton).toHaveTextContent('2');
     expect(lowStockMedicationButton).toHaveTextContent('1');
     expect(expiredMedicationButton).toHaveTextContent('1');
@@ -238,6 +268,8 @@ describe('Dashboard appointment filters', () => {
     expect(departmentOverview).not.toBeNull();
     expect(within(departmentOverview as HTMLElement).getByText('เวชทั่วไป')).toBeInTheDocument();
     expect(within(departmentOverview as HTMLElement).queryByRole('button', { name: /เวชทั่วไป/ })).not.toBeInTheDocument();
+    const departmentGrid = within(departmentOverview as HTMLElement).getByText('เวชทั่วไป').closest('div.grid');
+    expect(departmentGrid).toHaveClass('grid-cols-1', 'gap-px', 'sm:grid-cols-2', 'lg:grid-cols-3');
     expect(appointmentStatusGroup.compareDocumentPosition(departmentOverview as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const dashboardHeader = screen.getByRole('banner');
     const progressGroup = screen.getByRole('group', { name: 'ความคืบหน้านัดหมาย' });
@@ -266,17 +298,28 @@ describe('Dashboard appointment filters', () => {
     expect(screen.queryByRole('region', { name: 'สรุปเพศผู้ป่วยและแพทย์ในคลินิก' })).not.toBeInTheDocument();
     expect(screen.queryByText('เข้ารับบริการจริง')).not.toBeInTheDocument();
     const doctorStatusGroup = screen.getByRole('group', { name: 'กรองสถานะแพทย์' });
+    const awayDoctorsButton = within(doctorStatusGroup).getByRole('button', { name: /ไม่อยู่/ });
+    const doctorList = screen.getByText('แพทย์ไม่อยู่').closest('div.grid');
+    expect(medicationFilterGroup.className).toBe(doctorStatusGroup.className);
+    expect(allMedicationButton.className).toBe(awayDoctorsButton.className);
+    expect(doctorList).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'sm:divide-y-0');
+    expect(doctorList?.querySelectorAll(':scope > div')).toHaveLength(4);
     expect(departmentOverview!.compareDocumentPosition(doctorStatusGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(doctorStatusGroup.compareDocumentPosition(medicationFilterGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(doctorStatusGroup).getAllByRole('button')).toHaveLength(2);
     const availableDoctorsButton = within(doctorStatusGroup).getByRole('button', { name: /ว่าง/ });
-    const awayDoctorsButton = within(doctorStatusGroup).getByRole('button', { name: /ไม่อยู่/ });
     expect(doctorStatusGroup).toHaveClass('border-b', 'border-brand-border-soft');
     expect(awayDoctorsButton).toHaveAttribute('aria-pressed', 'true');
     expect(availableDoctorsButton).toHaveAttribute('aria-pressed', 'false');
     expect(availableDoctorsButton).toBeInTheDocument();
     expect(awayDoctorsButton).toBeInTheDocument();
     expect(screen.getByText('แพทย์ไม่อยู่')).toBeInTheDocument();
+    const awayDoctorRow = screen.getByText('แพทย์ไม่อยู่').parentElement;
+    expect(awayDoctorRow).not.toBeNull();
+    expect(within(awayDoctorRow as HTMLElement).getByText('ลาหรือนอกเวลาทำการ')).toHaveClass('text-xs', 'sm:text-sm');
+    expect(within(awayDoctorRow as HTMLElement).queryByText(/^ไม่อยู่$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^ดูตาราง$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ดูตารางแพทย์' })).toHaveAttribute('href', '/schedules');
     expect(screen.queryByText('แพทย์ว่าง')).not.toBeInTheDocument();
     expect(screen.queryByText('แพทย์กำลังตรวจ')).not.toBeInTheDocument();
     fireEvent.click(availableDoctorsButton);
@@ -332,6 +375,17 @@ describe('Dashboard appointment filters', () => {
         id: 'range-confirmed', queueNumber: 5, date: '2026-09-10', startTime: '11:00', status: 'confirmed',
         patientName: 'ผู้ป่วยในช่วง 7 วัน', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
       }],
+      nextAppointment: {
+        id: 'today-next', queueNumber: 4, date: '2026-09-14', startTime: '09:15', status: 'confirmed',
+        patientName: 'ผู้ป่วยถัดไป', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
+      },
+      upcomingAppointments: [{
+        id: 'today-next', queueNumber: 4, date: '2026-09-14', startTime: '09:15', status: 'confirmed',
+        patientName: 'ผู้ป่วยถัดไป', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
+      }, {
+        id: 'today-next-2', queueNumber: 6, date: '2026-09-14', startTime: '10:15', status: 'confirmed',
+        patientName: 'ผู้ป่วยรอบถัดไป', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
+      }],
       departmentLoads: [],
       medicationAlerts: [],
       recentNotifications: [],
@@ -344,12 +398,30 @@ describe('Dashboard appointment filters', () => {
     try {
       render(<DashboardScreen role="medical" actorId="medical-1" />);
       const remainingButton = await screen.findByRole('button', { name: /คิวของฉันในช่วงที่เลือก/ });
+      const nextAppointmentSummary = screen.getByRole('region', { name: 'คิวถัดไปที่ต้องตรวจ' });
+      const rangeFilter = screen.getByRole('region', { name: 'ตัวกรองแดชบอร์ด' });
+      expect(nextAppointmentSummary.nextElementSibling).toBe(rangeFilter);
+      expect(within(nextAppointmentSummary).getByText('คิว #4')).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByText(/14 กันยายน 2569/)).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByText('09:15 น.')).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByText('ผู้ป่วยถัดไป')).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByRole('button', { name: 'คิวก่อนหน้า' })).toBeDisabled();
+      const nextQueueButton = within(nextAppointmentSummary).getByRole('button', { name: 'คิวถัดไป' });
+      expect(nextQueueButton).not.toBeDisabled();
+      expect(nextQueueButton).toHaveClass('border-brand-strong', 'bg-brand-strong', 'text-white');
+      fireEvent.click(nextQueueButton);
+      expect(within(nextAppointmentSummary).getByText('คิว #6')).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByText('ผู้ป่วยรอบถัดไป')).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByText('10:15 น.')).toBeInTheDocument();
+      expect(within(nextAppointmentSummary).getByRole('button', { name: 'คิวก่อนหน้า' })).not.toBeDisabled();
+      expect(within(nextAppointmentSummary).getByRole('button', { name: 'คิวถัดไป' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'รีเฟรช' }).parentElement).toHaveClass('absolute', 'right-0', 'top-0', 'sm:static');
       const appointmentsButton = screen.getByRole('button', { name: /นัดของฉัน ย้อนหลัง 7 วัน/ });
       expect(appointmentsButton).toHaveAttribute('aria-pressed', 'true');
     expect(appointmentsButton).toHaveClass('h-36', 'min-h-36', 'sm:h-32');
       expect(appointmentsButton.querySelector('svg.lucide-chevron-down')).toBeInTheDocument();
       const appointmentsList = screen.getByRole('region', { name: 'รายชื่อผู้ป่วยนัดของฉัน ย้อนหลัง 7 วัน' });
+      expect(appointmentsList).toHaveClass('rounded-b-2xl');
       expect(within(appointmentsList).queryByText('นัดของฉัน ย้อนหลัง 7 วัน')).not.toBeInTheDocument();
       expect(within(appointmentsList).getByText(/พบ [0-9]+ รายการ/)).toHaveClass('text-sm');
       const pendingAppointments = within(appointmentsList).getByRole('group', { name: 'รายการรอการยืนยัน' });
@@ -472,6 +544,22 @@ describe('Dashboard appointment filters', () => {
     expect(within(confirmedAppointments).getByText('ผู้ป่วยยืนยัน 1')).toBeInTheDocument();
   });
 
+  it('keeps the empty medical next-queue summary free of an appointment action', async () => {
+    getDashboardViewMock.mockResolvedValue({
+      ...createRangeTestView('medical', 'today'),
+      title: 'ภาพรวมงานแพทย์',
+      description: 'ดูตาราง คิว และรายการยาที่ต้องตรวจสอบ',
+      metrics: [{ id: 'own-appointments', label: 'นัดของฉันวันนี้', value: 0, description: '', href: '/appointments', tone: 'blue' }],
+      nextAppointment: null,
+    });
+
+    render(<DashboardScreen role="medical" actorId="medical-1" />);
+
+    const nextAppointmentSummary = await screen.findByRole('region', { name: 'คิวถัดไปที่ต้องตรวจ' });
+    expect(within(nextAppointmentSummary).getByText('วันนี้ไม่มีคิวที่ต้องตรวจ')).toBeInTheDocument();
+    expect(within(nextAppointmentSummary).queryByRole('link', { name: 'ดูนัดหมายทั้งหมด' })).not.toBeInTheDocument();
+  });
+
   it('uses the staff medication status controls on the medical pharmacy dashboard', async () => {
     const view: DashboardView = {
       role: 'medical',
@@ -509,19 +597,21 @@ describe('Dashboard appointment filters', () => {
     const lowStockMedicationButton = within(medicationFilterGroup).getByRole('button', { name: /ใกล้หมด/ });
     const expiredMedicationButton = within(medicationFilterGroup).getByRole('button', { name: /หมดอายุ/ });
 
+    expect(screen.queryByRole('region', { name: 'คิวถัดไปที่ต้องตรวจ' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'รายการยาที่ต้องตรวจสอบ' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /การแจ้งเตือนล่าสุด/ })).not.toBeInTheDocument();
     expect(screen.queryByText('แจ้งเตือนล่าสุด')).not.toBeInTheDocument();
     expect(screen.queryByText('แจ้งเตือนที่อ่านแล้ว')).not.toBeInTheDocument();
     expect(screen.queryByText('1 ยังไม่อ่าน')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'ดูคลังยา' })).toHaveClass('bg-brand-strong', 'min-h-9', 'sm:min-h-10');
+    expect(screen.getByRole('link', { name: 'จัดการคลังยา' })).toHaveClass('bg-brand-strong', 'min-h-9', 'sm:min-h-10');
     const medicationSection = screen.getByRole('heading', { name: 'รายการยาที่ต้องตรวจสอบ' }).closest('section');
-    expect(medicationSection).toHaveClass('border-y', 'border-brand-border-soft');
+    expect(medicationSection).toHaveClass('border-b', 'border-brand-border-soft');
+    expect(medicationSection).not.toHaveClass('border-t');
     expect(medicationSection?.parentElement).toHaveClass('w-full');
     expect(medicationSection?.parentElement).not.toHaveClass('max-w-[1600px]');
     expect(allMedicationButton).toHaveAttribute('aria-pressed', 'true');
-    expect(medicationFilterGroup).toHaveClass('w-fit', 'min-w-0');
-    expect(allMedicationButton).toHaveClass('min-h-9', 'rounded-t-xl', 'border-t-brand-strong');
+    expect(medicationFilterGroup).toHaveClass('w-full', 'min-w-max');
+    expect(allMedicationButton).toHaveClass('min-h-11', 'sm:min-h-12', 'rounded-t-2xl', 'border-t-brand-strong', 'text-xs', 'sm:text-sm');
     expect(allMedicationButton).toHaveTextContent('2');
     expect(lowStockMedicationButton).toHaveTextContent('1');
     expect(expiredMedicationButton).toHaveTextContent('1');
@@ -574,9 +664,9 @@ describe('Dashboard appointment filters', () => {
         id: 'reminder-1', name: 'Paracetamol 500mg', dosage: '500 mg', instruction: 'บรรเทาปวดและลดไข้', reminderTimes: ['08:00', '18:00'], nextDoseTime: '18:00', endDate: '2026-09-30',
       }],
       patientTreatmentHistory: [{
-        id: 'record-1', date: '2026-09-10T03:00:00.000Z', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป', summary: 'ติดตามอาการทั่วไป', medicationCount: 1,
+        id: 'record-1', date: '2026-09-10T03:00:00.000Z', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป', symptom: 'มีไข้และไอ', summary: 'ติดตามอาการทั่วไป', medicationCount: 1,
       }, {
-        id: 'record-older', date: '2026-09-01T03:00:00.000Z', doctorName: 'แพทย์สอง', departmentName: 'ทันตกรรม', summary: 'ตรวจสุขภาพฟัน', advice: 'นัดติดตาม', medicationNames: ['Amoxicillin'], medicationCount: 0,
+        id: 'record-older', date: '2026-09-01T03:00:00.000Z', doctorName: 'แพทย์สอง', departmentName: 'ทันตกรรม', symptom: 'ปวดฟัน', summary: 'ตรวจสุขภาพฟัน', advice: 'นัดติดตาม', medicationNames: ['Amoxicillin'], medicationCount: 0,
       }],
       departmentLoads: [],
       medicationAlerts: [],
@@ -607,10 +697,9 @@ describe('Dashboard appointment filters', () => {
       expect(button).toBeDisabled();
     }
     expect(within(nextAppointmentSummary).getByText('แพทย์')).toHaveClass('text-[11px]', 'sm:text-xs');
-    const detailsLink = within(nextAppointmentSummary).getByRole('link', { name: /ดูนัดหมาย/ });
-    expect(detailsLink).toHaveClass('min-h-8', 'shrink-0', 'px-2.5', 'text-[11px]');
     const navigationControls = within(nextAppointmentSummary).getByLabelText('เลื่อนดูนัดหมาย');
-    expect(navigationControls).toHaveClass('lg:absolute', 'lg:right-[7.5rem]', 'lg:top-0');
+    expect(navigationControls).toHaveClass('lg:absolute', 'lg:right-0', 'lg:top-0');
+    expect(within(nextAppointmentSummary).queryByRole('link', { name: /ดูนัดหมาย/ })).not.toBeInTheDocument();
     expect(within(nextAppointmentSummary).getByText('สถานะ').closest('div')?.parentElement).toContainElement(navigationControls);
     expect(within(nextAppointmentSummary).getByText('คิว #4')).toBeInTheDocument();
     for (const label of ['วันนัด', 'เวลา', 'เหลือเวลา']) {
@@ -631,11 +720,15 @@ describe('Dashboard appointment filters', () => {
     expect(screen.getByRole('link', { name: 'ดูนัดหมายทั้งหมด' })).toHaveClass('min-h-8', 'px-2.5', 'text-[11px]');
     expect(screen.getByRole('link', { name: 'ดูประวัติทั้งหมด' })).toHaveClass('min-h-8', 'px-2.5', 'text-[11px]');
     expect(screen.getByRole('columnheader', { name: 'วันที่' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'อาการที่ป่วย' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'แผนก' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'แพทย์' })).not.toBeInTheDocument();
+    expect(screen.getByRole('table').parentElement).toHaveClass('rounded-2xl', 'border', 'bg-brand-surface');
     expect(screen.getByRole('link', { name: 'ดูประวัติทั้งหมด' })).toHaveAttribute('href', '/records');
     expect(screen.getByText('แสดง 2 จาก 2 รายการ')).toBeInTheDocument();
 
     const historyRows = screen.getByRole('table').querySelectorAll('tbody tr');
-    expect(within(historyRows[0] as HTMLElement).getByText('แพทย์หนึ่ง')).toBeInTheDocument();
+    expect(within(historyRows[0] as HTMLElement).getByText('มีไข้และไอ')).toBeInTheDocument();
     expect(screen.getByText('ตรวจสุขภาพฟัน')).toBeInTheDocument();
     expect(screen.getByText('ติดตามอาการทั่วไป')).toBeInTheDocument();
     expect(screen.queryByText('สถานะนัดหมายวันนี้')).not.toBeInTheDocument();
@@ -656,6 +749,28 @@ describe('Dashboard appointment filters', () => {
     const toast = await screen.findByRole('status');
     expect(toast).toHaveTextContent('นัดหมายถัดไป: วันพุธที่ 16 กันยายน 2569 เวลา 09:30 น.');
     expect(toast.getAttribute('style')).toContain('5000ms');
+    expect(sessionStorage.getItem('login_appointment_toast')).toBeNull();
+  });
+
+  it('shows the next examination toast at the top right once after a medical login', async () => {
+    sessionStorage.setItem('login_appointment_toast', 'true');
+    getDashboardViewMock.mockResolvedValue({
+      ...createRangeTestView('medical', 'today'),
+      title: 'ภาพรวมงานแพทย์',
+      description: 'ดูตาราง คิว และรายการยาที่ต้องตรวจสอบ',
+      metrics: [{ id: 'own-appointments', label: 'นัดของฉันวันนี้', value: 1, description: '', href: '/appointments', tone: 'blue' }],
+      nextAppointment: {
+        id: 'medical-appointment-toast', queueNumber: 2, date: '2026-09-16', startTime: '09:30', status: 'confirmed',
+        patientName: 'ผู้ป่วยหนึ่ง', doctorName: 'แพทย์หนึ่ง', departmentName: 'เวชทั่วไป',
+      },
+    });
+
+    render(<DashboardScreen role="medical" actorId="medical-1" />);
+
+    const toast = await screen.findByRole('status');
+    expect(toast).toHaveTextContent('ตรวจครั้งถัดไป: วันพุธที่ 16 กันยายน 2569 เวลา 09:30 น.');
+    expect(toast.getAttribute('style')).toContain('5000ms');
+    expect(toast.parentElement).toHaveClass('top-20', 'sm:right-6');
     expect(sessionStorage.getItem('login_appointment_toast')).toBeNull();
   });
 

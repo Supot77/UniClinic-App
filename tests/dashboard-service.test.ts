@@ -227,7 +227,7 @@ describe('Supabase dashboard service', () => {
     database.daily_service_offerings = [{ id: 'offering-1', service_id: 'service-1' }];
     database.services = [{ id: 'service-1', name: 'ตรวจโรคทั่วไป' }];
     database.appointments = [{
-      id: 'appointment-1', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-1', queue_number: 1, status: 'confirmed', cancel_requested_at: null,
+      id: 'appointment-1', patient_id: 'patient-1', user_id: 'patient-1', slot_id: 'slot-1', queue_number: 1, reason: 'มีไข้และไอ', status: 'confirmed', cancel_requested_at: null,
     }];
     database.notifications = [
       { id: 'notification-patient', user_id: 'patient-1', type: 'broadcast', title: 'ประกาศ', message: 'ข้อความ', read_at: null, deleted_at: null, created_at: '2026-09-08T03:00:00.000Z' },
@@ -240,7 +240,7 @@ describe('Supabase dashboard service', () => {
     database.medications = [{ id: 'medicine-1', name: 'ยา A', description: 'รับประทานหลังอาหาร', stock: 2, min_stock: 5, expiry_date: null, is_active: true }];
     database.medical_records = [{
       id: 'record-1', appointment_id: 'appointment-1', patient_id: 'patient-1', doctor_id: 'medical-1',
-      diagnosis: 'ติดตามอาการ', treatment_notes: 'พักผ่อนให้เพียงพอ', prescribed_medications: [], created_at: '2026-09-08T04:00:00.000Z',
+      diagnosis: 'ติดตามอาการ', treatment_notes: 'พักผ่อนให้เพียงพอ', prescribed_medications: [], created_at: '2026-09-08T04:00:00.000Z', appointment: { status: 'completed', reason: 'มีไข้และไอ' },
     }];
   });
 
@@ -253,7 +253,7 @@ describe('Supabase dashboard service', () => {
     expect(view.appointmentQueue[0].patientName).toBe('ผู้ป่วย หนึ่ง');
     expect(view.appointmentQueue[0].serviceName).toBe('ตรวจโรคทั่วไป');
     expect(view.patientMedications).toEqual([expect.objectContaining({ id: 'reminder-1', name: 'ยา A', instruction: 'รับประทานหลังอาหาร', reminderTimes: ['08:00', '18:00'] })]);
-    expect(view.patientTreatmentHistory).toEqual([expect.objectContaining({ id: 'record-1', summary: 'ติดตามอาการ', doctorName: 'แพทย์ หนึ่ง', departmentName: 'เวชทั่วไป' })]);
+    expect(view.patientTreatmentHistory).toEqual([expect.objectContaining({ id: 'record-1', symptom: 'มีไข้และไอ', summary: 'ติดตามอาการ', doctorName: 'แพทย์ หนึ่ง', departmentName: 'เวชทั่วไป' })]);
     expect(view.recentNotifications).toHaveLength(1);
   });
 

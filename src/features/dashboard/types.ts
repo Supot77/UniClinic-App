@@ -89,6 +89,7 @@ export interface DashboardView {
     date: string;
     doctorName: string;
     departmentName: string;
+    symptom?: string;
     summary: string;
     advice?: string;
     medicationNames?: string[];
