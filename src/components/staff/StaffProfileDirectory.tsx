@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 import {
   deleteStaffProfile,
   getStaffProfileDirectory,
+  setDoctorAccountActive,
   updateStaffProfile,
   type StaffProfileDirectoryItem,
 } from "@/services/dashboardService";
@@ -278,6 +279,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
     try {
       if (accountAction.kind === "hard-delete") {
         await deleteStaffProfile(profile.id);
+      } else if (profile.role === "medical") {
+        // Use the same doctor status endpoint previously used on /departments.
+        await setDoctorAccountActive(profile.id, accountAction.nextActive);
       } else {
         await updateStaffProfile(profile.id, {
           title: profile.title,
