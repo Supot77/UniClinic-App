@@ -1,9 +1,15 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { CalendarDays, Loader2, Users, X } from 'lucide-react';
 import DatePicker from '@/components/common/DatePicker';
-import { isDoctorOnLeave } from '@/features/scheduling/domain/rules';
+import {
+  getClinicEndTimeOptions,
+  getCreatableClinicStartTimeOptions,
+  getEarliestCreatableClinicStartTime,
+  isDoctorOnLeave,
+} from '@/features/scheduling/domain/rules';
 import type { DoctorLeave, ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
+import { RestrictedTimeSelect } from './RestrictedTimeSelect';
 
 export interface SlotDraft {
   doctorId: string;
@@ -26,8 +32,10 @@ type Props = {
   slots: ScheduleSlot[];
   visibleDoctorLeaves: DoctorLeave[];
   today: string;
+  currentDate: string;
+  currentTime: string;
   inputClass: string;
-  getNextAvailableTimeSlot: (slots: ScheduleSlot[], doctorId: string, date: string) => { startTime: string; endTime: string };
+  getNextAvailableTimeSlot: (slots: ScheduleSlot[], doctorId: string, date: string, currentDate?: string, currentTime?: string) => { startTime: string; endTime: string };
   addMinutesToTime: (time: string, minutes?: number) => string;
   formError: string;
   isSaving: boolean;
@@ -39,9 +47,26 @@ export function SlotEditorDialog(props: Props) {
   const {
     role, currentDoctor, editingSlotId, draft, setDraft, doctors, departments,
     activeServices, slots, visibleDoctorLeaves, today, inputClass,
-    getNextAvailableTimeSlot, addMinutesToTime, formError, isSaving,
+    currentDate, currentTime, getNextAvailableTimeSlot, addMinutesToTime, formError, isSaving,
     closeSlotForm, saveSlot,
   } = props;
+
+  const earliestCreatableStartTime = editingSlotId
+    ? '08:30'
+    : getEarliestCreatableClinicStartTime(draft.slotDate, currentDate, currentTime);
+  const canCreateAtSelectedDate = Boolean(editingSlotId || earliestCreatableStartTime);
+  const startTimeMin = earliestCreatableStartTime ?? '16:30';
+  const startTimeOptions = editingSlotId || !earliestCreatableStartTime
+    ? []
+    : getCreatableClinicStartTimeOptions(earliestCreatableStartTime);
+  const endTimeOptions = editingSlotId ? [] : getClinicEndTimeOptions(draft.startTime);
+  const getSuggestedEndTime = (startTime: string) => {
+    const nextEndTime = addMinutesToTime(startTime, 30);
+    if (startTime >= '12:00' && startTime < '13:00') return '13:30';
+    if (startTime < '12:00' && nextEndTime > '12:00') return '12:00';
+    return nextEndTime;
+  };
+  const suggestedEndTime = getSuggestedEndTime(draft.startTime);
 
   return (
     <div
@@ -91,7 +116,7 @@ export function SlotEditorDialog(props: Props) {
                       const newDoctorId = event.target.value;
                       setDraft((current) => {
                         const nextTimes = !editingSlotId && newDoctorId && current.slotDate
-                          ? getNextAvailableTimeSlot(slots, newDoctorId, current.slotDate)
+                          ? getNextAvailableTimeSlot(slots, newDoctorId, current.slotDate, currentDate, currentTime)
                           : { startTime: current.startTime, endTime: current.endTime };
                         return {
                           ...current,
@@ -139,8 +164,8 @@ export function SlotEditorDialog(props: Props) {
                   value={draft.slotDate}
                   onChange={(newDate) => {
                     setDraft((current) => {
-                      const nextTimes = !editingSlotId && current.doctorId && newDate
-                        ? getNextAvailableTimeSlot(slots, current.doctorId, newDate)
+                        const nextTimes = !editingSlotId && current.doctorId && newDate
+                          ? getNextAvailableTimeSlot(slots, current.doctorId, newDate, currentDate, currentTime)
                         : { startTime: current.startTime, endTime: current.endTime };
                       return {
                         ...current,
@@ -154,28 +179,58 @@ export function SlotEditorDialog(props: Props) {
               </div>
               <label className="space-y-1.5">
                 <span className="text-sm font-medium text-slate-700">เวลาเริ่ม</span>
-                <input
-                  type="time"
-                  value={draft.startTime}
-                  onChange={(event) => {
-                    const newStartTime = event.target.value;
-                    setDraft((current) => ({
-                      ...current,
-                      startTime: newStartTime,
-                      endTime: addMinutesToTime(newStartTime, 30),
-                    }));
-                  }}
-                  className={inputClass}
-                />
+                {editingSlotId ? (
+                  <input
+                    type="time"
+                    value={draft.startTime}
+                    min={startTimeMin}
+                    max="16:30"
+                    onChange={(event) => {
+                      const newStartTime = event.target.value;
+                      setDraft((current) => ({ ...current, startTime: newStartTime, endTime: getSuggestedEndTime(newStartTime) }));
+                    }}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100`}
+                  />
+                ) : (
+                  <RestrictedTimeSelect
+                    aria-label="เวลาเริ่ม"
+                    value={draft.startTime}
+                    options={startTimeOptions}
+                    disabled={!canCreateAtSelectedDate}
+                    onChange={(newStartTime) => setDraft((current) => {
+                      const nextEndOptions = getClinicEndTimeOptions(newStartTime);
+                      const suggestedEndTime = getSuggestedEndTime(newStartTime);
+                      return {
+                        ...current,
+                        startTime: newStartTime,
+                        endTime: nextEndOptions.includes(suggestedEndTime) ? suggestedEndTime : nextEndOptions[0] ?? '',
+                      };
+                    })}
+                    className={inputClass}
+                  />
+                )}
               </label>
               <label className="space-y-1.5">
                 <span className="text-sm font-medium text-slate-700">เวลาสิ้นสุด</span>
-                <input
-                  type="time"
-                  value={draft.endTime}
-                  onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))}
-                  className={inputClass}
-                />
+                {editingSlotId ? (
+                  <input
+                    type="time"
+                    value={draft.endTime}
+                    min={suggestedEndTime}
+                    max="16:30"
+                    onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-100`}
+                  />
+                ) : (
+                  <RestrictedTimeSelect
+                    aria-label="เวลาสิ้นสุด"
+                    value={draft.endTime}
+                    options={endTimeOptions}
+                    disabled={!canCreateAtSelectedDate}
+                    onChange={(newEndTime) => setDraft((current) => ({ ...current, endTime: newEndTime }))}
+                    className={inputClass}
+                  />
+                )}
               </label>
               <label className="space-y-1.5 sm:col-span-2">
                 <span className="text-sm font-medium text-slate-700">จำนวนผู้ป่วยต่อรอบ</span>
@@ -204,6 +259,17 @@ export function SlotEditorDialog(props: Props) {
               </div>
             )}
 
+            {!editingSlotId && canCreateAtSelectedDate && (
+              <p className="mt-4 text-xs text-slate-500" role="status">
+                วันที่เลือกสร้างรอบได้ตั้งแต่ {earliestCreatableStartTime} น. และต้องอยู่ในเวลาทำการ 08:30–16:30 น. (พัก 12:00–13:00 น.)
+              </p>
+            )}
+            {!editingSlotId && !canCreateAtSelectedDate && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200" role="alert">
+                วันนี้หมดเวลาสร้างรอบตรวจแล้ว เลือกวันถัดไปเพื่อสร้างรอบใหม่
+              </p>
+            )}
+
             {formError && (
               <p className="mt-3 text-sm font-medium text-rose-700" role="alert">
                 {formError}
@@ -220,7 +286,7 @@ export function SlotEditorDialog(props: Props) {
               </button>
               <button
                 type="button"
-                disabled={isSaving || (!editingSlotId && isDoctorOnLeave(visibleDoctorLeaves, draft.doctorId, draft.slotDate))}
+                disabled={isSaving || (!editingSlotId && (!canCreateAtSelectedDate || !startTimeOptions.includes(draft.startTime) || !endTimeOptions.includes(draft.endTime) || isDoctorOnLeave(visibleDoctorLeaves, draft.doctorId, draft.slotDate)))}
                 aria-busy={isSaving}
                 onClick={saveSlot}
                 className="min-h-11 rounded-xl bg-brand-ink px-5 text-sm font-semibold text-white hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50 shadow-xs inline-flex items-center justify-center gap-2"

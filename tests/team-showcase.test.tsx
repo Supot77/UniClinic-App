@@ -11,13 +11,19 @@ vi.mock("@/context/LocaleContext", () => ({
 }));
 
 describe("TeamShowcase", () => {
-  it("shows all six members and their work, then brings the selected member forward", () => {
+  it("shows all seven members and their work, then brings the selected member forward", () => {
     render(<TeamShowcase />);
 
     const portraits = screen.getAllByRole("button", { name: /^เลือก / });
-    expect(portraits).toHaveLength(6);
+    expect(portraits).toHaveLength(7);
     expect(screen.getByText("ธัญยพร ทุ่มทอง")).toBeInTheDocument();
     expect(screen.getByText("คลังยา / จ่ายยา")).toBeInTheDocument();
+    expect(screen.getByText("อาจารย์มัลลิกา")).toBeInTheDocument();
+    expect(screen.getByText("อาจารย์ที่ปรึกษา")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "ภาพสมาชิกทีม อาจารย์มัลลิกา" })).toHaveAttribute(
+      "data-src",
+      "/images/mallikasuit.png",
+    );
 
     const kun = screen.getByRole("button", { name: /เลือก ณัฐสิทธิ ทินวงค์/ });
     fireEvent.click(kun);
@@ -28,5 +34,10 @@ describe("TeamShowcase", () => {
     fireEvent.click(kun);
     expect(kun).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("เลือกสมาชิกหนึ่งคน")).toBeInTheDocument();
+
+    const advisor = screen.getByRole("button", { name: /เลือก อาจารย์มัลลิกา/ });
+    fireEvent.click(advisor);
+    expect(advisor).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("อาจารย์ที่ปรึกษาโครงการ WU Clinic")).toBeInTheDocument();
   });
 });

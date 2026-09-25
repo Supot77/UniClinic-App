@@ -269,6 +269,10 @@
     height: calc(clamp(370px, 54vw, 495px) + 4.5rem);
   }
 
+  .member:last-child:nth-child(3n + 1) {
+    grid-column: 2;
+  }
+
   .imageWrap {
     bottom: 4.5rem;
   }
@@ -313,6 +317,12 @@
 
   .member {
     height: calc(clamp(286px, 90vw, 370px) + 4.5rem);
+  }
+
+  .member:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    width: 50%;
+    justify-self: center;
   }
 
   .imageWrap {

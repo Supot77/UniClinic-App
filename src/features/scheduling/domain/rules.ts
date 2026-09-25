@@ -39,6 +39,7 @@ export interface SlotBatchPlan {
   slots: SlotInput[];
   skippedLeaveDates: string[];
   skippedConflictCount: number;
+  skippedPastTimeCount: number;
 }
 
 const success = <T>(value: T): SchedulingResult<T> => ({ ok: true, value });
@@ -69,6 +70,83 @@ export function getBangkokCurrentTime(): string {
     minute: '2-digit',
     hour12: false,
   }).format(new Date());
+}
+
+export function getEarliestCreatableClinicStartTime(
+  slotDate: string,
+  currentDate?: string,
+  currentTime?: string,
+): string | null {
+  if (!slotDate) return '08:30';
+  const effectiveDate = currentDate ?? getBangkokToday();
+  if (slotDate > effectiveDate) return '08:30';
+  if (slotDate < effectiveDate) return null;
+
+  const effectiveTime = currentTime ?? getBangkokCurrentTime();
+  if (effectiveTime < '08:30') return '08:30';
+  if (effectiveTime >= '16:30') return null;
+  if (effectiveTime >= '12:00' && effectiveTime < '13:00') return '13:00';
+  return effectiveTime;
+}
+
+function parseTimeMinutes(value: string): number | null {
+  if (!isValidClinicTime(value)) return null;
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function formatTimeMinutes(totalMinutes: number): string {
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+}
+
+export function getCreatableClinicStartTimeOptions(minimumTime = '08:30'): string[] {
+  const minimumMinutes = parseTimeMinutes(minimumTime);
+  if (minimumMinutes === null) return [];
+
+  const startMinutes = Math.max(8 * 60 + 30, minimumMinutes);
+  const options: string[] = [];
+  for (let minute = startMinutes; minute < 16 * 60 + 30; minute += 1) {
+    if (minute >= 12 * 60 && minute < 13 * 60) continue;
+    options.push(formatTimeMinutes(minute));
+  }
+  return options;
+}
+
+export function getClinicEndTimeOptions(startTime: string): string[] {
+  const startMinutes = parseTimeMinutes(startTime);
+  if (startMinutes === null || startMinutes >= 16 * 60 + 30 || (startMinutes >= 12 * 60 && startMinutes < 13 * 60)) return [];
+
+  const lastEndMinutes = startMinutes < 12 * 60 ? 12 * 60 : 16 * 60 + 30;
+  const options: string[] = [];
+  for (let minute = startMinutes + 1; minute <= lastEndMinutes; minute += 1) {
+    options.push(formatTimeMinutes(minute));
+  }
+  return options;
+}
+
+export function getClinicBatchEndTimeOptions(startTime: string): string[] {
+  const startMinutes = parseTimeMinutes(startTime);
+  if (startMinutes === null || startMinutes >= 16 * 60 + 30 || (startMinutes >= 12 * 60 && startMinutes < 13 * 60)) return [];
+
+  const options: string[] = [];
+  for (let minute = startMinutes + 1; minute <= 16 * 60 + 30; minute += 1) {
+    if (minute > 12 * 60 && minute < 13 * 60) continue;
+    options.push(formatTimeMinutes(minute));
+  }
+  return options;
+}
+
+export function isClinicSlotStartInPast(
+  slotDate: string,
+  startTime: string,
+  currentDate?: string,
+  currentTime?: string,
+): boolean {
+  const effectiveDate = currentDate ?? getBangkokToday();
+  if (slotDate < effectiveDate) return true;
+  if (slotDate > effectiveDate) return false;
+  const earliestStart = getEarliestCreatableClinicStartTime(slotDate, effectiveDate, currentTime);
+  return earliestStart === null || startTime < earliestStart;
 }
 
 export function isSlotExpired(
@@ -131,6 +209,7 @@ export function validateSlot(
   bookedCount = 0,
   todayDate?: string,
   doctorLeaves: DoctorLeave[] = [],
+  currentTime?: string,
 ): SchedulingResult<SlotInput> {
   if (!input.doctorId || !input.serviceId || !input.slotDate || !input.startTime || !input.endTime) {
     return failure('กรอกแพทย์ บริการ วันที่ และเวลาให้ครบ');
@@ -173,6 +252,9 @@ export function validateSlot(
   }
   if (input.startTime < '13:00' && input.endTime > '12:00') {
     return failure('ไม่สามารถสร้างรอบทับช่วงพัก 12:00–13:00 น.', 'startTime');
+  }
+  if (!editingId && isClinicSlotStartInPast(input.slotDate, input.startTime, effectiveToday, currentTime)) {
+    return failure('ไม่สามารถสร้างรอบตรวจของเวลาที่ผ่านมาได้', 'startTime');
   }
   if (!Number.isInteger(input.maxCapacity) || input.maxCapacity < 1) {
     return failure('ความจุต้องเป็นจำนวนเต็มมากกว่า 0', 'maxCapacity');
@@ -291,6 +373,7 @@ export function buildSlotBatchPlan(
   services: ScheduleService[],
   todayDate?: string,
   doctorLeaves: DoctorLeave[] = [],
+  currentTime?: string,
 ): SchedulingResult<SlotBatchPlan> {
   if (!input.doctorId || !input.serviceId || input.dates.length === 0 || input.timeBlocks.length === 0) {
     return failure('กรอกแพทย์ บริการ วันที่ และช่วงเวลาให้ครบ');
@@ -302,6 +385,7 @@ export function buildSlotBatchPlan(
   if (!service || !service.isActive) return failure('เลือกบริการที่เปิดใช้งาน', 'serviceId');
 
   const effectiveToday = todayDate ?? getBangkokToday();
+  const effectiveCurrentTime = currentTime ?? getBangkokCurrentTime();
   const dates = [...new Set(input.dates)].sort();
   if (dates.some((date) => !isValidClinicDate(date))) return failure('วันที่ต้องอยู่ในรูปแบบ YYYY-MM-DD', 'dates');
   if (dates.some((date) => date < effectiveToday)) return failure('ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้', 'dates');
@@ -329,6 +413,7 @@ export function buildSlotBatchPlan(
   const plannedSlots: SlotInput[] = [];
   const skippedLeaveDates = new Set<string>();
   let skippedConflictCount = 0;
+  let skippedPastTimeCount = 0;
   for (const date of dates) {
     if (clinicWeekday(date) === 0 || clinicWeekday(date) === 6) {
       return failure('คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์', 'dates');
@@ -337,7 +422,18 @@ export function buildSlotBatchPlan(
       skippedLeaveDates.add(date);
       continue;
     }
+    const earliestTodayStart = date === effectiveToday
+      ? getEarliestCreatableClinicStartTime(date, effectiveToday, effectiveCurrentTime)
+      : null;
+    if (date === effectiveToday && earliestTodayStart === null) {
+      skippedPastTimeCount += blocks.length;
+      continue;
+    }
     for (const block of blocks) {
+      if (earliestTodayStart && block.startTime < earliestTodayStart) {
+        skippedPastTimeCount += 1;
+        continue;
+      }
       const candidate: SlotInput = {
         doctorId: input.doctorId,
         serviceId: input.serviceId,
@@ -365,6 +461,7 @@ export function buildSlotBatchPlan(
     slots: plannedSlots,
     skippedLeaveDates: [...skippedLeaveDates],
     skippedConflictCount,
+    skippedPastTimeCount,
   });
 }
 

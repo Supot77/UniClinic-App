@@ -2,6 +2,7 @@ import { requireApiAuth } from '../../_lib/auth';
 import { errorResponse, isResponse, parseDate, parsePositiveInt, parseUuid, readJson } from '../../_lib/http';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
+import { getBangkokCurrentTime } from '@/features/scheduling/domain/rules';
 
 type SlotInput = {
   doctorId?: string; doctor_id?: string; serviceId?: string; service_id?: string;
@@ -127,8 +128,9 @@ export async function POST(request: Request) {
     }
     const parsedDates = body.dates.map(parseDate);
     if (parsedDates.some((date) => !date)) return Response.json({ error: 'วันที่สร้างรอบตรวจไม่ถูกต้อง' }, { status: 400 });
-    const dates = parsedDates as string[];
-    if (dates.some((date) => date < clinicToday())) return Response.json({ error: 'ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้' }, { status: 400 });
+    const dates = [...new Set(parsedDates as string[])].sort();
+    const effectiveToday = clinicToday();
+    if (dates.some((date) => date < effectiveToday)) return Response.json({ error: 'ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้' }, { status: 400 });
     if (dates.some((date) => !isWeekday(date))) return Response.json({ error: 'คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์' }, { status: 400 });
     const timeBlocks = body.timeBlocks.map((block) => ({
       start_time: time(block.startTime ?? block.start_time),
@@ -147,14 +149,28 @@ export async function POST(request: Request) {
     if (orderedBlocks.some((block, index) => index > 0 && block.start_time < orderedBlocks[index - 1].end_time)) return Response.json({ error: 'ช่วงเวลาที่เลือกทับซ้อนกัน' }, { status: 400 });
     const ownerError = await validateDoctorAndService(auth.supabase, doctorId, serviceId);
     if (ownerError) return ownerError;
-    const { data, error } = await auth.supabase.rpc('create_appointment_slot_batch', {
-      p_doctor_id: doctorId,
-      p_service_id: serviceId,
-      p_dates: dates,
-      p_time_blocks: normalizedBlocks,
-    });
-    if (error) return errorResponse(error, 'สร้างรอบตรวจแบบชุดไม่สำเร็จ');
-    return Response.json({ count: typeof data === 'number' ? data : Number(data) || 0 }, { status: 201 });
+    const currentTime = getBangkokCurrentTime();
+    const todayBlocks = normalizedBlocks.filter((block) => block.start_time >= currentTime);
+    const requests = [
+      ...(dates.includes(effectiveToday) && todayBlocks.length
+        ? [{ dates: [effectiveToday], timeBlocks: todayBlocks }]
+        : []),
+      ...(dates.some((date) => date > effectiveToday)
+        ? [{ dates: dates.filter((date) => date > effectiveToday), timeBlocks: normalizedBlocks }]
+        : []),
+    ];
+    let count = 0;
+    for (const request of requests) {
+      const { data, error } = await auth.supabase.rpc('create_appointment_slot_batch', {
+        p_doctor_id: doctorId,
+        p_service_id: serviceId,
+        p_dates: request.dates,
+        p_time_blocks: request.timeBlocks,
+      });
+      if (error) return errorResponse(error, 'สร้างรอบตรวจแบบชุดไม่สำเร็จ');
+      count += typeof data === 'number' ? data : Number(data) || 0;
+    }
+    return Response.json({ count }, { status: 201 });
   }
 
   const slotDate = parseDate(body.slotDate ?? body.slot_date);
@@ -162,10 +178,14 @@ export async function POST(request: Request) {
   const endTime = time(body.endTime ?? body.end_time);
   const maxCapacity = parsePositiveInt(body.maxCapacity ?? body.max_capacity);
   if (!slotDate || !startTime || !endTime || !maxCapacity || startTime >= endTime) return Response.json({ error: 'ข้อมูลรอบตรวจไม่ถูกต้อง' }, { status: 400 });
-  if (slotDate < clinicToday()) return Response.json({ error: 'ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้' }, { status: 400 });
+  const effectiveToday = clinicToday();
+  if (slotDate < effectiveToday) return Response.json({ error: 'ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้' }, { status: 400 });
   if (!isWeekday(slotDate)) return Response.json({ error: 'คลินิกเปิดรอบตรวจเฉพาะวันจันทร์ถึงศุกร์' }, { status: 400 });
   const windowError = validateWindow(startTime, endTime);
   if (windowError) return Response.json({ error: windowError }, { status: 400 });
+  if (slotDate === effectiveToday && startTime < getBangkokCurrentTime()) {
+    return Response.json({ error: 'ไม่สามารถสร้างรอบตรวจของเวลาที่ผ่านมาได้' }, { status: 400 });
+  }
   const ownerError = await validateDoctorAndService(auth.supabase, doctorId, serviceId);
   if (ownerError) return ownerError;
   const [{ data: leaves, error: leaveError }, { data: existingSlots, error: slotError }] = await Promise.all([

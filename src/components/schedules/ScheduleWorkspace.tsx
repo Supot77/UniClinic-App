@@ -32,6 +32,7 @@ import {
   getClinicDatesForWeekdays,
   getBangkokCurrentTime,
   getBangkokToday,
+  getEarliestCreatableClinicStartTime,
   isDoctorOnLeave,
   isSlotExpired,
   validateSlotEditWindow,
@@ -123,30 +124,34 @@ export function getNextAvailableTimeSlot(
   slots: ScheduleSlot[],
   doctorId: string,
   slotDate: string,
+  currentDate?: string,
+  currentTime?: string,
 ): { startTime: string; endTime: string } {
-  if (!doctorId || !slotDate) {
+  if (!slotDate) {
     return { startTime: '08:30', endTime: '09:00' };
   }
-  const doctorDaySlots = slots.filter(
-    (s) => s.doctorId === doctorId && s.slotDate === slotDate,
-  );
-  if (doctorDaySlots.length === 0) {
-    return { startTime: '08:30', endTime: '09:00' };
+  const earliestStart = currentDate && currentTime
+    ? getEarliestCreatableClinicStartTime(slotDate, currentDate, currentTime)
+    : '08:30';
+  if (earliestStart === null) {
+    return { startTime: '16:30', endTime: '16:30' };
   }
-  const latestEndTime = doctorDaySlots.reduce((max, s) => (s.endTime > max ? s.endTime : max), '08:30');
-
-  // Skip lunch break 12:00–13:00
-  if (latestEndTime >= '12:00' && latestEndTime < '13:00') {
-    return { startTime: '13:00', endTime: '13:30' };
+  const doctorDaySlots = doctorId
+    ? slots.filter((s) => s.doctorId === doctorId && s.slotDate === slotDate)
+    : [];
+  const latestEndTime = doctorDaySlots.length > 0
+    ? doctorDaySlots.reduce((max, s) => (s.endTime > max ? s.endTime : max), '08:30')
+    : '08:30';
+  let nextStartTime = latestEndTime > earliestStart ? latestEndTime : earliestStart;
+  if (nextStartTime >= '12:00' && nextStartTime < '13:00') nextStartTime = '13:00';
+  const nextEndTime = addMinutesToTime(nextStartTime, 30);
+  if (nextEndTime > '12:00' && nextStartTime < '12:00') {
+    nextStartTime = '13:00';
   }
-  // If latestEndTime is already at or past closing time 16:30
-  if (latestEndTime >= '16:30') {
-    return { startTime: '16:00', endTime: '16:30' };
-  }
-  const nextEndTime = addMinutesToTime(latestEndTime, 30);
+  const adjustedEndTime = nextStartTime === '13:00' ? '13:30' : addMinutesToTime(nextStartTime, 30);
   return {
-    startTime: latestEndTime,
-    endTime: nextEndTime > '16:30' ? '16:30' : nextEndTime,
+    startTime: nextStartTime,
+    endTime: adjustedEndTime > '16:30' ? '16:30' : adjustedEndTime,
   };
 }
 
@@ -337,9 +342,9 @@ export default function ScheduleWorkspace({
   }, [batchDates, batchDraft.doctorId, batchDraft.serviceId, batchTimeBlocks]);
   const batchPreview = useMemo<ReturnType<typeof buildSlotBatchPlan> | null>(
     () => batchInput
-      ? buildSlotBatchPlan(batchInput, slots, doctors, services, bangkokNow.date, visibleDoctorLeaves)
+      ? buildSlotBatchPlan(batchInput, slots, doctors, services, bangkokNow.date, visibleDoctorLeaves, bangkokNow.time)
       : null,
-    [bangkokNow.date, batchInput, doctors, services, slots, visibleDoctorLeaves],
+    [bangkokNow.date, bangkokNow.time, batchInput, doctors, services, slots, visibleDoctorLeaves],
   );
 
   const canModifySlot = (slot: ScheduleSlot) => {
@@ -564,7 +569,7 @@ export default function ScheduleWorkspace({
       return;
     }
     const initialTimes = !slot && defaultDoctorId && initialDate
-      ? getNextAvailableTimeSlot(slots, defaultDoctorId, initialDate)
+      ? getNextAvailableTimeSlot(slots, defaultDoctorId, initialDate, bangkokNow.date, bangkokNow.time)
       : { startTime: '08:30', endTime: '09:00' };
     setDraft(
       slot
@@ -637,11 +642,13 @@ export default function ScheduleWorkspace({
         return;
       }
       const skipped = batchPreview.value.skippedConflictCount;
+      const skippedPastTime = batchPreview.value.skippedPastTimeCount;
       const leaveNote = batchPreview.value.skippedLeaveDates.length > 0
         ? ` ข้ามวันลา ${batchPreview.value.skippedLeaveDates.length} วัน`
         : '';
       const conflictNote = skipped > 0 ? ` ข้ามรอบที่ซ้ำกับรายการเดิม ${skipped} รอบ` : '';
-      setNotice(`สร้างรอบตรวจ ${result.value} รอบแล้ว${leaveNote}${conflictNote}`);
+      const pastTimeNote = skippedPastTime > 0 ? ` ข้ามช่วงเวลาที่ผ่านมาแล้ว ${skippedPastTime} รอบ` : '';
+      setNotice(`สร้างรอบตรวจ ${result.value} รอบแล้ว${leaveNote}${conflictNote}${pastTimeNote}`);
       closeBatchForm();
     } catch (err) {
       setBatchFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการสร้างรอบตรวจหลายวัน');
@@ -775,10 +782,10 @@ export default function ScheduleWorkspace({
       setNotice(text(`ไปยังวันนี้แล้ว (${formatShortDate(today, locale)})`, `Showing today (${formatShortDate(today, locale)}).`));
     } else if (calendarView === 'month') {
       setWeekStart(today);
-      setNotice('ไปยังเดือนปัจจุบันแล้ว');
+      setNotice(text('ไปยังเดือนปัจจุบันแล้ว', 'Showing the current month.'));
     } else {
       setWeekStart(getCurrentWeekMonday(today));
-      setNotice('ไปยังสัปดาห์ปัจจุบันแล้ว');
+      setNotice(text('ไปยังสัปดาห์ปัจจุบันแล้ว', 'Showing the current week.'));
     }
   };
 
@@ -810,7 +817,7 @@ export default function ScheduleWorkspace({
         openLeaveForm={() => openLeaveForm()}
         openServiceForm={openServiceForm}
       />
-      <Toast message={notice} onDismiss={() => setNotice('')} />
+      <Toast message={notice} onDismiss={() => setNotice('')} dismissLabel={text('ปิดข้อความแจ้งเตือน', 'Dismiss notification')} />
 
       <ConfirmationModal
         request={confirmation}
@@ -852,6 +859,8 @@ export default function ScheduleWorkspace({
             batchIsSaving={batchIsSaving}
             inputClass={inputClass}
             today={getTodayDate()}
+            currentDate={bangkokNow.date}
+            currentTime={bangkokNow.time}
             formatSourceDate={(date) => `${formatShortDate(date)} · ${parseClinicDate(date).getUTCFullYear() + 543}`}
             closeBatchForm={closeBatchForm}
             saveBatchSlots={saveBatchSlots}
@@ -899,6 +908,8 @@ export default function ScheduleWorkspace({
             slots={slots}
             visibleDoctorLeaves={visibleDoctorLeaves}
             today={getTodayDate()}
+            currentDate={bangkokNow.date}
+            currentTime={bangkokNow.time}
             inputClass={inputClass}
             getNextAvailableTimeSlot={getNextAvailableTimeSlot}
             addMinutesToTime={addMinutesToTime}

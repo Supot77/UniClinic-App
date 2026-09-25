@@ -1,8 +1,12 @@
 'use client';
 
+import { useLocale } from '@/context/LocaleContext';
+
 export default function ScheduleSkeleton() {
+  const { text } = useLocale();
+
   return (
-    <div role="status" aria-label="กำลังโหลดตารางตรวจแพทย์" className="space-y-6">
+    <div role="status" aria-label={text('กำลังโหลดตารางตรวจแพทย์', 'Loading doctor schedule')} className="space-y-6">
       <div aria-hidden="true" className="space-y-5 motion-safe:animate-pulse">
         <div className="h-6 w-56 rounded bg-brand-border-soft" />
         <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-3">
@@ -40,7 +44,7 @@ export default function ScheduleSkeleton() {
           </div>
         ))}
       </div>
-      <span className="sr-only">กำลังโหลดตารางตรวจแพทย์…</span>
+      <span className="sr-only">{text('กำลังโหลดตารางตรวจแพทย์…', 'Loading doctor schedule…')}</span>
     </div>
   );
 }

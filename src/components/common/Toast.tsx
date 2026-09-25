@@ -9,6 +9,7 @@ type ToastPosition = 'top-right' | 'top-right-below' | 'top-center' | 'top-left'
 interface ToastProps {
   message: string | null | undefined;
   onDismiss: () => void;
+  dismissLabel?: string;
   variant?: ToastVariant;
   duration?: number;
   position?: ToastPosition;
@@ -32,6 +33,7 @@ const positionClasses: Record<ToastPosition, string> = {
 export default function Toast({
   message,
   onDismiss,
+  dismissLabel = 'ปิดข้อความแจ้งเตือน',
   variant = 'success',
   duration = 3500,
   position = 'top-right',
@@ -121,7 +123,7 @@ export default function Toast({
           type="button"
           onClick={onDismiss}
           className="shrink-0 rounded-lg p-1.5 text-brand-muted transition-colors hover:bg-brand-surface hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-          aria-label="ปิดข้อความแจ้งเตือน"
+          aria-label={dismissLabel}
         >
           <X className="size-4" aria-hidden="true" />
         </button>

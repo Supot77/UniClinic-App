@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockSchedulingRepository } from '@/features/scheduling/data/mockRepository';
 import { shiftDate } from '@/constants/dateTime';
 import { MOCK_WEEK_START } from '@/mocks/scheduleData';
@@ -11,6 +11,15 @@ const TEST_BATCH_DATE = shiftDate(TEST_WEEK_START, 3);
 const TEST_LEAVE_DATE = shiftDate(TEST_WEEK_START, 4);
 
 describe('MockSchedulingRepository', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-08T01:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('soft deletes referenced departments and hard deletes new ones', () => {
     const repository = new MockSchedulingRepository();
     const referenced = repository.toggleDepartment('dept-general');
