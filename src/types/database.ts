@@ -497,3 +497,42 @@ export interface MedicationReminderWithMedication
   extends MedicationReminder {
   medication?: Medication;
 }
+
+export type ProcurementStatus = 'pending' | 'imported' | 'cancelled';
+
+export interface PackageBreakdown {
+  units?: number;
+  crates?: number;
+  boxes_per_crate?: number;
+  boxes?: number;
+  strips_per_box?: number;
+  strips?: number;
+  units_per_strip?: number;
+  units_per_box?: number;
+  package_type_note?: string;
+}
+
+export interface MedicationProcurement {
+  id: string;
+  medication_id: string | null;
+  medication_name: string;
+  order_number: string | null;
+  supplier: string | null;
+  package_breakdown: PackageBreakdown | null;
+  total_units: number;
+  received_units?: number | null;
+  unit: string;
+  status: ProcurementStatus;
+  lot_number?: string | null;
+  expiry_date?: string | null;
+  mfg_date?: string | null;
+  notes?: string | null;
+  ordered_at: string;
+  imported_at?: string | null;
+  imported_by?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  medication?: Medication;
+  importer?: Profile;
+}
