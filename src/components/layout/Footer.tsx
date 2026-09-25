@@ -147,7 +147,13 @@ export default function Footer() {
             <h2 className="text-[13px] font-bold uppercase tracking-[0.16em] text-brand-accent">
               {text("ข้อมูลสำคัญ", "IMPORTANT INFORMATION")}
             </h2>
-            <p className="mt-5 text-[15px] leading-7 text-brand-footer-text">
+            <Link
+              href="/team"
+              className="mt-5 inline-block text-[15px] font-medium text-brand-footer-text underline decoration-brand-accent/60 underline-offset-4 transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
+            >
+              {text("ทีมผู้พัฒนา", "Development team")}
+            </Link>
+            <p className="mt-4 text-[15px] leading-7 text-brand-footer-text">
               {text("กรณีฉุกเฉิน ให้ติดต่อหน่วยฉุกเฉินใกล้บ้านทันที ระบบนี้ใช้สำหรับนัดหมายและจัดการข้อมูลคลินิก", "For emergencies, contact your local emergency services. This system is for clinic appointments and clinic information.")}
             </p>
           </div>
