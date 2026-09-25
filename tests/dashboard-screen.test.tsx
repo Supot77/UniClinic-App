@@ -86,6 +86,7 @@ describe('Dashboard appointment filters', () => {
       expect(within(rangeFilter).getByRole('button', { name: 'วันนี้' })).toBeInTheDocument();
       expect(within(rangeFilter).getByRole('button', { name: 'ย้อนหลัง 7 วัน' })).toBeInTheDocument();
       expect(within(rangeFilter).getByRole('button', { name: 'ย้อนหลัง 30 วัน' })).toBeInTheDocument();
+      expect(within(rangeFilter).getByRole('group', { name: 'เลือกช่วงเวลาย้อนหลัง' }).parentElement?.nextElementSibling).toHaveTextContent('14 กันยายน 2569');
       const nextAppointmentSummary = screen.getByRole('region', { name: 'นัดหมายถัดไป' });
       expect(within(nextAppointmentSummary).queryByRole('link', { name: 'ดูนัดหมายทั้งหมด' })).not.toBeInTheDocument();
     }
@@ -100,6 +101,7 @@ describe('Dashboard appointment filters', () => {
 
     resolveNextView(nextView);
     await waitFor(() => expect(screen.queryByRole('status', { name: 'กำลังโหลดข้อมูลช่วงเวลาที่เลือก' })).not.toBeInTheDocument());
+    expect(within(rangeFilter).getByRole('group', { name: 'เลือกช่วงเวลาย้อนหลัง' }).parentElement?.nextElementSibling).toHaveTextContent('–');
     expect(nextRangeButton).toHaveAttribute('aria-pressed', 'true');
   });
 

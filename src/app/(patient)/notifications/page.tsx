@@ -92,6 +92,16 @@ function formatBangkokDate(value = new Date(), locale: 'en' | 'th' = 'th'): stri
   }).format(value);
 }
 
+function formatBangkokRange(startAt: string, endAt: string, locale: 'en' | 'th' = 'th'): string {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (bangkokDate(start) === bangkokDate(end)) return formatBangkokDate(end, locale);
+  const formatter = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok',
+  });
+  return `${formatter.format(start)} – ${formatter.format(end)}`;
+}
+
 type BroadcastDraft = { title: string; message: string };
 const emptyBroadcastDraft: BroadcastDraft = { title: '', message: '' };
 const broadcastRoleOrder = ['patient', 'medical', 'staff_admin'] as const;
@@ -166,6 +176,7 @@ export default function NotificationsPage() {
   const [error, setError] = useState<{ message: string; canReload: boolean } | null>(null);
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
   const [broadcastDraft, setBroadcastDraft] = useState<BroadcastDraft>(emptyBroadcastDraft);
+  const selectedPeriodRange = notificationDateRange(period);
 
   useEffect(() => {
     const initialFilter = initialInboxFilter();
@@ -320,9 +331,8 @@ export default function NotificationsPage() {
         </div>
         {!auth.isLoading && !auth.isAuthenticated && <p className="mt-2 text-xs font-semibold text-amber-700">{text('เข้าสู่ระบบเพื่อดูการแจ้งเตือน', 'Sign in to view your notifications.')}</p>}
         <div className="mt-5 overflow-hidden border-b border-brand-border-soft pb-2" aria-label={text('ตัวกรองการแจ้งเตือน', 'Notification filters')}>
-          <time suppressHydrationWarning dateTime={bangkokDate()} className="mb-2 block px-1 text-right text-xs text-brand-muted">{formatBangkokDate(new Date(), locale)}</time>
           <div className="flex min-w-0 flex-col gap-3 pb-1 sm:flex-row sm:items-center" role="toolbar" aria-label={text('ตัวกรองการแจ้งเตือน', 'Notification filters')}>
-            <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
               <div className="flex shrink-0 items-center gap-2 px-1 text-sm font-semibold text-brand-ink"><Filter className="size-4 text-brand-strong" aria-hidden="true" />{text('ช่วงเวลา', 'Period')}</div>
               <div className="scrollbar-none min-w-0 overflow-x-auto">
                 <SegmentedControl
@@ -333,6 +343,7 @@ export default function NotificationsPage() {
                   onChange={selectPeriod}
                 />
               </div>
+              <time suppressHydrationWarning dateTime={selectedPeriodRange.startAt} className="shrink-0 whitespace-nowrap px-1 text-xs font-medium tabular-nums text-brand-muted sm:ml-1">{formatBangkokRange(selectedPeriodRange.startAt, selectedPeriodRange.endAt, locale)}</time>
             </div>
             <div className="flex min-w-0 items-center gap-2 sm:ml-auto sm:shrink-0" role="group" aria-label={text('เลือกสถานะการอ่าน', 'Select read status')}>
               <span className="hidden h-7 w-px shrink-0 bg-brand-border-soft sm:block" aria-hidden="true" />
