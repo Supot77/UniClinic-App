@@ -1296,8 +1296,8 @@ export default function DashboardScreen({
                   onChange={(value) => { if (value !== range) { setError(null); setLoading(true); setRange(value); } }}
                 />
               </div>
+              <div className="shrink-0 whitespace-nowrap px-1 text-left text-xs font-medium tabular-nums text-brand-body sm:ml-1 sm:text-right sm:text-sm">{formatThaiRange(view.startDate, view.date, locale)}</div>
             </div>
-            <div className="text-left sm:text-right text-xs sm:text-sm font-medium tabular-nums text-brand-body lg:ml-2">{formatThaiRange(view.startDate, view.date, locale)}</div>
             {role === 'medical' && isMedicalDoctorDashboard && <UpcomingAppointmentToast appointments={toastAppointments} isPreview={toastPreviewEnabled} />}
             {role === 'staff_admin' && <div className="min-w-0 sm:ml-auto sm:shrink-0">
               <div className="scrollbar-none min-w-0 overflow-x-auto">
