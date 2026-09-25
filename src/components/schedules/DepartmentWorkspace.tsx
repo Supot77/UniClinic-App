@@ -92,14 +92,12 @@ export default function DepartmentWorkspace() {
     departments,
     doctors,
     services,
-    slots,
     doctorLeaves = [],
     doctorAccounts,
     isLoading,
     saveDepartment: persistDepartment,
     toggleDepartment: persistDepartmentToggle,
     saveDoctor: persistDoctor,
-    toggleDoctor: persistDoctorToggle,
     saveService: persistService,
     toggleService: persistServiceToggle,
     deleteDoctorLeave: persistDoctorLeaveDelete,
@@ -392,39 +390,6 @@ export default function DepartmentWorkspace() {
     });
   };
 
-  const confirmToggleDoctor = async (doctor: ScheduleDoctor) => {
-    setIsSaving(true);
-    const result = await persistDoctorToggle(doctor.id);
-    setIsSaving(false);
-
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
-    }
-
-    if (doctor.availability !== 'inactive') {
-      setShowInactive(true);
-    }
-
-    setConfirmation(null);
-    setNotice(result.value === 'deleted' ? 'ลบแพทย์แล้ว' : doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
-  };
-
-  const toggleDoctor = (doctor: ScheduleDoctor) => {
-    setFormError('');
-    setNotice('');
-    const hasReferences = Boolean(doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id));
-    const action = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-    const impact = hasReferences ? ' รอบและประวัติเดิมจะยังคงอยู่' : '';
-    setConfirmation({
-      title: `${action}แพทย์`,
-      message: `${action} ${doctor.fullName}?${impact}`,
-      confirmLabel: action,
-      tone: doctor.availability === 'inactive' ? 'primary' : 'danger',
-      onConfirm: () => confirmToggleDoctor(doctor),
-    });
-  };
-
   const confirmCancelDoctorLeave = async (leave: DoctorLeave, doctorName: string) => {
     setIsSaving(true);
     const result = await persistDoctorLeaveDelete(leave.id);
@@ -674,7 +639,6 @@ export default function DepartmentWorkspace() {
                   const currentStatus = onLeaveToday || doctor.availability === 'on_leave'
                     ? { label: latestLeave ? `ลาตรวจ (${formatLeaveRange(latestLeave)})` : 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' }
                     : statusConfig[doctor.availability] ?? statusConfig.active;
-                  const toggleLabel = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้งาน' : 'ลบ';
                   return (
                     <article key={doctor.id} className="grid gap-4 py-6 transition-colors hover:bg-brand-surface/60 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_140px] lg:items-center lg:gap-6">
                       <div className="min-w-0">
@@ -697,9 +661,6 @@ export default function DepartmentWorkspace() {
                             <Trash2 className="h-4 w-4" aria-hidden="true" />ยกเลิกวันลา
                           </button>
                         )}
-                        <button type="button" disabled={isSaving} onClick={() => toggleDoctor(doctor)} className={`${textActionClass} ${doctor.availability === 'inactive' ? 'text-status-success' : 'text-status-critical'}`} aria-label={`${toggleLabel} ${doctor.fullName}`}>
-                          {toggleLabel}
-                        </button>
                       </div>
                     </article>
                   );
@@ -964,26 +925,6 @@ export default function DepartmentWorkspace() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="doc-avail" className="text-sm font-semibold text-slate-800">
-                    สถานะการออกตรวจ
-                  </label>
-                  <select
-                    id="doc-avail"
-                    value={doctorDraft.availability}
-                    onChange={(e) =>
-                      setDoctorDraft((curr) => ({
-                        ...curr,
-                        availability: e.target.value as DoctorAvailability,
-                      }))
-                    }
-                    className={inputClass}
-                  >
-                    <option value="active">พร้อมออกตรวจ</option>
-                    <option value="on_leave">ลาตรวจ</option>
-                    <option value="inactive">ปิดใช้งาน</option>
-                  </select>
-                </div>
               </div>
 
               {/* Drawer Footer */}
