@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Clock3, Hospital, MapPin } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocale } from "@/context/LocaleContext";
 
 interface FooterLink {
   label: string;
@@ -66,6 +67,16 @@ const staffAdminSections: FooterSection[] = [
 
 export default function Footer() {
   const { isAuthenticated, role } = useAuth();
+  const { text } = useLocale();
+
+  const englishLabels: Record<string, string> = {
+    "สำหรับผู้ใช้ทั่วไป": "VISITORS", "สำหรับผู้ป่วย": "PATIENTS",
+    "สำหรับบุคลากรทางการแพทย์": "MEDICAL STAFF", "สำหรับเจ้าหน้าที่": "CLINIC ADMIN",
+    "ตารางตรวจแพทย์": "Doctor schedules", "เข้าสู่ระบบ": "Sign in", "สมัครสมาชิก": "Create an account",
+    "นัดหมายของฉัน": "My appointments", "ประวัติการรักษา": "Medical records", "แจ้งเตือนยา": "Medication reminders",
+    "โปรไฟล์": "Profile", "ภาพรวม": "Overview", "ค้นหาผู้ป่วย": "Find patients", "คลังยา": "Pharmacy inventory",
+    "นัดหมายผู้ป่วย": "Patient appointments", "จัดการผู้ใช้งาน": "Manage accounts", "จัดการแผนก": "Manage departments",
+  };
 
   const sections: FooterSection[] = (() => {
     if (!isAuthenticated || !role) {
@@ -98,16 +109,16 @@ export default function Footer() {
               <span className="text-[19px] font-semibold tracking-[-0.02em]">WU Clinic</span>
             </Link>
             <p className="mt-5 text-[15px] leading-7 text-brand-footer-text">
-              คลินิกสุขภาพมหาวิทยาลัยวลัยลักษณ์ สำหรับนัดหมายและจัดการบริการสุขภาพ
+              {text("คลินิกสุขภาพมหาวิทยาลัยวลัยลักษณ์ สำหรับนัดหมายและจัดการบริการสุขภาพ", "Walailak University clinic for appointments and health services.")}
             </p>
             <div className="mt-6 space-y-3 text-[13px] text-brand-footer-text">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-brand-accent" aria-hidden="true" />
-                มหาวิทยาลัยวลัยลักษณ์
+                {text("มหาวิทยาลัยวลัยลักษณ์", "Walailak University")}
               </div>
               <div className="flex items-center gap-2">
                 <Clock3 className="h-4 w-4 text-brand-accent" aria-hidden="true" />
-                จันทร์–ศุกร์ 08:30–16:30 น.
+                {text("จันทร์–ศุกร์ 08:30–16:30 น.", "Monday–Friday, 08:30–16:30")}
               </div>
             </div>
           </div>
@@ -115,7 +126,7 @@ export default function Footer() {
           {sections.map((section) => (
             <div key={section.title}>
               <h2 className="text-[13px] font-bold uppercase tracking-[0.16em] text-brand-accent">
-                {section.title}
+                {text(section.title, englishLabels[section.title] ?? section.title)}
               </h2>
               <ul className="mt-5 space-y-3 text-[15px] text-brand-footer-text">
                 {section.links.map((link) => (
@@ -124,7 +135,7 @@ export default function Footer() {
                       href={link.href}
                       className="transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
                     >
-                      {link.label}
+                      {text(link.label, englishLabels[link.label] ?? link.label)}
                     </Link>
                   </li>
                 ))}
@@ -134,17 +145,17 @@ export default function Footer() {
 
           <div>
             <h2 className="text-[13px] font-bold uppercase tracking-[0.16em] text-brand-accent">
-              ข้อมูลสำคัญ
+              {text("ข้อมูลสำคัญ", "IMPORTANT INFORMATION")}
             </h2>
             <p className="mt-5 text-[15px] leading-7 text-brand-footer-text">
-              กรณีฉุกเฉิน ให้ติดต่อหน่วยฉุกเฉินใกล้บ้านทันที ระบบนี้ใช้สำหรับนัดหมายและจัดการข้อมูลคลินิก
+              {text("กรณีฉุกเฉิน ให้ติดต่อหน่วยฉุกเฉินใกล้บ้านทันที ระบบนี้ใช้สำหรับนัดหมายและจัดการข้อมูลคลินิก", "For emergencies, contact your local emergency services. This system is for clinic appointments and clinic information.")}
             </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 pt-7 text-[13px] text-brand-footer-muted sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 WU Clinic · มหาวิทยาลัยวลัยลักษณ์</p>
-          <p>ระบบสำหรับการเรียนการสอน ข้อมูลเป็นข้อมูลสาธิต</p>
+          <p>{text("© 2026 WU Clinic · มหาวิทยาลัยวลัยลักษณ์", "© 2026 WU Clinic · Walailak University")}</p>
+          <p>{text("ระบบสำหรับการเรียนการสอน ข้อมูลเป็นข้อมูลสาธิต", "Educational system · Demonstration data")}</p>
         </div>
       </div>
     </footer>

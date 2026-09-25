@@ -15,11 +15,11 @@ export const textActionClass =
 /**
  * ฟังก์ชันจัดรูปแบบวันที่และเวลาแบบภาษาไทย (เช่น 22 ก.ย. 2569 15:14)
  */
-export function formatDisplayDateTime(dateStr: string | null | undefined): string {
+export function formatDisplayDateTime(dateStr: string | null | undefined, locale: 'en' | 'th' = 'th'): string {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return '-';
-  return new Intl.DateTimeFormat('th-TH', {
+    return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

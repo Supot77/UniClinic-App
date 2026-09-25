@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { signOut, signUp } from '@/services/authService';
+import { useLocale } from '@/context/LocaleContext';
 
 type FieldName =
   | 'title'
@@ -240,6 +241,7 @@ interface RegisterPageProps {
 
 export default function RegisterPage({ mode = 'self-service', embedded = false }: RegisterPageProps = {}) {
   const router = useRouter();
+  const { text } = useLocale();
 
   const [form, setForm] =
     useState<RegistrationForm>(initialForm);
@@ -294,7 +296,21 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
     setError(null);
     setSuccess(null);
 
-    const errors = validateRegistration(form);
+    const englishErrors: Record<string, string> = {
+      'เลือกคำนำหน้า': 'Select a title.', 'ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น': 'Use Thai or English letters only.',
+      'ระบุวันเกิดให้ถูกต้อง': 'Enter a valid date of birth.', 'เลือกเพศ': 'Select a gender.', 'เลือกประเภทผู้ป่วย': 'Select a patient type.',
+      'รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก': 'Student ID must contain 8 digits.', 'รหัสบุคลากรต้องเป็นตัวเลข 8 หลัก': 'Staff ID must contain 8 digits.',
+      'กรอกเบอร์มือถือไทย 10 หลัก โดยขึ้นต้นด้วย 06, 08 หรือ 09': 'Enter a 10-digit Thai mobile number beginning with 06, 08, or 09.',
+      'เลือกสถานะการแพ้ยา': 'Select an allergy status.', 'ระบุรายละเอียดการแพ้ยา': 'Describe the medication allergy.',
+      'เลือกสถานะโรคประจำตัว': 'Select a chronic condition status.', 'ระบุรายละเอียดโรคประจำตัว': 'Describe the chronic condition.',
+      'เลือกคำนำหน้าผู้ติดต่อฉุกเฉิน': 'Select a title for the emergency contact.', 'ชื่อผู้ติดต่อฉุกเฉินต้องไม่ซ้ำกับชื่อผู้ป่วย': 'The emergency contact must be a different person from the patient.',
+      'ระบุความสัมพันธ์กับผู้ป่วย': 'Enter the emergency contact’s relationship to the patient.', 'เบอร์โทรฉุกเฉินต้องไม่ซ้ำกับเบอร์โทรศัพท์หลัก': 'The emergency number must differ from the patient’s phone number.',
+      'ใช้อีเมล @mail.wu.ac.th เท่านั้น': 'Use an @mail.wu.ac.th email address.',
+      'รหัสผ่านต้องมีอย่างน้อย 8 ตัว และประกอบด้วยตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข': 'Use at least 8 characters, including uppercase and lowercase letters and a number.',
+      'รหัสผ่านไม่ตรงกัน': 'Passwords do not match.',
+    };
+    const validationErrors = validateRegistration(form);
+    const errors = Object.fromEntries(Object.entries(validationErrors).map(([field, message]) => [field, text(message, englishErrors[message] ?? message)])) as FieldErrors;
     setFieldErrors(errors);
 
     if (Object.keys(errors).length > 0) {
@@ -382,7 +398,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
       } else {
         await signUp(form.email.trim().toLowerCase(), form.password, details);
         await signOut();
-        setSuccess('สมัครสมาชิกสำเร็จแล้ว กำลังไปหน้าเข้าสู่ระบบ');
+        setSuccess(text('สมัครสมาชิกสำเร็จแล้ว กำลังไปหน้าเข้าสู่ระบบ', 'Registration complete. Redirecting to sign in…'));
         setIsSubmitting(false);
         await new Promise((resolve) => setTimeout(resolve, 700));
         router.replace('/login?registered=true');
@@ -423,9 +439,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-live="assertive">
           <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
             {success ? <CheckCircle2 className="mx-auto size-16 text-emerald-500" aria-hidden="true" /> : <Loader2 className="mx-auto size-14 animate-spin text-teal-600" aria-hidden="true" />}
-            <h2 className="mt-5 text-xl font-bold text-slate-900">{success || (mode === 'staff-walk-in' ? 'กำลังสร้างบัญชีผู้ป่วย…' : 'กำลังสมัครสมาชิก…')}</h2>
-            <p className="mt-2 text-sm text-slate-500">{success ? 'ระบบบันทึกข้อมูลเรียบร้อยแล้ว' : 'กรุณารอสักครู่และอย่าปิดหน้านี้'}</p>
-            {success && mode === 'staff-walk-in' && <button type="button" onClick={() => setSuccess(null)} className="mt-6 w-full rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white hover:bg-teal-700">ตกลง</button>}
+            <h2 className="mt-5 text-xl font-bold text-slate-900">{success || (mode === 'staff-walk-in' ? text('กำลังสร้างบัญชีผู้ป่วย…', 'Creating patient account…') : text('กำลังสมัครสมาชิก…', 'Creating your account…'))}</h2>
+            <p className="mt-2 text-sm text-slate-500">{success ? text('ระบบบันทึกข้อมูลเรียบร้อยแล้ว', 'Your information has been saved.') : text('กรุณารอสักครู่และอย่าปิดหน้านี้', 'Please wait and keep this page open.')}</p>
+            {success && mode === 'staff-walk-in' && <button type="button" onClick={() => setSuccess(null)} className="mt-6 w-full rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white hover:bg-teal-700">{text('ตกลง', 'OK')}</button>}
           </div>
         </div>
       )}
@@ -441,24 +457,24 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                {mode === 'staff-walk-in' ? 'เพิ่มบัญชีผู้ป่วย' : 'สมัครสมาชิกผู้ป่วย'}
+                {mode === 'staff-walk-in' ? text('เพิ่มบัญชีผู้ป่วย', 'Add patient account') : text('สมัครสมาชิกผู้ป่วย', 'Patient registration')}
               </h1>
 
               <p className="mt-1 text-sm text-slate-500">
                 {mode === 'staff-walk-in'
-                  ? 'เพิ่มบัญชีผู้ป่วยสำหรับนักศึกษาหรือบุคลากรที่เข้ารับบริการ'
-                  : 'สร้างบัญชีเพื่อใช้งาน WU Clinic'}
+                  ? text('เพิ่มบัญชีผู้ป่วยสำหรับนักศึกษาหรือบุคลากรที่เข้ารับบริการ', 'Create an account for a student or staff member receiving care.')
+                  : text('สร้างบัญชีเพื่อใช้งาน WU Clinic', 'Create an account to use WU Clinic.')}
               </p>
             </div>
           </div>
 
           {mode === 'self-service' && <p className="text-sm text-slate-500">
-            มีบัญชีแล้ว?{' '}
+            {text('มีบัญชีแล้ว?', 'Already have an account?')}{' '}
             <Link
               href="/login"
               className="font-semibold text-teal-700 hover:underline"
             >
-              เข้าสู่ระบบ
+              {text('เข้าสู่ระบบ', 'Sign in')}
             </Link>
           </p>}
         </header>}
@@ -480,13 +496,13 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           {/* ข้อมูลส่วนตัว */}
           <FormSection
             number="1"
-            title="ข้อมูลส่วนตัว"
-            description="ใช้ยืนยันตัวตนและบันทึกข้อมูลผู้ป่วย"
+            title={text('ข้อมูลส่วนตัว', 'Personal information')}
+            description={text('ใช้ยืนยันตัวตนและบันทึกข้อมูลผู้ป่วย', 'Used to verify your identity and create your patient record.')}
           >
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]">
               <Field
                 id="title"
-                label="คำนำหน้า"
+                label={text('คำนำหน้า', 'Title')}
                 error={fieldErrors.title}
               >
                 <select
@@ -502,23 +518,19 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   disabled={isSubmitting}
                   className={inputClass('title')}
                 >
-                  <option value="">เลือก</option>
-                  <option value="นาย">นาย</option>
-                  <option value="นาง">นาง</option>
-                  <option value="นางสาว">
-                    นางสาว
-                  </option>
-                  <option value="อื่น ๆ">
-                    อื่น ๆ
-                  </option>
+                  <option value="">{text('เลือก', 'Select')}</option>
+                  <option value="นาย">{text('นาย', 'Mr.')}</option>
+                  <option value="นาง">{text('นาง', 'Mrs.')}</option>
+                  <option value="นางสาว">{text('นางสาว', 'Ms.')}</option>
+                  <option value="อื่น ๆ">{text('อื่น ๆ', 'Other')}</option>
                 </select>
               </Field>
 
               <Field
                 id="first-name"
-                label="ชื่อ"
+                label={text('ชื่อ', 'First name')}
                 error={fieldErrors.firstName}
-                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
+                help={text('ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น', 'Use Thai or English letters only.')}
               >
                 <input
                   id="first-name"
@@ -534,7 +546,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       ),
                     )
                   }
-                  placeholder="เช่น สมชาย"
+                  placeholder={text('เช่น สมชาย', 'e.g., Somchai')}
                   disabled={isSubmitting}
                   className={inputClass('firstName')}
                 />
@@ -542,9 +554,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="last-name"
-                label="นามสกุล"
+                label={text('นามสกุล', 'Last name')}
                 error={fieldErrors.lastName}
-                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
+                help={text('ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น', 'Use Thai or English letters only.')}
               >
                 <input
                   id="last-name"
@@ -560,7 +572,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       ),
                     )
                   }
-                  placeholder="เช่น ใจดี"
+                  placeholder={text('เช่น ใจดี', 'e.g., Jaidee')}
                   disabled={isSubmitting}
                   className={inputClass('lastName')}
                 />
@@ -570,7 +582,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <Field
                 id="date-of-birth"
-                label="วันเดือนปีเกิด"
+                label={text('วันเดือนปีเกิด', 'Date of birth')}
                 error={fieldErrors.dateOfBirth}
               >
                 <EasyDatePicker
@@ -582,12 +594,12 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 />
               </Field>
 
-              <Field id="age" label="อายุ" help="คำนวณจากวันเกิดอัตโนมัติ">
+              <Field id="age" label={text('อายุ', 'Age')} help={text('คำนวณจากวันเกิดอัตโนมัติ', 'Calculated automatically from your date of birth.') }>
                 <input
                   id="age"
                   type="text"
-                  value={age === null ? '' : `${age} ปี`}
-                  placeholder="เลือกวันเกิดเพื่อคำนวณอายุ"
+                  value={age === null ? '' : `${age} ${text('ปี', 'years')}`}
+                  placeholder={text('เลือกวันเกิดเพื่อคำนวณอายุ', 'Select your date of birth to calculate your age.')}
                   readOnly
                   aria-readonly="true"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 outline-none"
@@ -596,7 +608,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="gender"
-                label="เพศ"
+                label={text('เพศ', 'Gender')}
                 error={fieldErrors.gender}
               >
                 <select
@@ -612,18 +624,16 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   disabled={isSubmitting}
                   className={inputClass('gender')}
                 >
-                  <option value="">เลือกเพศ</option>
-                  <option value="male">ชาย</option>
-                  <option value="female">หญิง</option>
-                  <option value="unspecified">
-                    ไม่ระบุ
-                  </option>
+                  <option value="">{text('เลือกเพศ', 'Select gender')}</option>
+                  <option value="male">{text('ชาย', 'Male')}</option>
+                  <option value="female">{text('หญิง', 'Female')}</option>
+                  <option value="unspecified">{text('ไม่ระบุ', 'Prefer not to say')}</option>
                 </select>
               </Field>
 
               <Field
                 id="patient-type"
-                label="ประเภทผู้ป่วย"
+                label={text('ประเภทผู้ป่วย', 'Patient type')}
                 error={fieldErrors.patientType}
               >
                 <select
@@ -639,16 +649,16 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   disabled={isSubmitting}
                   className={inputClass('patientType')}
                 >
-                  <option value="student">นักศึกษา</option>
-                  <option value="employee">บุคลากร</option>
+                  <option value="student">{text('นักศึกษา', 'Student')}</option>
+                  <option value="employee">{text('บุคลากร', 'Staff')}</option>
                 </select>
               </Field>
 
               <Field
                 id="patient-id"
-                label={form.patientType === 'student' ? 'รหัสนักศึกษา' : 'รหัสบุคลากร'}
+                label={form.patientType === 'student' ? text('รหัสนักศึกษา', 'Student ID') : text('รหัสบุคลากร', 'Staff ID')}
                 error={form.patientType === 'student' ? fieldErrors.studentId : fieldErrors.employeeId}
-                help={`${form.patientType === 'student' ? form.studentId.length : form.employeeId.length}/8 หลัก`}
+                help={`${form.patientType === 'student' ? form.studentId.length : form.employeeId.length}/8 ${text('หลัก', 'digits')}`}
               >
                 <input
                   id="patient-id"
@@ -672,9 +682,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="phone"
-                label="เบอร์โทรศัพท์"
+                label={text('เบอร์โทรศัพท์', 'Phone number')}
                 error={fieldErrors.phone}
-                help="กรอกตัวเลข 10 หลัก ไม่ต้องใส่ขีด"
+                help={text('กรอกตัวเลข 10 หลัก ไม่ต้องใส่ขีด', 'Enter 10 digits without hyphens.')}
               >
                 <input
                   id="phone"
@@ -703,13 +713,13 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           {/* ข้อมูลสุขภาพ */}
           <FormSection
             number="2"
-            title="ข้อมูลสุขภาพ"
-            description="ข้อมูลเบื้องต้นสำหรับการรักษา"
+            title={text('ข้อมูลสุขภาพ', 'Health information')}
+            description={text('ข้อมูลเบื้องต้นสำหรับการรักษา', 'Basic information to support your care.')}
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 id="allergy-status"
-                label="ประวัติแพ้ยา"
+                label={text('ประวัติแพ้ยา', 'Medication allergies')}
                 error={fieldErrors.allergyStatus}
               >
                 <select
@@ -735,21 +745,21 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   )}
                 >
                   <option value="">
-                    เลือกสถานะ
+                    {text('เลือกสถานะ', 'Select status')}
                   </option>
-                  <option value="no">ไม่มี</option>
+                  <option value="no">{text('ไม่มี', 'No')}</option>
                   <option value="yes">
-                    มีประวัติแพ้ยา
+                    {text('มีประวัติแพ้ยา', 'I have medication allergies')}
                   </option>
                   <option value="unknown">
-                    ไม่ทราบ
+                    {text('ไม่ทราบ', 'Unknown')}
                   </option>
                 </select>
               </Field>
 
               <Field
                 id="chronic-disease-status"
-                label="โรคประจำตัว"
+                label={text('โรคประจำตัว', 'Chronic conditions')}
                 error={
                   fieldErrors.chronicDiseaseStatus
                 }
@@ -780,14 +790,14 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                   )}
                 >
                   <option value="">
-                    เลือกสถานะ
+                    {text('เลือกสถานะ', 'Select status')}
                   </option>
-                  <option value="no">ไม่มี</option>
+                  <option value="no">{text('ไม่มี', 'No')}</option>
                   <option value="yes">
-                    มีโรคประจำตัว
+                    {text('มีโรคประจำตัว', 'I have a chronic condition')}
                   </option>
                   <option value="unknown">
-                    ไม่ทราบ
+                    {text('ไม่ทราบ', 'Unknown')}
                   </option>
                 </select>
               </Field>
@@ -795,7 +805,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
               {form.allergyStatus === 'yes' && (
                 <Field
                   id="allergies"
-                  label="รายละเอียดการแพ้ยา"
+                  label={text('รายละเอียดการแพ้ยา', 'Allergy details')}
                   error={fieldErrors.allergies}
                 >
                   <textarea
@@ -809,7 +819,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                         event.target.value,
                       )
                     }
-                    placeholder="เช่น แพ้ยา Penicillin มีอาการผื่นขึ้น"
+                    placeholder={text('เช่น แพ้ยา Penicillin มีอาการผื่นขึ้น', 'e.g., Penicillin allergy causing a rash')}
                     disabled={isSubmitting}
                     className={inputClass(
                       'allergies',
@@ -822,7 +832,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 'yes' && (
                 <Field
                   id="chronic-diseases"
-                  label="รายละเอียดโรคประจำตัว"
+                  label={text('รายละเอียดโรคประจำตัว', 'Condition details')}
                   error={
                     fieldErrors.chronicDiseases
                   }
@@ -838,7 +848,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                         event.target.value,
                       )
                     }
-                    placeholder="เช่น หอบหืด ความดันโลหิตสูง"
+                    placeholder={text('เช่น หอบหืด ความดันโลหิตสูง', 'e.g., Asthma or high blood pressure')}
                     disabled={isSubmitting}
                     className={inputClass(
                       'chronicDiseases',
@@ -852,13 +862,13 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           {/* ผู้ติดต่อฉุกเฉิน */}
           <FormSection
             number="3"
-            title="ผู้ติดต่อฉุกเฉิน"
-            description="บุคคลที่ติดต่อได้เมื่อเกิดเหตุฉุกเฉิน"
+            title={text('ผู้ติดต่อฉุกเฉิน', 'Emergency contact')}
+            description={text('บุคคลที่ติดต่อได้เมื่อเกิดเหตุฉุกเฉิน', 'Someone we can contact in an emergency.')}
           >
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]">
               <Field
                 id="emergency-contact-title"
-                label="คำนำหน้า"
+                label={text('คำนำหน้า', 'Title')}
                 error={
                   fieldErrors.emergencyContactTitle
                 }
@@ -880,25 +890,21 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                     'emergencyContactTitle',
                   )}
                 >
-                  <option value="">เลือก</option>
-                  <option value="นาย">นาย</option>
-                  <option value="นาง">นาง</option>
-                  <option value="นางสาว">
-                    นางสาว
-                  </option>
-                  <option value="อื่น ๆ">
-                    อื่น ๆ
-                  </option>
+                  <option value="">{text('เลือก', 'Select')}</option>
+                  <option value="นาย">{text('นาย', 'Mr.')}</option>
+                  <option value="นาง">{text('นาง', 'Mrs.')}</option>
+                  <option value="นางสาว">{text('นางสาว', 'Ms.')}</option>
+                  <option value="อื่น ๆ">{text('อื่น ๆ', 'Other')}</option>
                 </select>
               </Field>
 
               <Field
                 id="emergency-contact-first-name"
-                label="ชื่อ"
+                label={text('ชื่อ', 'First name')}
                 error={
                   fieldErrors.emergencyContactFirstName
                 }
-                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
+                help={text('ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น', 'Use Thai or English letters only.')}
               >
                 <input
                   id="emergency-contact-first-name"
@@ -915,7 +921,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       ),
                     )
                   }
-                  placeholder="เช่น สมหมาย"
+                  placeholder={text('เช่น สมหมาย', 'e.g., Sommai')}
                   disabled={isSubmitting}
                   className={inputClass(
                     'emergencyContactFirstName',
@@ -925,11 +931,11 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="emergency-contact-last-name"
-                label="นามสกุล"
+                label={text('นามสกุล', 'Last name')}
                 error={
                   fieldErrors.emergencyContactLastName
                 }
-                help="ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น"
+                help={text('ใช้ตัวอักษรไทยหรืออังกฤษเท่านั้น', 'Use Thai or English letters only.')}
               >
                 <input
                   id="emergency-contact-last-name"
@@ -946,7 +952,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       ),
                     )
                   }
-                  placeholder="เช่น ใจดี"
+                  placeholder={text('เช่น ใจดี', 'e.g., Jaidee')}
                   disabled={isSubmitting}
                   className={inputClass(
                     'emergencyContactLastName',
@@ -958,11 +964,11 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
                 id="emergency-relationship"
-                label="ความสัมพันธ์"
+                label={text('ความสัมพันธ์', 'Relationship')}
                 error={
                   fieldErrors.emergencyContactRelationship
                 }
-                help="ระบุความสัมพันธ์กับผู้ป่วย"
+                help={text('ระบุความสัมพันธ์กับผู้ป่วย', 'How are they related to you?')}
               >
                 <input
                   id="emergency-relationship"
@@ -977,7 +983,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       event.target.value,
                     )
                   }
-                  placeholder="เช่น บิดา มารดา ญาติ เพื่อน"
+                  placeholder={text('เช่น บิดา มารดา ญาติ เพื่อน', 'e.g., Parent, relative, or friend')}
                   disabled={isSubmitting}
                   className={inputClass(
                     'emergencyContactRelationship',
@@ -987,9 +993,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="emergency-phone"
-                label="เบอร์โทรฉุกเฉิน"
+                label={text('เบอร์โทรฉุกเฉิน', 'Emergency phone number')}
                 error={fieldErrors.emergencyPhone}
-                help="กรอกตัวเลข 10 หลัก ไม่ต้องใส่ขีด"
+                help={text('กรอกตัวเลข 10 หลัก ไม่ต้องใส่ขีด', 'Enter 10 digits without hyphens.')}
               >
                 <input
                   id="emergency-phone"
@@ -1018,15 +1024,15 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
           {/* ข้อมูลเข้าสู่ระบบ */}
           <FormSection
             number="4"
-            title="ข้อมูลเข้าสู่ระบบ"
-            description="ใช้เข้าสู่ระบบด้วยอีเมลมหาวิทยาลัย"
+            title={text('ข้อมูลเข้าสู่ระบบ', 'Sign-in details')}
+            description={text('ใช้เข้าสู่ระบบด้วยอีเมลมหาวิทยาลัย', 'Use your university email address to sign in.')}
           >
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Field
                 id="register-email"
-                label="อีเมลมหาวิทยาลัย"
+                label={text('อีเมลมหาวิทยาลัย', 'University email')}
                 error={fieldErrors.email}
-                help="ใช้เฉพาะ @mail.wu.ac.th"
+                help={text('ใช้เฉพาะ @mail.wu.ac.th', 'Use an @mail.wu.ac.th address.')}
               >
                 <input
                   id="register-email"
@@ -1051,9 +1057,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="register-password"
-                label="รหัสผ่าน"
+                label={text('รหัสผ่าน', 'Password')}
                 error={fieldErrors.password}
-                help="อย่างน้อย 8 ตัวอักษร"
+                help={text('อย่างน้อย 8 ตัวอักษร', 'At least 8 characters.')}
               >
                 <div className="relative">
                   <input
@@ -1073,7 +1079,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                         event.target.value,
                       )
                     }
-                    placeholder="อย่างน้อย 8 ตัวอักษร"
+                    placeholder={text('อย่างน้อย 8 ตัวอักษร', 'At least 8 characters')}
                     disabled={isSubmitting}
                     className={`${inputClass(
                       'password',
@@ -1089,8 +1095,8 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                     }
                     aria-label={
                       showPassword
-                        ? 'ซ่อนรหัสผ่าน'
-                        : 'แสดงรหัสผ่าน'
+                        ? text('ซ่อนรหัสผ่าน', 'Hide password')
+                        : text('แสดงรหัสผ่าน', 'Show password')
                     }
                     className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 hover:text-teal-600"
                   >
@@ -1105,9 +1111,9 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
               <Field
                 id="confirm-password"
-                label="ยืนยันรหัสผ่าน"
+                label={text('ยืนยันรหัสผ่าน', 'Confirm password')}
                 error={fieldErrors.confirmPassword}
-                help="กรอกรหัสผ่านเดิมอีกครั้ง"
+                help={text('กรอกรหัสผ่านเดิมอีกครั้ง', 'Enter your password again.')}
               >
                 <input
                   id="confirm-password"
@@ -1126,7 +1132,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       event.target.value,
                     )
                   }
-                  placeholder="กรอกรหัสผ่านอีกครั้ง"
+                  placeholder={text('กรอกรหัสผ่านอีกครั้ง', 'Enter your password again')}
                   disabled={isSubmitting}
                   className={inputClass(
                     'confirmPassword',
@@ -1134,7 +1140,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 />
                 {form.confirmPassword && !fieldErrors.confirmPassword && (
                   <p role="status" className={`mt-2 text-xs font-medium ${form.confirmPassword === form.password ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {form.confirmPassword === form.password ? 'รหัสผ่านตรงกัน' : 'รหัสผ่านไม่ตรงกัน'}
+                    {form.confirmPassword === form.password ? text('รหัสผ่านตรงกัน', 'Passwords match') : text('รหัสผ่านไม่ตรงกัน', 'Passwords do not match')}
                   </p>
                 )}
               </Field>
@@ -1147,8 +1153,7 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                 className="mr-2 inline size-4 text-teal-600"
                 aria-hidden="true"
               />
-              บัญชีนี้จะได้รับบทบาทผู้ป่วย
-              และผู้ใช้จะเปลี่ยนบทบาทเองไม่ได้
+              {text('บัญชีนี้จะได้รับบทบาทผู้ป่วย และผู้ใช้จะเปลี่ยนบทบาทเองไม่ได้', 'This account will have the patient role. Users cannot change their own role.')}
             </p>
 
             <button
@@ -1164,8 +1169,8 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
               )}
 
               {isSubmitting
-                ? mode === 'staff-walk-in' ? 'กำลังสร้างบัญชี…' : 'กำลังสมัครสมาชิก…'
-                : mode === 'staff-walk-in' ? 'สร้างบัญชีผู้ป่วย' : 'สมัครสมาชิก'}
+                ? mode === 'staff-walk-in' ? text('กำลังสร้างบัญชี…', 'Creating account…') : text('กำลังสมัครสมาชิก…', 'Registering…')
+                : mode === 'staff-walk-in' ? text('สร้างบัญชีผู้ป่วย', 'Create patient account') : text('สมัครสมาชิก', 'Register')}
             </button>
           </footer>
         </form>
@@ -1185,11 +1190,12 @@ function FormSection({
   description: string;
   children: React.ReactNode;
 }) {
+  const { text } = useLocale();
   return (
     <section className="border-b border-slate-200 px-5 py-7 last:border-b-0 sm:px-8">
       <header className="mb-6">
         <p className="text-xs font-semibold text-teal-700">
-          ส่วนที่ {number}
+          {text('ส่วนที่', 'SECTION')} {number}
         </p>
 
         <h2 className="mt-1 text-lg font-bold text-slate-900">
@@ -1215,6 +1221,7 @@ function EasyDatePicker({
   disabled?: boolean;
   hasError?: boolean;
 }) {
+  const { locale, text } = useLocale();
   const today = new Date();
   const selected = value ? new Date(`${value}T00:00:00`) : null;
   const [open, setOpen] = useState(false);
@@ -1223,7 +1230,7 @@ function EasyDatePicker({
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay();
   const formattedValue = selected
-    ? selected.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ? selected.toLocaleDateString(locale === 'th' ? 'th-TH' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '';
 
   function chooseDay(day: number) {
@@ -1238,7 +1245,7 @@ function EasyDatePicker({
       <button
         id={id}
         type="button"
-        aria-label="วันเดือนปีเกิด"
+        aria-label={text('วันเดือนปีเกิด', 'Date of birth')}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
         disabled={disabled}
@@ -1247,7 +1254,7 @@ function EasyDatePicker({
         }`}
       >
         <span className={formattedValue ? 'text-slate-900' : 'text-slate-400'}>
-          {formattedValue || 'เลือกวันเกิด'}
+          {formattedValue || text('เลือกวันเกิด', 'Choose date of birth')}
         </span>
         <CalendarDays className="h-5 w-5 text-slate-500" />
       </button>
@@ -1256,17 +1263,17 @@ function EasyDatePicker({
         <div className="absolute left-0 z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
           <div className="mb-4 grid grid-cols-[1.4fr_1fr] gap-2">
             <select
-              aria-label="เลือกเดือนเกิด"
+              aria-label={text('เลือกเดือนเกิด', 'Select birth month')}
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600"
             >
-              {birthMonths.map((name, index) => (
+              {(locale === 'th' ? birthMonths : Array.from({ length: 12 }, (_, index) => new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2020, index, 1)))).map((name, index) => (
                 <option key={name} value={index}>{name}</option>
               ))}
             </select>
             <input
-              aria-label="กรอกปีเกิด ค.ศ."
+              aria-label={text('กรอกปีเกิด ค.ศ.', 'Enter birth year (AD)')}
               type="number"
               min={1900}
               max={today.getFullYear()}
@@ -1279,7 +1286,7 @@ function EasyDatePicker({
             />
           </div>
           <div className="mb-2 grid grid-cols-7 text-center text-xs font-medium text-slate-500">
-            {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((day) => <span key={day}>{day}</span>)}
+            {(locale === 'th' ? ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((day) => <span key={day}>{day}</span>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: firstWeekday }).map((_, index) => <span key={`blank-${index}`} />)}
@@ -1291,7 +1298,7 @@ function EasyDatePicker({
                 <button
                   key={day}
                   type="button"
-                  aria-label={`เลือกวันที่ ${day}`}
+                  aria-label={`${text('เลือกวันที่', 'Select date')} ${day}`}
                   disabled={isFuture}
                   onClick={() => chooseDay(day)}
                   className={`aspect-square rounded-lg text-sm transition ${
@@ -1302,7 +1309,7 @@ function EasyDatePicker({
               );
             })}
           </div>
-          <p className="mt-3 text-center text-xs text-slate-500">พ.ศ. {year + 543} (ค.ศ. {year})</p>
+          <p className="mt-3 text-center text-xs text-slate-500">{locale === 'th' ? `พ.ศ. ${year + 543} (ค.ศ. ${year})` : `Year ${year} AD`}</p>
         </div>
       )}
     </div>

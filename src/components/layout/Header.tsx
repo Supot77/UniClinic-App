@@ -25,6 +25,10 @@ import type { UserRole } from "@/types/database";
 import ProfileAccountDrawer from "@/components/profile/ProfileAccountDrawer";
 import { getUnreadCount } from "@/services/dashboardService";
 import { dashboardPathForRole } from "@/features/dashboard/roles";
+import { useLocale } from "@/context/LocaleContext";
+import type { MessageKey } from "@/i18n/messages";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLanguage } from "@fortawesome/free-solid-svg-icons";
 
 type NavigationIcon = ComponentType<{
   className?: string;
@@ -33,13 +37,13 @@ type NavigationIcon = ComponentType<{
 
 interface NavigationLink {
   href: string;
-  label: string;
+  label: MessageKey;
   icon: NavigationIcon;
 }
 
 interface NavigationGroup {
   id: string;
-  label: string;
+  label: MessageKey;
   icon: NavigationIcon;
   items: NavigationLink[];
 }
@@ -48,76 +52,76 @@ const navigationByRole: Record<UserRole, NavigationGroup[]> = {
   patient: [
     {
       id: "appointments",
-      label: "นัดหมาย",
+      label: "header.appointments",
       icon: ClipboardClock,
       items: [
-        { href: "/appointments", label: "นัดหมายของฉัน", icon: ClipboardClock },
-        { href: "/schedules", label: "ตารางตรวจแพทย์", icon: CalendarDays },
+        { href: "/appointments", label: "header.myAppointments", icon: ClipboardClock },
+        { href: "/schedules", label: "header.doctorSchedule", icon: CalendarDays },
       ],
     },
     {
       id: "health",
-      label: "สุขภาพของฉัน",
+      label: "header.myHealth",
       icon: Hospital,
       items: [
-        { href: "/records", label: "ประวัติและผลการรักษา", icon: ClipboardClock },
-        { href: "/reminders", label: "แจ้งเตือนยา", icon: Bell },
+        { href: "/records", label: "header.recordsResults", icon: ClipboardClock },
+        { href: "/reminders", label: "header.medicationReminders", icon: Bell },
       ],
     },
   ],
   medical: [
     {
       id: "care",
-      label: "งานตรวจ",
+      label: "header.clinicalCare",
       icon: Stethoscope,
       items: [
-        { href: "/appointments", label: "นัดหมายผู้ป่วย", icon: ClipboardClock },
-        { href: "/patients/search", label: "ค้นหาผู้ป่วย", icon: UserSearch },
-        { href: "/records", label: "บันทึกการรักษา", icon: ClipboardClock },
+        { href: "/appointments", label: "header.patientAppointments", icon: ClipboardClock },
+        { href: "/patients/search", label: "header.findPatients", icon: UserSearch },
+        { href: "/records", label: "header.medicalRecords", icon: ClipboardClock },
       ],
     },
     {
       id: "schedule",
-      label: "ตารางตรวจ",
+      label: "header.schedule",
       icon: CalendarDays,
-      items: [{ href: "/schedules", label: "ตารางตรวจแพทย์", icon: CalendarDays }],
+      items: [{ href: "/schedules", label: "header.doctorSchedules", icon: CalendarDays }],
     },
     {
       id: "pharmacy",
-      label: "งานยา",
+      label: "header.pharmacy",
       icon: Package,
-      items: [{ href: "/pharmacy", label: "คลังยา", icon: Package }],
+      items: [{ href: "/pharmacy", label: "header.medicationInventory", icon: Package }],
     },
   ],
   staff_admin: [
     {
       id: "clinic",
-      label: "จัดการคลินิก",
+      label: "header.clinicManagement",
       icon: Hospital,
       items: [
-        { href: "/appointments", label: "นัดหมาย", icon: ClipboardClock },
-        { href: "/schedules", label: "ตารางและรอบตรวจ", icon: CalendarDays },
-        { href: "/departments", label: "จัดการแผนก", icon: Hospital },
+        { href: "/appointments", label: "header.appointments", icon: ClipboardClock },
+        { href: "/schedules", label: "header.schedulesAndSlots", icon: CalendarDays },
+        { href: "/departments", label: "header.manageDepartments", icon: Hospital },
       ],
     },
     {
       id: "users",
-      label: "ผู้ใช้งาน",
+      label: "header.accounts",
       icon: UserSearch,
-      items: [{ href: "/staff/accounts", label: "จัดการผู้ใช้งาน", icon: UserSearch }],
+      items: [{ href: "/staff/accounts", label: "header.manageAccounts", icon: UserSearch }],
     },
     {
       id: "follow-up",
-      label: "ติดตามผู้ป่วย",
+      label: "header.patientFollowUp",
       icon: Bell,
-      items: [{ href: "/reminders", label: "แจ้งเตือนยา", icon: Bell }],
+      items: [{ href: "/reminders", label: "header.medicationReminders", icon: Bell }],
     },
   ],
 };
 
 const guestNavigationLink: NavigationLink = {
   href: "/schedules",
-  label: "ตารางตรวจแพทย์",
+  label: "header.doctorSchedule",
   icon: CalendarDays,
 };
 
@@ -132,6 +136,7 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, isLoading, signOut, role } = useAuth();
+  const { locale, setLocale, t } = useLocale();
   const logoHref = isAuthenticated && role ? dashboardPathForRole(role) : "/";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -214,12 +219,12 @@ export default function Header() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpenGroup(null);
       }}
     >
-      <nav aria-label="เมนูหลัก" className="flex min-h-16 w-full items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
+      <nav aria-label={t("header.mainMenu")} className="flex min-h-16 w-full items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={() => { setMobileMenuOpen((open) => !open); setOpenGroup(null); }}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-brand-sm text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent lg:hidden"
-          aria-label={mobileMenuOpen ? "ปิดเมนู" : "เปิดเมนู"}
+          aria-label={mobileMenuOpen ? t("header.closeMenu") : t("header.openMenu")}
           aria-expanded={mobileMenuOpen}
           aria-controls="mobile-navigation"
         >
@@ -236,7 +241,7 @@ export default function Header() {
             <>
               <Link href="/dashboard" aria-current={isActive("/dashboard") ? "page" : undefined} className={linkClasses(isActive("/dashboard"))}>
                 <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-                <span>ภาพรวม</span>
+                <span>{t("header.overview")}</span>
               </Link>
               {visibleGroups.map((group) => {
                 const Icon = group.icon;
@@ -255,7 +260,7 @@ export default function Header() {
                     className={`${linkClasses(active)} cursor-pointer border-0`}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />
-                    <span>{group.label}</span>
+                    <span>{t(group.label)}</span>
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
                   </button>
                 );
@@ -264,7 +269,7 @@ export default function Header() {
           ) : (
             <Link href={guestNavigationLink.href} aria-current={isActive(guestNavigationLink.href) ? "page" : undefined} className={linkClasses(isActive(guestNavigationLink.href))}>
               <CalendarDays className="h-4 w-4" aria-hidden="true" />
-              <span>{guestNavigationLink.label}</span>
+              <span>{t(guestNavigationLink.label)}</span>
             </Link>
           )}
         </div>
@@ -276,17 +281,17 @@ export default function Header() {
               aria-current={isActive("/notifications") ? "page" : undefined}
               aria-label={
                 isAdmin
-                  ? "แจ้งเตือน ดูประกาศจากผู้ดูแลระบบ"
+                  ? t("header.announcements")
                   : activeUnreadCount !== null && activeUnreadCount > 0
-                  ? `แจ้งเตือน มี ${activeUnreadCount} รายการที่ยังไม่ได้อ่าน`
-                  : "แจ้งเตือน ไม่มีรายการที่ยังไม่ได้อ่าน"
+                  ? t("header.unreadNotifications", { count: activeUnreadCount })
+                  : t("header.noUnreadNotifications")
               }
               title={
                 isAdmin
-                  ? "แจ้งเตือน (ประกาศจากผู้ดูแลระบบ)"
+                  ? t("header.notificationsAnnouncements")
                   : activeUnreadCount !== null && activeUnreadCount > 0
-                  ? `แจ้งเตือน (${activeUnreadCount} รายการที่ยังไม่ได้อ่าน)`
-                  : "แจ้งเตือน (ไม่มีรายการที่ยังไม่ได้อ่าน)"
+                  ? t("header.notificationsUnread", { count: activeUnreadCount })
+                  : t("header.notificationsNone")
               }
               className="relative flex size-10 items-center justify-center rounded-brand-sm text-brand-footer-text transition-[background-color,color] duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
             >
@@ -323,8 +328,21 @@ export default function Header() {
               className="hidden min-h-10 items-center gap-2 rounded-full bg-brand-accent px-4 text-[13px] font-bold text-brand-ink transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:flex"
             >
               <Stethoscope className="h-4 w-4" aria-hidden="true" />
-              จองนัดหมาย
+              {t("header.bookAppointment")}
             </Link>
+          )}
+
+          {((isAuthenticated && role === "patient") || (!isLoading && !isAuthenticated)) && (
+            <button
+              type="button"
+              onClick={() => setLocale(locale === "th" ? "en" : "th")}
+              aria-label={t(locale === "th" ? "language.switchToEnglish" : "language.switchToThai")}
+              title={t(locale === "th" ? "language.switchToEnglish" : "language.switchToThai")}
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-brand-sm border border-white/15 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:px-3"
+            >
+              <FontAwesomeIcon icon={faLanguage} aria-hidden="true" className="size-4" />
+              <span>{locale === "th" ? "EN" : "ไทย"}</span>
+            </button>
           )}
 
           {!isLoading && (isAuthenticated ? (
@@ -332,16 +350,16 @@ export default function Header() {
               type="button"
               onClick={() => setAccountMenuOpen(true)}
               className="flex min-h-10 items-center gap-1.5 rounded-brand-sm border border-white/10 px-2.5 sm:px-3 text-[13px] font-medium text-brand-footer-text transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-              aria-label="เปิดเมนูบัญชีผู้ใช้"
+              aria-label={t("header.openAccountMenu")}
               aria-expanded={accountMenuOpen}
             >
               <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="hidden max-w-28 truncate sm:inline">{user?.displayName ?? "บัญชีผู้ใช้"}</span>
+              <span className="hidden max-w-28 truncate sm:inline">{user?.displayName ?? t("header.account")}</span>
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150 ${accountMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
           ) : (
             <Link href="/login" className="flex min-h-10 items-center gap-2 rounded-full bg-brand-accent px-3 text-[13px] font-bold text-brand-ink transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent sm:px-4">
-              <LogIn className="h-4 w-4" aria-hidden="true" />เข้าสู่ระบบ
+              <LogIn className="h-4 w-4" aria-hidden="true" />{t("header.signIn")}
             </Link>
           ))}
         </div>
@@ -356,16 +374,16 @@ export default function Header() {
                 <div key={group.id} className="col-span-3">
                   <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand-accent">
                     <GroupIcon className="size-4" aria-hidden="true" />
-                    <span>{group.label}</span>
+                    <span>{t(group.label)}</span>
                   </div>
-                  <nav id={`desktop-menu-${group.id}`} aria-label={`${group.label} เมนูย่อย`} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <nav id={`desktop-menu-${group.id}`} aria-label={t("header.submenu", { group: t(group.label) })} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {group.items.map((item) => {
                       const ItemIcon = item.icon;
                       const active = isActive(item.href);
                       return (
                         <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} onClick={() => setOpenGroup(null)} className={`group flex min-h-14 items-center gap-3 rounded-brand-sm px-4 py-3 transition-[background-color,color,transform] duration-150 hover:-translate-y-0.5 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent ${active ? "bg-white/10 text-white" : "text-brand-footer-text"}`}>
                           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-brand-accent"><ItemIcon className="size-4" aria-hidden="true" /></span>
-                          <span className="min-w-0 flex-1 text-sm font-medium">{item.label}</span>
+                          <span className="min-w-0 flex-1 text-sm font-medium">{t(item.label)}</span>
                           <ChevronRight className="size-4 text-white/40 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
                         </Link>
                       );
@@ -379,12 +397,12 @@ export default function Header() {
       )}
 
       {mobileMenuOpen && (
-        <nav id="mobile-navigation" aria-label="เมนูบนมือถือ" className="absolute inset-x-0 top-16 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-white/10 bg-brand-ink px-4 pb-5 pt-3 shadow-2xl lg:hidden">
+        <nav id="mobile-navigation" aria-label={t("header.mobileMenu")} className="absolute inset-x-0 top-16 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-white/10 bg-brand-ink px-4 pb-5 pt-3 shadow-2xl lg:hidden">
           <div className="mx-auto grid max-w-lg gap-1">
             {isAuthenticated && role ? (
               <>
                 <Link href="/dashboard" onClick={closeMobileMenu} aria-current={isActive("/dashboard") ? "page" : undefined} className={linkClasses(isActive("/dashboard"), true)}>
-                  <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden="true" /><span>ภาพรวม</span>
+                  <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden="true" /><span>{t("header.overview")}</span>
                 </Link>
                 {visibleGroups.map((group) => {
                   const Icon = group.icon;
@@ -392,14 +410,14 @@ export default function Header() {
                   return (
                     <div key={group.id}>
                       <button type="button" onClick={() => setOpenGroup(expanded ? null : group.id)} aria-expanded={expanded} aria-controls={`mobile-menu-${group.id}`} className={`flex min-h-11 w-full items-center gap-3 rounded-brand-button px-3 text-left text-[15px] font-medium transition-[background-color,color] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent ${isGroupActive(group) ? "bg-white/15 text-white" : "text-brand-footer-text hover:bg-white/10 hover:text-white"}`}>
-                        <Icon className="h-[18px] w-[18px]" aria-hidden="true" /><span className="flex-1">{group.label}</span><ChevronDown className={`h-4 w-4 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+                        <Icon className="h-[18px] w-[18px]" aria-hidden="true" /><span className="flex-1">{t(group.label)}</span><ChevronDown className={`h-4 w-4 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
                       </button>
                       {expanded && (
                         <div id={`mobile-menu-${group.id}`} className="ml-4 grid gap-1 border-l border-white/15 py-1 pl-3">
                           {group.items.map((item) => {
                             const ItemIcon = item.icon;
                             const active = isActive(item.href);
-                            return <Link key={item.href} href={item.href} onClick={closeMobileMenu} aria-current={active ? "page" : undefined} className={`flex min-h-11 items-center gap-3 rounded-brand-button px-3 text-[15px] transition-colors ${active ? "bg-white/15 text-white" : "text-brand-footer-text hover:bg-white/10 hover:text-white"}`}><ItemIcon className="h-[17px] w-[17px]" aria-hidden="true" /><span>{item.label}</span></Link>;
+                            return <Link key={item.href} href={item.href} onClick={closeMobileMenu} aria-current={active ? "page" : undefined} className={`flex min-h-11 items-center gap-3 rounded-brand-button px-3 text-[15px] transition-colors ${active ? "bg-white/15 text-white" : "text-brand-footer-text hover:bg-white/10 hover:text-white"}`}><ItemIcon className="h-[17px] w-[17px]" aria-hidden="true" /><span>{t(item.label)}</span></Link>;
                           })}
                         </div>
                       )}
@@ -409,14 +427,14 @@ export default function Header() {
               </>
             ) : (
               <Link href={guestNavigationLink.href} onClick={closeMobileMenu} aria-current={isActive(guestNavigationLink.href) ? "page" : undefined} className={linkClasses(isActive(guestNavigationLink.href), true)}>
-                <CalendarDays className="h-[18px] w-[18px]" aria-hidden="true" /><span>{guestNavigationLink.label}</span>
+                <CalendarDays className="h-[18px] w-[18px]" aria-hidden="true" /><span>{t(guestNavigationLink.label)}</span>
               </Link>
             )}
 
             {!isAuthenticated && (
               <div className="mt-2 border-t border-white/10 pt-3">
                 <Link href="/login" onClick={closeMobileMenu} className="flex min-h-11 items-center justify-center gap-2 rounded-brand-button bg-brand-accent px-4 text-[15px] font-bold text-brand-ink">
-                  <LogIn className="h-4 w-4" aria-hidden="true" />เข้าสู่ระบบ
+                  <LogIn className="h-4 w-4" aria-hidden="true" />{t("header.signIn")}
                 </Link>
               </div>
             )}

@@ -24,6 +24,7 @@ import Toast from '@/components/common/Toast';
 import { useScheduling } from '@/features/scheduling/context/SchedulingProvider';
 import type { DoctorLeave, ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
+import { useLocale } from '@/context/LocaleContext';
 import {
   buildSlotBatchPlan,
   deriveSlotStatus,
@@ -158,6 +159,7 @@ export default function ScheduleWorkspace({
   actorId: string;
   canBook?: boolean;
 }) {
+  const { locale, text } = useLocale();
   const canBook = canBookOverride ?? role === 'patient';
   const {
     departments,
@@ -770,7 +772,7 @@ export default function ScheduleWorkspace({
     const today = getTodayDate();
     if (calendarView === 'day') {
       setWeekStart(today);
-      setNotice(`ไปยังวันนี้แล้ว (${formatShortDate(today)})`);
+      setNotice(text(`ไปยังวันนี้แล้ว (${formatShortDate(today, locale)})`, `Showing today (${formatShortDate(today, locale)}).`));
     } else if (calendarView === 'month') {
       setWeekStart(today);
       setNotice('ไปยังเดือนปัจจุบันแล้ว');
@@ -783,7 +785,7 @@ export default function ScheduleWorkspace({
   const handleDrillDownDay = (date: string) => {
     setWeekStart(date);
     setCalendarView('day');
-    setNotice(`แสดงรอบตรวจประจำวันที่ ${formatShortDate(date)}`);
+    setNotice(text(`แสดงรอบตรวจประจำวันที่ ${formatShortDate(date, locale)}`, `Showing appointments for ${formatShortDate(date, locale)}.`));
   };
 
   useEffect(() => {
@@ -823,7 +825,7 @@ export default function ScheduleWorkspace({
               <X className="h-4 w-4" aria-hidden="true" />
               {formError}
             </span>
-            <button type="button" onClick={() => setFormError('')} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-rose-100" aria-label="ปิดข้อความ">
+            <button type="button" onClick={() => setFormError('')} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-rose-100" aria-label={text('ปิดข้อความ', 'Dismiss message')}>
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
@@ -926,7 +928,7 @@ export default function ScheduleWorkspace({
 
 
 
-      <section className="min-w-0" aria-label="ปฏิทินตารางตรวจ" aria-busy={isLoading}>
+      <section className="min-w-0" aria-label={text('ปฏิทินตารางตรวจ', 'Clinic schedule calendar')} aria-busy={isLoading}>
         {isLoading ? (
           <ScheduleSkeleton />
         ) : (

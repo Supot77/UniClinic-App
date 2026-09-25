@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import Toast from '@/components/common/Toast';
 import { getPatientMedicalRecords, getReminders } from '@/services/reminderService';
+import { useLocale } from '@/context/LocaleContext';
 
 export default function LoginToastListener() {
   const { user, role, isLoading } = useAuth();
+  const { text } = useLocale();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,12 +63,11 @@ export default function LoginToastListener() {
       if (!isMounted) return;
 
       if (medNames.length > 0) {
-        const medListText =
-          medNames.slice(0, 2).join(', ') +
-          (medNames.length > 2 ? ` และอีก ${medNames.length - 2} รายการ` : '');
-        setToastMessage(`แจ้งเตือนยา: ${medListText}`);
+        const medListText = medNames.slice(0, 2).join(', ') +
+          (medNames.length > 2 ? text(` และอีก ${medNames.length - 2} รายการ`, ` and ${medNames.length - 2} more`) : '');
+        setToastMessage(`${text('แจ้งเตือนยา:', 'Medication reminder:')} ${medListText}`);
       } else {
-        setToastMessage('แจ้งเตือนยา: ไม่มีรายการยาที่ต้องทานในขณะนี้');
+        setToastMessage(text('แจ้งเตือนยา: ไม่มีรายการยาที่ต้องทานในขณะนี้', 'Medication reminder: No medications are scheduled at this time.'));
       }
     }
 
@@ -75,7 +76,7 @@ export default function LoginToastListener() {
     return () => {
       isMounted = false;
     };
-  }, [user, role, isLoading]);
+  }, [user, role, isLoading, text]);
 
   if (!toastMessage) return null;
 

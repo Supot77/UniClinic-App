@@ -3,6 +3,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { PatientOption } from './types';
+import { useLocale } from '@/context/LocaleContext';
 
 export interface PatientMetaBarProps {
   currentPatient: PatientOption;
@@ -25,10 +26,11 @@ export function PatientMetaBar({
   orderCount = 0,
 }: PatientMetaBarProps) {
   const patientInitial = currentPatient.name ? currentPatient.name.charAt(0) : 'ผ';
+  const { text } = useLocale();
 
   return (
     <section
-      aria-label="ข้อมูลผู้ป่วย"
+      aria-label={text('ข้อมูลผู้ป่วย', 'Patient information')}
       className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-brand-border-soft text-sm"
     >
       {/* ฝั่งซ้าย: ข้อมูลผู้ป่วยปัจจุบัน (ชื่อ, รหัสนักศึกษา, เบอร์โทร, ป้ายจำนวนใบสั่งยา) */}
@@ -43,11 +45,11 @@ export function PatientMetaBar({
           </span>
           {currentPatient.phone && (
             <span className="text-xs text-brand-muted">
-              · โทร: {currentPatient.phone}
+              · {text('โทร:', 'Phone:')} {currentPatient.phone}
             </span>
           )}
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">
-            ใบสั่งยา {orderCount} รายการ
+            {text(`ใบสั่งยา ${orderCount} รายการ`, `${orderCount} prescriptions`)}
           </span>
         </div>
       </div>
@@ -59,13 +61,13 @@ export function PatientMetaBar({
           {currentPatient.allergies && (
             <div className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-1.5 text-xs font-semibold">
               <AlertTriangle size={15} className="text-rose-600 shrink-0" />
-              <span>ประวัติการแพ้ยา: {currentPatient.allergies}</span>
+              <span>{text('ประวัติการแพ้ยา:', 'Medication allergies:')} {currentPatient.allergies}</span>
             </div>
           )}
 
           {canManageMedication && (
             <label className="flex items-center gap-2 text-sm text-brand-body">
-              <span className="text-xs font-semibold text-brand-ink whitespace-nowrap">ผู้ป่วย:</span>
+              <span className="text-xs font-semibold text-brand-ink whitespace-nowrap">{text('ผู้ป่วย:', 'Patient:')}</span>
               <select
                 value={selectedPatientId}
                 onChange={(e) => onSelectPatient(e.target.value)}

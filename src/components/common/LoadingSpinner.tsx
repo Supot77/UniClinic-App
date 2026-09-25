@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { useLocale } from '@/context/LocaleContext';
 
 interface LoadingSpinnerProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -33,6 +34,7 @@ export default function LoadingSpinner({
   className = '',
   center = false,
 }: LoadingSpinnerProps) {
+  const { text } = useLocale();
   const content = (
     <div
       role="status"
@@ -46,7 +48,7 @@ export default function LoadingSpinner({
       {label ? (
         <span className="text-xs font-medium text-slate-600">{label}</span>
       ) : (
-        <span className="sr-only">กำลังโหลด…</span>
+        <span className="sr-only">{text('กำลังโหลด…', 'Loading…')}</span>
       )}
     </div>
   );

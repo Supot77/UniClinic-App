@@ -7,6 +7,7 @@ import { getProfile, updateMyPersonalProfile, updateMyHealthProfile, updateMyPro
 import { createClient } from "@/utils/supabase/client";
 import type { Profile, ProfileTitle, UserRole } from "@/types/database";
 import { formatProfileName, getProfileInitial } from "@/lib/profileName";
+import { useLocale } from "@/context/LocaleContext";
 const supabase = createClient();
 import {
   Phone,
@@ -66,6 +67,7 @@ async function updateProfile(
 
 export default function ProfileContent() {
   const { user, isLoading: authLoading } = useAuth();
+  const { text } = useLocale();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null);
@@ -182,7 +184,7 @@ export default function ProfileContent() {
         .catch((err) => {
           if (active) {
             setError(
-              err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ",
+              err instanceof Error ? err.message : text("โหลดข้อมูลไม่สำเร็จ", "Could not load your information."),
             );
           }
         })
@@ -211,17 +213,17 @@ export default function ProfileContent() {
     setPersonalError(null);
 
     if (!personalForm.first_name.trim() || !personalForm.last_name.trim()) {
-      setPersonalError("กรุณากรอกชื่อและนามสกุล");
+      setPersonalError(text("กรุณากรอกชื่อและนามสกุล", "Enter your first and last name."));
       return;
     }
 
     if (!personalForm.phone.trim()) {
-      setPersonalError("กรุณากรอกเบอร์โทรศัพท์");
+      setPersonalError(text("กรุณากรอกเบอร์โทรศัพท์", "Enter your phone number."));
       return;
     }
 
     if (role === "patient" && !personalForm.emergency_phone.trim()) {
-      setPersonalError("กรุณากรอกเบอร์ติดต่อฉุกเฉิน");
+      setPersonalError(text("กรุณากรอกเบอร์ติดต่อฉุกเฉิน", "Enter an emergency contact number."));
       return;
     }
 
@@ -241,7 +243,7 @@ export default function ProfileContent() {
 
       setEditingPersonal(false);
     } catch (err) {
-      setPersonalError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ");
+      setPersonalError(err instanceof Error ? err.message : text("บันทึกไม่สำเร็จ", "Could not save your changes."));
     } finally {
       setSavingPersonal(false);
     }
@@ -257,12 +259,12 @@ export default function ProfileContent() {
     setHealthError(null);
 
     if (allergyStatus === "yes" && !allergyDetail.trim()) {
-      setHealthError("กรุณากรอกรายละเอียดประวัติแพ้ยา");
+      setHealthError(text("กรุณากรอกรายละเอียดประวัติแพ้ยา", "Describe your medication allergy."));
       return;
     }
 
     if (chronicStatus === "yes" && !chronicDetail.trim()) {
-      setHealthError("กรุณากรอกรายละเอียดโรคประจำตัว");
+      setHealthError(text("กรุณากรอกรายละเอียดโรคประจำตัว", "Describe your chronic condition."));
       return;
     }
 
@@ -280,7 +282,7 @@ export default function ProfileContent() {
 
       setEditingHealth(false);
     } catch (err) {
-      setHealthError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ");
+      setHealthError(err instanceof Error ? err.message : text("บันทึกไม่สำเร็จ", "Could not save your changes."));
     } finally {
       setSavingHealth(false);
     }
@@ -334,7 +336,7 @@ export default function ProfileContent() {
       <main className="mx-auto w-full max-w-6xl px-5 py-10">
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-sm text-slate-600">
-            กรุณาเข้าสู่ระบบเพื่อดูข้อมูลส่วนตัว
+            {text("กรุณาเข้าสู่ระบบเพื่อดูข้อมูลส่วนตัว", "Sign in to view your profile.")}
           </p>
         </div>
       </main>
@@ -360,9 +362,9 @@ export default function ProfileContent() {
   // =========================================================
 
   const statusLabel = (status: HealthStatus | null | undefined) => {
-    if (status === "yes") return "มี";
-    if (status === "no") return "ไม่มี";
-    return "ไม่ทราบ";
+    if (status === "yes") return text("มี", "Yes");
+    if (status === "no") return text("ไม่มี", "No");
+    return text("ไม่ทราบ", "Unknown");
   };
 
   async function uploadAvatar(file: File | undefined) {
@@ -373,7 +375,7 @@ export default function ProfileContent() {
       const avatarUrl = await updateMyProfileAvatar(file);
       setProfile((current) => current ? { ...current, avatar_url: avatarUrl } : current);
     } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ");
+      setAvatarError(err instanceof Error ? err.message : text("อัปโหลดรูปโปรไฟล์ไม่สำเร็จ", "Could not upload your profile photo."));
     } finally {
       setUploadingAvatar(false);
     }
@@ -409,8 +411,8 @@ export default function ProfileContent() {
             {/* Page heading */}
 
             <div className="mb-6">
-              <h1 className="text-[22px] font-bold tracking-tight text-slate-800 sm:text-[24px]">ข้อมูลส่วนตัว</h1>
-              <p className="mt-1 text-sm text-slate-500">จัดการข้อมูลส่วนตัวและข้อมูลสุขภาพของคุณ</p>
+              <h1 className="text-[22px] font-bold tracking-tight text-slate-800 sm:text-[24px]">{text("ข้อมูลส่วนตัว", "My profile")}</h1>
+              <p className="mt-1 text-sm text-slate-500">{text("จัดการข้อมูลส่วนตัวและข้อมูลสุขภาพของคุณ", "Manage your personal and health information.")}</p>
             </div>
 
             {/* =================================================
@@ -431,7 +433,7 @@ export default function ProfileContent() {
                   <section className="min-w-0 overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-[0_3px_14px_rgba(15,77,120,0.05)]">
                     <div className="flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-0">
                       <h2 className="text-[18px] font-bold text-slate-800">
-                        ข้อมูลส่วนตัว
+                        {text("ข้อมูลส่วนตัว", "Personal information")}
                       </h2>
 
                       {!editingPersonal && (
@@ -441,7 +443,7 @@ export default function ProfileContent() {
                           className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs font-semibold text-sky-600 transition hover:bg-sky-50"
                         >
                           <Pencil className="size-4" />
-                          แก้ไขข้อมูล
+                          {text("แก้ไขข้อมูล", "Edit")}
                         </button>
                       )}
                     </div>
@@ -462,13 +464,13 @@ export default function ProfileContent() {
                           {/* Name */}
 
                           <div>
-                            <label className="mb-2 block text-xs font-semibold text-slate-600">คำนำหน้า</label>
+                            <label className="mb-2 block text-xs font-semibold text-slate-600">{text("คำนำหน้า", "Title")}</label>
                             <select
                               value={personalForm.title ?? ""}
                               onChange={(e) => setPersonalForm({ ...personalForm, title: (e.target.value || null) as ProfileTitle | null })}
                               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                             >
-                              <option value="">ไม่ระบุ</option>
+                              <option value="">{text("ไม่ระบุ", "Prefer not to say")}</option>
                               {titleOptionsByRole.patient.map((title) => (
                                 <option key={title} value={title}>{title}</option>
                               ))}
@@ -476,7 +478,7 @@ export default function ProfileContent() {
                           </div>
 
                           <div>
-                            <label className="mb-2 block text-xs font-semibold text-slate-600">ชื่อ</label>
+                            <label className="mb-2 block text-xs font-semibold text-slate-600">{text("ชื่อ", "First name")}</label>
                             <input
                               required
                               value={personalForm.first_name}
@@ -486,7 +488,7 @@ export default function ProfileContent() {
                           </div>
 
                           <div>
-                            <label className="mb-2 block text-xs font-semibold text-slate-600">นามสกุล</label>
+                            <label className="mb-2 block text-xs font-semibold text-slate-600">{text("นามสกุล", "Last name")}</label>
                             <input
                               required
                               value={personalForm.last_name}
@@ -499,7 +501,7 @@ export default function ProfileContent() {
 
                           <div>
                             <label className="mb-2 block text-xs font-semibold text-slate-600">
-                              เบอร์โทรศัพท์
+                              {text("เบอร์โทรศัพท์", "Phone number")}
                             </label>
 
                             <input
@@ -518,7 +520,7 @@ export default function ProfileContent() {
 
                           <div>
                             <label className="mb-2 block text-xs font-semibold text-slate-600">
-                              เบอร์ติดต่อฉุกเฉิน *
+                              {text("เบอร์ติดต่อฉุกเฉิน *", "Emergency contact *")}
                             </label>
 
                             <input
@@ -537,7 +539,7 @@ export default function ProfileContent() {
 
                           <div className="sm:col-span-2">
                             <label className="mb-2 block text-xs font-semibold text-slate-600">
-                              ที่อยู่
+                              {text("ที่อยู่", "Address")}
                             </label>
 
                             <textarea
@@ -568,7 +570,7 @@ export default function ProfileContent() {
                             ) : (
                               <Check className="size-4" />
                             )}
-                            บันทึก
+                            {text("บันทึก", "Save")}
                           </button>
 
                           <button
@@ -578,7 +580,7 @@ export default function ProfileContent() {
                             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                           >
                             <X className="size-4" />
-                            ยกเลิก
+                            {text("ยกเลิก", "Cancel")}
                           </button>
                         </div>
                       </div>
@@ -590,14 +592,14 @@ export default function ProfileContent() {
                           <div className="relative size-16 shrink-0 sm:size-[86px]">
                             <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-sky-100 text-2xl font-semibold text-sky-600 sm:text-[30px]">
                               {profile?.avatar_url ? (
-                                <img src={profile.avatar_url} alt="รูปโปรไฟล์" className="h-full w-full object-cover" />
+                                <img src={profile.avatar_url} alt={text("รูปโปรไฟล์", "Profile photo")} className="h-full w-full object-cover" />
                               ) : (
                                 getProfileInitial(profile)
                               )}
                             </div>
                             <label
                               htmlFor="patient-profile-avatar"
-                              aria-label="เปลี่ยนรูปโปรไฟล์"
+                              aria-label={text("เปลี่ยนรูปโปรไฟล์", "Change profile photo")}
                               className="absolute -bottom-1 -right-1 flex size-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-sky-600 text-white shadow transition hover:bg-sky-700"
                             >
                               {uploadingAvatar ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
@@ -617,16 +619,16 @@ export default function ProfileContent() {
 
                           <div className="min-w-0">
                             <p className="text-[18px] font-bold text-slate-800">
-                              {formatProfileName(profile) || "ไม่ระบุชื่อ"}
+                              {formatProfileName(profile) || text("ไม่ระบุชื่อ", "Name not provided")}
                             </p>
 
                             <span className="mt-2 inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-600">
-                              {roleLabels[role || ""] || "ผู้ใช้งาน"}
+                              {text(roleLabels[role || ""] || "ผู้ใช้งาน", "Patient")}
                             </span>
 
                             <p className="mt-2 text-sm font-medium text-slate-500">
-                              รหัสนักศึกษา:{" "}
-                              {profile?.student_id || "ยังไม่ได้ระบุ"}
+                              {text("รหัสนักศึกษา:", "Student ID:")}{" "}
+                              {profile?.student_id || text("ยังไม่ได้ระบุ", "Not provided")}
                             </p>
                             {avatarError && <p role="alert" className="mt-2 text-xs text-rose-600">{avatarError}</p>}
                           </div>
@@ -645,11 +647,11 @@ export default function ProfileContent() {
 
                               <div>
                                 <p className="text-xs text-slate-400">
-                                  เบอร์โทรศัพท์
+                                  {text("เบอร์โทรศัพท์", "Phone number")}
                                 </p>
 
                                 <p className="mt-1 text-sm font-medium text-slate-700">
-                                  {profile?.phone || "ยังไม่ได้ระบุ"}
+                                  {profile?.phone || text("ยังไม่ได้ระบุ", "Not provided")}
                                 </p>
                               </div>
                             </div>
@@ -664,7 +666,7 @@ export default function ProfileContent() {
                               </div>
 
                               <div className="min-w-0">
-                                <p className="text-xs text-slate-400">อีเมล</p>
+                                <p className="text-xs text-slate-400">{text("อีเมล", "Email")}</p>
 
                                 <p className="mt-1 break-all text-sm font-medium text-slate-700">
                                   {user.email || "-"}
@@ -683,11 +685,11 @@ export default function ProfileContent() {
 
                               <div>
                                 <p className="text-xs text-slate-400">
-                                  เบอร์ติดต่อฉุกเฉิน
+                                  {text("เบอร์ติดต่อฉุกเฉิน", "Emergency contact")}
                                 </p>
 
                                 <p className="mt-1 text-sm font-medium text-slate-700">
-                                  {profile?.emergency_phone || "ยังไม่ได้ระบุ"}
+                                  {profile?.emergency_phone || text("ยังไม่ได้ระบุ", "Not provided")}
                                 </p>
                               </div>
                             </div>
@@ -703,11 +705,11 @@ export default function ProfileContent() {
 
                               <div className="min-w-0">
                                 <p className="text-xs text-slate-400">
-                                  ที่อยู่
+                                  {text("ที่อยู่", "Address")}
                                 </p>
 
                                 <p className="mt-1 text-sm font-medium leading-6 text-slate-700">
-                                  {profile?.address || "ยังไม่ได้ระบุ"}
+                                  {profile?.address || text("ยังไม่ได้ระบุ", "Not provided")}
                                 </p>
                               </div>
                             </div>
@@ -725,11 +727,11 @@ export default function ProfileContent() {
                     <div className="flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-0">
                       <div>
                         <h2 className="text-[18px] font-bold text-slate-800">
-                          ข้อมูลสุขภาพ
+                          {text("ข้อมูลสุขภาพ", "Health information")}
                         </h2>
 
                         <p className="mt-1 text-xs text-slate-400">
-                          ข้อมูลสุขภาพ
+                          {text("ข้อมูลสุขภาพ", "Health information")}
                         </p>
                       </div>
 
@@ -740,7 +742,7 @@ export default function ProfileContent() {
                           className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs font-semibold text-sky-600 transition hover:bg-sky-50"
                         >
                           <Pencil className="size-4" />
-                          แก้ไขข้อมูล
+                          {text("แก้ไขข้อมูล", "Edit")}
                         </button>
                       )}
                     </div>
@@ -759,7 +761,7 @@ export default function ProfileContent() {
 
                         <div>
                           <p className="mb-3 text-sm font-semibold text-slate-700">
-                            ประวัติแพ้ยา
+                            {text("ประวัติแพ้ยา", "Medication allergies")}
                           </p>
 
                           <div className="flex flex-wrap gap-2">
@@ -781,11 +783,7 @@ export default function ProfileContent() {
                                     className="sr-only"
                                   />
 
-                                  {s === "yes"
-                                    ? "มี"
-                                    : s === "no"
-                                      ? "ไม่มี"
-                                      : "ไม่ทราบ"}
+                                  {statusLabel(s)}
                                 </label>
                               ),
                             )}
@@ -795,7 +793,7 @@ export default function ProfileContent() {
                             <textarea
                               value={allergyDetail}
                               onChange={(e) => setAllergyDetail(e.target.value)}
-                              placeholder="ระบุรายละเอียดประวัติแพ้ยา"
+                              placeholder={text("ระบุรายละเอียดประวัติแพ้ยา", "Describe your medication allergies")}
                               rows={3}
                               className="mt-3 w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                             />
@@ -806,7 +804,7 @@ export default function ProfileContent() {
 
                         <div>
                           <p className="mb-3 text-sm font-semibold text-slate-700">
-                            โรคประจำตัว
+                            {text("โรคประจำตัว", "Chronic conditions")}
                           </p>
 
                           <div className="flex flex-wrap gap-2">
@@ -828,11 +826,7 @@ export default function ProfileContent() {
                                     className="sr-only"
                                   />
 
-                                  {s === "yes"
-                                    ? "มี"
-                                    : s === "no"
-                                      ? "ไม่มี"
-                                      : "ไม่ทราบ"}
+                                  {statusLabel(s)}
                                 </label>
                               ),
                             )}
@@ -842,7 +836,7 @@ export default function ProfileContent() {
                             <textarea
                               value={chronicDetail}
                               onChange={(e) => setChronicDetail(e.target.value)}
-                              placeholder="ระบุรายละเอียดโรคประจำตัว"
+                              placeholder={text("ระบุรายละเอียดโรคประจำตัว", "Describe your chronic conditions")}
                               rows={3}
                               className="mt-3 w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-50"
                             />
@@ -863,7 +857,7 @@ export default function ProfileContent() {
                             ) : (
                               <Check className="size-4" />
                             )}
-                            บันทึก
+                            {text("บันทึก", "Save")}
                           </button>
 
                           <button
@@ -877,7 +871,7 @@ export default function ProfileContent() {
                             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                           >
                             <X className="size-4" />
-                            ยกเลิก
+                            {text("ยกเลิก", "Cancel")}
                           </button>
                         </div>
                       </div>
@@ -908,7 +902,7 @@ export default function ProfileContent() {
                             </div>
 
                             <p className="mt-5 text-sm font-semibold text-slate-700">
-                              ประวัติแพ้ยา
+                              {text("ประวัติแพ้ยา", "Medication allergies")}
                             </p>
 
                             <p className="mt-2 text-xs leading-5 text-slate-400">
@@ -916,8 +910,8 @@ export default function ProfileContent() {
                               profile?.allergies
                                 ? profile.allergies
                                 : profile?.allergy_status === "no"
-                                  ? "ไม่มีประวัติแพ้ยาที่ระบุ"
-                                  : "ยังไม่ได้ระบุข้อมูล"}
+                                  ? text("ไม่มีประวัติแพ้ยาที่ระบุ", "No medication allergies reported")
+                                  : text("ยังไม่ได้ระบุข้อมูล", "No information provided")}
                             </p>
                           </div>
 
@@ -945,7 +939,7 @@ export default function ProfileContent() {
                             </div>
 
                             <p className="mt-5 text-sm font-semibold text-slate-700">
-                              โรคประจำตัว
+                              {text("โรคประจำตัว", "Chronic conditions")}
                             </p>
 
                             <p className="mt-2 text-xs leading-5 text-slate-400">
@@ -953,8 +947,8 @@ export default function ProfileContent() {
                               profile?.chronic_diseases
                                 ? profile.chronic_diseases
                                 : profile?.chronic_disease_status === "no"
-                                  ? "ไม่มีโรคประจำตัวที่ระบุ"
-                                  : "ยังไม่ได้ระบุข้อมูล"}
+                                  ? text("ไม่มีโรคประจำตัวที่ระบุ", "No chronic conditions reported")
+                                  : text("ยังไม่ได้ระบุข้อมูล", "No information provided")}
                             </p>
                           </div>
                         </div>
@@ -975,7 +969,7 @@ export default function ProfileContent() {
                       </div>
 
                       <h2 className="text-[18px] font-bold text-slate-800">
-                        ประวัติการรักษาล่าสุด
+                        {text("ประวัติการรักษาล่าสุด", "Recent medical history")}
                       </h2>
                     </div>
 
@@ -989,11 +983,11 @@ export default function ProfileContent() {
                         </div>
 
                         <p className="mt-4 text-sm font-semibold text-slate-700">
-                          ยังไม่มีประวัติการรักษา
+                          {text("ยังไม่มีประวัติการรักษา", "No medical history yet")}
                         </p>
 
                         <p className="mt-1 text-xs text-slate-400">
-                          เมื่อมีข้อมูลการรักษา จะแสดงที่นี่
+                          {text("เมื่อมีข้อมูลการรักษา จะแสดงที่นี่", "Your medical history will appear here.")}
                         </p>
                       </div>
                     </div>

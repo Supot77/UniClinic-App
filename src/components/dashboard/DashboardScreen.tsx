@@ -21,10 +21,15 @@ import {
 import type { AppointmentStatus } from '@/types/database';
 import SegmentedControl from '@/components/common/SegmentedControl';
 import Toast from '@/components/common/Toast';
+import { useLocale } from '@/context/LocaleContext';
 
 const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   pending: 'รอการยืนยัน', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'ตรวจเสร็จแล้ว',
   cancelled: 'ยกเลิก', no_show: 'ไม่มาตามนัด', rejected: 'ปฏิเสธ',
+};
+const appointmentStatusEnglish: Record<AppointmentStatus, string> = {
+  pending: 'Pending', confirmed: 'Confirmed', in_progress: 'In progress', completed: 'Completed',
+  cancelled: 'Cancelled', no_show: 'Missed', rejected: 'Rejected',
 };
 
 const appointmentStatusClasses: Record<AppointmentStatus, string> = {
@@ -63,22 +68,22 @@ function toBangkokDateString(dateTime: string): string {
   }
 }
 
-function formatThaiDateTime(dateTime: string): string {
-  return new Intl.DateTimeFormat('th-TH', {
+function formatThaiDateTime(dateTime: string, locale: 'en' | 'th' = 'th'): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok',
   }).format(new Date(dateTime));
 }
 
-function formatThaiDate(date: string): string {
-  return new Intl.DateTimeFormat('th-TH', {
+function formatThaiDate(date: string, locale: 'en' | 'th' = 'th'): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok',
   }).format(new Date(`${date}T12:00:00+07:00`));
 }
 
-function formatThaiRange(startDate: string, endDate: string): string {
-  if (startDate === endDate) return formatThaiDate(endDate);
-  const formatter = new Intl.DateTimeFormat('th-TH', {
+function formatThaiRange(startDate: string, endDate: string, locale: 'en' | 'th' = 'th'): string {
+  if (startDate === endDate) return formatThaiDate(endDate, locale);
+  const formatter = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok',
   });
   return `${formatter.format(new Date(`${startDate}T12:00:00+07:00`))} – ${formatter.format(new Date(`${endDate}T12:00:00+07:00`))}`;
@@ -102,20 +107,20 @@ function appointmentStartTimestamp(appointment: DashboardAppointment): number | 
   return Number.isNaN(timestamp) ? null : timestamp;
 }
 
-function formatAppointmentCountdownValue(appointment: DashboardAppointment, nowTimestamp: number): string {
+function formatAppointmentCountdownValue(appointment: DashboardAppointment, nowTimestamp: number, locale: 'en' | 'th' = 'th'): string {
   const startTimestamp = appointmentStartTimestamp(appointment);
   if (startTimestamp === null) return '—';
   const remainingMinutes = Math.ceil((startTimestamp - nowTimestamp) / 60_000);
-  if (remainingMinutes <= 0) return 'ถึงเวลานัดแล้ว';
+  if (remainingMinutes <= 0) return locale === 'th' ? 'ถึงเวลานัดแล้ว' : 'Appointment time';
 
   const days = Math.floor(remainingMinutes / (24 * 60));
   const hours = Math.floor((remainingMinutes % (24 * 60)) / 60);
   const parts = [
-    days > 0 ? `${days} วัน` : null,
-    hours > 0 ? `${hours} ชม.` : null,
+    days > 0 ? locale === 'th' ? `${days} วัน` : `${days}d` : null,
+    hours > 0 ? locale === 'th' ? `${hours} ชม.` : `${hours}h` : null,
   ].filter((part): part is string => part !== null);
 
-  return parts.length > 0 ? parts.join(' ') : 'น้อยกว่า 1 ชม.';
+  return parts.length > 0 ? parts.join(' ') : locale === 'th' ? 'น้อยกว่า 1 ชม.' : 'Less than 1 hour';
 }
 
 export function getUpcomingAppointmentsWithinWindow(
@@ -324,15 +329,16 @@ const dashboardContentWidthClass = 'mx-auto w-full max-w-[1600px]';
 
 function DashboardActionLink({
   href,
-  children = 'ดูทั้งหมด',
+  children,
   compactOnMobile = false,
 }: {
   href: string;
   children?: ReactNode;
   compactOnMobile?: boolean;
 }) {
+  const { text } = useLocale();
   return <Link href={href} className={`inline-flex shrink-0 whitespace-nowrap items-center justify-center rounded-lg border border-brand-strong bg-brand-strong font-semibold text-white transition hover:bg-brand-hover ${compactOnMobile ? 'min-h-8 gap-1 px-2.5 text-[11px]' : 'min-h-9 gap-1.5 px-3 text-xs'} sm:min-h-10 sm:gap-2 sm:px-3.5 sm:text-sm`}>
-    {children}
+    {children ?? text('ดูทั้งหมด', 'View all')}
     <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" />
   </Link>;
 }
@@ -378,6 +384,7 @@ function PatientNextAppointmentSummary({
   appointments?: DashboardView['upcomingAppointments'];
   fallbackAppointment?: DashboardView['nextAppointment'];
 }) {
+  const { locale, text } = useLocale();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
   const appointmentList = appointments && appointments.length > 0
@@ -388,7 +395,7 @@ function PatientNextAppointmentSummary({
   const activeIndex = Math.min(selectedIndex, Math.max(0, appointmentList.length - 1));
   const appointment = appointmentList[activeIndex] ?? null;
   const hasMultipleAppointments = appointmentList.length > 1;
-  const countdownValue = appointment ? formatAppointmentCountdownValue(appointment, nowTimestamp) : null;
+  const countdownValue = appointment ? formatAppointmentCountdownValue(appointment, nowTimestamp, locale) : null;
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -399,45 +406,45 @@ function PatientNextAppointmentSummary({
     return () => window.clearInterval(timer);
   }, []);
 
-  return <div className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3 sm:p-4 shadow-xs transition-all" role="region" aria-label="นัดหมายถัดไป">
+  return <div className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3 sm:p-4 shadow-xs transition-all" role="region" aria-label={text('นัดหมายถัดไป', 'Next appointment')}>
     {!appointment ? <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="pr-36 sm:pr-0">
-        <p className="text-xs sm:text-sm font-semibold text-brand-muted">นัดหมายถัดไป</p>
-        <p className="mt-0.5 text-sm sm:text-base font-semibold text-brand-ink">ยังไม่มีนัดหมายที่กำลังจะถึง</p>
+        <p className="text-xs sm:text-sm font-semibold text-brand-muted">{text('นัดหมายถัดไป', 'Next appointment')}</p>
+        <p className="mt-0.5 text-sm sm:text-base font-semibold text-brand-ink">{text('ยังไม่มีนัดหมายที่กำลังจะถึง', 'You have no upcoming appointments.')}</p>
       </div>
-      <Link href="/appointments" className="absolute right-0 top-0 inline-flex min-h-8 w-fit items-center justify-center gap-1 px-2.5 rounded-lg border border-brand-strong bg-white text-[11px] font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:static sm:min-h-10 sm:gap-2 sm:rounded-brand-button sm:px-3.5 sm:text-sm">ดูนัดหมายทั้งหมด <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
+      <Link href="/appointments" className="absolute right-0 top-0 inline-flex min-h-8 w-fit items-center justify-center gap-1 px-2.5 rounded-lg border border-brand-strong bg-white text-[11px] font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:static sm:min-h-10 sm:gap-2 sm:rounded-brand-button sm:px-3.5 sm:text-sm">{text('ดูนัดหมายทั้งหมด', 'View all appointments')} <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
     </div> : <div className="relative flex flex-col gap-2.5">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
         <span className="flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-strong"><CalendarDays className="size-4 sm:size-5" aria-hidden="true" /></span>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-brand-muted">นัดหมายถัดไป{hasMultipleAppointments && ` · ${activeIndex + 1}/${appointmentList.length}`}</p>
-          <p className="text-lg font-bold leading-tight text-brand-ink sm:text-xl">คิว #{appointment.queueNumber ?? '—'}</p>
+          <p className="text-xs font-medium text-brand-muted">{text('นัดหมายถัดไป', 'Next appointment')}{hasMultipleAppointments && ` · ${activeIndex + 1}/${appointmentList.length}`}</p>
+          <p className="text-lg font-bold leading-tight text-brand-ink sm:text-xl">{text('คิว', 'Queue')} #{appointment.queueNumber ?? '—'}</p>
         </div>
         </div>
-        <Link href="/appointments" className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-brand-strong bg-brand-strong px-2.5 text-[11px] font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-9 sm:gap-2 sm:px-3 sm:text-xs">ดูนัดหมาย <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
+        <Link href="/appointments" className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-brand-strong bg-brand-strong px-2.5 text-[11px] font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-9 sm:gap-2 sm:px-3 sm:text-xs">{text('ดูนัดหมาย', 'View appointment')} <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
       </div>
-      <dl className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)]" aria-label="รายละเอียดวันเวลาและข้อมูลนัดหมาย">
+      <dl className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)]" aria-label={text('รายละเอียดวันเวลาและข้อมูลนัดหมาย', 'Appointment details')}>
         <div className="col-span-2 min-w-0 rounded-xl border border-brand-border-soft bg-brand-page/45 px-3 py-2.5 sm:col-span-1 sm:px-4 sm:py-3">
-          <dt className="text-xs font-medium text-brand-muted">วันนัด</dt>
-          <dd className="mt-1 break-words text-base font-bold leading-6 text-brand-ink sm:text-lg">{formatThaiDate(appointment.date)}</dd>
+          <dt className="text-xs font-medium text-brand-muted">{text('วันนัด', 'Date')}</dt>
+          <dd className="mt-1 break-words text-base font-bold leading-6 text-brand-ink sm:text-lg">{formatThaiDate(appointment.date, locale)}</dd>
         </div>
         <div className="min-w-0 rounded-xl border border-brand-border-soft bg-brand-page/45 px-3 py-2.5 sm:px-4 sm:py-3">
-          <dt className="text-xs font-medium text-brand-muted">เวลา</dt>
-          <dd className="mt-1 text-lg font-bold leading-6 text-brand-ink sm:text-xl">{appointment.startTime.slice(0, 5)} น.</dd>
+          <dt className="text-xs font-medium text-brand-muted">{text('เวลา', 'Time')}</dt>
+          <dd className="mt-1 text-lg font-bold leading-6 text-brand-ink sm:text-xl">{appointment.startTime.slice(0, 5)}{text(' น.', '')}</dd>
         </div>
         <div className="min-w-0 rounded-xl border border-brand-strong/35 bg-brand-soft/55 px-3 py-2.5 sm:px-4 sm:py-3">
-          <dt className="flex items-center gap-1 text-xs font-semibold text-brand-strong"><Clock3 className="size-3.5 shrink-0" aria-hidden="true" />เหลือเวลา</dt>
+          <dt className="flex items-center gap-1 text-xs font-semibold text-brand-strong"><Clock3 className="size-3.5 shrink-0" aria-hidden="true" />{text('เหลือเวลา', 'Time remaining')}</dt>
           <dd className="mt-1 text-lg font-bold leading-6 text-brand-strong sm:text-xl">{countdownValue}</dd>
         </div>
-        <div className="min-w-0 px-1 py-1.5 lg:px-2"><dt className="text-[11px] text-brand-muted sm:text-xs">แพทย์</dt><dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-brand-ink">{appointment.doctorName}</dd></div>
-        <div className="min-w-0 px-1 py-1.5 lg:px-2"><dt className="text-[11px] text-brand-muted sm:text-xs">แผนก</dt><dd className="mt-0.5 truncate text-sm font-semibold text-brand-ink">{appointment.departmentName}</dd></div>
+        <div className="min-w-0 px-1 py-1.5 lg:px-2"><dt className="text-[11px] text-brand-muted sm:text-xs">{text('แพทย์', 'Doctor')}</dt><dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-brand-ink">{appointment.doctorName}</dd></div>
+        <div className="min-w-0 px-1 py-1.5 lg:px-2"><dt className="text-[11px] text-brand-muted sm:text-xs">{text('แผนก', 'Department')}</dt><dd className="mt-0.5 truncate text-sm font-semibold text-brand-ink">{appointment.departmentName}</dd></div>
         <div className="col-span-2 min-w-0 px-1 py-1.5 sm:col-span-1 lg:px-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0"><dt className="text-[11px] text-brand-muted sm:text-xs">สถานะ</dt><dd className="mt-0.5"><span className={`inline-flex rounded-full px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-semibold ${appointmentStatusClasses[appointment.status]}`}>{appointmentStatusLabels[appointment.status]}</span></dd></div>
-            <div className="flex shrink-0 items-center gap-1 lg:absolute lg:right-[7.5rem] lg:top-0" aria-label="เลื่อนดูนัดหมาย">
-              <button type="button" aria-label="นัดหมายก่อนหน้า" title="นัดหมายก่อนหน้า" disabled={activeIndex === 0} onClick={() => setSelectedIndex((current) => Math.max(0, current - 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronLeft className="size-4 sm:size-5" aria-hidden="true" /></button>
-              <button type="button" aria-label="นัดหมายถัดไป" title="นัดหมายถัดไป" disabled={activeIndex === appointmentList.length - 1} onClick={() => setSelectedIndex((current) => Math.min(appointmentList.length - 1, current + 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronRight className="size-4 sm:size-5" aria-hidden="true" /></button>
+            <div className="min-w-0"><dt className="text-[11px] text-brand-muted sm:text-xs">{text('สถานะ', 'Status')}</dt><dd className="mt-0.5"><span className={`inline-flex rounded-full px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-semibold ${appointmentStatusClasses[appointment.status]}`}>{text(appointmentStatusLabels[appointment.status], appointmentStatusEnglish[appointment.status])}</span></dd></div>
+            <div className="flex shrink-0 items-center gap-1 lg:absolute lg:right-[7.5rem] lg:top-0" aria-label={text('เลื่อนดูนัดหมาย', 'Browse appointments')}>
+              <button type="button" aria-label={text('นัดหมายก่อนหน้า', 'Previous appointment')} title={text('นัดหมายก่อนหน้า', 'Previous appointment')} disabled={activeIndex === 0} onClick={() => setSelectedIndex((current) => Math.max(0, current - 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronLeft className="size-4 sm:size-5" aria-hidden="true" /></button>
+              <button type="button" aria-label={text('นัดหมายถัดไป', 'Next appointment')} title={text('นัดหมายถัดไป', 'Next appointment')} disabled={activeIndex === appointmentList.length - 1} onClick={() => setSelectedIndex((current) => Math.min(appointmentList.length - 1, current + 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronRight className="size-4 sm:size-5" aria-hidden="true" /></button>
             </div>
           </div>
         </div>
@@ -660,6 +667,7 @@ function PatientMedicationLog({ medication, onRefresh }: {
   medication: NonNullable<DashboardView['patientMedications']>[number];
   onRefresh: () => void;
 }) {
+  const { text } = useLocale();
   const [busyDose, setBusyDose] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const doses = medication.todayDoses ?? [];
@@ -671,7 +679,7 @@ function PatientMedicationLog({ medication, onRefresh }: {
       await recordPatientMedicationTaken(medication.id, scheduledAt);
       onRefresh();
     } catch (errorValue) {
-      setActionError(errorValue instanceof Error ? errorValue.message : 'บันทึกผลการกินยาไม่สำเร็จ');
+      setActionError(errorValue instanceof Error ? errorValue.message : text('บันทึกผลการกินยาไม่สำเร็จ', 'Could not save the medication log.'));
     } finally {
       setBusyDose(null);
     }
@@ -680,22 +688,22 @@ function PatientMedicationLog({ medication, onRefresh }: {
   if (doses.length === 0) return null;
 
   return <div className="mt-3.5 border-t border-brand-border-soft pt-3">
-    <p className="text-xs font-semibold text-brand-muted sm:text-sm">บันทึกการกินยาวันนี้</p>
+    <p className="text-xs font-semibold text-brand-muted sm:text-sm">{text('บันทึกการกินยาวันนี้', 'Today’s medication log')}</p>
     <div className="mt-2 flex flex-wrap gap-2">
       {doses.map((dose) => dose.status === 'taken' ? (
         <span key={dose.scheduledAt} className="inline-flex min-h-7 sm:min-h-8 items-center rounded-lg bg-status-success-bg px-2.5 sm:px-3 text-xs font-semibold text-status-success sm:text-sm">
-          {dose.time} น. · กินแล้ว
+          {dose.time}{text(' น. · กินแล้ว', ' · Taken')}
         </span>
       ) : (
         <div key={dose.scheduledAt} className="inline-flex items-center gap-2 rounded-lg border border-brand-border-soft bg-brand-surface px-2 py-1">
-          <span className="text-xs text-brand-body sm:text-sm">{dose.time} น. · ยังไม่ได้บันทึก</span>
+          <span className="text-xs text-brand-body sm:text-sm">{dose.time}{text(' น. · ยังไม่ได้บันทึก', ' · Not recorded')}</span>
           <button
             type="button"
             disabled={busyDose === dose.scheduledAt}
             onClick={() => void recordTaken(dose.scheduledAt)}
             className="inline-flex min-h-7 sm:min-h-8 items-center rounded-md bg-brand-strong px-2 sm:px-2.5 text-xs font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
           >
-            {busyDose === dose.scheduledAt ? 'กำลังบันทึก…' : 'กินแล้ว'}
+            {busyDose === dose.scheduledAt ? text('กำลังบันทึก…', 'Saving…') : text('กินแล้ว', 'Taken')}
           </button>
         </div>
       ))}
@@ -711,11 +719,12 @@ function PatientExamStatDetails({
   title: string;
   appointments: DashboardView['appointmentQueue'];
 }) {
+  const { locale, text } = useLocale();
   return <div id="patient-exam-stat-details" role="region" aria-live="polite" aria-label={title} className="rounded-xl border border-brand-border-soft bg-brand-page/35 px-3 py-3 sm:col-span-3 sm:order-2 sm:px-4">
-    {appointments.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border-soft px-3 py-3 text-xs text-brand-muted sm:text-sm">ไม่พบรายการนัดหมายในช่วงนี้</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    {appointments.length === 0 ? <p className="rounded-lg border border-dashed border-brand-border-soft px-3 py-3 text-xs text-brand-muted sm:text-sm">{text('ไม่พบรายการนัดหมายในช่วงนี้', 'No appointments found in this period.')}</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {appointments.map((appointment) => <Link key={appointment.id} href={`/records?appointment=${encodeURIComponent(appointment.id)}`} className="min-w-0 rounded-lg border border-brand-border-soft bg-white px-3 py-3 text-left transition hover:border-brand-strong hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">
-        <div className="flex items-start justify-between gap-2"><p className="min-w-0 truncate text-sm font-semibold text-brand-ink sm:text-base">คิว #{appointment.queueNumber ?? '—'}</p><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${appointmentStatusClasses[appointment.status]}`}>{appointmentStatusLabels[appointment.status]}</span></div>
-        <p className="mt-1 truncate text-xs text-brand-body sm:text-sm">{formatThaiDate(appointment.date)} · {appointment.startTime} น.</p>
+        <div className="flex items-start justify-between gap-2"><p className="min-w-0 truncate text-sm font-semibold text-brand-ink sm:text-base">{text('คิว', 'Queue')} #{appointment.queueNumber ?? '—'}</p><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${appointmentStatusClasses[appointment.status]}`}>{text(appointmentStatusLabels[appointment.status], appointmentStatusEnglish[appointment.status])}</span></div>
+        <p className="mt-1 truncate text-xs text-brand-body sm:text-sm">{formatThaiDate(appointment.date, locale)} · {appointment.startTime}{text(' น.', '')}</p>
         <p className="mt-1 truncate text-xs font-medium text-brand-ink sm:text-sm">{appointment.doctorName}</p>
         <p className="mt-0.5 truncate text-xs text-brand-muted sm:text-sm">{appointment.departmentName}</p>
       </Link>)}
@@ -724,6 +733,7 @@ function PatientExamStatDetails({
 }
 
 function PatientExamStatsSection({ view }: { view: DashboardView }) {
+  const { text } = useLocale();
   const statuses = view.appointmentStatuses.filter((item) => item.status !== 'rejected');
   const totalAppointments = statuses.reduce((sum, item) => sum + item.count, 0);
   const completedCount = statuses.find((s) => s.status === 'completed')?.count ?? 0;
@@ -732,7 +742,7 @@ function PatientExamStatsSection({ view }: { view: DashboardView }) {
   const pendingCount = statuses.find((s) => s.status === 'pending')?.count ?? 0;
   const activeCount = inProgressCount + confirmedCount + pendingCount;
   const [selectedStat, setSelectedStat] = useState<'all' | 'active' | 'completed' | null>(null);
-  const selectedDetailsTitle = selectedStat === null ? null : selectedStat === 'all' ? 'สรุปนัดหมายทั้งหมด' : selectedStat === 'active' ? 'สรุปนัดที่กำลังรอหรือกำลังตรวจ' : 'สรุปนัดที่ตรวจเสร็จแล้ว';
+  const selectedDetailsTitle = selectedStat === null ? null : selectedStat === 'all' ? text('สรุปนัดหมายทั้งหมด', 'All appointments') : selectedStat === 'active' ? text('สรุปนัดที่กำลังรอหรือกำลังตรวจ', 'Pending or in-progress appointments') : text('สรุปนัดที่ตรวจเสร็จแล้ว', 'Completed appointments');
   const visibleAppointments = useMemo(() => {
     if (selectedStat === null) return [];
     const rangeAppointments = sortAppointmentsByStartTime(filterAppointmentsWithinDateRange(view.appointmentQueue, view.startDate, view.date));
@@ -747,35 +757,35 @@ function PatientExamStatsSection({ view }: { view: DashboardView }) {
   const statButtonClass = (selected: boolean) => `relative w-full rounded-xl border p-2.5 text-left transition-[background-color,border-color,box-shadow,transform] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:p-3 ${selected ? 'border-brand-strong bg-brand-soft ring-2 ring-brand-strong/35' : 'border-brand-border-soft bg-brand-page/40 hover:border-brand-border-strong hover:bg-brand-soft/50'}`;
 
   return (
-    <section aria-label="สรุปสถานะนัดหมาย" className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all">
+    <section aria-label={text('สรุปสถานะนัดหมาย', 'Appointment status summary')} className="rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs transition-all">
       <div className="flex items-start justify-between gap-2 border-b border-brand-border-soft pb-3 sm:items-center sm:gap-1.5">
         <div className="min-w-0">
-          <h2 className="text-base font-bold text-brand-ink sm:text-lg">สรุปสถานะนัดหมาย</h2>
-          <p className="text-xs text-brand-muted sm:text-sm">ดูจำนวนนัดหมายแยกตามสถานะ</p>
+          <h2 className="text-base font-bold text-brand-ink sm:text-lg">{text('สรุปสถานะนัดหมาย', 'Appointment status summary')}</h2>
+          <p className="text-xs text-brand-muted sm:text-sm">{text('ดูจำนวนนัดหมายแยกตามสถานะ', 'Appointments grouped by status')}</p>
         </div>
-        <DashboardActionLink href="/appointments" compactOnMobile>ดูนัดหมายทั้งหมด</DashboardActionLink>
+        <DashboardActionLink href="/appointments" compactOnMobile>{text('ดูนัดหมายทั้งหมด', 'View all appointments')}</DashboardActionLink>
       </div>
 
       <div className="mt-4 space-y-4">
         <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
           <button type="button" aria-expanded={selectedStat === 'all'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('all')} className={statButtonClass(selectedStat === 'all')}>
-            <span className="text-xs font-medium text-brand-muted sm:text-sm">นัดหมายทั้งหมด</span>
+            <span className="text-xs font-medium text-brand-muted sm:text-sm">{text('นัดหมายทั้งหมด', 'All appointments')}</span>
             <p className="mt-1 text-2xl font-bold tabular-nums text-brand-strong sm:text-3xl">{totalAppointments}</p>
-            <span className="text-xs text-brand-muted sm:text-sm">รายการในช่วงนี้</span>
+            <span className="text-xs text-brand-muted sm:text-sm">{text('รายการในช่วงนี้', 'in this period')}</span>
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'all' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
           {selectedStat === 'all' && selectedDetailsTitle && <PatientExamStatDetails title={selectedDetailsTitle} appointments={visibleAppointments} />}
           <button type="button" aria-expanded={selectedStat === 'active'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('active')} className={statButtonClass(selectedStat === 'active')}>
-            <span className="text-xs font-medium text-brand-muted sm:text-sm">กำลังรอหรือกำลังตรวจ</span>
+            <span className="text-xs font-medium text-brand-muted sm:text-sm">{text('กำลังรอหรือกำลังตรวจ', 'Pending or in progress')}</span>
             <p className="mt-1 text-2xl font-bold tabular-nums text-brand-strong sm:text-3xl">{activeCount}</p>
-            <span className="text-xs text-brand-muted sm:text-sm">นัดที่ยังไม่เสร็จ</span>
+            <span className="text-xs text-brand-muted sm:text-sm">{text('นัดที่ยังไม่เสร็จ', 'Open appointments')}</span>
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'active' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
           {selectedStat === 'active' && selectedDetailsTitle && <PatientExamStatDetails title={selectedDetailsTitle} appointments={visibleAppointments} />}
           <button type="button" aria-expanded={selectedStat === 'completed'} aria-controls="patient-exam-stat-details" onClick={() => toggleStat('completed')} className={statButtonClass(selectedStat === 'completed')}>
-            <span className="text-xs font-medium text-brand-muted sm:text-sm">ตรวจเสร็จแล้ว</span>
+            <span className="text-xs font-medium text-brand-muted sm:text-sm">{text('ตรวจเสร็จแล้ว', 'Completed')}</span>
             <p className="mt-1 text-2xl font-bold tabular-nums text-brand-strong sm:text-3xl">{completedCount}</p>
-            <span className="text-xs text-brand-muted sm:text-sm">นัดที่ตรวจเสร็จแล้ว</span>
+            <span className="text-xs text-brand-muted sm:text-sm">{text('นัดที่ตรวจเสร็จแล้ว', 'Completed appointments')}</span>
             <ChevronDown className={`absolute right-2.5 top-2.5 size-3.5 text-brand-muted transition-transform sm:right-3 sm:top-3 ${selectedStat === 'completed' ? 'rotate-180 text-brand-strong' : ''}`} aria-hidden="true" />
           </button>
           {selectedStat === 'completed' && selectedDetailsTitle && <PatientExamStatDetails title={selectedDetailsTitle} appointments={visibleAppointments} />}
@@ -796,6 +806,7 @@ function PatientTreatmentHistorySection({
   startDate: string;
   date: string;
 }) {
+  const { locale, text } = useLocale();
   const rangeFilteredHistory = useMemo(() => history.filter((record) => {
     const recordDate = toBangkokDateString(record.date);
     return recordDate >= startDate && recordDate <= date;
@@ -805,36 +816,36 @@ function PatientTreatmentHistorySection({
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [rangeFilteredHistory]);
 
-  const historyControls = <DashboardActionLink href="/records" compactOnMobile>ดูประวัติทั้งหมด</DashboardActionLink>;
+  const historyControls = <DashboardActionLink href="/records" compactOnMobile>{text('ดูประวัติทั้งหมด', 'View full history')}</DashboardActionLink>;
 
   const historyDescription = range === 'today'
-    ? 'ผลตรวจวันนี้'
+    ? text('ผลตรวจวันนี้', 'Results from today')
     : range === '7d'
-      ? 'ผลตรวจใน 7 วันที่ผ่านมา'
-      : 'ผลตรวจใน 30 วันที่ผ่านมา';
-  const historyTitle = <span>ประวัติการรักษา</span>;
+      ? text('ผลตรวจใน 7 วันที่ผ่านมา', 'Results from the past 7 days')
+      : text('ผลตรวจใน 30 วันที่ผ่านมา', 'Results from the past 30 days');
+  const historyTitle = <span>{text('ประวัติการรักษา', 'Treatment history')}</span>;
 
   return <Section title={historyTitle} description={historyDescription} titleClassName={patientSectionTitleClass} descriptionClassName={patientSectionDescriptionClass} headerClassName="lg:items-center" action={historyControls}>
-    {rangeFilteredHistory.length === 0 ? <div className="border-y border-brand-border-soft"><EmptyState message={history.length > 0 ? 'ไม่พบประวัติการรักษาในช่วงนี้' : 'ยังไม่มีประวัติการรักษา'} /></div> : <div className="mt-4 space-y-4">
-      <p className="text-xs text-brand-muted sm:text-sm" aria-live="polite">แสดง {filteredHistory.length} จาก {rangeFilteredHistory.length} รายการ</p>
+    {rangeFilteredHistory.length === 0 ? <div className="border-y border-brand-border-soft"><EmptyState message={history.length > 0 ? text('ไม่พบประวัติการรักษาในช่วงนี้', 'No treatment history found in this period.') : text('ยังไม่มีประวัติการรักษา', 'No treatment history yet.')} /></div> : <div className="mt-4 space-y-4">
+      <p className="text-xs text-brand-muted sm:text-sm" aria-live="polite">{text('แสดง', 'Showing')} {filteredHistory.length} {text('จาก', 'of')} {rangeFilteredHistory.length} {text('รายการ', 'records')}</p>
       <div className="overflow-hidden border-y border-brand-border-soft">
         <table className="w-full table-fixed text-left text-xs sm:text-sm">
           <thead className="bg-brand-page/55 text-xs font-semibold text-brand-muted sm:text-sm">
             <tr>
-              <th scope="col" className="w-[17%] px-2 py-2.5 sm:w-[18%] sm:px-4 sm:py-3">วันที่</th>
-              <th scope="col" className="w-[18%] px-2 py-2.5 sm:px-4 sm:py-3">แผนก</th>
-              <th scope="col" className="w-[23%] px-2 py-2.5 sm:w-[22%] sm:px-4 sm:py-3">แพทย์</th>
-              <th scope="col" className="w-[30%] px-2 py-2.5 sm:w-[32%] sm:px-4 sm:py-3">ผลตรวจ</th>
-              <th scope="col" className="w-[12%] px-2 py-2.5 text-right sm:w-[10%] sm:px-4 sm:py-3">รายการยา</th>
+              <th scope="col" className="w-[17%] px-2 py-2.5 sm:w-[18%] sm:px-4 sm:py-3">{text('วันที่', 'Date')}</th>
+              <th scope="col" className="w-[18%] px-2 py-2.5 sm:px-4 sm:py-3">{text('แผนก', 'Department')}</th>
+              <th scope="col" className="w-[23%] px-2 py-2.5 sm:w-[22%] sm:px-4 sm:py-3">{text('แพทย์', 'Clinician')}</th>
+              <th scope="col" className="w-[30%] px-2 py-2.5 sm:w-[32%] sm:px-4 sm:py-3">{text('ผลตรวจ', 'Visit summary')}</th>
+              <th scope="col" className="w-[12%] px-2 py-2.5 text-right sm:w-[10%] sm:px-4 sm:py-3">{text('รายการยา', 'Medications')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border-soft">
             {filteredHistory.map((record) => <tr key={record.id} className="align-top">
-              <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{formatThaiDateTime(record.date)}</td>
+              <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{formatThaiDateTime(record.date, locale)}</td>
               <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{record.departmentName}</td>
               <td className="break-words px-2 py-3 font-medium text-brand-ink sm:px-4 sm:py-4">{record.doctorName}</td>
               <td className="break-words px-2 py-3 text-brand-ink sm:px-4 sm:py-4"><p className="font-medium">{record.summary}</p></td>
-              <td className="break-words px-2 py-3 text-right text-xs text-brand-muted sm:px-4 sm:py-4 sm:text-sm">{record.medicationCount > 0 ? `${record.medicationCount} รายการ` : 'ไม่ได้สั่งยา'}</td>
+              <td className="break-words px-2 py-3 text-right text-xs text-brand-muted sm:px-4 sm:py-4 sm:text-sm">{record.medicationCount > 0 ? `${record.medicationCount} ${text('รายการ', 'items')}` : text('ไม่ได้สั่งยา', 'None prescribed')}</td>
             </tr>)}
           </tbody>
         </table>
@@ -844,6 +855,7 @@ function PatientTreatmentHistorySection({
 }
 
 function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onRefresh: () => void }) {
+  const { locale, text } = useLocale();
   const medications = view.patientMedications ?? [];
   const history = view.patientTreatmentHistory ?? [];
 
@@ -854,14 +866,14 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
       <div className="grid gap-6 sm:gap-8 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-brand-border-soft bg-brand-surface p-3.5 sm:p-5 shadow-xs">
           <Section
-            title="ยาที่กำลังใช้อยู่"
-            description="ยาที่แพทย์สั่งให้ใช้ตามแผนการรักษา"
+            title={text('ยาที่กำลังใช้อยู่', 'Current medications')}
+            description={text('ยาที่แพทย์สั่งให้ใช้ตามแผนการรักษา', 'Medications prescribed as part of your care plan.')}
             titleClassName={patientSectionTitleClass}
             descriptionClassName={patientSectionDescriptionClass}
-            action={<DashboardActionLink href="/reminders">ดูทั้งหมด</DashboardActionLink>}
+            action={<DashboardActionLink href="/reminders">{text('ดูทั้งหมด', 'View all')}</DashboardActionLink>}
           >
             {medications.length === 0 ? (
-              <EmptyState message="ยังไม่มียาที่กำลังใช้อยู่" />
+              <EmptyState message={text('ยังไม่มียาที่กำลังใช้อยู่', 'No current medications.')} />
             ) : (
               <div className="mt-4 space-y-3">
                 {medications.map((medication) => {
@@ -879,40 +891,40 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="font-bold text-base sm:text-lg text-brand-ink">{medication.name}</p>
-                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">ตามแผนการรักษา</span>
-                              {medication.endDate && <span className="text-xs text-brand-muted sm:text-sm">ถึง {formatThaiDate(medication.endDate)}</span>}
+                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{text('ตามแผนการรักษา', 'On treatment plan')}</span>
+                              {medication.endDate && <span className="text-xs text-brand-muted sm:text-sm">{text('ถึง', 'Until')} {formatThaiDate(medication.endDate, locale)}</span>}
                             </div>
                             <p className="mt-1 text-xs sm:text-sm leading-5 text-brand-body">
-                              <span className="font-medium text-brand-ink">ขนาดยา:</span> {medication.dosage}
+                              <span className="font-medium text-brand-ink">{text('ขนาดยา:', 'Dosage:')}</span> {medication.dosage}
                               <span className="mx-2 text-brand-border">·</span>
-                              <span className="font-medium text-brand-ink">วิธีใช้:</span> {medication.instruction}
+                              <span className="font-medium text-brand-ink">{text('วิธีใช้:', 'Instructions:')}</span> {medication.instruction}
                             </p>
                           </div>
                         </div>
 
                         <div className="w-full sm:w-64 shrink-0 space-y-2">
                           {totalDoses > 0 ? (
-                            <div aria-label={`ทานยาแล้ว ${takenDoses} จาก ${totalDoses} ครั้ง`}>
+                            <div aria-label={`${text('ทานยาแล้ว', 'Medication doses taken')} ${takenDoses} ${text('จาก', 'of')} ${totalDoses}`}>
                               <div className="flex items-center justify-between text-xs font-semibold text-brand-body sm:text-sm">
-                                <span>กินแล้ว {takenDoses} ครั้ง</span>
-                                <span>เหลือ {remainingDoses} ครั้ง</span>
+                                <span>{text('กินแล้ว', 'Taken')} {takenDoses}</span>
+                                <span>{text('เหลือ', 'Remaining')} {remainingDoses}</span>
                               </div>
                               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={totalDoses} aria-valuenow={takenDoses}>
                                 <div className="h-full rounded-full bg-brand-strong transition-[width]" style={{ width: `${progress}%` }} />
                               </div>
-                              <p className="mt-1 text-xs text-brand-muted sm:text-sm">จากทั้งหมด {totalDoses} ครั้ง</p>
+                              <p className="mt-1 text-xs text-brand-muted sm:text-sm">{text('จากทั้งหมด', 'of')} {totalDoses}</p>
                             </div>
                           ) : (
-                            <p className="text-xs text-brand-muted sm:text-sm">เวลา {medication.reminderTimes.length > 0 ? medication.reminderTimes.map((time) => `${time} น.`).join(' · ') : 'ยังไม่ตั้งเวลา'}</p>
+                            <p className="text-xs text-brand-muted sm:text-sm">{text('เวลา', 'Times')}{medication.reminderTimes.length > 0 ? ` ${medication.reminderTimes.map((time) => `${time}${text(' น.', '')}`).join(' · ')}` : ` ${text('ยังไม่ตั้งเวลา', 'Not scheduled')}`}</p>
                           )}
 
                           <div className="flex items-center justify-between gap-2 pt-1">
                             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-strong sm:text-sm">
                               <Clock3 className="size-3.5" aria-hidden="true" />
-                              ครั้งถัดไป: {medication.nextDoseTime ? `${medication.nextDoseTime} น.` : 'ยังไม่ตั้งเวลา'}
+                              {text('ครั้งถัดไป:', 'Next dose:')} {medication.nextDoseTime ? `${medication.nextDoseTime}${text(' น.', '')}` : text('ยังไม่ตั้งเวลา', 'Not scheduled')}
                             </span>
                             <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                              รอบถัดไป
+                              {text('รอบถัดไป', 'Next dose')}
                             </span>
                           </div>
                         </div>
@@ -1177,6 +1189,7 @@ export default function DashboardScreen({
   actorId: string;
   preview?: 'upcoming-toast';
 }) {
+  const { locale, text } = useLocale();
   const [range, setRange] = useState<DashboardRange>('today');
   const [view, setView] = useState<DashboardView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1243,15 +1256,15 @@ export default function DashboardScreen({
     const nextAppointment = view.upcomingAppointments?.[0] ?? view.nextAppointment;
     if (!nextAppointment) return;
 
-    setAppointmentToastMessage(`นัดหมายถัดไป: ${formatThaiDate(nextAppointment.date)} เวลา ${nextAppointment.startTime.slice(0, 5)} น.`);
-  }, [role, view]);
+    setAppointmentToastMessage(`${text('นัดหมายถัดไป:', 'Next appointment:')} ${formatThaiDate(nextAppointment.date, locale)} ${text('เวลา', 'at')} ${nextAppointment.startTime.slice(0, 5)}${text(' น.', '')}`);
+  }, [role, view, locale, text]);
 
   if (loading && !view) {
-    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none space-y-8 sm:space-y-10`} aria-busy="true" aria-label="กำลังโหลดแดชบอร์ด">{role === 'staff_admin' && <div className="flex justify-end"><DatabaseStatusChip status={databaseStatus} /></div>}<div className="space-y-3 border-b border-brand-border-soft pb-6"><div className="h-8 w-2/5 rounded bg-brand-border-soft" /><div className="h-4 w-3/5 rounded bg-brand-border-soft" /></div>{role !== 'staff_admin' && <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 border-y border-brand-border-soft bg-brand-page/50" />)}</div>}<div className="h-64 border-y border-brand-border-soft bg-brand-page/50" /></div>;
+    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none space-y-8 sm:space-y-10`} aria-busy="true" aria-label={role === 'patient' ? text('กำลังโหลดแดชบอร์ด', 'Loading dashboard') : 'กำลังโหลดแดชบอร์ด'}>{role === 'staff_admin' && <div className="flex justify-end"><DatabaseStatusChip status={databaseStatus} /></div>}<div className="space-y-3 border-b border-brand-border-soft pb-6"><div className="h-8 w-2/5 rounded bg-brand-border-soft" /><div className="h-4 w-3/5 rounded bg-brand-border-soft" /></div>{role !== 'staff_admin' && <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 border-y border-brand-border-soft bg-brand-page/50" />)}</div>}<div className="h-64 border-y border-brand-border-soft bg-brand-page/50" /></div>;
   }
 
   if (!view) {
-    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none flex min-h-[55vh] flex-col items-center justify-center border-y border-rose-200 py-12 text-center`} role="alert">{role === 'staff_admin' && <div className="absolute right-3 top-3 sm:right-6"><DatabaseStatusChip status={databaseStatus} /></div>}<PackageX className="size-10 text-rose-500" /><h1 className="mt-4 text-xl font-bold text-brand-ink">โหลดข้อมูลแดชบอร์ดไม่สำเร็จ</h1><p className="mt-2 text-sm text-status-critical">{error ?? 'ไม่พบข้อมูลสำหรับบทบาทนี้'}</p><button type="button" onClick={() => { setLoading(true); setRefreshToken((value) => value + 1); }} className={`${dashboardButton} mt-5 border-rose-700 bg-rose-700 text-white hover:bg-rose-800`}><RefreshCw className="size-4" /> ลองอีกครั้ง</button></div>;
+    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none flex min-h-[55vh] flex-col items-center justify-center border-y border-rose-200 py-12 text-center`} role="alert">{role === 'staff_admin' && <div className="absolute right-3 top-3 sm:right-6"><DatabaseStatusChip status={databaseStatus} /></div>}<PackageX className="size-10 text-rose-500" /><h1 className="mt-4 text-xl font-bold text-brand-ink">{role === 'patient' ? text('โหลดข้อมูลแดชบอร์ดไม่สำเร็จ', 'Could not load the dashboard') : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ'}</h1><p className="mt-2 text-sm text-status-critical">{error ?? (role === 'patient' ? text('ไม่พบข้อมูลสำหรับบทบาทนี้', 'No data was found for this account.') : 'ไม่พบข้อมูลสำหรับบทบาทนี้')}</p><button type="button" onClick={() => { setLoading(true); setRefreshToken((value) => value + 1); }} className={`${dashboardButton} mt-5 border-rose-700 bg-rose-700 text-white hover:bg-rose-800`}><RefreshCw className="size-4" /> {role === 'patient' ? text('ลองอีกครั้ง', 'Try again') : 'ลองอีกครั้ง'}</button></div>;
   }
 
   const isMedicalDoctorDashboard = role === 'medical' && view.metrics.some((item) => item.id === 'own-appointments');
@@ -1294,13 +1307,13 @@ export default function DashboardScreen({
       <header className="relative flex flex-col gap-3 sm:gap-4 border-b border-brand-border-soft pb-4 sm:pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 pr-12 sm:flex-1 sm:pr-0">
           <div>
-            <h1 className="text-2xl font-bold leading-tight tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">{view.title}</h1>
-            <p className="mt-1 sm:mt-2 max-w-2xl text-xs sm:text-sm leading-5 sm:leading-6 text-brand-body">{view.description}</p>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">{role === 'patient' ? text('ภาพรวมสุขภาพของฉัน', 'My health overview') : view.title}</h1>
+            <p className="mt-1 sm:mt-2 max-w-2xl text-xs sm:text-sm leading-5 sm:leading-6 text-brand-body">{role === 'patient' ? text('ดูนัดหมายถัดไป ยาที่กำลังใช้ และประวัติการรักษา', 'Review upcoming appointments, current medications, and treatment history.') : view.description}</p>
           </div>
         </div>
         <div className="absolute right-0 top-0 flex flex-wrap items-center justify-end gap-2 sm:static sm:self-start">
           {role === 'staff_admin' && <DatabaseStatusChip status={databaseStatus} />}
-          <button type="button" aria-label={isRefreshing ? 'กำลังโหลด' : 'รีเฟรช'} onClick={() => void refreshDashboard()} disabled={isRefreshing} className="inline-flex min-h-8 sm:min-h-11 shrink-0 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-brand-strong bg-brand-strong px-2.5 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`size-3.5 sm:size-4 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" /><span className="hidden sm:inline">{isRefreshing ? 'กำลังโหลด…' : 'รีเฟรช'}</span></button>
+          <button type="button" aria-label={isRefreshing ? (role === 'patient' ? text('กำลังโหลด', 'Loading') : 'กำลังโหลด') : (role === 'patient' ? text('รีเฟรช', 'Refresh') : 'รีเฟรช')} onClick={() => void refreshDashboard()} disabled={isRefreshing} className="inline-flex min-h-8 sm:min-h-11 shrink-0 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-brand-strong bg-brand-strong px-2.5 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`size-3.5 sm:size-4 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" /><span className="hidden sm:inline">{isRefreshing ? (role === 'patient' ? text('กำลังโหลด…', 'Loading…') : 'กำลังโหลด…') : (role === 'patient' ? text('รีเฟรช', 'Refresh') : 'รีเฟรช')}</span></button>
         </div>
       </header>
 
@@ -1308,20 +1321,20 @@ export default function DashboardScreen({
         {role === 'patient' && <PatientNextAppointmentSummary appointments={view.upcomingAppointments} fallbackAppointment={view.nextAppointment} />}
         {role === 'medical' && isMedicalDoctorDashboard && <MedicalNextAppointmentSummary appointments={view.upcomingAppointments} fallbackAppointment={view.nextAppointment} />}
 
-        <section className="border-b border-brand-border-soft pb-2 sm:pb-3" aria-label="ตัวกรองแดชบอร์ด">
+        <section className="border-b border-brand-border-soft pb-2 sm:pb-3" aria-label={role === 'patient' ? text('ตัวกรองแดชบอร์ด', 'Dashboard filters') : 'ตัวกรองแดชบอร์ด'}>
           <div className="flex flex-col gap-2.5 py-1 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex shrink-0 items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-ink"><Filter className="size-3.5 sm:size-4 text-brand-strong" aria-hidden="true" />ช่วงเวลา</div>
+              <div className="flex shrink-0 items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-ink"><Filter className="size-3.5 sm:size-4 text-brand-strong" aria-hidden="true" />{role === 'patient' ? text('ช่วงเวลา', 'Date range') : 'ช่วงเวลา'}</div>
               <div className="min-w-0 max-w-full overflow-x-auto scrollbar-none">
                 <SegmentedControl
-                  ariaLabel="เลือกช่วงเวลาย้อนหลัง"
+                  ariaLabel={role === 'patient' ? text('เลือกช่วงเวลาย้อนหลัง', 'Select date range') : 'เลือกช่วงเวลาย้อนหลัง'}
                   value={range}
-                  options={(Object.entries(dashboardRangeLabels) as Array<[DashboardRange, string]>).map(([value, label]) => ({ value, label }))}
+                  options={(Object.entries(dashboardRangeLabels) as Array<[DashboardRange, string]>).map(([value, label]) => ({ value, label: role === 'patient' ? ({ today: text('วันนี้', 'Today'), '7d': text('7 วัน', '7 days'), '30d': text('30 วัน', '30 days') } as Record<DashboardRange, string>)[value] : label }))}
                   onChange={(value) => { if (value !== range) { setError(null); setLoading(true); setRange(value); } }}
                 />
               </div>
             </div>
-            <div className="text-left sm:text-right text-xs sm:text-sm font-medium tabular-nums text-brand-body lg:ml-2">{formatThaiRange(view.startDate, view.date)}</div>
+            <div className="text-left sm:text-right text-xs sm:text-sm font-medium tabular-nums text-brand-body lg:ml-2">{formatThaiRange(view.startDate, view.date, locale)}</div>
             {role === 'medical' && isMedicalDoctorDashboard && <UpcomingAppointmentToast appointments={toastAppointments} isPreview={toastPreviewEnabled} />}
             {role === 'staff_admin' && <div className="min-w-0 sm:ml-auto sm:shrink-0">
               <div className="scrollbar-none min-w-0 overflow-x-auto">
