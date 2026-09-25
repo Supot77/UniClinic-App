@@ -608,3 +608,34 @@
 - targeted ESLint ทั้ง 7 ไฟล์ — ผ่าน ไม่มี warnings
 - `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
 - Automated tests และ browser QA — ไม่ได้รัน
+
+# หน้าแนะนำทีมผู้พัฒนา — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มหน้า public `/team` และอนุญาต guest ผ่าน `src/proxy.ts`; แสดงภาพสมาชิกทั้ง 6 คนจาก `public/images/*suit.png` พร้อมชื่อจริงและงานที่รับผิดชอบ
+- เลือกภาพเพื่อขยายและยกภาพคนนั้นขึ้นด้านหน้า พร้อมลดแสงคนอื่น; กดภาพเดิมอีกครั้งเพื่อกลับสู่ภาพรวม รองรับการเลือกด้วย keyboard
+- แสดงงานฉบับย่อบนภาพและรายละเอียดงานเต็มใต้เวที; ปรับจากแถวเดียวบน desktop เป็นกริด 2 คอลัมน์บนมือถือ
+- ปรับภาพตาม feedback: ตัดกรอบและพื้นหลังรายคนออก ให้ cutout โปร่งใสกลืนกับฉากกลาง และขยายตัวบุคคล โดยคงแอนิเมชันเลือกภาพ
+- ปรับเพิ่มตาม feedback: เอากรอบใหญ่รอบกลุ่มภาพและเส้นพื้นเวทีออก ขยายพื้นที่แสดงสมาชิกเต็มความกว้างจอ
+- เพิ่มความสูงพื้นที่ภาพให้คงขนาดตัวคนโดยไม่ซูมภาพล้นกรอบ; คง `object-fit` เดิมทุกสถานะและปรับสัดส่วนการขยายเมื่อเลือก เพื่อให้เห็นศีรษะและเท้าครบพร้อมแยกคำบรรยายไว้ด้านล่าง
+- ปรับ transition ของภาพที่เลือกให้ต่อจากสถานะ hover ด้วยจังหวะ 650ms เดียวกัน
+- เพิ่มลิงก์ทีมผู้พัฒนาใน Footer ที่แสดงกับ guest และทุก role; ใช้ภาษาไทยเป็นหลัก และแปลข้อความหน้า/ลิงก์ตาม locale ของ guest/patient
+
+### ไฟล์หลัก
+
+- `src/app/team/page.tsx`
+- `src/components/team/TeamShowcase.tsx`, `TeamShowcase.module.css`
+- `src/components/layout/Footer.tsx`
+- `src/proxy.ts`
+- `tests/team-showcase.test.tsx`, `tests/team-public-route.test.ts`, `tests/footer.test.tsx`
+- `public/images/feemsuit.png`, `herbsuit.png`, `klongsuit.png`, `kunsuit.png`, `paisuit.png`, `shopsuit.png` (ภาพที่ผู้ใช้เพิ่มไว้เดิม)
+
+### Verification
+
+- focused Vitest `tests/team-showcase.test.tsx`, `tests/team-public-route.test.ts` และ `tests/footer.test.tsx` — ผ่าน 3 files / 7 tests
+- targeted ESLint ไฟล์ TS/TSX ที่แก้ — ผ่าน 0 warnings
+- `npx.cmd --no-install tsc --noEmit` และ `npm.cmd run build` — ผ่านก่อนปรับ CSS ตาม feedback; หลังปรับไม่มีการเปลี่ยน TypeScript และ Next.js dev แสดงหน้าได้
+- Brave local browser — ตรวจภาพรวมและภาพที่เลือกที่ 1280px/360px; เห็นศีรษะกับเท้าครบและคำบรรยายอยู่ด้านล่าง, ทดสอบเลือกด้วย keyboard และ Footer link; 360px ไม่มี horizontal overflow; ไม่ได้ตรวจใน Chrome
+- guest HTTP probe — `/team` ได้ 200 และ `/profile` ยัง redirect ไป login ด้วย 307
+- `git diff --check` — ผ่าน; ไม่รัน full test suite เพราะเปลี่ยนเฉพาะหน้า Footer และ public route
