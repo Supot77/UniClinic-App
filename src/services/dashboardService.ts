@@ -30,6 +30,7 @@ import {
 } from '@/features/dashboard/types';
 import { CLINIC_TIME_BLOCKS } from '@/constants/dateTime';
 import { formatProfileName } from '@/lib/profileName';
+import { apiClient } from '@/lib/api-client';
 
 const supabase = createClient();
 
@@ -1013,6 +1014,13 @@ export async function updateStaffProfile(
   });
 
   if (error) throw new Error(error.message);
+}
+
+export async function setDoctorAccountActive(profileId: string, isActive: boolean): Promise<void> {
+  await apiClient(`/api/doctors/${profileId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_active: isActive }),
+  });
 }
 
 export async function deleteStaffProfile(profileId: string): Promise<void> {
