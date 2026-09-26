@@ -61,7 +61,6 @@ const staffAdminSections: FooterSection[] = [
       { label: "จัดการแผนก", href: "/departments" },
       { label: "คลังยา", href: "/pharmacy" },
       { label: "ตารางตรวจแพทย์", href: "/schedules" },
-      { label: "ผลตรวจผู้ป่วย", href: "/records" },
     ],
   },
 ];

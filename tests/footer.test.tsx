@@ -103,6 +103,7 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: "คลังยา" })).toHaveAttribute("href", "/pharmacy");
     expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
     expect(screen.getByRole("link", { name: "ทีมผู้พัฒนา" })).toHaveAttribute("href", "/team");
+    expect(screen.queryByRole("link", { name: "ผลตรวจผู้ป่วย" })).not.toBeInTheDocument();
 
     // Should NOT show medical-only or guest register
     expect(screen.queryByText("สำหรับบุคลากรทางการแพทย์")).not.toBeInTheDocument();

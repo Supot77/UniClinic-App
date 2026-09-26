@@ -135,37 +135,18 @@ describe('Clinic manual contract', () => {
 });
 
 describe('Clinic database adapter boundary', () => {
-  it('loads medical records for staff_admin through the API repository', async () => {
+  it('does not request medical records for staff_admin through the API repository', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
-    const record = {
-      id: recordId,
-      appointment_id: appointmentId,
-      patient_id: patientId,
-      doctor_id: doctorId,
-      diagnosis: 'ผลตรวจสำหรับเจ้าหน้าที่',
-      treatment_notes: 'คำแนะนำ',
-      prescribed_medications: [],
-      created_at: '2026-09-08T08:00:00+07:00',
-      height_cm: null,
-      weight_kg: null,
-      blood_pressure: null,
-      pulse_bpm: null,
-      appointment: { status: 'completed' },
-      patient: { first_name: 'ผู้ป่วย', last_name: 'ทดสอบ' },
-      doctor: { profile: { first_name: 'แพทย์', last_name: 'ทดสอบ' } },
-    };
     const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     fetchMock
       .mockImplementationOnce(() => json([]))
       .mockImplementationOnce(() => json([]))
       .mockImplementationOnce(() => json([]))
-      .mockImplementationOnce(() => json([record]))
       .mockImplementationOnce(() => json({ profile: { id: staffId }, role: 'staff_admin' }));
 
     const data = await createClinicApiRepository('staff_admin').load();
-    expect(data.records).toHaveLength(1);
-    expect(data.records[0]).toMatchObject({ diagnosis: 'ผลตรวจสำหรับเจ้าหน้าที่', completed: true });
-    expect(fetchMock.mock.calls.map(([input]) => String(input))).toContain('/api/medical-records');
+    expect(data.records).toEqual([]);
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain('/api/medical-records');
   });
 
   function client(role = 'patient', active = true) {

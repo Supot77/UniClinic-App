@@ -257,7 +257,7 @@ export function createClinicApiRepository(expectedRole: ClinicRole): ClinicRepos
         apiClient<ApiAppointment[]>('/api/appointments'),
         apiClient<ApiSlot[]>('/api/schedules/slots'),
         apiClient<Array<{ id: string; code: string; name: string }>>('/api/services'),
-        apiClient<ApiRecord[]>('/api/medical-records'),
+        expectedRole === 'staff_admin' ? Promise.resolve([] as ApiRecord[]) : apiClient<ApiRecord[]>('/api/medical-records'),
         expectedRole === 'medical' ? apiClient<Array<{ id: string; name: string; type: string }>>('/api/medications') : Promise.resolve([]),
       ]);
       const actor = await apiClient<{ profile: { id: string }; role: ClinicRole }>('/api/auth/me');
@@ -425,7 +425,7 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
     </header>
     <nav aria-label={text('นัดหมายและผลตรวจ', 'Appointments and results')} className="flex items-center gap-5 overflow-x-auto border-b border-brand-border-soft px-1">
       <Link href="/appointments" aria-current={section === 'appointments' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'appointments' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><CalendarDays className="h-4 w-4" aria-hidden="true" />{text('นัดหมายและคิว', 'Appointments')}</Link>
-      <Link href="/records" aria-current={section === 'records' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'records' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><FileHeart className="h-4 w-4" aria-hidden="true" />{text('ผลตรวจและรายการยา', 'Results and medications')}</Link>
+      {role !== 'staff_admin' && <Link href="/records" aria-current={section === 'records' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'records' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><FileHeart className="h-4 w-4" aria-hidden="true" />{text('ผลตรวจและรายการยา', 'Results and medications')}</Link>}
     </nav>
      {stats.length > 0 && <div data-appointment-status-summary="true" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
        {stats.map((stat) => {

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AppointmentPage from '@/features/appointments';
-import { MedicalRecordsPage, PatientRecordsPage, StaffAdminRecordsPage } from '@/features/medical-records';
+import { MedicalRecordsPage, PatientRecordsPage } from '@/features/medical-records';
 import { type ClinicRepository } from '@/features/clinic-care';
 import { createClinicMockRepository } from './clinic-care-mock-repository';
 import { appointmentId, doctorId, fixture, patientId, serviceId, slotId, universalServiceId, withAppointment } from './clinic-care-fixtures';
@@ -90,16 +90,18 @@ describe('Clinic database-backed role containers with injected offline repositor
     expect(screen.getByText('ยังไม่มีผลตรวจ')).toBeInTheDocument();
     expect(screen.getByText('เมื่อมีผลตรวจ รายการจะแสดงที่นี่')).toBeInTheDocument();
   });
-  it('lets staff_admin read medical records without showing medical write actions', async () => {
+  it('does not expose medical records to staff_admin', async () => {
     const seed = fixture('staff_admin');
     seed.records = [{ id: editableRecordId, appointment_id: appointmentId, patient_id: patientId, doctor_id: doctorId, patient: 'ผู้ป่วยทดสอบ', doctor: 'แพทย์ทดสอบ', diagnosis: 'ผลตรวจสำหรับเจ้าหน้าที่', treatment_notes: 'คำแนะนำ', prescribed_medications: [], created_at: '2026-09-08T08:00:00+07:00', completed: true, height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null }];
-    render(<StaffAdminRecordsPage repository={createClinicMockRepository(seed)} />);
+    expect((await createClinicMockRepository(seed).load()).records).toHaveLength(0);
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'ดูผลตรวจของผู้ป่วย' })).toBeInTheDocument();
-    expect(screen.getByText('ผลตรวจสำหรับเจ้าหน้าที่')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'แก้ไขผลตรวจ' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'บันทึกผลตรวจทีละขั้นตอน' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'ยืนยันบันทึกผลและจบการตรวจ' })).not.toBeInTheDocument();
+    const appointmentSeed = withAppointment('staff_admin');
+    appointmentSeed.appointments[0].status = 'completed';
+    appointmentSeed.appointments[0].has_record = true;
+    render(<AppointmentPage role="staff_admin" repository={createClinicMockRepository(appointmentSeed)} />);
+    expect(await screen.findByRole('heading', { name: 'รายการนัดทั้งหมด' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'ผลตรวจและรายการยา' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'เปิดผลตรวจ' })).not.toBeInTheDocument();
   });
   it('saves and displays the prescribed dose, meal, times and duration', async () => {
     const repo = createClinicMockRepository(withAppointment());
@@ -257,12 +259,12 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.click(screen.getByRole('button', { name: 'โหลดข้อมูลใหม่' }));
     expect(await screen.findByText('ไม่พบนัดหมายตามเงื่อนไขนี้')).toBeInTheDocument();
   });
-  it('staff sees approval controls, results navigation, and no booking form', async () => {
+  it('staff sees approval controls without results navigation or booking form', async () => {
     const seed = withAppointment('staff_admin'); seed.appointments[0].status = 'pending';
     render(<AppointmentPage role="staff_admin" repository={createClinicMockRepository(seed)} />);
     expect(await screen.findByRole('button', { name: 'อนุมัตินัด' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'ยกเลิกนัด' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'ผลตรวจและรายการยา' })).toHaveAttribute('href', '/records');
+    expect(screen.queryByRole('link', { name: 'ผลตรวจและรายการยา' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'จองนัดใหม่' })).not.toBeInTheDocument();
   });
   it('shows cancellation to staff only for approved or requested appointments', async () => {
@@ -289,15 +291,6 @@ describe('Clinic database-backed role containers with injected offline repositor
     fireEvent.click(screen.getByRole('option', { name: 'คำขอยกเลิก' }));
     expect(await screen.findByText('ผู้ป่วยทดสอบ · คิว 1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ยกเลิกนัด' })).toBeInTheDocument();
-  });
-  it('staff can open a record from an appointment that already has one', async () => {
-    const seed = withAppointment('staff_admin');
-    seed.appointments[0].status = 'completed';
-    seed.appointments[0].has_record = true;
-    render(<AppointmentPage role="staff_admin" repository={createClinicMockRepository(seed)} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'สถานะ' }));
-    fireEvent.click(screen.getByRole('option', { name: 'ตรวจเสร็จ' }));
-    expect(await screen.findByRole('link', { name: 'เปิดผลตรวจ' })).toHaveAttribute('href', `/records?appointment=${appointmentId}`);
   });
   it('medical sees approval actions for a pending appointment in the owning doctor queue', async () => {
     const seed = withAppointment('medical'); seed.appointments[0].status = 'pending';

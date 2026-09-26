@@ -22,7 +22,7 @@ export function createClinicMockRepository(seed: ClinicSnapshot, now = new Date(
       const result = structuredClone(state);
       result.appointments = result.appointments.filter(ownAppointment);
       result.records = result.records.filter((record) => state.actor.role === 'patient' ? record.patient_id === state.actor.id && record.completed :
-        state.actor.role === 'staff_admin' || (state.actor.role === 'medical' && (record.doctor_id === state.actor.id || (record.completed && result.appointments.some((appointment) => appointment.user_id === record.patient_id && ['confirmed', 'in_progress', 'completed'].includes(appointment.status))))));
+        state.actor.role === 'medical' && (record.doctor_id === state.actor.id || (record.completed && result.appointments.some((appointment) => appointment.user_id === record.patient_id && ['confirmed', 'in_progress', 'completed'].includes(appointment.status)))));
       if (state.actor.role !== 'medical') result.medications = [];
       return result;
     },

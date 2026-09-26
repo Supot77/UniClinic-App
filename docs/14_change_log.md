@@ -2,7 +2,29 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
-## เปิดให้ staff_admin ดูผลตรวจแบบอ่านอย่างเดียว — 26 กันยายน 2569
+## จำกัดสิทธิ์ผลตรวจของ staff_admin — 26 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `staff_admin` เข้า `/records` ไม่ได้ และไม่มีลิงก์ผลตรวจจากเมนูหรือรายการนัด
+- API/repository ไม่เรียกและไม่ส่งข้อมูล `medical_records` ให้ `staff_admin`
+- migration 41 ยกเลิก policy เดิมจาก migration 35/39/24 และจำกัด RLS/read helper ให้เหลือ `patient` กับ `medical`
+- คงสิทธิ์ดูผลตรวจของ `patient` และ `medical` ตามเดิม และคงสิทธิ์เจ้าหน้าที่จัดการนัดหมาย/คลังยาแยกจากผลตรวจ
+
+### ไฟล์หลัก
+
+- `src/app/(clinic)/records/page.tsx`, `src/app/api/medical-records/route.ts`
+- `src/features/clinic-care.tsx`, `src/features/medical-records.tsx`, `src/features/appointments.tsx`
+- `src/components/layout/Header.tsx`, `src/components/layout/Footer.tsx`
+- `supabase/migrations/41_restrict_staff_admin_medical_records.sql`
+- `tests/appointments-records-runtime.test.ts`, `tests/appointments-records-runtime-ui.test.tsx`, `tests/staff-admin-medical-records-migration.test.ts`
+
+### การตรวจ
+
+- focused tests และ typecheck — รันหลังแก้ไข
+- ยังไม่ได้ deploy migration 41 ไปยังฐานจริง และยังไม่ได้ตรวจ browser session จริง
+
+## เปิดให้ staff_admin ดูผลตรวจแบบอ่านอย่างเดียว — 26 กันยายน 2569 (historical; superseded by migration 41)
 
 ### ขอบเขตและพฤติกรรม
 
