@@ -1,21 +1,5 @@
 'use client';
 
-/**
- * =============================================================================
- * ไฟล์: PatientMetaBar.tsx
- * =============================================================================
- * แถบแสดงข้อมูลสรุปของผู้ป่วย (Patient Header Bar)
- * 
- * ส่วนประกอบภายในไฟล์นี้:
- * 1. Avatar ย่อ (Patient Initial Avatar) - แสดงตัวอักษรย่อตัวแรกของชื่อผู้ป่วย
- * 2. ข้อมูลโปรไฟล์ผู้ป่วย (Profile Details) - แสดงชื่อ-นามสกุล, รหัสนักศึกษา, และเบอร์โทรศัพท์
- * 3. ป้ายสรุปจำนวนใบสั่งยา (Prescription Count Badge) - บอกจำนวนใบสั่งยาที่มีในระบบ
- * 4. แถบเตือนประวัติการแพ้ยา (Allergy Warning Badge) - กล่องสีแดงเตือนชื่อยาที่ผู้ป่วยแพ้ทันที
- * 5. Dropdown สลับเลือกผู้ป่วย (Patient Selector) - สำหรับบุคลากรทางการแพทย์ / เจ้าหน้าที่
- *    เพื่อค้นหาและสลับดูประวัติยาของผู้ป่วยรายบุคคล
- * =============================================================================
- */
-
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { PatientOption } from './types';
@@ -51,6 +35,7 @@ export function PatientMetaBar({
     >
       {/* ฝั่งซ้าย: ข้อมูลผู้ป่วยปัจจุบัน (ชื่อ, รหัสนักศึกษา, เบอร์โทร, ป้ายจำนวนใบสั่งยา) */}
       <div className="flex items-center gap-3 shrink-0 flex-wrap">
+         {/* แก้ไข Avatar */}
         <div className="w-9 h-9 rounded-full bg-brand-soft text-brand-strong font-bold text-sm flex items-center justify-center border border-brand-border-soft shrink-0">
           {patientInitial}
         </div>
