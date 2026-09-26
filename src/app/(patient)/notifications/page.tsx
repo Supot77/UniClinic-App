@@ -45,6 +45,8 @@ import SegmentedControl from "@/components/common/SegmentedControl";
 import { toNotificationErrorMessage } from "@/lib/userFacingErrors";
 import { useLocale } from "@/context/LocaleContext";
 
+// หน้านี้เป็นศูนย์แจ้งเตือนร่วมของผู้ป่วย แพทย์ และเจ้าหน้าที่
+// เจ้าหน้าที่จะเห็นส่วนจัดการผู้รับและประวัติประกาศเพิ่มจาก inbox ส่วนตัว
 type InboxFilter = "all" | "unread" | "read" | NotificationType;
 type UnreadRoleFilter = "all" | UserRole;
 type NotificationPeriod = "today" | "7d" | "30d";
@@ -188,6 +190,7 @@ type BroadcastDraft = { title: string; message: string };
 const emptyBroadcastDraft: BroadcastDraft = { title: "", message: "" };
 const broadcastRoleOrder = ["patient", "medical", "staff_admin"] as const;
 
+// ฟอร์มนี้ใช้เฉพาะ staff_admin สำหรับส่งประกาศไปยังผู้รับหลายบทบาท
 function BroadcastComposer({
   draft,
   onDraftChange,
@@ -437,6 +440,7 @@ function AdminBroadcastHistory({
 }
 
 export default function NotificationsPage() {
+  // auth.role เป็นตัวกำหนดว่าเป็น inbox ส่วนตัว หรือเป็นหน้าจัดการประกาศของเจ้าหน้าที่
   const auth = useAuth();
   const { locale, text } = useLocale();
   const localizedFilters = filters.map((item) => ({
@@ -487,11 +491,13 @@ export default function NotificationsPage() {
   }, []);
 
   const loadInbox = useCallback(async () => {
+    // กรองด้วย user id เพื่อไม่ให้ผู้ใช้เห็นการแจ้งเตือนของบัญชีอื่น
     if (!inboxUserId) return [];
     return getNotifications(inboxUserId, 100, notificationDateRange(period));
   }, [inboxUserId, period]);
 
   const loadUnreadRecipients = useCallback(async () => {
+    // รายชื่อผู้รับที่ยังไม่อ่านเป็นข้อมูลสำหรับ staff_admin เท่านั้น
     if (auth.role !== "staff_admin") return [];
     return getUnreadNotificationRecipients(100, notificationDateRange(period));
   }, [auth.role, period]);
@@ -508,6 +514,7 @@ export default function NotificationsPage() {
   };
 
   useEffect(() => {
+    // cleanup flag ป้องกัน response เก่าหรือ response หลัง unmount เขียนทับ state ปัจจุบัน
     let cancelled = false;
     void Promise.all([
       loadInbox(),
@@ -541,6 +548,7 @@ export default function NotificationsPage() {
   }, [loadBroadcastHistory, loadInbox, loadUnreadRecipients]);
 
   useEffect(() => {
+    // เจ้าหน้าที่จะ refresh ประวัติประกาศเป็นระยะ เพื่อให้จำนวนการอ่านเป็นปัจจุบัน
     if (auth.role !== "staff_admin") return;
     const poller = window.setInterval(() => {
       void loadBroadcastHistory()
@@ -649,6 +657,7 @@ export default function NotificationsPage() {
         );
 
   const markRead = async (notification: Notification) => {
+    // อัปเดตเฉพาะรายการที่เลือก และแจ้ง Header ให้ refresh จำนวน unread
     if (notification.is_read || workingId) return;
     setWorkingId(notification.id);
     try {
@@ -681,6 +690,7 @@ export default function NotificationsPage() {
   };
 
   const deleteNotification = async (notification: Notification) => {
+    // ลบแบบ soft delete ผ่าน service แล้วนำรายการออกจาก inbox ที่แสดงอยู่
     if (workingId) return;
     setWorkingId(notification.id);
     try {
@@ -710,6 +720,31 @@ export default function NotificationsPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl lg:text-4xl">{text('ศูนย์แจ้งเตือน', 'Notifications')}</h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {auth.role === "staff_admin" && (
+              <button
+                type="button"
+                onClick={() => setIsBroadcastOpen(true)}
+                aria-expanded={isBroadcastOpen}
+                aria-controls="notification-broadcast-panel"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"
+              >
+                <Send className="size-4" aria-hidden="true" />
+                ส่งประกาศ
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label={text("รีเฟรช", "Refresh")}
+              title={text("รีเฟรช", "Refresh")}
+              onClick={() => void reloadInbox()}
+              disabled={loading || auth.isLoading}
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-brand-button bg-brand-strong text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:gap-2 sm:px-3"
+            >
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span className="hidden sm:inline">{text("รีเฟรช", "Refresh")}</span>
+            </button>
           </div>
         </div>
         {!auth.isLoading && !auth.isAuthenticated && <p className="mt-2 text-xs font-semibold text-amber-700">{text('เข้าสู่ระบบเพื่อดูการแจ้งเตือน', 'Sign in to view your notifications.')}</p>}
@@ -758,89 +793,67 @@ export default function NotificationsPage() {
       {auth.role === "staff_admin" && (
         <section
           className="border-b border-brand-border-soft py-4"
-          aria-label="ผู้รับที่ยังไม่ได้อ่าน"
+          aria-label="ผู้รับทั้งหมด"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div>
-              <h2 className="font-semibold text-brand-ink">
-                ผู้รับที่ยังไม่ได้อ่าน
-              </h2>
+              <h2 className="font-semibold text-brand-ink">ผู้รับทั้งหมด</h2>
             </div>
-            <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-strong">
-              {visibleUnreadUsers.length} คน
-            </span>
           </div>
           <div
-            className="mt-5 flex flex-nowrap items-center gap-2 overflow-x-auto border-b border-brand-border-soft pb-1.5"
-            role="tablist"
-            aria-label="กรองตามบทบาท"
+            className="mt-5 overflow-x-auto pb-1"
           >
-            {unreadRoleFilters.map((item) => {
-              const isSelected = unreadRoleFilter === item.value;
-              const count = unreadRoleCounts[item.value];
-              return (
-                <button
-                  key={item.value}
-                  id={`unread-role-${item.value}-tab`}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  aria-controls="unread-users-panel"
-                  tabIndex={isSelected ? 0 : -1}
-                  onClick={() => setUnreadRoleFilter(item.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                        e.key,
-                      )
-                    )
-                      return;
-                    e.preventDefault();
-                    const values = unreadRoleFilters.map((f) => f.value);
-                    const currentIndex = values.indexOf(item.value);
-                    let nextValue: UnreadRoleFilter;
-                    if (e.key === "Home") nextValue = values[0];
-                    else if (e.key === "End")
-                      nextValue = values[values.length - 1];
-                    else if (e.key === "ArrowRight")
-                      nextValue = values[(currentIndex + 1) % values.length];
-                    else
-                      nextValue =
-                        values[
-                          (currentIndex - 1 + values.length) % values.length
-                        ];
-                    setUnreadRoleFilter(nextValue);
-                    document
-                      .getElementById(`unread-role-${nextValue}-tab`)
-                      ?.focus();
-                  }}
-                  className={`group relative inline-flex min-h-11 shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong cursor-pointer ${
-                    isSelected
-                      ? "bg-brand-soft text-brand-strong font-bold shadow-2xs"
-                      : "text-brand-body hover:bg-brand-soft/70 hover:text-brand-ink"
-                  }`}
-                >
-                  <span>{item.label}</span>
-                  <span
-                    className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums transition-colors ${
+            <div
+              className="mx-auto flex w-full min-w-max items-end gap-0 border-b border-brand-border-soft"
+              role="tablist"
+              aria-label="กรองตามบทบาท"
+            >
+              {unreadRoleFilters.map((item) => {
+                const isSelected = unreadRoleFilter === item.value;
+                const count = unreadRoleCounts[item.value];
+                return (
+                  <button
+                    key={item.value}
+                    id={`unread-role-${item.value}-tab`}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    aria-controls="unread-users-panel"
+                    tabIndex={isSelected ? 0 : -1}
+                    onClick={() => setUnreadRoleFilter(item.value)}
+                    onKeyDown={(e) => {
+                      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+                      e.preventDefault();
+                      const values = unreadRoleFilters.map((f) => f.value);
+                      const currentIndex = values.indexOf(item.value);
+                      let nextValue: UnreadRoleFilter;
+                      if (e.key === "Home") nextValue = values[0];
+                      else if (e.key === "End") nextValue = values[values.length - 1];
+                      else if (e.key === "ArrowRight") nextValue = values[(currentIndex + 1) % values.length];
+                      else nextValue = values[(currentIndex - 1 + values.length) % values.length];
+                      setUnreadRoleFilter(nextValue);
+                      document.getElementById(`unread-role-${nextValue}-tab`)?.focus();
+                    }}
+                    className={`relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 border-x border-t px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-12 sm:gap-2 sm:px-5 sm:text-sm ${
                       isSelected
-                        ? "bg-brand-strong text-white shadow-2xs"
-                        : "bg-white border border-brand-border-soft text-brand-muted group-hover:border-brand-border-strong group-hover:text-brand-ink"
+                        ? "z-10 -mb-px rounded-t-2xl border-brand-border-soft border-t-4 border-t-brand-strong bg-brand-surface text-brand-strong"
+                        : "border-transparent text-brand-body hover:text-brand-ink"
                     }`}
                   >
-                    {count}
-                  </span>
-                  <span
-                    className={`absolute -bottom-[7px] left-2 right-2 h-0.5 rounded-full transition-all duration-150 ${
-                      isSelected
-                        ? "bg-brand-strong"
-                        : "bg-transparent group-hover:bg-brand-border-strong/70"
-                    }`}
-                    aria-hidden="true"
-                  />
-                </button>
-              );
-            })}
+                    <span>{item.label}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs tabular-nums sm:px-2.5 sm:text-sm ${
+                        isSelected
+                          ? "bg-brand-soft text-brand-strong"
+                          : "bg-brand-page text-brand-muted"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div
             id="unread-users-panel"

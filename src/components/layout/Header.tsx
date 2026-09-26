@@ -209,6 +209,8 @@ export default function Header() {
     return () => window.removeEventListener(THEME_PREFERENCE_EVENT, handleThemeChange);
   }, []);
 
+  // โหลดจำนวนแจ้งเตือนที่ยังไม่ได้อ่านเพื่อแสดง badge บนไอคอนกระดิ่ง
+  // cleanup ป้องกันไม่ให้ request ที่เสร็จช้าอัปเดต state หลังเปลี่ยนผู้ใช้หรือออกจากหน้า
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
       return;
@@ -347,6 +349,7 @@ export default function Header() {
           {isAdmin && <div className="hidden lg:block"><AdminDatabaseStatusBadge status={adminDatabaseStatus} /></div>}
           {isAdmin && <AdminDatabaseStatusIndicator status={adminDatabaseStatus} />}
           {isAuthenticated && (
+            // ลิงก์นี้เป็นทางเข้าศูนย์แจ้งเตือนร่วม ส่วน badge จะแสดงเฉพาะผู้ใช้ที่ไม่ใช่ staff_admin
             <Link
               href="/notifications"
               aria-current={isActive("/notifications") ? "page" : undefined}

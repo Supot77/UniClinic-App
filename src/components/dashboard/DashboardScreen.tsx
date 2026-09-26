@@ -24,6 +24,8 @@ import Toast from '@/components/common/Toast';
 import { useLocale } from '@/context/LocaleContext';
 import { useSetAdminDatabaseStatus } from '@/context/AdminDatabaseStatusContext';
 
+// DashboardScreen รองรับข้อมูล 3 บทบาท: patient, medical และ staff_admin
+// component ย่อยด้านล่างจะแสดงผลต่างกันตาม role และช่วงเวลาที่ผู้ใช้เลือก
 const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   pending: 'รอการยืนยัน', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'ตรวจเสร็จแล้ว',
   cancelled: 'ยกเลิก', no_show: 'ไม่มาตามนัด', rejected: 'ปฏิเสธ',
@@ -329,6 +331,7 @@ function DashboardActionLink({
 }
 
 function MetricIcon({ id }: { id: string }) {
+  // เลือกไอคอนของ metric จาก id ที่ service สร้างมา เพื่อให้การ์ดแต่ละประเภทสื่อความหมายได้ทันที
   if (id.includes('appointment')) return <CalendarDays className="size-5 shrink-0" aria-hidden="true" />;
   if (id.includes('medication')) return <Pill className="size-5 shrink-0" aria-hidden="true" />;
   if (id.includes('reminder')) return <Clock3 className="size-5 shrink-0" aria-hidden="true" />;
@@ -369,6 +372,7 @@ function PatientNextAppointmentSummary({
   appointments?: DashboardView['upcomingAppointments'];
   fallbackAppointment?: DashboardView['nextAppointment'];
 }) {
+  // การ์ดนี้แสดงนัดหมายถัดไปของผู้ป่วยหรือแพทย์ และคง controls เดิมไว้ระหว่างโหลดข้อมูลช่วงใหม่
   const { locale, text } = useLocale();
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
@@ -1103,6 +1107,7 @@ function DashboardSkeletonSection({ rows = 3 }: { rows?: number }) {
 }
 
 function DashboardRangeSkeleton({ role }: { role: 'staff_admin' | 'medical' | 'patient' }) {
+  // skeleton ใช้เฉพาะข้อมูลส่วนล่างที่เปลี่ยนตามช่วงเวลา โดยไม่ลบ chrome และนัดหมายด้านบนออก
   return <div className="space-y-6 sm:space-y-8" role="status" aria-label="กำลังโหลดข้อมูลช่วงเวลาที่เลือก">
     {role === 'staff_admin' && <>
       <div className="mx-auto grid w-full max-w-[920px] grid-cols-1 gap-4 border-b border-brand-border-soft py-4 sm:grid-cols-2 sm:gap-8" aria-hidden="true">
@@ -1156,6 +1161,7 @@ export default function DashboardScreen({
   actorId: string;
   preview?: 'upcoming-toast';
 }) {
+  // view เดิมจะถูกเก็บไว้ขณะเปลี่ยน range เพื่อให้หน้าจอไม่ว่างทั้งหน้า และจะแทนที่เมื่อ request สำเร็จ
   const { locale, text } = useLocale();
   const [range, setRange] = useState<DashboardRange>('today');
   const [view, setView] = useState<DashboardView | null>(null);
@@ -1181,6 +1187,7 @@ export default function DashboardScreen({
   };
 
   useEffect(() => {
+    // cleanup flag ป้องกัน response เก่าหรือ response หลัง unmount เขียนทับ state ของหน้าปัจจุบัน
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (role === 'staff_admin') setDatabaseStatus('checking');

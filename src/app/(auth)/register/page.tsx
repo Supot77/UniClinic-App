@@ -963,16 +963,12 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field
-                id="emergency-relationship"
+                id="emergency-contact-relationship"
                 label={text('ความสัมพันธ์', 'Relationship')}
-                error={
-                  fieldErrors.emergencyContactRelationship
-                }
-                help={text('ระบุความสัมพันธ์กับผู้ป่วย', 'How are they related to you?')}
+                error={fieldErrors.emergencyContactRelationship}
               >
-                <input
-                  id="emergency-relationship"
-                  type="text"
+                <select
+                  id="emergency-contact-relationship"
                   required
                   value={
                     form.emergencyContactRelationship
@@ -983,12 +979,18 @@ export default function RegisterPage({ mode = 'self-service', embedded = false }
                       event.target.value,
                     )
                   }
-                  placeholder={text('เช่น บิดา มารดา ญาติ เพื่อน', 'e.g., Parent, relative, or friend')}
                   disabled={isSubmitting}
                   className={inputClass(
                     'emergencyContactRelationship',
                   )}
-                />
+                >
+                  <option value="">{text('เลือก', 'Select')}</option>
+                  <option value="บิดา">{text('บิดา', 'Father')}</option>
+                  <option value="มารดา">{text('มารดา', 'Mother')}</option>
+                  <option value="พี่น้อง">{text('พี่น้อง', 'Sibling')}</option>
+                  <option value="คู่สมรส">{text('คู่สมรส', 'Spouse')}</option>
+                  <option value="บุตร/ธิดา">{text('บุตร/ธิดา', 'Child')}</option>
+                </select>
               </Field>
 
               <Field

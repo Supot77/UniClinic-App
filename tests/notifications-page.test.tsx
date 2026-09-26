@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import NotificationsPage from '@/app/(patient)/notifications/page';
 
 const authState = vi.hoisted(() => ({
   user: { id: 'patient-1', email: 'patient@mail.wu.ac.th' },
-  role: 'patient' as const,
+  role: 'patient' as 'patient' | 'medical' | 'staff_admin',
   isLoading: false,
   isAuthenticated: true,
 }));
@@ -38,6 +38,7 @@ const notification = {
 describe('NotificationsPage user-facing errors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.role = 'patient';
     serviceMocks.getNotifications.mockResolvedValue([notification]);
     serviceMocks.getUnreadNotificationRecipients.mockResolvedValue([]);
     serviceMocks.getBroadcastHistory.mockResolvedValue([]);
@@ -70,5 +71,38 @@ describe('NotificationsPage user-facing errors', () => {
     const refreshButton = await screen.findByRole('button', { name: 'รีเฟรช' });
     expect(refreshButton).toHaveAttribute('title', 'รีเฟรช');
     expect(refreshButton.querySelector('svg')).toBeTruthy();
+  });
+
+  it('uses the all-recipients heading and medication-style role tabs for staff admins', async () => {
+    authState.role = 'staff_admin';
+
+    render(<NotificationsPage />);
+
+    expect(await screen.findByRole('heading', { name: 'ผู้รับทั้งหมด' })).toBeInTheDocument();
+    expect(screen.queryByText('0 คน')).not.toBeInTheDocument();
+
+    const allRecipientsTab = screen.getByRole('tab', { name: 'ผู้รับทุกคน 0' });
+    expect(allRecipientsTab).toHaveClass('rounded-t-2xl', 'border-t-4');
+    const periodControl = within(screen.getByRole('toolbar', { name: 'ตัวกรองการแจ้งเตือน' })).getByRole('group', { name: 'เลือกช่วงเวลา' });
+    expect(periodControl.parentElement?.nextElementSibling?.nodeName).toBe('TIME');
+    expect(periodControl.parentElement?.nextElementSibling).toHaveTextContent(/2569/);
+
+    fireEvent.click(within(periodControl).getByRole('button', { name: 'ย้อนหลัง 7 วัน' }));
+    await waitFor(() => expect(periodControl.parentElement?.nextElementSibling).toHaveTextContent('–'));
+  });
+
+  it.each(['patient', 'medical', 'staff_admin'] as const)('shows the selected notification period beside the segmented control for %s', async (role) => {
+    authState.role = role;
+
+    render(<NotificationsPage />);
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'ตัวกรองการแจ้งเตือน' });
+    const periodControl = within(toolbar).getByRole('group', { name: 'เลือกช่วงเวลา' });
+    const periodLabel = periodControl.parentElement?.nextElementSibling;
+    expect(periodLabel?.nodeName).toBe('TIME');
+    expect(periodLabel).toHaveTextContent(/2569/);
+
+    fireEvent.click(within(periodControl).getByRole('button', { name: 'ย้อนหลัง 7 วัน' }));
+    await waitFor(() => expect(periodLabel).toHaveTextContent('–'));
   });
 });

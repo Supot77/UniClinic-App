@@ -94,7 +94,8 @@ export interface StaffProfileDirectoryItem {
   createdAt: string;
 }
 
-// --- Notifications ---
+// --- การแจ้งเตือน ---
+// ดึง inbox ของผู้ใช้ปัจจุบัน พร้อมแปลง read_at ให้ UI ใช้เป็น is_read ได้ง่าย
 export async function getNotifications(userId: string, limit = 20, dateRange?: NotificationDateRange): Promise<Notification[]> {
   let query = supabase
     .from('notifications')
@@ -158,6 +159,7 @@ export async function recordPatientMedicationTaken(reminderId: string, scheduled
   if (error) throw error;
 }
 
+// ดึงสรุปรายชื่อผู้รับที่ยังไม่ได้อ่านสำหรับหน้าจัดการของ staff_admin
 export async function getUnreadNotificationRecipients(limit = 100, dateRange?: NotificationDateRange): Promise<UnreadNotificationRecipient[]> {
   const params: { p_limit: number; p_start_at?: string; p_end_at?: string } = { p_limit: limit };
   if (dateRange) {
@@ -169,6 +171,7 @@ export async function getUnreadNotificationRecipients(limit = 100, dateRange?: N
   return (data ?? []) as UnreadNotificationRecipient[];
 }
 
+// บันทึกเวลาอ่านของ notification รายการเดียว แล้วคืนข้อมูลล่าสุดให้ component อัปเดต state
 export async function markAsRead(notificationId: string): Promise<Notification> {
   const { data, error } = await supabase
     .from('notifications')
@@ -180,6 +183,7 @@ export async function markAsRead(notificationId: string): Promise<Notification> 
   return toNotification(data as NotificationRow);
 }
 
+// ใช้สำหรับทำเครื่องหมายแจ้งเตือนของผู้ใช้หนึ่งคนทั้งหมดว่าอ่านแล้ว
 export async function markAllAsRead(userId: string) {
   const { error } = await supabase
     .from('notifications')
@@ -190,6 +194,7 @@ export async function markAllAsRead(userId: string) {
   if (error) throw error;
 }
 
+// ลบแบบ soft delete ด้วย deleted_at เพื่อไม่ทำลายประวัติในฐานข้อมูลถาวร
 export async function deleteNotification(notificationId: string) {
   const { error } = await supabase
     .from('notifications')
@@ -198,6 +203,7 @@ export async function deleteNotification(notificationId: string) {
   if (error) throw error;
 }
 
+// ส่งประกาศผ่าน RPC เพื่อสร้างรายการ broadcast และ notification ให้ผู้รับตาม role
 export async function sendBroadcast(
   title: string,
   message: string,
@@ -216,6 +222,7 @@ export async function sendBroadcast(
   return { recipientCount: row.recipient_count, created: row.created };
 }
 
+// ดึงประวัติประกาศพร้อมจำนวนผู้รับและจำนวนผู้ที่อ่านแล้วสำหรับ staff_admin
 export async function getBroadcastHistory(limit = 20, dateRange?: NotificationDateRange): Promise<BroadcastHistoryItem[]> {
   const params: { p_limit: number; p_start_at?: string; p_end_at?: string } = { p_limit: limit };
   if (dateRange) {
