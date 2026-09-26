@@ -3,6 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ScheduleWorkspace, { getNextAvailableTimeSlot } from '@/components/schedules/ScheduleWorkspace';
 import type { DoctorLeave, ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot } from '@/types/schedule';
 
+// Patient schedule locale coverage: English controls, date labels, notices, and loading state.
+const localeState = vi.hoisted(() => ({ locale: 'th' as 'en' | 'th' }));
+
+vi.mock('@/context/LocaleContext', () => ({
+  useLocale: () => ({
+    locale: localeState.locale,
+    text: (thai: string, english: string) => localeState.locale === 'th' ? thai : english,
+  }),
+}));
+
 const mockDepartments: ScheduleDepartment[] = [
   { id: 'dept-general', name: 'เวชปฏิบัติทั่วไป', description: 'ตรวจโรคทั่วไป', isActive: true },
   { id: 'dept-dental', name: 'ทันตกรรม', description: 'แผนกทันตกรรม', isActive: false },
@@ -115,12 +125,51 @@ describe('ScheduleWorkspace Service Filter', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-08T12:00:00Z'));
+    localeState.locale = 'th';
     schedulingState.departments = [...mockDepartments];
     schedulingState.services = [...mockServices];
     schedulingState.doctors = [...mockDoctors];
     schedulingState.slots = [...mockSlots];
     schedulingState.doctorLeaves = [];
     schedulingState.isLoading = false;
+  });
+
+  it('translates patient schedule controls and date labels into English', () => {
+    localeState.locale = 'en';
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    expect(screen.getByRole('heading', { name: 'Doctor schedule' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous period' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next period' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Go to current week' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Calendar view' })).toHaveDisplayValue('Week');
+    expect(screen.getByRole('combobox', { name: 'Filter by department' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All departments' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Filter by service' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Filter by doctor' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All doctors' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Filter by status' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Available' })).toBeInTheDocument();
+    expect(screen.getByText('7 Sept – 13 Sept 2026')).toBeInTheDocument();
+    expect(screen.getByText(/^\d+ slots? match your filters$/)).toBeInTheDocument();
+    expect(screen.getByText('No time slots match your filters.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Calendar view' }), { target: { value: 'month' } });
+    expect(screen.getByText('September 2026')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to current month' }));
+    expect(screen.getByText('Showing the current month.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dismiss notification' })).toBeInTheDocument();
+  });
+
+  it('announces schedule loading in English for patients', () => {
+    localeState.locale = 'en';
+    schedulingState.isLoading = true;
+    render(<ScheduleWorkspace role="patient" actorId="guest" />);
+
+    expect(screen.getByRole('status', { name: 'Loading doctor schedule' })).toBeInTheDocument();
+    expect(screen.getByText('Loading doctor schedule…')).toBeInTheDocument();
   });
 
   it('only shows service options for active services that have open slots', () => {
@@ -206,6 +255,39 @@ describe('ScheduleWorkspace Service Filter', () => {
     const dateInput = screen.getByLabelText('วันที่');
     expect(dateInput).toHaveAttribute('min');
     expect(dateInput.getAttribute('min')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('locks same-day creation to the current Bangkok time', () => {
+    vi.setSystemTime(new Date('2026-09-08T03:00:00Z'));
+    schedulingState.slots = [];
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มรอบตรวจ' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์' }), { target: { value: 'doc-1' } });
+
+    const startTimeSelect = screen.getByLabelText('เวลาเริ่ม');
+    const endTimeSelect = screen.getByLabelText('เวลาสิ้นสุด');
+    expect(startTimeSelect.tagName).toBe('SELECT');
+    expect(within(startTimeSelect).getByRole('option', { name: '10:00' })).toBeInTheDocument();
+    expect(within(startTimeSelect).queryByRole('option', { name: '09:59' })).not.toBeInTheDocument();
+    expect(within(startTimeSelect).queryByRole('option', { name: '12:00' })).not.toBeInTheDocument();
+    expect(within(endTimeSelect).getByRole('option', { name: '10:30' })).toBeInTheDocument();
+    expect(screen.getByText(/สร้างรอบได้ตั้งแต่ 10:00 น\./)).toBeInTheDocument();
+  });
+
+  it('locks batch time options when creating for today only', () => {
+    vi.setSystemTime(new Date('2026-09-08T03:00:00Z'));
+    render(<ScheduleWorkspace role="staff_admin" actorId="admin-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างรอบหลายวัน' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'แพทย์สำหรับสร้างรอบหลายวัน' }), { target: { value: 'doc-1' } });
+    fireEvent.change(screen.getByLabelText('วันที่สิ้นสุด'), { target: { value: '2026-09-08' } });
+
+    const startTimeSelect = screen.getByLabelText('เวลาเริ่มสำหรับสร้างรอบหลายวัน');
+    expect(startTimeSelect.tagName).toBe('SELECT');
+    expect(within(startTimeSelect).getByRole('option', { name: '10:00' })).toBeInTheDocument();
+    expect(within(startTimeSelect).queryByRole('option', { name: '09:59' })).not.toBeInTheDocument();
+    expect(within(startTimeSelect).queryByRole('option', { name: '12:00' })).not.toBeInTheDocument();
   });
 
   it('mounts slot modal at document body so it is centered on the viewport', () => {
@@ -312,6 +394,7 @@ describe('ScheduleWorkspace Service Filter', () => {
   });
 
   it('auto-fills next available time when doctor already has slots on the same day', () => {
+    vi.setSystemTime(new Date('2026-09-08T01:00:00Z'));
     schedulingState.isLoading = false;
     schedulingState.slots = [
       {

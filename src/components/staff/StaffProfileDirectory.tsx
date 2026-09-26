@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 import {
   deleteStaffProfile,
   getStaffProfileDirectory,
+  setDoctorAccountActive,
   updateStaffProfile,
   type StaffProfileDirectoryItem,
 } from "@/services/dashboardService";
@@ -278,6 +279,9 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
     try {
       if (accountAction.kind === "hard-delete") {
         await deleteStaffProfile(profile.id);
+      } else if (profile.role === "medical") {
+        // Use the same doctor status endpoint previously used on /departments.
+        await setDoctorAccountActive(profile.id, accountAction.nextActive);
       } else {
         await updateStaffProfile(profile.id, {
           title: profile.title,
@@ -321,7 +325,7 @@ export default function StaffProfileDirectory({ patientOnly = false, canCreatePe
     <main className="dashboard-shell flex w-full flex-col gap-10 pb-10">
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="relative pl-4 text-3xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-4xl">
+          <h1 className="text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">
             จัดการบัญชีผู้ใช้
           </h1>
           <p className="mt-2 text-sm text-brand-muted">

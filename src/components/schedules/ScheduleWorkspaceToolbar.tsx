@@ -1,9 +1,12 @@
+// Patient schedule locale: toolbar labels, filters, and date display.
 import type { Dispatch, SetStateAction } from 'react';
 import { ArrowRight, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Copy, Plus, RefreshCw } from 'lucide-react';
 import DatePicker from '@/components/common/DatePicker';
 import type { ScheduleDepartment, ScheduleDoctor, ScheduleService, ScheduleSlot, ScheduleSlotStatus } from '@/types/schedule';
 import type { UserRole } from '@/types/database';
 import { useLocale } from '@/context/LocaleContext';
+import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
+import { ALL_SERVICES_FILTER_VALUE, ALL_SERVICES_LABEL } from '@/constants/services';
 import {
   formatShortDate,
   formatWeekRange,
@@ -28,26 +31,27 @@ type HeaderProps = {
 
 export function ScheduleWorkspaceHeader({ role, isLoading, openSlotForm, openBatchForm, openLeaveForm, openServiceForm }: HeaderProps) {
   const { text } = useLocale();
+
   return (
     <header className="sticky top-16 z-30 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3.5 bg-brand-surface/90 backdrop-blur-md shadow-[0_4px_16px_-4px_rgba(16,47,61,0.06)] transition-shadow">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-          <h1 className="text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">{text('ตารางตรวจแพทย์', 'Clinician schedules')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">{text('ตารางตรวจแพทย์', 'Doctor schedule')}</h1>
           {role !== 'patient' && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none flex-nowrap">
               <button type="button" disabled={isLoading} onClick={() => openSlotForm()} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
-                <Plus className="h-4 w-4" aria-hidden="true" />{text('เพิ่มรอบตรวจ', 'Add time slot')}
+                <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มรอบตรวจ
               </button>
               <button type="button" disabled={isLoading} onClick={() => openBatchForm('range')} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-brand-border-strong bg-brand-soft px-4 text-sm font-semibold text-brand-strong hover:bg-brand-soft/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
-                <CalendarRange className="h-4 w-4" aria-hidden="true" />{text('สร้างรอบหลายวัน', 'Create slots across dates')}
+                <CalendarRange className="h-4 w-4" aria-hidden="true" />สร้างรอบหลายวัน
               </button>
               <button type="button" disabled={isLoading} onClick={() => openBatchForm('copy')} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50">
-                <Copy className="h-4 w-4" aria-hidden="true" />{text('คัดลอกรอบจากวันก่อน', 'Copy slots from another date')}
+                <Copy className="h-4 w-4" aria-hidden="true" />คัดลอกรอบจากวันก่อน
               </button>
               <button type="button" disabled={isLoading} onClick={() => openLeaveForm()} className="inline-flex min-h-11 shrink-0 whitespace-nowrap items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-800 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 disabled:opacity-50">
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />{text('บันทึกวันลาแพทย์', 'Record clinician leave')}
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />บันทึกวันลาแพทย์
               </button>
               <button type="button" disabled={isLoading} onClick={() => openServiceForm()} className={`${textButtonClass} shrink-0 whitespace-nowrap disabled:opacity-50`}>
-                <Plus className="h-4 w-4" aria-hidden="true" />{text('เพิ่มบริการ', 'Add service')}
+                <Plus className="h-4 w-4" aria-hidden="true" />เพิ่มบริการ
               </button>
             </div>
           )}
@@ -127,8 +131,10 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                       calendarView === 'day'
                         ? formatShortDate(weekStart, locale)
                         : calendarView === 'month'
-                        ? new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', { month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' }).format(parseClinicDate(weekStart))
-                        : formatWeekRange(weekStart, locale)
+                          ? locale === 'th'
+                            ? `${THAI_MONTHS_SHORT[parseClinicDate(weekStart).getUTCMonth()]} ${parseClinicDate(weekStart).getUTCFullYear() + 543}`
+                            : new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(parseClinicDate(weekStart))
+                          : formatWeekRange(weekStart, locale)
                     }
                     slotDates={availableSlotDates}
                     triggerClassName="min-h-11 rounded-xl border border-brand-border-strong bg-white px-3.5 py-1.5 text-sm font-semibold tabular-nums text-brand-ink shadow-2xs hover:bg-brand-soft hover:border-brand-strong cursor-pointer"
@@ -158,11 +164,15 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                       calendarView === 'day'
                         ? text('ไปยังวันนี้', 'Go to today')
                         : calendarView === 'month'
-                        ? text('ไปยังเดือนปัจจุบัน', 'Go to this month')
-                        : text('ไปยังสัปดาห์ปัจจุบัน', 'Go to this week')
+                          ? text('ไปยังเดือนปัจจุบัน', 'Go to current month')
+                          : text('ไปยังสัปดาห์ปัจจุบัน', 'Go to current week')
                     }
                   >
-                    {calendarView === 'day' ? text('วันนี้', 'Today') : calendarView === 'month' ? text('เดือนนี้', 'This month') : text('สัปดาห์นี้', 'This week')}
+                    {calendarView === 'day'
+                      ? text('วันนี้', 'Today')
+                      : calendarView === 'month'
+                        ? text('เดือนนี้', 'This month')
+                        : text('สัปดาห์นี้', 'This week')}
                   </button>
                 </div>
                 <label className="flex items-center gap-3 text-sm text-brand-body">
@@ -186,14 +196,14 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                   <label className="col-span-2 grid gap-2 text-sm text-brand-body sm:col-span-1">
                     <span>{text('บริการ', 'Service')}</span>
                     <select aria-label={text('กรองบริการ', 'Filter by service')} value={effectiveServiceFilter} onChange={(event) => { setServiceFilter(event.target.value); setDoctorFilter('all'); }} className={filterClass}>
-                      <option value="all">{text('ทุกบริการ', 'All services')}</option>
+                      <option value={ALL_SERVICES_FILTER_VALUE}>{text(ALL_SERVICES_LABEL, 'All services')}</option>
                       {openServices.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
                     </select>
                   </label>
                   <label className="grid min-w-0 gap-2 text-sm text-brand-body">
-                    <span>{text('แพทย์', 'Clinician')}</span>
-                    <select aria-label={text('กรองแพทย์', 'Filter by clinician')} value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)} className={filterClass}>
-                      <option value="all">{text('แพทย์ทุกคน', 'All clinicians')}</option>
+                    <span>{text('แพทย์', 'Doctor')}</span>
+                    <select aria-label={text('กรองแพทย์', 'Filter by doctor')} value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)} className={filterClass}>
+                      <option value="all">{text('แพทย์ทุกคน', 'All doctors')}</option>
                       {filteredDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.fullName}</option>)}
                     </select>
                   </label>
@@ -201,13 +211,17 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                     <span>{text('สถานะ', 'Status')}</span>
                     <select aria-label={text('กรองสถานะ', 'Filter by status')} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | ScheduleSlotStatus)} className={filterClass}>
                       <option value="all">{text('ทุกสถานะ', 'All statuses')}</option>
-                       <option value="available">{text('เปิดให้จอง', 'Available')}</option>
+                      <option value="available">{text('เปิดให้จอง', 'Available')}</option>
                       <option value="full">{text('เต็ม', 'Full')}</option>
                       <option value="closed">{text('ปิดรอบ', 'Closed')}</option>
                     </select>
                   </label>
                 </div>
-                 <p className="pb-3 text-sm tabular-nums text-brand-body">{text('พบ', 'Showing')} {visibleSlots.length} {text('รอบตามตัวกรอง', 'time slots')}</p>
+                  <p className="pb-3 text-sm tabular-nums text-brand-body">
+                    {visibleSlots.length === 1
+                      ? text('พบ 1 รอบตามตัวกรอง', '1 slot matches your filters')
+                      : text(`พบ ${visibleSlots.length} รอบตามตัวกรอง`, `${visibleSlots.length} slots match your filters`)}
+                  </p>
               </div>
             </div>
 
@@ -218,11 +232,11 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                   <span>
                     {nearestSlotDate
                       ? (calendarView === 'day'
-                           ? text('วันนี้ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match these filters today.')
+                          ? text('วันนี้ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match your filters today.')
                           : calendarView === 'month'
-                           ? text('เดือนนี้ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match these filters this month.')
-                           : text('สัปดาห์นี้ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match these filters this week.'))
-                       : text('ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match these filters.')}
+                            ? text('เดือนนี้ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match your filters this month.')
+                            : text('สัปดาห์นี้ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match your filters this week.'))
+                      : text('ไม่พบรอบตรวจตามตัวกรอง', 'No time slots match your filters.')}
                   </span>
                 </div>
                 {nearestSlotDate ? (
@@ -231,7 +245,10 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                     onClick={() => {
                       setWeekStart(getCurrentWeekMonday(nearestSlotDate));
                       setCalendarView('week');
-                      setNotice(text(`ไปยังสัปดาห์ที่มีรอบตรวจ: ${formatShortDate(getCurrentWeekMonday(nearestSlotDate), locale)}`, `Showing the week of ${formatShortDate(getCurrentWeekMonday(nearestSlotDate), locale)}.`));
+                      setNotice(text(
+                        `ไปยังสัปดาห์ที่มีรอบตรวจ: ${formatShortDate(getCurrentWeekMonday(nearestSlotDate), locale)}`,
+                        `Showing the week with appointments: ${formatShortDate(getCurrentWeekMonday(nearestSlotDate), locale)}.`,
+                      ));
                     }}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-strong px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition cursor-pointer"
                   >
@@ -246,7 +263,7 @@ export function ScheduleCalendarToolbar(props: CalendarToolbarProps) {
                       setServiceFilter('all');
                       setDoctorFilter(role === 'medical' && currentDoctor ? currentDoctor.id : 'all');
                       setStatusFilter('all');
-                       setNotice(text('ล้างตัวกรองแล้ว', 'Filters cleared.'));
+                      setNotice(text('ล้างตัวกรองแล้ว', 'Filters cleared.'));
                     }}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-strong px-3 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover transition cursor-pointer"
                   >

@@ -2,6 +2,209 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## จำกัดสิทธิ์ผลตรวจของ staff_admin — 26 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `staff_admin` เข้า `/records` ไม่ได้ และไม่มีลิงก์ผลตรวจจากเมนูหรือรายการนัด
+- API/repository ไม่เรียกและไม่ส่งข้อมูล `medical_records` ให้ `staff_admin`
+- migration 41 ยกเลิก policy เดิมจาก migration 35/39/24 และจำกัด RLS/read helper ให้เหลือ `patient` กับ `medical`
+- คงสิทธิ์ดูผลตรวจของ `patient` และ `medical` ตามเดิม และคงสิทธิ์เจ้าหน้าที่จัดการนัดหมาย/คลังยาแยกจากผลตรวจ
+
+### ไฟล์หลัก
+
+- `src/app/(clinic)/records/page.tsx`, `src/app/api/medical-records/route.ts`
+- `src/features/clinic-care.tsx`, `src/features/medical-records.tsx`, `src/features/appointments.tsx`
+- `src/components/layout/Header.tsx`, `src/components/layout/Footer.tsx`
+- `supabase/migrations/41_restrict_staff_admin_medical_records.sql`
+- `tests/appointments-records-runtime.test.ts`, `tests/appointments-records-runtime-ui.test.tsx`, `tests/staff-admin-medical-records-migration.test.ts`
+
+### การตรวจ
+
+- focused tests และ typecheck — รันหลังแก้ไข
+- ยังไม่ได้ deploy migration 41 ไปยังฐานจริง และยังไม่ได้ตรวจ browser session จริง
+
+## เปิดให้ staff_admin ดูผลตรวจแบบอ่านอย่างเดียว — 26 กันยายน 2569 (historical; superseded by migration 41)
+
+### ขอบเขตและพฤติกรรม
+
+- `staff_admin` เปิด `/records` และดูผลตรวจ การตรวจร่างกาย และรายการยาของผู้ป่วยทั้งหมดได้
+- เพิ่มลิงก์จากเมนูและรายการนัดที่มีผลตรวจแล้ว
+- คงสิทธิ์บันทึกและแก้ไขผลตรวจไว้เฉพาะ `medical`; staff_admin ไม่มีคำสั่งเขียนในหน้า
+- เพิ่ม migration 39 ให้ PAI workspace RPC และ RLS อ่านผลตรวจได้สำหรับ `staff_admin`
+
+### ไฟล์หลัก
+
+- `src/app/(clinic)/records/page.tsx`
+- `src/features/clinic-care.tsx`, `src/features/medical-records.tsx`, `src/features/appointments.tsx`
+- `src/components/layout/Header.tsx`, `src/components/layout/Footer.tsx`
+- `supabase/migrations/39_staff_admin_read_medical_records.sql`
+- `tests/appointments-records-runtime.test.ts`, `tests/appointments-records-runtime-ui.test.tsx`, `tests/staff-admin-medical-records-migration.test.ts`
+
+### การตรวจ
+
+- focused tests และ typecheck — รันหลังแก้ไข
+- ยังไม่ได้ deploy migration 39 ไปยังฐานจริง และยังไม่ได้ตรวจ browser session จริง
+
+## เพิ่ม combobox ความเชี่ยวชาญแพทย์ — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ช่องความเชี่ยวชาญในฟอร์มแพทย์กรองตัวเลือกจากค่าที่มีในรายชื่อแพทย์ และเลือกเพิ่มค่าที่พิมพ์ใหม่ได้
+- รองรับการเลื่อนตัวเลือกด้วยลูกศร, ยืนยันด้วย Enter, ปิดรายการด้วย Escape และเลือกด้วยเมาส์
+- คงการบันทึกข้อความลง `specialty` เดิม ไม่เพิ่ม catalog, API หรือ migration
+
+### ไฟล์หลัก
+
+- `src/components/schedules/DepartmentWorkspace.tsx`
+- `docs/owners/shop-supot/user-stories.md`, `use-cases.md`, `as-built.md`, `status.md`
+
+### การตรวจ
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- ไม่ได้เพิ่มหรือรัน automated tests ตามขอบเขตงาน; ยังไม่ได้ตรวจ browser QA
+
+## จัดฟอร์มจัดการแผนก แพทย์ และบริการเป็น modal รองรับธีม — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เปลี่ยนฟอร์มเพิ่ม/แก้ไขแผนก แพทย์ และบริการใน `/departments` จาก drawer ชิดขวาเป็น modal portal ลอยกลางจอ แยกจาก layout ของหน้า พร้อมปรับขนาดและพื้นที่เลื่อนให้เหมาะกับ viewport
+- เพิ่มเส้นขอบและเงารอบ modal ให้แยกจากพื้นหลังชัดขึ้นทั้ง light/dark theme
+- ใช้ theme tokens กับพื้นผิว ตัวอักษร เส้นขอบ ช่องกรอก และปุ่มยกเลิก เพื่อให้แสดงผลตาม light/dark theme
+- คงการบันทึก, validation, สถานะกำลังบันทึก, Escape, focus trap, คืน focus และเพิ่มการปิดเมื่อคลิกฉากหลัง
+- ไม่เปลี่ยน repository, API หรือ schema
+
+### ไฟล์หลัก
+
+- `src/components/schedules/DepartmentWorkspace.tsx`
+- `docs/owners/shop-supot/user-stories.md`, `use-cases.md`, `as-built.md`, `status.md`
+
+### การตรวจ
+
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- ไม่ได้รัน automated tests หรือ browser QA; ยังไม่ได้ยืนยันหน้าจอจริงที่ 360px/1280px และฐานข้อมูล/RLS
+
+## เพิ่มภาพสีน้ำในหน้า Authentication และจัดชั้น footer — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มภาพสีน้ำแสดงลำดับการดูแลผู้ป่วย ตั้งแต่ลงทะเบียน ปรึกษา ตรวจวินิจฉัย จนถึงฟื้นฟู เป็นพื้นหลังร่วมของหน้าเข้าสู่ระบบ สมัครสมาชิก ลืมรหัสผ่าน และตั้งรหัสผ่านใหม่
+- จัดภาพไว้ด้านซ้ายบนมือถือ และใช้ overlay จาก brand tokens เพื่อคงความชัดของฟอร์มและรองรับ light/dark theme
+- เอาความสูงเต็ม viewport ที่ซ้ำกับ root shell ออกจาก auth layout และยก footer หลักให้อยู่เหนือภาพพื้นหลังแบบ fixed เพื่อไม่ให้ footer ถูกบัง
+- ไม่เปลี่ยน flow การยืนยันตัวตนหรือข้อมูลในฟอร์ม
+
+### ไฟล์หลัก
+
+- `src/app/(auth)/layout.tsx`
+- `src/components/layout/Footer.tsx`
+- `public/images/auth-care-watercolor.webp`
+- `docs/12_visual_design_system.md`
+
+### การตรวจ
+
+- Browser QA ที่ 1680×810 บน `/login` และ `/reset-password` — เห็นภาพพื้นหลังและ footer; เลื่อนหน้าแล้วดู footer ต่อได้
+- ไม่เพิ่มหรือรัน automated tests เพราะเปลี่ยนเฉพาะภาพและ layout presentation; ยังไม่ได้ตรวจ viewport 360px
+- `git diff --check` — รันหลังแก้ไข
+
+## เพิ่มสวิตช์ Light/Dark ใน Header — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มสวิตช์ Light/Dark ใน Header สำหรับผู้เยี่ยมชมและทุก role; ป้ายกำกับและสถานะ switch รองรับการอ่านด้วย screen reader
+- บันทึกค่าที่เลือกด้วย preference `wu-clinic-theme` เดิม; Settings รับสถานะจาก Header และ Header อัปเดตตามการเลือกธีมใน Settings รวมถึงการเปลี่ยนตามอุปกรณ์
+- ย่อปุ่มควบคุมใน Header บนจอเล็กเพื่อเว้นพื้นที่ให้สวิตช์ โดยปุ่มเข้าสู่ระบบยังมี accessible name
+
+### ไฟล์หลัก
+
+- `src/components/layout/Header.tsx`, `src/components/settings/SettingsContent.tsx`, `src/components/settings/AppearanceInitializer.tsx`
+- `src/lib/appearance.ts`, `tests/header.test.tsx`
+
+### การตรวจ
+
+- `npx.cmd --no-install vitest run tests/header.test.tsx tests/settings.test.tsx` — ผ่าน 2 ไฟล์ 19 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- ESLint targeted สำหรับไฟล์ที่แก้ — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA, full suite และ build — ไม่ได้รัน
+
+## เติม English ให้หน้าตารางตรวจสำหรับ patient — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- ผู้ป่วยที่เลือก English เห็นหัวข้อ ปุ่มเลื่อนช่วง ตัวเลือกมุมมอง/ตัวกรอง จำนวนรอบ และข้อความเมื่อไม่พบรอบเป็นภาษาอังกฤษ
+- แสดงช่วงสัปดาห์และชื่อเดือนตาม locale; ข้อความนำทาง, toast และสถานะกำลังโหลดรองรับ English รวมถึง accessible labels
+- คงชื่อแผนก บริการ และแพทย์ตามข้อมูลที่บันทึกไว้; `medical` และ `staff_admin` ยังคงใช้ภาษาไทยตาม `LocaleContext`
+
+### ไฟล์หลัก
+
+- `src/components/schedules/ScheduleWorkspaceToolbar.tsx`, `ScheduleWorkspace.tsx`, `ScheduleSkeleton.tsx`
+- `src/components/common/Toast.tsx`
+- `tests/schedule-workspace-department-filter.test.tsx`
+
+### การตรวจ
+
+- `npx.cmd --no-install vitest run tests/schedule-workspace-department-filter.test.tsx` — ผ่าน 1 ไฟล์ 35 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- ESLint targeted สำหรับไฟล์ที่แก้ — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA และ full suite/build — ไม่ได้รัน
+
+## เพิ่มอาจารย์ที่ปรึกษาในหน้าทีม — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มอาจารย์มัลลิกาเป็นคนที่ 7 โดยใช้ `public/images/mallikasuit.png` และแสดงบทบาทอาจารย์ที่ปรึกษาโครงการ WU Clinic
+- ปรับหัวข้อ คำอธิบาย metadata และตัวนับให้สะท้อนสมาชิกทั้งเจ็ดคน
+- จัดการ์ดคนสุดท้ายให้อยู่กึ่งกลางแถวเมื่อหน้าจอเป็นแท็บเล็ตหรือมือถือ
+
+### ไฟล์หลัก
+
+- `src/components/team/TeamShowcase.tsx`, `TeamShowcase.module.css`
+- `src/app/team/page.tsx`
+- `tests/team-showcase.test.tsx`
+- `public/images/mallikasuit.png`
+
+### การตรวจ
+
+- `npx.cmd --no-install vitest run tests/team-showcase.test.tsx` — ผ่าน 1 test
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA ที่ 1280px และ 360px; รูปอาจารย์แสดงครบศีรษะและเท้า และเลือกด้วยคลิกหรือ Space เพื่อแสดงรายละเอียดได้
+
+## จำกัดเวลาสร้างรอบตรวจตามเวลาทำการและเวลาปัจจุบัน — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- การสร้างรอบเดี่ยวและการสร้างหลายวันรับเฉพาะช่วงเวลาทำการ 08:30–16:30 และไม่รับช่วงพักกลางวัน 12:00–13:00
+- เมื่อสร้างในวันที่ปัจจุบัน เวลาต่ำสุดจะเริ่มจากเวลาปัจจุบัน; ถ้าอยู่ช่วงพักกลางวันจะเริ่มที่ 13:00 และถ้าพ้นเวลาทำการจะสร้างไม่ได้
+- ล็อกข้อจำกัดในช่องเลือกเวลา และตรวจซ้ำที่ domain, repository และ API; การแก้ไขรอบเดิมไม่ถูกบังคับด้วยกฎเวลาปัจจุบันของการสร้างใหม่
+- ช่องเวลาในฟอร์มสร้างใหม่ใช้รายการแบบ 24 ชั่วโมงที่แสดงเฉพาะค่าที่เลือกได้จริง; ฟอร์มแก้ไขรอบเดิมยังใช้ช่องเวลาเดิม
+- Batch ของวันที่ปัจจุบันข้ามช่วงเวลาที่ผ่านมาแล้ว ส่วนวันที่อนาคตยังใช้ช่วงเวลาทำการปกติ
+
+### ไฟล์หลัก
+
+- `src/features/scheduling/domain/rules.ts`
+- `src/components/schedules/SlotEditorDialog.tsx`, `BatchScheduleDialog.tsx`, `ScheduleWorkspace.tsx`
+- `src/components/schedules/RestrictedTimeSelect.tsx`
+- `src/app/api/schedules/slots/route.ts`
+- `src/features/scheduling/data/databaseRepository.ts`, `mockRepository.ts`
+- `tests/scheduling-rules.test.ts`, `api-route-handlers.test.ts`, `schedule-workspace-department-filter.test.tsx`, `mock-scheduling-repository.test.ts`
+- `docs/08_system_rules_and_acceptance.md`, `docs/owners/shop-supot/{user-stories,use-cases,as-built}.md`
+
+### การตรวจ
+
+- focused Vitest: ผ่าน 4 ไฟล์ 83 tests และ API 1 ไฟล์ 15 tests
+- follow-up restricted-time UI/domain tests: ผ่าน 2 ไฟล์ 57 tests
+- `npx.cmd --no-install tsc --noEmit`: ผ่าน
+- targeted ESLint สำหรับไฟล์ที่แก้: ผ่าน
+- `npm.cmd run build`: ผ่าน
+- `git diff --check`: ผ่าน
+- full `npm.cmd test`: ไม่ผ่านจากปัญหานอกขอบเขตเดิม 16 ไฟล์ / 119 tests (LocaleProvider ในชุดทดสอบหลายไฟล์, fixture วันที่เดิม และ DepartmentWorkspace)
+- `npm.cmd run lint`: ไม่ผ่านจากข้อผิดพลาดเดิม 5 รายการใน reminders, DashboardScreen และ LocaleContext
+- browser ตรวจหน้า guest `/schedules` โหลดได้ แต่ยังไม่มี authenticated staff session จึงยังไม่ยืนยันฟอร์มสร้างรอบ; ยังไม่ได้ตรวจฐานจริง/RLS
+
 ## เพิ่มแท็บบริการในหน้าจัดการแผนกและแพทย์ — 24 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
@@ -608,3 +811,76 @@
 - targeted ESLint ทั้ง 7 ไฟล์ — ผ่าน ไม่มี warnings
 - `npm.cmd run build` — ผ่านด้วย Next.js 16.3.0/Turbopack
 - Automated tests และ browser QA — ไม่ได้รัน
+
+# หน้าแนะนำทีมผู้พัฒนา — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- เพิ่มหน้า public `/team` และอนุญาต guest ผ่าน `src/proxy.ts`; แสดงภาพสมาชิกทั้ง 6 คนจาก `public/images/*suit.png` พร้อมชื่อจริงและงานที่รับผิดชอบ
+- เลือกภาพเพื่อขยายและยกภาพคนนั้นขึ้นด้านหน้า พร้อมลดแสงคนอื่น; กดภาพเดิมอีกครั้งเพื่อกลับสู่ภาพรวม รองรับการเลือกด้วย keyboard
+- แสดงงานฉบับย่อบนภาพและรายละเอียดงานเต็มใต้เวที; ปรับจากแถวเดียวบน desktop เป็นกริด 2 คอลัมน์บนมือถือ
+- ปรับภาพตาม feedback: ตัดกรอบและพื้นหลังรายคนออก ให้ cutout โปร่งใสกลืนกับฉากกลาง และขยายตัวบุคคล โดยคงแอนิเมชันเลือกภาพ
+- ปรับเพิ่มตาม feedback: เอากรอบใหญ่รอบกลุ่มภาพและเส้นพื้นเวทีออก ขยายพื้นที่แสดงสมาชิกเต็มความกว้างจอ
+- เพิ่มความสูงพื้นที่ภาพให้คงขนาดตัวคนโดยไม่ซูมภาพล้นกรอบ; คง `object-fit` เดิมทุกสถานะและปรับสัดส่วนการขยายเมื่อเลือก เพื่อให้เห็นศีรษะและเท้าครบพร้อมแยกคำบรรยายไว้ด้านล่าง
+- ปรับ transition ของภาพที่เลือกให้ต่อจากสถานะ hover ด้วยจังหวะ 650ms เดียวกัน
+- เพิ่มลิงก์ทีมผู้พัฒนาใน Footer ที่แสดงกับ guest และทุก role; ใช้ภาษาไทยเป็นหลัก และแปลข้อความหน้า/ลิงก์ตาม locale ของ guest/patient
+
+### ไฟล์หลัก
+
+- `src/app/team/page.tsx`
+- `src/components/team/TeamShowcase.tsx`, `TeamShowcase.module.css`
+- `src/components/layout/Footer.tsx`
+- `src/proxy.ts`
+- `tests/team-showcase.test.tsx`, `tests/team-public-route.test.ts`, `tests/footer.test.tsx`
+- `public/images/feemsuit.png`, `herbsuit.png`, `klongsuit.png`, `kunsuit.png`, `paisuit.png`, `shopsuit.png` (ภาพที่ผู้ใช้เพิ่มไว้เดิม)
+
+### Verification
+
+- focused Vitest `tests/team-showcase.test.tsx`, `tests/team-public-route.test.ts` และ `tests/footer.test.tsx` — ผ่าน 3 files / 7 tests
+- targeted ESLint ไฟล์ TS/TSX ที่แก้ — ผ่าน 0 warnings
+- `npx.cmd --no-install tsc --noEmit` และ `npm.cmd run build` — ผ่านก่อนปรับ CSS ตาม feedback; หลังปรับไม่มีการเปลี่ยน TypeScript และ Next.js dev แสดงหน้าได้
+- Brave local browser — ตรวจภาพรวมและภาพที่เลือกที่ 1280px/360px; เห็นศีรษะกับเท้าครบและคำบรรยายอยู่ด้านล่าง, ทดสอบเลือกด้วย keyboard และ Footer link; 360px ไม่มี horizontal overflow; ไม่ได้ตรวจใน Chrome
+- guest HTTP probe — `/team` ได้ 200 และ `/profile` ยัง redirect ไป login ด้วย 307
+- `git diff --check` — ผ่าน; ไม่รัน full test suite เพราะเปลี่ยนเฉพาะหน้า Footer และ public route
+
+# สลับภาพทีมตามธีมและจัดแถวรูปปั้น — 25 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- Light theme แสดงรูปปั้นกรีก และ Dark theme แสดงภาพชุดสูท โดยทั้งสองธีมจัดอาจารย์ไว้กึ่งกลางและไล่ระดับสมาชิกจากด้านข้าง
+- แสดงภาพเต็มตัวและวางคำบรรยายใต้ภาพ; บนมือถือจัดอาจารย์ไว้กึ่งกลางด้านบนและสมาชิกเป็นคู่ด้านล่าง
+- เมื่อเลือกสมาชิกคนใด รูปขยายสูงและกว้างเท่ากับรูปอาจารย์ พร้อม animation ต่อเนื่อง; บนมือถือรูปที่เลือกขยายกลางแถว ส่วนสมาชิกอื่นมืดลงด้านหลัง
+- เปลี่ยนชุดภาพทันทีตาม theme event และคงสมาชิกที่เลือกไว้
+
+### ไฟล์หลัก
+
+- `src/components/team/TeamShowcase.tsx`, `TeamShowcase.module.css`
+- `tests/team-showcase.test.tsx`
+- `public/images/*รูปปั้นกรีก.png` (ภาพที่ผู้ใช้เพิ่มไว้)
+
+### Verification
+
+- `npx.cmd --no-install vitest run tests/team-showcase.test.tsx tests/team-public-route.test.ts` — ผ่าน 2 files / 3 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint สำหรับ `TeamShowcase.tsx` และ `team-showcase.test.tsx` — ผ่าน
+- `git diff --check` — ผ่าน
+- Browser QA บน desktop และ 360px — ตรวจการจัดลำดับทั้งสองธีม, รูปสมาชิกที่เลือกขยายเท่ารูปอาจารย์และยังเห็นเต็มตัว; มือถือไม่มี horizontal overflow
+- Full test suite และ production build — ไม่ได้รันในรอบนี้
+
+# ปรับ workflow นัดหมายสำหรับผู้ดูแล — 26 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `staff_admin` เห็นนัดหมายทั้งหมดเป็นค่าเริ่มต้น และค้นหาจากชื่อ เบอร์โทร แพทย์ แผนก คิว และเหตุผลได้
+- แสดงสรุปจำนวนคิวทั้งหมด, รออนุมัติ, ยืนยันแล้ว, กำลังตรวจ และจบตรวจแล้ว
+- เพิ่มตัวกรองคำขอยกเลิก และแสดงปุ่ม `ยกเลิกนัด` เฉพาะ `staff_admin`
+- ผู้ดูแลยกเลิกได้เมื่อเป็นนัดที่ยืนยันแล้ว หรือเป็นนัดรออนุมัติที่ผู้ป่วยส่งคำขอยกเลิกแล้ว; medical และ patient ไม่มีคำสั่งนี้
+- เพิ่ม migration `40_staff_admin_cancellation_rules.sql` เพื่อบังคับกติกาเดียวกันที่ RPC
+
+### Verification
+
+- focused appointment/records tests และ migration test — ผ่าน 3 files / 72 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint — ผ่าน โดยมี warning เดิมเรื่อง `formatNumber` ไม่ได้ใช้ 1 จุด
+- Full suite — ยังไม่ผ่าน 18 tests เดิมใน dashboard, pharmacy, department, password-reset และ date-time; ไม่เกี่ยวกับชุดนัดหมายนี้
+- `npm.cmd run build` — ติดการดาวน์โหลด Noto Sans Thai จาก Google Fonts ใน environment นี้

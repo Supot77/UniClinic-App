@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  AlertTriangle, ArrowRight, Bell, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Filter, MapPin, PackageCheck, PackageX, Pill, RefreshCw, Stethoscope,
+  AlertTriangle, ArrowRight, Bell, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, Filter, PackageCheck, PackageX, Pill, RefreshCw, Stethoscope,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
@@ -22,6 +22,7 @@ import type { AppointmentStatus } from '@/types/database';
 import SegmentedControl from '@/components/common/SegmentedControl';
 import Toast from '@/components/common/Toast';
 import { useLocale } from '@/context/LocaleContext';
+import { useSetAdminDatabaseStatus } from '@/context/AdminDatabaseStatusContext';
 
 const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   pending: 'รอการยืนยัน', confirmed: 'ยืนยันแล้ว', in_progress: 'กำลังตรวจ', completed: 'ตรวจเสร็จแล้ว',
@@ -72,6 +73,12 @@ function formatThaiDateTime(dateTime: string, locale: 'en' | 'th' = 'th'): strin
   return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok',
+  }).format(new Date(dateTime));
+}
+
+function formatThaiDateOnly(dateTime: string, locale: 'en' | 'th' = 'th'): string {
+  return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok',
   }).format(new Date(dateTime));
 }
 
@@ -212,27 +219,6 @@ function EmptyState({ message }: { message: string }) {
 }
 
 type DonutSlice = { label: string; count: number; color: string };
-type DatabaseStatus = 'checking' | 'connected' | 'disconnected';
-
-const databaseStatusLabels: Record<DatabaseStatus, string> = {
-  checking: 'กำลังตรวจสอบ',
-  connected: 'เชื่อมต่อแล้ว',
-  disconnected: 'เชื่อมต่อไม่ได้',
-};
-
-const databaseStatusClasses: Record<DatabaseStatus, string> = {
-  checking: 'bg-status-warning-bg text-status-warning',
-  connected: 'bg-status-success-bg text-status-success',
-  disconnected: 'bg-status-critical-bg text-status-critical',
-};
-
-function DatabaseStatusChip({ status }: { status: DatabaseStatus }) {
-  return <div role="status" aria-label={`สถานะฐานข้อมูล: ${databaseStatusLabels[status]}`} className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold sm:min-h-10 sm:px-3 sm:text-xs ${databaseStatusClasses[status]}`}>
-    <span className={`size-1.5 rounded-full ${status === 'connected' ? 'bg-status-success' : status === 'disconnected' ? 'bg-status-critical' : 'bg-status-warning'}`} aria-hidden="true" />
-    <span className="hidden sm:inline">ฐานข้อมูล · </span>{databaseStatusLabels[status]}
-  </div>;
-}
-
 function StatusDonut({ title, centerPercent, slices }: {
   title: string;
   centerPercent: number;
@@ -324,7 +310,6 @@ function GenderSummary({
 
 const dashboardControlShape = 'rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong';
 const dashboardButton = `inline-flex min-h-11 items-center justify-center gap-2 ${dashboardControlShape} px-4 text-sm font-semibold`;
-const dashboardSecondaryButton = `${dashboardButton} border-brand-border-strong bg-white text-brand-strong hover:bg-brand-soft`;
 const dashboardContentWidthClass = 'mx-auto w-full max-w-[1600px]';
 
 function DashboardActionLink({
@@ -360,7 +345,7 @@ function MedicalMetricItem({ item, selected, onSelect }: {
   const content = <>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="break-words line-clamp-2 text-sm font-medium leading-5">{item.label}</p>
+        <p className="break-words line-clamp-2 text-base font-semibold leading-5 sm:text-lg">{item.label}</p>
         <p className="mt-1 break-words line-clamp-2 text-xs leading-4 text-brand-muted">{item.description}</p>
       </div>
       <MetricIcon id={item.id} />
@@ -385,21 +370,20 @@ function PatientNextAppointmentSummary({
   fallbackAppointment?: DashboardView['nextAppointment'];
 }) {
   const { locale, text } = useLocale();
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
   const appointmentList = appointments && appointments.length > 0
     ? appointments
     : fallbackAppointment
       ? [fallbackAppointment]
       : [];
-  const activeIndex = Math.min(selectedIndex, Math.max(0, appointmentList.length - 1));
+  const selectedAppointmentIndex = selectedAppointmentId === null
+    ? -1
+    : appointmentList.findIndex((item) => item.id === selectedAppointmentId);
+  const activeIndex = selectedAppointmentIndex >= 0 ? selectedAppointmentIndex : 0;
   const appointment = appointmentList[activeIndex] ?? null;
   const hasMultipleAppointments = appointmentList.length > 1;
   const countdownValue = appointment ? formatAppointmentCountdownValue(appointment, nowTimestamp, locale) : null;
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [appointments, fallbackAppointment]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowTimestamp(Date.now()), 60_000);
@@ -412,7 +396,6 @@ function PatientNextAppointmentSummary({
         <p className="text-xs sm:text-sm font-semibold text-brand-muted">{text('นัดหมายถัดไป', 'Next appointment')}</p>
         <p className="mt-0.5 text-sm sm:text-base font-semibold text-brand-ink">{text('ยังไม่มีนัดหมายที่กำลังจะถึง', 'You have no upcoming appointments.')}</p>
       </div>
-      <Link href="/appointments" className="absolute right-0 top-0 inline-flex min-h-8 w-fit items-center justify-center gap-1 px-2.5 rounded-lg border border-brand-strong bg-white text-[11px] font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:static sm:min-h-10 sm:gap-2 sm:rounded-brand-button sm:px-3.5 sm:text-sm">{text('ดูนัดหมายทั้งหมด', 'View all appointments')} <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
     </div> : <div className="relative flex flex-col gap-2.5">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -422,7 +405,6 @@ function PatientNextAppointmentSummary({
           <p className="text-lg font-bold leading-tight text-brand-ink sm:text-xl">{text('คิว', 'Queue')} #{appointment.queueNumber ?? '—'}</p>
         </div>
         </div>
-        <Link href="/appointments" className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-brand-strong bg-brand-strong px-2.5 text-[11px] font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-9 sm:gap-2 sm:px-3 sm:text-xs">{text('ดูนัดหมาย', 'View appointment')} <ArrowRight className="size-3.5 sm:size-4" aria-hidden="true" /></Link>
       </div>
       <dl className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)]" aria-label={text('รายละเอียดวันเวลาและข้อมูลนัดหมาย', 'Appointment details')}>
         <div className="col-span-2 min-w-0 rounded-xl border border-brand-border-soft bg-brand-page/45 px-3 py-2.5 sm:col-span-1 sm:px-4 sm:py-3">
@@ -442,9 +424,9 @@ function PatientNextAppointmentSummary({
         <div className="col-span-2 min-w-0 px-1 py-1.5 sm:col-span-1 lg:px-2">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0"><dt className="text-[11px] text-brand-muted sm:text-xs">{text('สถานะ', 'Status')}</dt><dd className="mt-0.5"><span className={`inline-flex rounded-full px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-semibold ${appointmentStatusClasses[appointment.status]}`}>{text(appointmentStatusLabels[appointment.status], appointmentStatusEnglish[appointment.status])}</span></dd></div>
-            <div className="flex shrink-0 items-center gap-1 lg:absolute lg:right-[7.5rem] lg:top-0" aria-label={text('เลื่อนดูนัดหมาย', 'Browse appointments')}>
-              <button type="button" aria-label={text('นัดหมายก่อนหน้า', 'Previous appointment')} title={text('นัดหมายก่อนหน้า', 'Previous appointment')} disabled={activeIndex === 0} onClick={() => setSelectedIndex((current) => Math.max(0, current - 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronLeft className="size-4 sm:size-5" aria-hidden="true" /></button>
-              <button type="button" aria-label={text('นัดหมายถัดไป', 'Next appointment')} title={text('นัดหมายถัดไป', 'Next appointment')} disabled={activeIndex === appointmentList.length - 1} onClick={() => setSelectedIndex((current) => Math.min(appointmentList.length - 1, current + 1))} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronRight className="size-4 sm:size-5" aria-hidden="true" /></button>
+            <div className="flex shrink-0 items-center gap-1 lg:absolute lg:right-0 lg:top-0" aria-label={text('เลื่อนดูนัดหมาย', 'Browse appointments')}>
+              <button type="button" aria-label={text('นัดหมายก่อนหน้า', 'Previous appointment')} title={text('นัดหมายก่อนหน้า', 'Previous appointment')} disabled={activeIndex === 0} onClick={() => setSelectedAppointmentId(appointmentList[activeIndex - 1]?.id ?? null)} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronLeft className="size-4 sm:size-5" aria-hidden="true" /></button>
+              <button type="button" aria-label={text('นัดหมายถัดไป', 'Next appointment')} title={text('นัดหมายถัดไป', 'Next appointment')} disabled={activeIndex === appointmentList.length - 1} onClick={() => setSelectedAppointmentId(appointmentList[activeIndex + 1]?.id ?? null)} className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-strong bg-brand-strong text-white shadow-sm transition-colors hover:border-brand-hover hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-brand-border-soft disabled:bg-brand-page disabled:text-brand-muted disabled:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong focus-visible:ring-2 focus-visible:ring-brand-strong/50 sm:size-10"><ChevronRight className="size-4 sm:size-5" aria-hidden="true" /></button>
             </div>
           </div>
         </div>
@@ -547,7 +529,7 @@ function MedicalMetricDropdown({
     <span className="shrink-0 text-right text-xs text-brand-muted"><span className="block font-semibold text-brand-ink">{appointment.startTime} น.</span><span className={`mt-1 inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-medium ${appointmentStatusClasses[appointment.status]}`}>{appointmentStatusLabels[appointment.status]}<ChevronRight className="size-3" aria-hidden="true" /></span></span>
   </Link>;
 
-  return <div className="border-x border-b border-brand-border-soft bg-brand-page/45 px-4 py-4 sm:px-5" role="region" aria-label={`รายชื่อผู้ป่วย${heading}`}>
+  return <div className="rounded-b-2xl border-x border-b border-brand-border-soft bg-brand-page/45 px-4 py-4 sm:px-5" role="region" aria-label={`รายชื่อผู้ป่วย${heading}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
         <p className="text-sm text-brand-muted">พบ {filteredAppointments.length} รายการ</p>
@@ -634,13 +616,15 @@ function UpcomingAppointmentToast({ appointments, isPreview = false }: { appoint
 function MedicationProgressList({
   medications,
   emptyMessage,
+  matchDoctorColumns = false,
 }: {
   medications: DashboardView['medicationAlerts'];
   emptyMessage: string;
+  matchDoctorColumns?: boolean;
 }) {
   if (medications.length === 0) return <EmptyState message={emptyMessage} />;
 
-  return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list" aria-label="รายการยา">{medications.map((medication) => {
+  return <div className={`grid gap-3 sm:grid-cols-2 ${matchDoctorColumns ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`} role="list" aria-label="รายการยา">{medications.map((medication) => {
     const threshold = Math.max(medication.minimumStock, 1);
     const progress = Math.min(100, Math.round((medication.stock / threshold) * 100));
     const barClass = medication.expired ? 'bg-status-critical' : medication.lowStock ? 'bg-status-warning' : 'bg-brand-strong';
@@ -828,24 +812,22 @@ function PatientTreatmentHistorySection({
   return <Section title={historyTitle} description={historyDescription} titleClassName={patientSectionTitleClass} descriptionClassName={patientSectionDescriptionClass} headerClassName="lg:items-center" action={historyControls}>
     {rangeFilteredHistory.length === 0 ? <div className="border-y border-brand-border-soft"><EmptyState message={history.length > 0 ? text('ไม่พบประวัติการรักษาในช่วงนี้', 'No treatment history found in this period.') : text('ยังไม่มีประวัติการรักษา', 'No treatment history yet.')} /></div> : <div className="mt-4 space-y-4">
       <p className="text-xs text-brand-muted sm:text-sm" aria-live="polite">{text('แสดง', 'Showing')} {filteredHistory.length} {text('จาก', 'of')} {rangeFilteredHistory.length} {text('รายการ', 'records')}</p>
-      <div className="overflow-hidden border-y border-brand-border-soft">
+      <div className="overflow-hidden rounded-2xl border border-brand-border-soft bg-brand-surface shadow-xs">
         <table className="w-full table-fixed text-left text-xs sm:text-sm">
-          <thead className="bg-brand-page/55 text-xs font-semibold text-brand-muted sm:text-sm">
+          <thead className="bg-brand-page/55 text-[11px] font-semibold text-brand-muted sm:text-xs">
             <tr>
-              <th scope="col" className="w-[17%] px-2 py-2.5 sm:w-[18%] sm:px-4 sm:py-3">{text('วันที่', 'Date')}</th>
-              <th scope="col" className="w-[18%] px-2 py-2.5 sm:px-4 sm:py-3">{text('แผนก', 'Department')}</th>
-              <th scope="col" className="w-[23%] px-2 py-2.5 sm:w-[22%] sm:px-4 sm:py-3">{text('แพทย์', 'Clinician')}</th>
-              <th scope="col" className="w-[30%] px-2 py-2.5 sm:w-[32%] sm:px-4 sm:py-3">{text('ผลตรวจ', 'Visit summary')}</th>
-              <th scope="col" className="w-[12%] px-2 py-2.5 text-right sm:w-[10%] sm:px-4 sm:py-3">{text('รายการยา', 'Medications')}</th>
+              <th scope="col" className="w-[18%] px-3 py-2.5 sm:px-4 sm:py-3">{text('วันที่', 'Date')}</th>
+              <th scope="col" className="w-[38%] px-3 py-2.5 sm:px-4 sm:py-3">{text('อาการที่ป่วย', 'Symptoms')}</th>
+              <th scope="col" className="w-[32%] px-3 py-2.5 sm:px-4 sm:py-3">{text('ผลตรวจ', 'Visit summary')}</th>
+              <th scope="col" className="w-[12%] px-3 py-2.5 text-right sm:px-4 sm:py-3">{text('รายการยา', 'Medications')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-brand-border-soft">
-            {filteredHistory.map((record) => <tr key={record.id} className="align-top">
-              <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{formatThaiDateTime(record.date, locale)}</td>
-              <td className="break-words px-2 py-3 text-brand-body sm:px-4 sm:py-4">{record.departmentName}</td>
-              <td className="break-words px-2 py-3 font-medium text-brand-ink sm:px-4 sm:py-4">{record.doctorName}</td>
-              <td className="break-words px-2 py-3 text-brand-ink sm:px-4 sm:py-4"><p className="font-medium">{record.summary}</p></td>
-              <td className="break-words px-2 py-3 text-right text-xs text-brand-muted sm:px-4 sm:py-4 sm:text-sm">{record.medicationCount > 0 ? `${record.medicationCount} ${text('รายการ', 'items')}` : text('ไม่ได้สั่งยา', 'None prescribed')}</td>
+          <tbody className="divide-y divide-brand-border-soft/80">
+            {filteredHistory.map((record) => <tr key={record.id} className="align-top transition-colors hover:bg-brand-page/35">
+              <td className="break-words px-3 py-3 text-brand-body sm:px-4 sm:py-4">{formatThaiDateOnly(record.date, locale)}</td>
+              <td className="break-words px-3 py-3 font-medium text-brand-ink sm:px-4 sm:py-4">{record.symptom || text('ไม่ได้ระบุ', 'Not specified')}</td>
+              <td className="break-words px-3 py-3 text-brand-ink sm:px-4 sm:py-4"><p className="font-medium">{record.summary}</p></td>
+              <td className="break-words px-3 py-3 text-right text-xs text-brand-muted sm:px-4 sm:py-4 sm:text-sm">{record.medicationCount > 0 ? `${record.medicationCount} ${text('รายการ', 'items')}` : text('ไม่ได้สั่งยา', 'None prescribed')}</td>
             </tr>)}
           </tbody>
         </table>
@@ -953,10 +935,11 @@ function PatientDashboardContent({ view, onRefresh }: { view: DashboardView; onR
   );
 }
 
-function MedicationAlertSection({ view, filter, onFilterChange }: {
+function MedicationAlertSection({ view, filter, onFilterChange, matchDoctorColumns = false }: {
   view: DashboardView;
   filter: MedicationAlertFilter;
   onFilterChange: (filter: MedicationAlertFilter) => void;
+  matchDoctorColumns?: boolean;
 }) {
   const medicationFilterOptions: Array<{ value: MedicationAlertFilter; label: string; count: number }> = [
     { value: 'all', label: 'ทั้งหมด', count: view.medicationAlerts.length },
@@ -974,19 +957,21 @@ function MedicationAlertSection({ view, filter, onFilterChange }: {
       ? 'ไม่พบยาที่หมดอายุ'
       : 'ไม่พบรายการยาที่ต้องตรวจสอบ';
 
-  return <Section className="border-y border-brand-border-soft" title="รายการยาที่ต้องตรวจสอบ" description="แยกยาหมดอายุออกจากยาใกล้หมด" action={<DashboardActionLink href="/pharmacy">ดูคลังยา</DashboardActionLink>}>
+  const isMedicalDashboard = view.role === 'medical';
+
+  return <Section className={`${isMedicalDashboard ? 'border-b' : 'border-y'} border-brand-border-soft`} title="รายการยาที่ต้องตรวจสอบ" action={<DashboardActionLink href="/pharmacy">{isMedicalDashboard ? 'จัดการคลังยา' : 'ดูคลังยา'}</DashboardActionLink>}>
     <div className="overflow-x-auto pb-1">
-      <div role="group" aria-label="กรองสถานะยา" className="flex w-fit min-w-0 items-end gap-1 border-b border-brand-border-soft">
+      <div role="group" aria-label="กรองสถานะยา" className="mx-auto flex w-full min-w-max items-end gap-0 border-b border-brand-border-soft">
         {medicationFilterOptions.map((option) => {
           const selected = filter === option.value;
-          return <button key={option.value} type="button" aria-pressed={selected} onClick={() => onFilterChange(option.value)} className={`relative flex min-h-9 shrink-0 items-center justify-center gap-1.5 border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-10 sm:px-4 ${selected ? 'z-10 -mb-px rounded-t-xl border-brand-border-soft border-t-2 border-t-brand-strong bg-brand-surface text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-soft hover:text-brand-ink'}`}>
+          return <button key={option.value} type="button" aria-pressed={selected} onClick={() => onFilterChange(option.value)} className={`relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 border-x border-t px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-12 sm:gap-2 sm:px-5 sm:text-sm ${selected ? 'z-10 -mb-px rounded-t-2xl border-brand-border-soft border-t-4 border-t-brand-strong bg-brand-surface text-brand-strong' : 'border-transparent text-brand-body hover:text-brand-ink'}`}>
             <span>{option.label}</span>
-            <span className={`rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${selected ? 'bg-brand-soft text-brand-strong' : 'bg-brand-page text-brand-muted'}`}>{option.count}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums sm:px-2.5 sm:text-sm ${selected ? 'bg-brand-soft text-brand-strong' : 'bg-brand-page text-brand-muted'}`}>{option.count}</span>
           </button>;
         })}
       </div>
     </div>
-    <MedicationProgressList medications={visibleMedications} emptyMessage={emptyMessage} />
+    <MedicationProgressList medications={visibleMedications} emptyMessage={emptyMessage} matchDoctorColumns={matchDoctorColumns} />
   </Section>;
 }
 
@@ -1022,20 +1007,6 @@ function MedicalPharmacySections({ view, filter, includePrescriptions = true, on
   </div>;
 }
 
-const doctorStatusLabels: Record<ClinicDoctorStatus, string> = {
-  in_progress: 'กำลังตรวจ',
-  available: 'ว่าง',
-  away: 'ไม่อยู่',
-  completed: 'ตรวจเสร็จแล้ว',
-};
-
-const doctorStatusClasses: Record<ClinicDoctorStatus, string> = {
-  in_progress: 'bg-status-info-bg text-status-info',
-  available: 'bg-status-success-bg text-status-success',
-  away: 'bg-status-neutral-bg text-status-neutral',
-  completed: 'bg-brand-soft text-brand-strong',
-};
-
 const densityLabels: Record<DepartmentDensityStatus, string> = {
   normal: 'ปกติ',
   near_full: 'ใกล้เต็ม',
@@ -1050,7 +1021,7 @@ const densityClasses: Record<DepartmentDensityStatus, string> = {
 
 function StaffMedicationAlerts({ view }: { view: DashboardView }) {
   const [medicationFilter, setMedicationFilter] = useState<MedicationAlertFilter>('all');
-  return <MedicationAlertSection view={view} filter={medicationFilter} onFilterChange={setMedicationFilter} />;
+  return <MedicationAlertSection view={view} filter={medicationFilter} onFilterChange={setMedicationFilter} matchDoctorColumns />;
 }
 
 function ClinicOverviewSections({ view }: { view: DashboardView }) {
@@ -1061,6 +1032,7 @@ function ClinicOverviewSections({ view }: { view: DashboardView }) {
     counts[doctor.status] += 1;
     return counts;
   }, { in_progress: 0, available: 0, away: 0, completed: 0 });
+  const visibleDoctors = departmentDoctors.filter((doctor) => doctor.status === doctorStatusFilter);
   const statusOptions: Array<{ value: 'available' | 'away'; label: string }> = [
     { value: 'available', label: 'ว่าง' },
     { value: 'away', label: 'ไม่อยู่' },
@@ -1069,26 +1041,24 @@ function ClinicOverviewSections({ view }: { view: DashboardView }) {
   return <div className="space-y-10">
     <Section title="สรุปตามแผนก" description={`ผู้ป่วย แพทย์ที่ปฏิบัติงาน และความหนาแน่นในช่วง ${dashboardRangeLabels[view.range]}`} action={<DashboardActionLink href="/departments">จัดการแผนก</DashboardActionLink>}>
       {view.departmentLoads.length === 0 ? <EmptyState message="ยังไม่มีข้อมูลแผนกในช่วงนี้" /> : <>
-        <div className="mt-3 overflow-hidden rounded-lg border border-brand-border-soft bg-brand-page/35">
-          <div className="grid sm:grid-cols-2">
-          {view.departmentLoads.map((department, index) => {
+        <div className="mt-3 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-brand-border-soft bg-brand-border-soft sm:grid-cols-2 lg:grid-cols-3">
+          {view.departmentLoads.map((department) => {
             const patientCount = department.patientCount ?? department.appointmentCount;
             const doctorCount = department.doctorCount ?? 0;
             const activeDoctorCount = department.activeDoctorCount ?? 0;
             const densityPercent = department.densityPercent ?? (department.capacity > 0 ? Math.round((patientCount / department.capacity) * 100) : 0);
             const densityStatus = department.densityStatus ?? (densityPercent >= 100 ? 'full' : densityPercent >= 70 ? 'near_full' : 'normal');
-            return <div key={department.departmentId} className={`border-b border-brand-border-soft p-3 text-left last:border-b-0 sm:border-b-0 ${index % 2 === 0 ? 'sm:border-r sm:border-brand-border-soft' : ''} ${index < 2 ? 'sm:border-b sm:border-brand-border-soft' : ''}`}>
+            return <div key={department.departmentId} className="bg-brand-page/35 p-3 text-left">
               <div className="flex items-start justify-between gap-3"><p className="font-semibold text-brand-ink">{department.departmentName}</p><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${densityClasses[densityStatus]}`}>{densityLabels[densityStatus]}</span></div>
               <div className="mt-3 grid grid-cols-3 gap-1 text-sm"><span><strong className="block text-lg tabular-nums text-brand-ink">{patientCount}</strong><span className="text-[11px] text-brand-muted">ผู้ป่วย</span></span><span><strong className="block text-lg tabular-nums text-brand-ink">{activeDoctorCount}/{doctorCount}</strong><span className="text-[11px] text-brand-muted">แพทย์ปฏิบัติงาน</span></span><span><strong className="block text-lg tabular-nums text-brand-ink">{densityPercent}%</strong><span className="text-[11px] text-brand-muted">ความหนาแน่น</span></span></div>
             </div>;
           })}
-          </div>
         </div>
       </>}
     </Section>
 
     <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-      <Section title="สถานะแพทย์" description="เลือกสถานะเพื่อดูรายชื่อแพทย์" action={<DashboardActionLink href="/schedules">ดูตารางแพทย์</DashboardActionLink>}>
+      <Section title="สถานะแพทย์"  action={<DashboardActionLink href="/schedules">ดูตารางแพทย์</DashboardActionLink>}>
         <div className="overflow-x-auto pb-1">
           <div role="group" aria-label="กรองสถานะแพทย์" className="mx-auto flex w-full min-w-max items-end gap-0 border-b border-brand-border-soft">
           {statusOptions.map((option) => {
@@ -1102,10 +1072,7 @@ function ClinicOverviewSections({ view }: { view: DashboardView }) {
           </div>
         </div>
         <div className="mt-3 border-y border-brand-border-soft">
-          {(() => {
-            const doctorList = departmentDoctors.filter((doctor) => doctor.status === doctorStatusFilter);
-            return doctorList.length === 0 ? <p className="px-1 py-4 text-xs text-brand-muted">ไม่พบแพทย์ในสถานะนี้</p> : <div className="divide-y divide-brand-border-soft">{doctorList.map((doctor) => <div key={doctor.doctorId} className="flex flex-col gap-2 px-1 py-4 sm:px-2"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-brand-ink">{doctor.doctorName}</p><p className="mt-1 text-xs text-brand-body">{doctor.departmentName}</p>{doctor.status === 'away' && <p className="mt-1 text-[11px] text-brand-muted">ลาหรือนอกเวลาทำการ</p>}{doctor.status === 'available' && doctor.nextAppointmentTime && <p className="mt-1 text-[11px] text-brand-muted">นัดถัดไป: {doctor.nextAppointmentTime} น.</p>}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${doctorStatusClasses[doctor.status]}`}>{doctorStatusLabels[doctor.status]}</span></div><Link href="/schedules" className="inline-flex min-h-9 w-fit items-center gap-2 rounded-lg border border-brand-strong bg-white px-3 text-xs font-semibold text-brand-strong transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong">ดูตาราง <ArrowRight className="size-3.5" aria-hidden="true" /></Link></div>)}</div>;
-          })()}
+          {visibleDoctors.length === 0 ? <p className="px-1 py-4 text-xs text-brand-muted">ไม่พบแพทย์ในสถานะนี้</p> : <div className="grid grid-cols-1 divide-y divide-brand-border-soft sm:grid-cols-2 sm:divide-y-0">{visibleDoctors.map((doctor, index) => <div key={doctor.doctorId} className={`px-1 py-4 sm:px-4 sm:border-b sm:border-brand-border-soft ${index % 2 === 0 && index < visibleDoctors.length - 1 ? 'sm:border-r sm:border-brand-border-soft' : ''}`}><p className="font-semibold text-brand-ink">{doctor.doctorName}</p><p className="mt-1 text-xs text-brand-body">{doctor.departmentName}</p>{doctor.status === 'away' && <p className="mt-1 text-xs text-brand-muted sm:text-sm">ลาหรือนอกเวลาทำการ</p>}{doctor.status === 'available' && doctor.nextAppointmentTime && <p className="mt-1 text-[11px] text-brand-muted">นัดถัดไป: {doctor.nextAppointmentTime} น.</p>}</div>)}</div>}
         </div>
       </Section>
       <StaffMedicationAlerts view={view} />
@@ -1196,11 +1163,11 @@ export default function DashboardScreen({
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [appointmentToastMessage, setAppointmentToastMessage] = useState<string | null>(null);
+  const [appointmentToastAppointment, setAppointmentToastAppointment] = useState<DashboardView['appointmentQueue'][number] | null>(null);
   const [appointmentFilter, setAppointmentFilter] = useState<AppointmentQueueFilter>(role === 'medical' ? 'appointments' : 'all');
   const [medicalWorkFilter, setMedicalWorkFilter] = useState<MedicalWorkFilter>('all');
   const [chartMode, setChartMode] = useState<DashboardChartMode>('status');
-  const [databaseStatus, setDatabaseStatus] = useState<DatabaseStatus>('checking');
+  const setDatabaseStatus = useSetAdminDatabaseStatus();
   const dashboardWidthClass = role === 'patient'
     ? 'relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8'
     : 'relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-6 lg:px-8';
@@ -1223,6 +1190,15 @@ export default function DashboardScreen({
             setView(viewResult);
             setError(null);
             if (role === 'staff_admin') setDatabaseStatus('connected');
+
+            if (sessionStorage.getItem('login_appointment_toast')) {
+              sessionStorage.removeItem('login_appointment_toast');
+              const isMedicalDoctor = role === 'medical' && viewResult.metrics.some((item) => item.id === 'own-appointments');
+              if (role === 'patient' || isMedicalDoctor) {
+                const nextAppointment = viewResult.upcomingAppointments?.[0] ?? viewResult.nextAppointment;
+                if (nextAppointment) setAppointmentToastAppointment(nextAppointment);
+              }
+            }
           }
         })
         .catch((loadError) => {
@@ -1242,29 +1218,14 @@ export default function DashboardScreen({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [actorId, range, refreshToken, role]);
-
-  useEffect(() => {
-    if (!view || typeof window === 'undefined') return;
-
-    const isPending = sessionStorage.getItem('login_appointment_toast');
-    if (!isPending) return;
-
-    sessionStorage.removeItem('login_appointment_toast');
-    if (role !== 'patient') return;
-
-    const nextAppointment = view.upcomingAppointments?.[0] ?? view.nextAppointment;
-    if (!nextAppointment) return;
-
-    setAppointmentToastMessage(`${text('นัดหมายถัดไป:', 'Next appointment:')} ${formatThaiDate(nextAppointment.date, locale)} ${text('เวลา', 'at')} ${nextAppointment.startTime.slice(0, 5)}${text(' น.', '')}`);
-  }, [role, view, locale, text]);
+  }, [actorId, range, refreshToken, role, setDatabaseStatus]);
 
   if (loading && !view) {
-    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none space-y-8 sm:space-y-10`} aria-busy="true" aria-label={role === 'patient' ? text('กำลังโหลดแดชบอร์ด', 'Loading dashboard') : 'กำลังโหลดแดชบอร์ด'}>{role === 'staff_admin' && <div className="flex justify-end"><DatabaseStatusChip status={databaseStatus} /></div>}<div className="space-y-3 border-b border-brand-border-soft pb-6"><div className="h-8 w-2/5 rounded bg-brand-border-soft" /><div className="h-4 w-3/5 rounded bg-brand-border-soft" /></div>{role !== 'staff_admin' && <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 border-y border-brand-border-soft bg-brand-page/50" />)}</div>}<div className="h-64 border-y border-brand-border-soft bg-brand-page/50" /></div>;
+    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none space-y-8 sm:space-y-10`} aria-busy="true" aria-label={role === 'patient' ? text('กำลังโหลดแดชบอร์ด', 'Loading dashboard') : 'กำลังโหลดแดชบอร์ด'}><div className="space-y-3 border-b border-brand-border-soft pb-6"><div className="h-8 w-2/5 rounded bg-brand-border-soft" /><div className="h-4 w-3/5 rounded bg-brand-border-soft" /></div>{role !== 'staff_admin' && <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 border-y border-brand-border-soft bg-brand-page/50" />)}</div>}<div className="h-64 border-y border-brand-border-soft bg-brand-page/50" /></div>;
   }
 
   if (!view) {
-    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none flex min-h-[55vh] flex-col items-center justify-center border-y border-rose-200 py-12 text-center`} role="alert">{role === 'staff_admin' && <div className="absolute right-3 top-3 sm:right-6"><DatabaseStatusChip status={databaseStatus} /></div>}<PackageX className="size-10 text-rose-500" /><h1 className="mt-4 text-xl font-bold text-brand-ink">{role === 'patient' ? text('โหลดข้อมูลแดชบอร์ดไม่สำเร็จ', 'Could not load the dashboard') : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ'}</h1><p className="mt-2 text-sm text-status-critical">{error ?? (role === 'patient' ? text('ไม่พบข้อมูลสำหรับบทบาทนี้', 'No data was found for this account.') : 'ไม่พบข้อมูลสำหรับบทบาทนี้')}</p><button type="button" onClick={() => { setLoading(true); setRefreshToken((value) => value + 1); }} className={`${dashboardButton} mt-5 border-rose-700 bg-rose-700 text-white hover:bg-rose-800`}><RefreshCw className="size-4" /> {role === 'patient' ? text('ลองอีกครั้ง', 'Try again') : 'ลองอีกครั้ง'}</button></div>;
+    return <div className={`dashboard-shell ${dashboardWidthClass} max-w-none flex min-h-[55vh] flex-col items-center justify-center border-y border-rose-200 py-12 text-center`} role="alert"><PackageX className="size-10 text-rose-500" /><h1 className="mt-4 text-xl font-bold text-brand-ink">{role === 'patient' ? text('โหลดข้อมูลแดชบอร์ดไม่สำเร็จ', 'Could not load the dashboard') : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ'}</h1><p className="mt-2 text-sm text-status-critical">{error ?? (role === 'patient' ? text('ไม่พบข้อมูลสำหรับบทบาทนี้', 'No data was found for this account.') : 'ไม่พบข้อมูลสำหรับบทบาทนี้')}</p><button type="button" onClick={() => { setLoading(true); setRefreshToken((value) => value + 1); }} className={`${dashboardButton} mt-5 border-rose-700 bg-rose-700 text-white hover:bg-rose-800`}><RefreshCw className="size-4" /> {role === 'patient' ? text('ลองอีกครั้ง', 'Try again') : 'ลองอีกครั้ง'}</button></div>;
   }
 
   const isMedicalDoctorDashboard = role === 'medical' && view.metrics.some((item) => item.id === 'own-appointments');
@@ -1295,13 +1256,16 @@ export default function DashboardScreen({
   const examinationPercent = examinationTotal > 0 ? Math.round((completedAppointments / examinationTotal) * 100) : 0;
   const medicalMetricDropdownFilter: MedicalMetricAppointmentFilter | null = isMedicalDoctorDashboard ? doctorAppointmentFilter : null;
   const isPartialLoading = loading;
+  const appointmentToastMessage = appointmentToastAppointment
+    ? `${role === 'medical' ? text('ตรวจครั้งถัดไป:', 'Next examination:') : text('นัดหมายถัดไป:', 'Next appointment:')} ${formatThaiDate(appointmentToastAppointment.date, locale)} ${text('เวลา', 'at')} ${appointmentToastAppointment.startTime.slice(0, 5)}${text(' น.', '')}`
+    : null;
   return (
     <main className={`dashboard-shell ${dashboardWidthClass} max-w-none flex flex-col ${dashboardGapClass} pb-8 sm:pb-10`}>
       <Toast
         message={appointmentToastMessage}
-        onDismiss={() => setAppointmentToastMessage(null)}
+        onDismiss={() => setAppointmentToastAppointment(null)}
         variant="info"
-        position="top-right-below"
+        position={role === 'medical' ? 'top-right' : 'top-right-below'}
         duration={5000}
       />
       <header className="relative flex flex-col gap-3 sm:gap-4 border-b border-brand-border-soft pb-4 sm:pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -1312,7 +1276,6 @@ export default function DashboardScreen({
           </div>
         </div>
         <div className="absolute right-0 top-0 flex flex-wrap items-center justify-end gap-2 sm:static sm:self-start">
-          {role === 'staff_admin' && <DatabaseStatusChip status={databaseStatus} />}
           <button type="button" aria-label={isRefreshing ? (role === 'patient' ? text('กำลังโหลด', 'Loading') : 'กำลังโหลด') : (role === 'patient' ? text('รีเฟรช', 'Refresh') : 'รีเฟรช')} onClick={() => void refreshDashboard()} disabled={isRefreshing} className="inline-flex min-h-8 sm:min-h-11 shrink-0 items-center justify-center gap-1.5 sm:gap-2 rounded-lg border border-brand-strong bg-brand-strong px-2.5 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`size-3.5 sm:size-4 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" /><span className="hidden sm:inline">{isRefreshing ? (role === 'patient' ? text('กำลังโหลด…', 'Loading…') : 'กำลังโหลด…') : (role === 'patient' ? text('รีเฟรช', 'Refresh') : 'รีเฟรช')}</span></button>
         </div>
       </header>
@@ -1329,12 +1292,12 @@ export default function DashboardScreen({
                 <SegmentedControl
                   ariaLabel={role === 'patient' ? text('เลือกช่วงเวลาย้อนหลัง', 'Select date range') : 'เลือกช่วงเวลาย้อนหลัง'}
                   value={range}
-                  options={(Object.entries(dashboardRangeLabels) as Array<[DashboardRange, string]>).map(([value, label]) => ({ value, label: role === 'patient' ? ({ today: text('วันนี้', 'Today'), '7d': text('7 วัน', '7 days'), '30d': text('30 วัน', '30 days') } as Record<DashboardRange, string>)[value] : label }))}
+                  options={(Object.entries(dashboardRangeLabels) as Array<[DashboardRange, string]>).map(([value, label]) => ({ value, label: role === 'patient' ? ({ today: text('วันนี้', 'Today'), '7d': text('ย้อนหลัง 7 วัน', 'Past 7 days'), '30d': text('ย้อนหลัง 30 วัน', 'Past 30 days') } as Record<DashboardRange, string>)[value] : label }))}
                   onChange={(value) => { if (value !== range) { setError(null); setLoading(true); setRange(value); } }}
                 />
               </div>
+              <div className="shrink-0 whitespace-nowrap px-1 text-left text-xs font-medium tabular-nums text-brand-body sm:ml-1 sm:text-right sm:text-sm">{formatThaiRange(view.startDate, view.date, locale)}</div>
             </div>
-            <div className="text-left sm:text-right text-xs sm:text-sm font-medium tabular-nums text-brand-body lg:ml-2">{formatThaiRange(view.startDate, view.date, locale)}</div>
             {role === 'medical' && isMedicalDoctorDashboard && <UpcomingAppointmentToast appointments={toastAppointments} isPreview={toastPreviewEnabled} />}
             {role === 'staff_admin' && <div className="min-w-0 sm:ml-auto sm:shrink-0">
               <div className="scrollbar-none min-w-0 overflow-x-auto">
@@ -1403,7 +1366,7 @@ export default function DashboardScreen({
         </section>}
 
           {role === 'patient' ? <PatientDashboardContent view={view} onRefresh={refreshDashboard} /> : <>
-          {role === 'staff_admin' && <Section className={dashboardContentWidthClass} title={rangeHeading('นัดหมายตามสถานะ', view.range)} description="เลือกสถานะเพื่อดูนัดหมายและรายละเอียด" action={<DashboardActionLink href="/appointments">จัดการนัดหมาย</DashboardActionLink>}>
+          {role === 'staff_admin' && <Section className="w-full min-w-0" headerClassName="flex-row gap-2 sm:items-center" title={rangeHeading('นัดหมายตามสถานะ', view.range)} description="เลือกสถานะเพื่อดูนัดหมายและรายละเอียด" action={<DashboardActionLink href="/appointments">จัดการนัดหมาย</DashboardActionLink>}>
             <div className="overflow-x-auto">
               <div role="group" aria-label="เลือกสถานะนัดหมาย" className="mx-auto flex w-full min-w-max items-end gap-0 border-b border-brand-border-soft">
                 <button type="button" aria-pressed={appointmentStatusFilter === 'all'} onClick={() => setAppointmentFilter('all')} className={`relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 border-x border-t px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:min-h-12 sm:gap-2 sm:px-5 sm:text-sm ${appointmentStatusFilter === 'all' ? 'z-10 -mb-px rounded-t-2xl border-brand-border-soft border-t-4 border-t-brand-strong bg-brand-surface text-brand-strong' : 'border-transparent text-brand-body hover:text-brand-ink'}`}>

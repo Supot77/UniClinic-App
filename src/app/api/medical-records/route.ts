@@ -17,7 +17,7 @@ function validPhysicalExam(body: RecordInput): string | null {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireApiAuth(['patient', 'medical', 'staff_admin']);
+  const auth = await requireApiAuth(['patient', 'medical']);
   if (!auth.ok) return auth.response;
   const url = new URL(request.url);
   const appointmentId = url.searchParams.get('appointmentId');

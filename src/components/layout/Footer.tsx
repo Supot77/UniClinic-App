@@ -75,7 +75,7 @@ export default function Footer() {
     "ตารางตรวจแพทย์": "Doctor schedules", "เข้าสู่ระบบ": "Sign in", "สมัครสมาชิก": "Create an account",
     "นัดหมายของฉัน": "My appointments", "ประวัติการรักษา": "Medical records", "แจ้งเตือนยา": "Medication reminders",
     "โปรไฟล์": "Profile", "ภาพรวม": "Overview", "ค้นหาผู้ป่วย": "Find patients", "คลังยา": "Pharmacy inventory",
-    "นัดหมายผู้ป่วย": "Patient appointments", "จัดการผู้ใช้งาน": "Manage accounts", "จัดการแผนก": "Manage departments",
+    "นัดหมายผู้ป่วย": "Patient appointments", "ผลตรวจผู้ป่วย": "Patient results", "จัดการผู้ใช้งาน": "Manage accounts", "จัดการแผนก": "Manage departments",
   };
 
   const sections: FooterSection[] = (() => {
@@ -95,7 +95,7 @@ export default function Footer() {
   })();
 
   return (
-    <footer className="w-full bg-brand-ink px-5 py-[60px] text-white sm:px-8 lg:min-h-[413px] lg:px-[51px]">
+    <footer className="relative z-10 w-full bg-brand-ink px-5 py-[60px] text-white sm:px-8 lg:min-h-[413px] lg:px-[51px]">
       <div className="w-full">
         <div className="grid gap-12 border-b border-white/10 pb-12 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr]">
           <div className="max-w-sm">
@@ -147,7 +147,13 @@ export default function Footer() {
             <h2 className="text-[13px] font-bold uppercase tracking-[0.16em] text-brand-accent">
               {text("ข้อมูลสำคัญ", "IMPORTANT INFORMATION")}
             </h2>
-            <p className="mt-5 text-[15px] leading-7 text-brand-footer-text">
+            <Link
+              href="/team"
+              className="mt-5 inline-block text-[15px] font-medium text-brand-footer-text underline decoration-brand-accent/60 underline-offset-4 transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
+            >
+              {text("ทีมผู้พัฒนา", "Development team")}
+            </Link>
+            <p className="mt-4 text-[15px] leading-7 text-brand-footer-text">
               {text("กรณีฉุกเฉิน ให้ติดต่อหน่วยฉุกเฉินใกล้บ้านทันที ระบบนี้ใช้สำหรับนัดหมายและจัดการข้อมูลคลินิก", "For emergencies, contact your local emergency services. This system is for clinic appointments and clinic information.")}
             </p>
           </div>

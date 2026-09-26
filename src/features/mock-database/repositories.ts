@@ -1261,7 +1261,7 @@ export function createClinicRepositories(
               'ภาพรวมคลินิก',
 
             description:
-              'ดูนัดหมาย คิว แผนก และบัญชีผู้ใช้',
+              'แสดงข้อมูลสำคัญของคลินิก',
           },
 
           medical: {
@@ -1279,7 +1279,7 @@ export function createClinicRepositories(
               'ภาพรวมสุขภาพของฉัน',
 
             description:
-              'ดูนัดหมาย ยา การเตือน และข้อความของคุณ',
+              'ดูคิวถัดไป สรุปรายการต่างๆ',
           },
         };
 

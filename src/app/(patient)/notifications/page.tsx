@@ -174,6 +174,16 @@ function formatBangkokDate(
   }).format(value);
 }
 
+function formatBangkokRange(startAt: string, endAt: string, locale: 'en' | 'th' = 'th'): string {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (bangkokDate(start) === bangkokDate(end)) return formatBangkokDate(end, locale);
+  const formatter = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok',
+  });
+  return `${formatter.format(start)} – ${formatter.format(end)}`;
+}
+
 type BroadcastDraft = { title: string; message: string };
 const emptyBroadcastDraft: BroadcastDraft = { title: "", message: "" };
 const broadcastRoleOrder = ["patient", "medical", "staff_admin"] as const;
@@ -466,8 +476,8 @@ export default function NotificationsPage() {
     canReload: boolean;
   } | null>(null);
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
-  const [broadcastDraft, setBroadcastDraft] =
-    useState<BroadcastDraft>(emptyBroadcastDraft);
+  const [broadcastDraft, setBroadcastDraft] = useState<BroadcastDraft>(emptyBroadcastDraft);
+  const selectedPeriodRange = notificationDateRange(period);
 
   useEffect(() => {
     const initialFilter = initialInboxFilter();
@@ -699,72 +709,14 @@ export default function NotificationsPage() {
       <header>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl">
-              {text("ศูนย์แจ้งเตือน", "Notifications")}
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {auth.role === "staff_admin" && (
-              <button
-                onClick={() => setIsBroadcastOpen(true)}
-                aria-expanded={isBroadcastOpen}
-                aria-controls="notification-broadcast-panel"
-                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-brand-button bg-brand-strong px-3 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong sm:w-auto sm:flex-initial"
-              >
-                <Send className="size-4" aria-hidden="true" />
-                ส่งประกาศ
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label={text("รีเฟรช", "Refresh")}
-              title={text("รีเฟรช", "Refresh")}
-              onClick={() => void reloadInbox()}
-              disabled={loading || auth.isLoading}
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-brand-button bg-brand-strong text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:gap-2 sm:px-3"
-            >
-              <RefreshCw
-                className={`size-4 ${loading ? "animate-spin" : ""}`}
-                aria-hidden="true"
-              />
-              <span className="hidden sm:inline">
-                {text("รีเฟรช", "Refresh")}
-              </span>
-            </button>
+            <h1 className="relative mt-2 pl-4 text-2xl font-bold tracking-tight text-brand-ink before:absolute before:inset-y-1 before:left-0 before:w-1 before:rounded-full before:bg-brand sm:text-3xl lg:text-4xl">{text('ศูนย์แจ้งเตือน', 'Notifications')}</h1>
           </div>
         </div>
-        {!auth.isLoading && !auth.isAuthenticated && (
-          <p className="mt-2 text-xs font-semibold text-amber-700">
-            {text(
-              "เข้าสู่ระบบเพื่อดูการแจ้งเตือน",
-              "Sign in to view your notifications.",
-            )}
-          </p>
-        )}
-        <div
-          className="mt-5 overflow-hidden border-b border-brand-border-soft pb-2"
-          aria-label={text("ตัวกรองการแจ้งเตือน", "Notification filters")}
-        >
-          <time
-            suppressHydrationWarning
-            dateTime={bangkokDate()}
-            className="mb-2 block px-1 text-right text-xs text-brand-muted"
-          >
-            {formatBangkokDate(new Date(), locale)}
-          </time>
-          <div
-            className="flex min-w-0 flex-col gap-3 pb-1 sm:flex-row sm:items-center"
-            role="toolbar"
-            aria-label={text("ตัวกรองการแจ้งเตือน", "Notification filters")}
-          >
-            <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-              <div className="flex shrink-0 items-center gap-2 px-1 text-sm font-semibold text-brand-ink">
-                <Filter
-                  className="size-4 text-brand-strong"
-                  aria-hidden="true"
-                />
-                {text("ช่วงเวลา", "Period")}
-              </div>
+        {!auth.isLoading && !auth.isAuthenticated && <p className="mt-2 text-xs font-semibold text-amber-700">{text('เข้าสู่ระบบเพื่อดูการแจ้งเตือน', 'Sign in to view your notifications.')}</p>}
+        <div className="mt-5 overflow-hidden border-b border-brand-border-soft pb-2" aria-label={text('ตัวกรองการแจ้งเตือน', 'Notification filters')}>
+          <div className="flex min-w-0 flex-col gap-3 pb-1 sm:flex-row sm:items-center" role="toolbar" aria-label={text('ตัวกรองการแจ้งเตือน', 'Notification filters')}>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="flex shrink-0 items-center gap-2 px-1 text-sm font-semibold text-brand-ink"><Filter className="size-4 text-brand-strong" aria-hidden="true" />{text('ช่วงเวลา', 'Period')}</div>
               <div className="scrollbar-none min-w-0 overflow-x-auto">
                 <SegmentedControl
                   className="w-max max-w-none"
@@ -774,6 +726,7 @@ export default function NotificationsPage() {
                   onChange={selectPeriod}
                 />
               </div>
+              <time suppressHydrationWarning dateTime={selectedPeriodRange.startAt} className="shrink-0 whitespace-nowrap px-1 text-xs font-medium tabular-nums text-brand-muted sm:ml-1">{formatBangkokRange(selectedPeriodRange.startAt, selectedPeriodRange.endAt, locale)}</time>
             </div>
             <div
               className="flex min-w-0 items-center gap-2 sm:ml-auto sm:shrink-0"

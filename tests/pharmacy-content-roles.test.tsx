@@ -273,12 +273,14 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
   });
 
   it('displays dispensed badge and disabled action for already dispensed prescriptions', async () => {
-    render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
-
-    const prescriptionsTab = screen.getByRole('button', {
-      name: /ใบสั่งยาและการตัดจ่าย/,
-    });
-    fireEvent.click(prescriptionsTab);
+    render(
+      <PharmacyContent
+        currentRole="medical"
+        userName="นพ. สมชาย"
+        initialTab="prescriptions"
+        initialStatus="dispensed"
+      />
+    );
 
     // Wait for prescriptions to load
     expect(await screen.findByText('Amoxicillin 500mg')).toBeInTheDocument();
@@ -544,7 +546,7 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     unmount();
   });
 
-  it('highlights selected prescription summary stat card and dims unselected cards', async () => {
+  it('highlights selected prescription summary stat card and dims unselected cards (defaults to pending and oldest)', async () => {
     render(<PharmacyContent currentRole="medical" userName="นพ. สมชาย" />);
 
     // Switch to Prescriptions tab
@@ -553,24 +555,33 @@ describe('PharmacyContent Role Permissions & Lock Behavior', () => {
     });
     fireEvent.click(prescriptionsTab);
 
-    // Initial state: "ใบสั่งยาทั้งหมด" is selected
-    const allBtn = await screen.findByRole('button', { name: /ใบสั่งยาทั้งหมด/i });
-    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(allBtn.className).toContain('opacity-100');
-
-    // Click "รอตัดจ่ายยา"
-    const pendingBtn = screen.getByRole('button', { name: /รอตัดจ่ายยา/i });
-    await act(async () => {
-      fireEvent.click(pendingBtn);
-    });
-
+    // Initial state: "รอตัดจ่ายยา" is selected by default
+    const pendingBtn = await screen.findByRole('button', { name: /รอตัดจ่ายยา/i });
     expect(pendingBtn).toHaveAttribute('aria-pressed', 'true');
     expect(pendingBtn.className).toContain('opacity-100');
     expect(pendingBtn.className).toContain('border-brand-strong');
 
-    // "ใบสั่งยาทั้งหมด" is now unselected and dimmed
+    // "ใบสั่งยาทั้งหมด" is initially unselected and dimmed
+    const allBtn = screen.getByRole('button', { name: /ใบสั่งยาทั้งหมด/i });
     expect(allBtn).toHaveAttribute('aria-pressed', 'false');
     expect(allBtn.className).toContain('opacity-40');
+
+    // Default sort is oldest ("วันที่สั่ง: เก่าไปใหม่")
+    const sortSelect = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(sortSelect.value).toBe('oldest');
+
+    // Click "ใบสั่งยาทั้งหมด"
+    await act(async () => {
+      fireEvent.click(allBtn);
+    });
+
+    // "ใบสั่งยาทั้งหมด" is now selected
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(allBtn.className).toContain('opacity-100');
+
+    // "รอตัดจ่ายยา" is now unselected and dimmed
+    expect(pendingBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(pendingBtn.className).toContain('opacity-40');
   });
 
   it('respects initialStatus and initialSort and preserves them in sessionStorage and URL on dispense', async () => {

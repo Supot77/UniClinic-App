@@ -13,6 +13,10 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => authState,
 }));
 
+vi.mock("@/context/LocaleContext", () => ({
+  useLocale: () => ({ text: (thai: string) => thai }),
+}));
+
 describe("Footer", () => {
   beforeEach(() => {
     authState.user = null;
@@ -29,6 +33,7 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
     expect(screen.getByRole("link", { name: "เข้าสู่ระบบ" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "สมัครสมาชิก" })).toHaveAttribute("href", "/register");
+    expect(screen.getByRole("link", { name: "ทีมผู้พัฒนา" })).toHaveAttribute("href", "/team");
 
     // Staff menus should NOT be visible to guests
     expect(screen.queryByText("สำหรับบุคลากร")).not.toBeInTheDocument();
@@ -53,6 +58,7 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: "ประวัติการรักษา" })).toHaveAttribute("href", "/records");
     expect(screen.getByRole("link", { name: "แจ้งเตือนยา" })).toHaveAttribute("href", "/reminders");
     expect(screen.getByRole("link", { name: "โปรไฟล์" })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("link", { name: "ทีมผู้พัฒนา" })).toHaveAttribute("href", "/team");
 
     // Staff menus should NOT be visible to patients
     expect(screen.queryByText("สำหรับบุคลากร")).not.toBeInTheDocument();
@@ -75,6 +81,7 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: "ค้นหาผู้ป่วย" })).toHaveAttribute("href", "/patients/search");
     expect(screen.getByRole("link", { name: "คลังยา" })).toHaveAttribute("href", "/pharmacy");
     expect(screen.getByRole("link", { name: "นัดหมายผู้ป่วย" })).toHaveAttribute("href", "/appointments");
+    expect(screen.getByRole("link", { name: "ทีมผู้พัฒนา" })).toHaveAttribute("href", "/team");
 
     // Should NOT show admin-only accounts or general register
     expect(screen.queryByText("สำหรับเจ้าหน้าที่")).not.toBeInTheDocument();
@@ -95,6 +102,8 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: "จัดการแผนก" })).toHaveAttribute("href", "/departments");
     expect(screen.getByRole("link", { name: "คลังยา" })).toHaveAttribute("href", "/pharmacy");
     expect(screen.getByRole("link", { name: "ตารางตรวจแพทย์" })).toHaveAttribute("href", "/schedules");
+    expect(screen.getByRole("link", { name: "ทีมผู้พัฒนา" })).toHaveAttribute("href", "/team");
+    expect(screen.queryByRole("link", { name: "ผลตรวจผู้ป่วย" })).not.toBeInTheDocument();
 
     // Should NOT show medical-only or guest register
     expect(screen.queryByText("สำหรับบุคลากรทางการแพทย์")).not.toBeInTheDocument();

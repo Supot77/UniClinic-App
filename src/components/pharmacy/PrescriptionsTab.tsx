@@ -19,6 +19,8 @@ import {
   User,
   X,
 } from 'lucide-react';
+import PrescriptionEditor from './PrescriptionEditor';
+import { changePharmacyPrescription } from '@/services/pharmacyPrescriptionService';
 import type { Medication } from '@/types/database';
 import { createClient } from '@/utils/supabase/client';
 
@@ -100,8 +102,8 @@ export default function PrescriptionsTab({
   medications,
   canManage,
   userId,
-  initialStatus = 'all',
-  initialSort = 'newest',
+  initialStatus = 'pending',
+  initialSort = 'oldest',
   statusFilter: controlledStatusFilter,
   onStatusFilterChange,
   sortBy: controlledSortBy,
@@ -128,11 +130,7 @@ export default function PrescriptionsTab({
         try {
           sessionStorage.setItem('clinic_prescription_status_filter', status);
           const url = new URL(window.location.href);
-          if (status === 'all') {
-            url.searchParams.delete('status');
-          } else {
-            url.searchParams.set('status', status);
-          }
+          url.searchParams.set('status', status);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -150,11 +148,7 @@ export default function PrescriptionsTab({
         try {
           sessionStorage.setItem('clinic_prescription_sort_by', sort);
           const url = new URL(window.location.href);
-          if (sort === 'newest') {
-            url.searchParams.delete('sort');
-          } else {
-            url.searchParams.set('sort', sort);
-          }
+          url.searchParams.set('sort', sort);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -163,6 +157,7 @@ export default function PrescriptionsTab({
     }
   };
 
+  const [editPrescription, setEditPrescription] = useState<PrescriptionOrder | null>(null);
   const [dispenseTarget, setDispenseTarget] = useState<PrescriptionOrder | null>(null);
   const [isDispensing, setIsDispensing] = useState(false);
   const [dispenseReason, setDispenseReason] = useState('');
@@ -255,7 +250,7 @@ export default function PrescriptionsTab({
         pending++;
         const anyShort = order.prescribed_medications.some((item) => {
           const med = medications.find(
-            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+            (m) => m.id === item.medication_id && m.is_active
           );
           return !med || med.stock < item.quantity;
         });
@@ -283,7 +278,7 @@ export default function PrescriptionsTab({
           if (order.is_fully_dispensed) return false;
           const anyShort = order.prescribed_medications.some((item) => {
             const med = medications.find(
-              (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+              (m) => m.id === item.medication_id && m.is_active
             );
             return !med || med.stock < item.quantity;
           });
@@ -333,121 +328,10 @@ export default function PrescriptionsTab({
     setIsDispensing(true);
     setDispenseError(null);
     try {
-      let effectiveUserId = userId;
-      if (!effectiveUserId) {
-        const { data: authData } = await supabase.auth.getUser();
-        effectiveUserId = authData.user?.id;
-      }
-      if (!effectiveUserId) {
-        throw new Error('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
-      }
-
-      if (!skipStockDeduction) {
-        for (const item of dispenseTarget.prescribed_medications) {
-          // Skip medication if it has already been marked as dispensed
-          if (item.dispensed) {
-            continue;
-          }
-
-          const med = medications.find(
-            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
-          );
-
-          const targetMedId = med ? med.id : item.medication_id;
-          const currentStock = med ? med.stock : 0;
-          const newStock = Math.max(0, currentStock - item.quantity);
-
-          if (med) {
-            const { error: updateError } = await supabase
-              .from('medications')
-              .update({ stock: newStock, updated_at: new Date().toISOString() })
-              .eq('id', targetMedId);
-
-            if (updateError) {
-              const updateMsg = updateError.message || JSON.stringify(updateError);
-              console.error(`Failed to update stock for ${item.name}:`, updateMsg);
-              throw new Error(`ไม่สามารถอัปเดตสต็อกของ ${item.name}: ${updateMsg}`);
-            }
-
-            const reasonText = dispenseReason.trim()
-              ? `${dispenseReason.trim()} (จ่ายยาตามใบสั่งแพทย์: ${dispenseTarget.patient_name} บันทึก #${dispenseTarget.id.slice(0, 8)})`
-              : `จ่ายยาตามใบสั่งแพทย์: ${dispenseTarget.patient_name} (บันทึก #${dispenseTarget.id.slice(0, 8)})`;
-
-            const { error: logError } = await supabase.from('inventory_logs').insert({
-              medication_id: targetMedId,
-              pharmacist_id: effectiveUserId,
-              action: 'dispense',
-              quantity: item.quantity,
-              reason: reasonText,
-              idempotency_key: `dispense:${dispenseTarget.id}:${item.medication_id || targetMedId}`,
-            });
-
-            if (logError) {
-              const logErrMsg =
-                logError.message ||
-                logError.details ||
-                logError.code ||
-                'RLS policy or permission limitation';
-              const isDuplicate =
-                logError.code === '23505' ||
-                logErrMsg.includes('duplicate key') ||
-                logErrMsg.includes('idx_inventory_logs_idempotency_unique');
-
-            if (isDuplicate) {
-              console.info(
-                `[PrescriptionsTab] Item ${item.name} was already recorded in inventory_logs. Proceeding to update record.`
-              );
-            } else {
-              console.error(
-                `[PrescriptionsTab] Error: inventory_logs insert failed for ${item.name}:`,
-                logErrMsg
-              );
-              throw new Error(`บันทึกประวัติการจ่ายยา ${item.name} ไม่สำเร็จ: ${logErrMsg}`);
-            }
-          }
-        }
-      }
-    }
-
-      // Mark prescribed_medications as dispensed in medical_records
-      const nowIso = new Date().toISOString();
-      const updatedMeds = dispenseTarget.prescribed_medications.map((item) => ({
-        ...item,
-        dispensed: true,
-        dispensed_at: item.dispensed_at || nowIso,
-        dispensed_by: item.dispensed_by || effectiveUserId,
-      }));
-
-      // Update medical_records table directly in Supabase (with fallback to RPC)
-      let updateError: { message?: string } | null = null;
-      const { error: recordError } = await supabase
-        .from('medical_records')
-        .update({
-          prescribed_medications: updatedMeds,
-        })
-        .eq('id', dispenseTarget.id);
-
-      if (recordError) {
-        console.warn(
-          '[PrescriptionsTab] Direct update failed, attempting RPC dispense_medical_record_prescriptions:',
-          recordError
-        );
-        const { error: rpcError } = await supabase.rpc('dispense_medical_record_prescriptions', {
-          p_record_id: dispenseTarget.id,
-          p_prescribed_medications: updatedMeds,
-        });
-
-        if (rpcError) {
-          console.error('[PrescriptionsTab] Both direct update and RPC failed:', rpcError);
-          updateError = recordError;
-        }
-      }
-
-      if (updateError) {
-        throw new Error(
-          `บันทึกสถานะการจ่ายยาไม่สำเร็จ: ${updateError.message || JSON.stringify(updateError)}`
-        );
-      }
+      const updatedMeds = await changePharmacyPrescription({
+        recordId: dispenseTarget.id, expected: dispenseTarget.prescribed_medications,
+        reason: dispenseReason.trim() || 'จ่ายยาตามใบสั่งแพทย์', action: 'dispense', skipStock: skipStockDeduction,
+      });
 
       // Optimistic update to parent state
       onPrescriptionDispensed?.(dispenseTarget.id, updatedMeds);
@@ -476,16 +360,8 @@ export default function PrescriptionsTab({
 
           const url = new URL(window.location.href);
           url.searchParams.set('tab', 'prescriptions');
-          if (statusFilter !== 'all') {
-            url.searchParams.set('status', statusFilter);
-          } else {
-            url.searchParams.delete('status');
-          }
-          if (sortBy !== 'newest') {
-            url.searchParams.set('sort', sortBy);
-          } else {
-            url.searchParams.delete('sort');
-          }
+          url.searchParams.set('status', statusFilter);
+          url.searchParams.set('sort', sortBy);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -534,7 +410,7 @@ export default function PrescriptionsTab({
       if (restockToInventory) {
         for (const item of revokeTarget.prescribed_medications) {
           const med = medications.find(
-            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+            (m) => m.id === item.medication_id && m.is_active
           );
 
           if (med) {
@@ -640,16 +516,8 @@ export default function PrescriptionsTab({
 
           const url = new URL(window.location.href);
           url.searchParams.set('tab', 'prescriptions');
-          if (statusFilter !== 'all') {
-            url.searchParams.set('status', statusFilter);
-          } else {
-            url.searchParams.delete('status');
-          }
-          if (sortBy !== 'newest') {
-            url.searchParams.set('sort', sortBy);
-          } else {
-            url.searchParams.delete('sort');
-          }
+          url.searchParams.set('status', statusFilter);
+          url.searchParams.set('sort', sortBy);
           window.history.replaceState({}, '', url.toString());
         } catch {
           // ignore
@@ -680,6 +548,9 @@ export default function PrescriptionsTab({
 
   return (
     <div className="space-y-6">
+      {editPrescription && <PrescriptionEditor order={editPrescription} medications={medications}
+        onClose={() => setEditPrescription(null)} onSaved={async () => { await onRefresh(); }} />}
+
       {/* Summary Stat Cards - Styled identically to Medication Inventory */}
       <section
         className="mb-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-8 sm:grid-cols-4 border-b border-slate-200 pb-2"
@@ -904,7 +775,7 @@ export default function PrescriptionsTab({
           {filteredPrescriptions.map((order) => {
             const hasShortage = order.prescribed_medications.some((item) => {
               const med = medications.find(
-                (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+                (m) => m.id === item.medication_id && m.is_active
               );
               return !med || med.stock < item.quantity;
             });
@@ -994,7 +865,7 @@ export default function PrescriptionsTab({
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {order.prescribed_medications.map((item, idx) => {
                           const med = medications.find(
-                            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+                            (m) => m.id === item.medication_id && m.is_active
                           );
                           const currentStock = med ? med.stock : 0;
                           const isSufficient = med ? currentStock >= item.quantity : false;
@@ -1067,7 +938,8 @@ export default function PrescriptionsTab({
                       )}
                     </div>
 
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {canManage && !order.is_fully_dispensed && order.dispensed_items_count === 0 && <button type="button" onClick={() => setEditPrescription(order)} className="rounded-xl border border-brand-border-soft bg-white px-4 py-2 text-xs font-semibold text-brand-strong hover:bg-brand-soft">แก้ไขใบสั่งยา</button>}
                       {order.is_fully_dispensed ? (
                         <div className="flex items-center gap-2">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
@@ -1209,7 +1081,7 @@ export default function PrescriptionsTab({
                       <tbody className="divide-y divide-slate-100">
                         {dispenseTarget.prescribed_medications.map((item, idx) => {
                           const med = medications.find(
-                            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+                            (m) => m.id === item.medication_id && m.is_active
                           );
                           const currentStock = med ? med.stock : 0;
                           const remain = currentStock - item.quantity;
@@ -1247,7 +1119,7 @@ export default function PrescriptionsTab({
                 {/* Warning if shortage */}
                 {dispenseTarget.prescribed_medications.some((item) => {
                   const med = medications.find(
-                    (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+                    (m) => m.id === item.medication_id && m.is_active
                   );
                   return !med || med.stock < item.quantity;
                 }) && (
@@ -1417,7 +1289,7 @@ export default function PrescriptionsTab({
                       <tbody className="divide-y divide-slate-100">
                         {revokeTarget.prescribed_medications.map((item, idx) => {
                           const med = medications.find(
-                            (m) => m.id === item.medication_id || m.name.toLowerCase() === item.name.toLowerCase()
+                            (m) => m.id === item.medication_id && m.is_active
                           );
                           const currentStock = med ? med.stock : 0;
                           const afterStock = currentStock + item.quantity;

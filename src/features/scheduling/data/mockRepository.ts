@@ -18,6 +18,7 @@ import type {
 import type { UserRole } from '@/types/database';
 import {
   deriveSlotStatus,
+  getBangkokCurrentTime,
   isSlotExpired,
   validateDepartmentName,
   buildSlotBatchPlan,
@@ -174,7 +175,7 @@ export class MockSchedulingRepository implements SchedulingRepository {
     const editWindow = validateSlotEditWindow(existing, input, todayDate);
     if (!editWindow.ok) return editWindow;
     const bookedCount = existing?.bookedCount ?? 0;
-    const valid = validateSlot(input, this.state.slots, this.state.doctors, this.state.services, id, bookedCount, todayDate, this.state.doctorLeaves);
+    const valid = validateSlot(input, this.state.slots, this.state.doctors, this.state.services, id, bookedCount, todayDate, this.state.doctorLeaves, getBangkokCurrentTime());
     if (!valid.ok) return valid;
     const existingOffering = this.state.dailyServiceOfferings.find(
       (offering) => offering.serviceId === input.serviceId && offering.doctorId === input.doctorId && offering.offeringDate === input.slotDate,
@@ -226,6 +227,7 @@ export class MockSchedulingRepository implements SchedulingRepository {
       this.state.services,
       todayDate,
       this.state.doctorLeaves,
+      getBangkokCurrentTime(),
     );
     if (!plan.ok) return plan;
     if (plan.value.slots.length === 0) return { ok: true, value: 0 };

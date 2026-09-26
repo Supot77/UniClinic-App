@@ -1,8 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { allowedActions, bangkokDate, createClinicDatabaseRepository } from '@/features/clinic-care';
+import { allowedActions, bangkokDate, createClinicApiRepository, createClinicDatabaseRepository } from '@/features/clinic-care';
 import { createClinicMockRepository } from './clinic-care-mock-repository';
-import { appointmentId, fixture, medicationId, patientId, slotId, withAppointment } from './clinic-care-fixtures';
+import { appointmentId, doctorId, fixture, medicationId, patientId, serviceId, slotId, staffId, withAppointment } from './clinic-care-fixtures';
+
+const recordId = '00000000-0000-4000-8000-000000000018';
+function recordSeed(createdAt: string) {
+  const seed = withAppointment('medical');
+  seed.records = [{ id: recordId, appointment_id: appointmentId, patient_id: patientId, doctor_id: doctorId, patient: 'ผู้ป่วยทดสอบ', doctor: 'แพทย์ทดสอบ', diagnosis: 'เดิม', treatment_notes: '', prescribed_medications: [], created_at: createdAt, completed: true, height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null }];
+  return seed;
+}
 
 describe('Clinic manual contract', () => {
   it('books once, assigns a queue, and leaves state intact after duplicate failure', async () => {
@@ -63,6 +70,16 @@ describe('Clinic manual contract', () => {
     await repo.transition(appointmentId, 'cancelled');
     expect((await repo.load()).slots[0]).toMatchObject({ booked_count: 0, status: 'closed' });
   });
+  it('exposes cancellation only to staff for approved or requested appointments', () => {
+    const pending = withAppointment('staff_admin').appointments[0];
+    pending.status = 'pending';
+    const confirmed = { ...pending, status: 'confirmed' as const };
+    const requested = { ...pending, cancel_requested_at: '2026-09-08T08:00:00+07:00' };
+    expect(allowedActions('staff_admin', pending)).not.toContain('cancelled');
+    expect(allowedActions('staff_admin', requested)).toContain('cancelled');
+    expect(allowedActions('staff_admin', confirmed)).toContain('cancelled');
+    expect(allowedActions('medical', confirmed)).not.toContain('cancelled');
+  });
   it('cannot complete without a record or modify another doctor appointment', async () => {
     for (const otherDoctor of [false, true]) {
       const seed = withAppointment();
@@ -99,17 +116,48 @@ describe('Clinic manual contract', () => {
     ] })).rejects.toThrow();
     expect(await repo.load()).toEqual(before);
   });
+  it('allows the owning doctor to amend at minute 14 and rejects at minute 16', async () => {
+    const input = { recordId, diagnosis: 'แก้ไขแล้ว', advice: '', prescriptions: [], height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null };
+    const withinWindow = createClinicMockRepository(recordSeed('2026-09-08T08:00:00+07:00'), new Date('2026-09-08T08:14:00+07:00'));
+    await withinWindow.updateRecord(input);
+    expect((await withinWindow.load()).records[0].diagnosis).toBe('แก้ไขแล้ว');
+
+    const expired = createClinicMockRepository(recordSeed('2026-09-08T08:00:00+07:00'), new Date('2026-09-08T08:16:00+07:00'));
+    await expect(expired.updateRecord(input)).rejects.toThrow('หมดเวลาแก้ไขผลตรวจแล้ว');
+  });
+  it('rejects an amendment from a different doctor', async () => {
+    const seed = recordSeed('2026-09-08T08:00:00+07:00');
+    seed.actor.id = staffId;
+    const repo = createClinicMockRepository(seed, new Date('2026-09-08T08:05:00+07:00'));
+    await expect(repo.updateRecord({ recordId, diagnosis: 'ไม่ควรแก้ได้', advice: '', prescriptions: [], height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null })).rejects.toThrow('เฉพาะแพทย์เจ้าของเคส');
+  });
   it('uses the Bangkok date across UTC midnight', () => expect(bangkokDate(new Date('2026-09-08T18:00:00Z'))).toBe('2026-09-09'));
 });
 
 describe('Clinic database adapter boundary', () => {
+  it('does not request medical records for staff_admin through the API repository', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    fetchMock
+      .mockImplementationOnce(() => json([]))
+      .mockImplementationOnce(() => json([]))
+      .mockImplementationOnce(() => json([]))
+      .mockImplementationOnce(() => json({ profile: { id: staffId }, role: 'staff_admin' }));
+
+    const data = await createClinicApiRepository('staff_admin').load();
+    expect(data.records).toEqual([]);
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain('/api/medical-records');
+  });
+
   function client(role = 'patient', active = true) {
     const rpc = vi.fn().mockResolvedValue({ data: fixture(), error: null });
     const single = vi.fn().mockResolvedValue({ data: { role, is_active: active }, error: null });
     const getUser = vi.fn().mockResolvedValue({ data: { user: { id: patientId } }, error: null });
-    const fake = { auth: { getUser }, from: vi.fn((table: string) => table === 'departments'
-      ? { select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [{ name: 'ทั่วไป' }], error: null }) }) }) }
-      : { select: () => ({ eq: () => ({ single }) }) }), rpc };
+    const fake = { auth: { getUser }, from: vi.fn((table: string) => table === 'services'
+      ? { select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [{ id: serviceId, code: 'GEN', name: 'เวชปฏิบัติทั่วไป' }, { id: '00000000-0000-4000-8000-000000000017', code: 'ALL', name: 'ทุกบริการ' }], error: null }) }) }) }
+      : table === 'appointment_slots'
+        ? { select: () => ({ in: vi.fn().mockResolvedValue({ data: [{ id: slotId, offering: { service_id: serviceId, service: { id: serviceId, name: 'เวชปฏิบัติทั่วไป' } } }], error: null }) }) }
+        : { select: () => ({ eq: () => ({ single }) }) }), rpc };
     return { fake: fake as unknown as SupabaseClient, rpc, getUser };
   }
   it('loads a schema-checked snapshot from RPC with verified session', async () => {
@@ -122,12 +170,14 @@ describe('Clinic database adapter boundary', () => {
     const fake = {
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: seed.actor.id } }, error: null }) },
       rpc: vi.fn().mockResolvedValue({ data: seed, error: null }),
-      from: vi.fn((table: string) => table === 'departments'
-        ? { select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [{ name: 'ทั่วไป' }], error: null }) }) }) }
-        : { select: () => ({
-          eq: () => ({ single: vi.fn().mockResolvedValue({ data: { role, is_active: true }, error: null }) }),
-          in: inIds,
-        }) }),
+      from: vi.fn((table: string) => table === 'services'
+        ? { select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [{ id: serviceId, code: 'GEN', name: 'เวชปฏิบัติทั่วไป' }, { id: '00000000-0000-4000-8000-000000000017', code: 'ALL', name: 'ทุกบริการ' }], error: null }) }) }) }
+        : table === 'appointment_slots'
+          ? { select: () => ({ in: vi.fn().mockResolvedValue({ data: [{ id: slotId, offering: { service_id: serviceId, service: { id: serviceId, name: 'เวชปฏิบัติทั่วไป' } } }], error: null }) }) }
+          : { select: () => ({
+            eq: () => ({ single: vi.fn().mockResolvedValue({ data: { role, is_active: true }, error: null }) }),
+            in: inIds,
+          }) }),
     };
     const repo = createClinicDatabaseRepository(fake as unknown as SupabaseClient, role);
     expect((await repo.load()).appointments[0].patient_phone).toBe('0800000000');
@@ -165,5 +215,11 @@ describe('Clinic database adapter boundary', () => {
       p_appointment_id: appointmentId, p_height_cm: 170, p_weight_kg: 65.5,
       p_blood_pressure: '120/80', p_pulse_bpm: 72, p_complete: false,
     }));
+  });
+  it('uses the dedicated update_medical_record RPC for amendments', async () => {
+    const c = client('medical');
+    const repo = createClinicDatabaseRepository(c.fake, 'medical');
+    await repo.updateRecord({ recordId, diagnosis: 'แก้ไขแล้ว', advice: '', prescriptions: [], height_cm: null, weight_kg: null, blood_pressure: null, pulse_bpm: null });
+    expect(c.rpc).toHaveBeenCalledWith('update_medical_record', expect.objectContaining({ p_record_id: recordId, p_diagnosis: 'แก้ไขแล้ว' }));
   });
 });

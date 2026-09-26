@@ -3,7 +3,11 @@ import { MOCK_DEPARTMENTS, MOCK_DOCTORS, MOCK_SERVICES, MOCK_SLOTS, MOCK_WEEK_ST
 import { shiftDate } from '@/constants/dateTime';
 import {
   buildSlotBatchPlan,
+  getClinicBatchEndTimeOptions,
+  getClinicEndTimeOptions,
+  getCreatableClinicStartTimeOptions,
   deriveSlotStatus,
+  getEarliestCreatableClinicStartTime,
   getClinicDatesForWeekdays,
   isSlotExpired,
   validateDepartmentName,
@@ -24,6 +28,7 @@ const TEST_TODAY = MOCK_WEEK_START;
 const TOMORROW = shiftDate(TEST_TODAY, 1);
 const YESTERDAY = shiftDate(TEST_TODAY, -1);
 const PAST_DATE = shiftDate(TEST_TODAY, -3);
+const TEST_CURRENT_TIME = '08:00';
 
 describe('scheduling schedule domain rules', () => {
   it('accepts adjacent slots but rejects overlapping slots', () => {
@@ -35,6 +40,8 @@ describe('scheduling schedule domain rules', () => {
       undefined,
       0,
       TEST_TODAY,
+      [],
+      TEST_CURRENT_TIME,
     );
     const overlapping = validateSlot(
       { ...validSlot, slotDate: TEST_TODAY, startTime: '09:15', endTime: '09:45' },
@@ -44,6 +51,8 @@ describe('scheduling schedule domain rules', () => {
       undefined,
       0,
       TEST_TODAY,
+      [],
+      TEST_CURRENT_TIME,
     );
     expect(adjacent.ok).toBe(true);
     expect(overlapping).toMatchObject({ ok: false, error: expect.stringContaining('ทับซ้อน') });
@@ -51,7 +60,7 @@ describe('scheduling schedule domain rules', () => {
 
   it('rejects adding a slot for a past date', () => {
     const pastSlot = { ...validSlot, slotDate: PAST_DATE };
-    const result = validateSlot(pastSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY);
+    const result = validateSlot(pastSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], TEST_CURRENT_TIME);
     expect(result).toMatchObject({
       ok: false,
       error: 'ไม่สามารถเพิ่มรอบตรวจของวันในอดีตได้',
@@ -60,7 +69,7 @@ describe('scheduling schedule domain rules', () => {
   });
 
   it('allows adding a slot for today or future date', () => {
-    const todayResult = validateSlot(validSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY);
+    const todayResult = validateSlot(validSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], TEST_CURRENT_TIME);
     expect(todayResult.ok).toBe(true);
 
     const futureResult = validateSlot(
@@ -71,6 +80,8 @@ describe('scheduling schedule domain rules', () => {
       undefined,
       0,
       TEST_TODAY,
+      [],
+      TEST_CURRENT_TIME,
     );
     expect(futureResult.ok).toBe(true);
   });
@@ -93,6 +104,8 @@ describe('scheduling schedule domain rules', () => {
       'slot-future',
       0,
       TEST_TODAY,
+      [],
+      TEST_CURRENT_TIME,
     );
     expect(result).toMatchObject({
       ok: false,
@@ -119,6 +132,8 @@ describe('scheduling schedule domain rules', () => {
       'slot-past',
       0,
       TEST_TODAY,
+      [],
+      TEST_CURRENT_TIME,
     );
     expect(result.ok).toBe(true);
   });
@@ -129,12 +144,12 @@ describe('scheduling schedule domain rules', () => {
     [{ ...validSlot, startTime: '11:30', endTime: '12:30' }, 'ช่วงพัก'],
     [{ ...validSlot, maxCapacity: 0 }, 'จำนวนเต็ม'],
   ])('rejects an invalid clinic slot', (input, message) => {
-    const result = validateSlot(input, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY);
+    const result = validateSlot(input, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], TEST_CURRENT_TIME);
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining(message) });
   });
 
   it('does not allow capacity below existing bookings', () => {
-    const result = validateSlot({ ...validSlot, maxCapacity: 2 }, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 3, TEST_TODAY);
+    const result = validateSlot({ ...validSlot, maxCapacity: 2 }, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 3, TEST_TODAY, [], TEST_CURRENT_TIME);
     expect(result).toMatchObject({ ok: false, field: 'maxCapacity' });
   });
 
@@ -143,21 +158,21 @@ describe('scheduling schedule domain rules', () => {
     [{ ...validSlot, startTime: '9:30' }, 'HH:mm'],
     [{ ...validSlot, endTime: '25:00' }, 'HH:mm'],
   ])('rejects malformed clinic date/time', (input, message) => {
-    const result = validateSlot(input, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY);
+    const result = validateSlot(input, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], TEST_CURRENT_TIME);
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining(message) });
   });
 
   it('rejects invalid booked counts before changing capacity', () => {
-    expect(validateSlot(validSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, -1, TEST_TODAY)).toMatchObject({ ok: false });
-    expect(validateSlot(validSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 2, TEST_TODAY)).toMatchObject({ ok: false, field: 'maxCapacity' });
+    expect(validateSlot(validSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, -1, TEST_TODAY, [], TEST_CURRENT_TIME)).toMatchObject({ ok: false });
+    expect(validateSlot(validSlot, [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 2, TEST_TODAY, [], TEST_CURRENT_TIME)).toMatchObject({ ok: false, field: 'maxCapacity' });
   });
 
   it('requires active doctor and service references', () => {
     const inactiveDoctor = MOCK_DOCTORS.map((doctor) => doctor.id === validSlot.doctorId ? { ...doctor, availability: 'inactive' as const } : doctor);
-    expect(validateSlot(validSlot, [], inactiveDoctor, MOCK_SERVICES, undefined, 0, TEST_TODAY)).toMatchObject({ ok: false, field: 'doctorId' });
+    expect(validateSlot(validSlot, [], inactiveDoctor, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], TEST_CURRENT_TIME)).toMatchObject({ ok: false, field: 'doctorId' });
 
     const inactiveService = MOCK_SERVICES.map((service) => service.id === validSlot.serviceId ? { ...service, isActive: false } : service);
-    expect(validateSlot(validSlot, [], MOCK_DOCTORS, inactiveService, undefined, 0, TEST_TODAY)).toMatchObject({ ok: false, field: 'serviceId' });
+    expect(validateSlot(validSlot, [], MOCK_DOCTORS, inactiveService, undefined, 0, TEST_TODAY, [], TEST_CURRENT_TIME)).toMatchObject({ ok: false, field: 'serviceId' });
   });
 
   it('builds selected weekdays and skips leave dates and existing conflicts', () => {
@@ -186,11 +201,71 @@ describe('scheduling schedule domain rules', () => {
       MOCK_SERVICES,
       TEST_TODAY,
       [{ id: 'leave-1', doctorId: validSlot.doctorId, startDate: shiftDate(TEST_TODAY, 2), endDate: shiftDate(TEST_TODAY, 2) }],
+      TEST_CURRENT_TIME,
     );
 
     expect(result).toEqual({
       ok: true,
-      value: { slots: [], skippedLeaveDates: [shiftDate(TEST_TODAY, 2)], skippedConflictCount: 1 },
+      value: { slots: [], skippedLeaveDates: [shiftDate(TEST_TODAY, 2)], skippedConflictCount: 1, skippedPastTimeCount: 0 },
+    });
+  });
+
+  it('allows a same-day slot at the current minute but rejects earlier times', () => {
+    expect(getEarliestCreatableClinicStartTime(TEST_TODAY, TEST_TODAY, '12:00')).toBe('13:00');
+    expect(getEarliestCreatableClinicStartTime(TEST_TODAY, TEST_TODAY, '10:00')).toBe('10:00');
+    expect(validateSlot(
+      { ...validSlot, startTime: '09:59', endTime: '10:30' },
+      [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], '10:00',
+    )).toMatchObject({ ok: false, field: 'startTime' });
+    expect(validateSlot(
+      { ...validSlot, startTime: '10:00', endTime: '10:30' },
+      [], MOCK_DOCTORS, MOCK_SERVICES, undefined, 0, TEST_TODAY, [], '10:00',
+    ).ok).toBe(true);
+  });
+
+  it('returns only selectable clinic times for create controls', () => {
+    const startOptions = getCreatableClinicStartTimeOptions('10:00');
+    expect(startOptions[0]).toBe('10:00');
+    expect(startOptions).toContain('11:59');
+    expect(startOptions).not.toContain('09:59');
+    expect(startOptions).not.toContain('12:00');
+    expect(startOptions).toContain('13:00');
+
+    const singleEndOptions = getClinicEndTimeOptions('11:30');
+    expect(singleEndOptions).toContain('12:00');
+    expect(singleEndOptions).not.toContain('12:01');
+    expect(singleEndOptions).not.toContain('13:00');
+
+    const batchEndOptions = getClinicBatchEndTimeOptions('08:30');
+    expect(batchEndOptions).toContain('12:00');
+    expect(batchEndOptions).not.toContain('12:01');
+    expect(batchEndOptions).toContain('13:00');
+  });
+
+  it('skips past time blocks for today while keeping them for future dates', () => {
+    const result = buildSlotBatchPlan(
+      {
+        doctorId: validSlot.doctorId,
+        serviceId: validSlot.serviceId,
+        dates: [TEST_TODAY, TOMORROW],
+        timeBlocks: [
+          { startTime: '09:30', endTime: '10:00', maxCapacity: 1 },
+          { startTime: '10:00', endTime: '10:30', maxCapacity: 1 },
+        ],
+      },
+      [], MOCK_DOCTORS, MOCK_SERVICES, TEST_TODAY, [], '10:00',
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        skippedPastTimeCount: 1,
+        slots: expect.arrayContaining([
+          expect.objectContaining({ slotDate: TEST_TODAY, startTime: '10:00' }),
+          expect.objectContaining({ slotDate: TOMORROW, startTime: '09:30' }),
+          expect.objectContaining({ slotDate: TOMORROW, startTime: '10:00' }),
+        ]),
+      },
     });
   });
 

@@ -30,6 +30,7 @@ import {
 } from '@/features/dashboard/types';
 import { CLINIC_TIME_BLOCKS } from '@/constants/dateTime';
 import { formatProfileName } from '@/lib/profileName';
+import { apiClient } from '@/lib/api-client';
 
 const supabase = createClient();
 
@@ -284,7 +285,7 @@ type DashboardMedication = Pick<Medication, 'id' | 'name' | 'dosage' | 'type' | 
 type DashboardReminder = Pick<MedicationReminder, 'id' | 'user_id' | 'medication_id' | 'reminder_times' | 'start_date' | 'end_date' | 'status'>;
 type DashboardMedicationLog = Pick<MedicationLog, 'id' | 'reminder_id' | 'scheduled_datetime' | 'actual_datetime' | 'status'>;
 type DashboardMedicalRecord = Pick<MedicalRecord, 'id' | 'appointment_id' | 'patient_id' | 'doctor_id' | 'diagnosis' | 'treatment_notes' | 'prescribed_medications' | 'created_at'> & {
-  appointment?: { status?: AppointmentStatus | null } | null;
+  appointment?: { status?: AppointmentStatus | null; reason?: string | null } | null;
 };
 type DashboardDoctorStatus = NonNullable<DashboardView['doctorStatuses']>[number];
 type DashboardDoctorLeave = { doctor_id: string; start_date: string; end_date: string };
@@ -540,7 +541,7 @@ export async function getDashboardView(
   const medicalRecordPromise = role === 'medical' && !isDoctorActor
     ? supabase.from('medical_records').select('id, appointment_id, patient_id, doctor_id, diagnosis, treatment_notes, prescribed_medications, created_at')
     : role === 'patient'
-      ? supabase.from('medical_records').select('id, appointment_id, patient_id, doctor_id, diagnosis, treatment_notes, prescribed_medications, created_at, appointment:appointments!inner(status)').eq('patient_id', actorId)
+      ? supabase.from('medical_records').select('id, appointment_id, patient_id, doctor_id, diagnosis, treatment_notes, prescribed_medications, created_at, appointment:appointments!inner(status, reason)').eq('patient_id', actorId)
     : Promise.resolve({ data: [] as DashboardMedicalRecord[], error: null });
 
   const [medicationsResult, remindersResult, medicalRecordsResult] = await Promise.all([
@@ -785,6 +786,7 @@ export async function getDashboardView(
           date: record.created_at,
           doctorName: formatProfileName(profilesById.get(record.doctor_id)) || 'ไม่พบแพทย์',
           departmentName: doctor?.department_id ? departmentsById.get(doctor.department_id)?.name ?? 'ไม่ระบุแผนก' : 'ไม่ระบุแผนก',
+          symptom: record.appointment?.reason?.trim() || 'ไม่ได้ระบุ',
           summary: record.diagnosis || record.treatment_notes || 'ยังไม่มีสรุปการรักษา',
           advice: record.treatment_notes || '',
           medicationNames: (record.prescribed_medications ?? []).map((medication) => medication.name).filter(Boolean),
@@ -893,7 +895,7 @@ export async function getDashboardView(
       : ['pending', 'confirmed', 'in_progress', 'completed'];
 
   const copyByRole: Record<UserRole, { title: string; description: string }> = {
-    staff_admin: { title: 'ภาพรวมคลินิก', description: 'ดูนัดหมาย คิว แผนก และบัญชีผู้ใช้' },
+    staff_admin: { title: 'ภาพรวมคลินิก', description: 'แสดงข้อมูลสำคัญของคลินิก' },
     medical: {
       title: isDoctorActor ? 'ภาพรวมงานแพทย์' : 'ภาพรวมงานเภสัชกรรม',
       description: isDoctorActor ? 'ดูตาราง คิว และรายการยาที่ต้องตรวจสอบ' : 'ดูใบสั่งยารอจ่ายและสถานะคลังยา',
@@ -931,7 +933,7 @@ export async function getDashboardView(
     servedAppointmentCount: role === 'staff_admin' ? servedAppointmentCount : undefined,
     doctorStatuses,
     nextAppointment,
-    upcomingAppointments: role === 'patient' ? upcomingAppointments : undefined,
+    upcomingAppointments: role === 'patient' || isDoctorActor ? upcomingAppointments : undefined,
     patientMedications,
     patientTreatmentHistory,
     patientOverview: role === 'patient' && patientOverviewAppointments && patientOverviewMedication
@@ -1013,6 +1015,13 @@ export async function updateStaffProfile(
   });
 
   if (error) throw new Error(error.message);
+}
+
+export async function setDoctorAccountActive(profileId: string, isActive: boolean): Promise<void> {
+  await apiClient(`/api/doctors/${profileId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_active: isActive }),
+  });
 }
 
 export async function deleteStaffProfile(profileId: string): Promise<void> {

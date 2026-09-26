@@ -4,6 +4,7 @@ import {
   bangkokTime,
   isSlotArrived,
   recordInputSchema,
+  recordUpdateInputSchema,
   type ClinicRepository,
   type ClinicRole,
   type ClinicSnapshot,
@@ -71,6 +72,27 @@ export function createClinicMockRepository(seed: ClinicSnapshot, now = new Date(
         height_cm: parsed.height_cm, weight_kg: parsed.weight_kg, blood_pressure: parsed.blood_pressure, pulse_bpm: parsed.pulse_bpm });
       appointment.has_record = true;
       if (parsed.complete) appointment.status = 'completed';
+    },
+    async updateRecord(input) {
+      requireRole('medical');
+      const parsed = recordUpdateInputSchema.parse(input);
+      const record = state.records.find((item) => item.id === parsed.recordId);
+      if (!record || record.doctor_id !== state.actor.id) throw new Error('เฉพาะแพทย์เจ้าของเคสเท่านั้นที่แก้ไขผลตรวจได้');
+      if (now.getTime() >= new Date(record.created_at).getTime() + 15 * 60 * 1000) throw new Error('หมดเวลาแก้ไขผลตรวจแล้ว');
+      const items = parsed.prescriptions.map((prescription) => {
+        const medication = state.medications.find((item) => item.id === prescription.medication_id);
+        if (!medication) throw new Error('ไม่พบยาหรือยาถูกปิดใช้งาน');
+        return { ...prescription, name: medication.name };
+      });
+      Object.assign(record, {
+        diagnosis: parsed.diagnosis,
+        treatment_notes: parsed.advice,
+        prescribed_medications: items,
+        height_cm: parsed.height_cm,
+        weight_kg: parsed.weight_kg,
+        blood_pressure: parsed.blood_pressure,
+        pulse_bpm: parsed.pulse_bpm,
+      });
     },
   };
 }

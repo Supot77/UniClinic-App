@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Search,
   Trash2,
+  Truck,
   X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -31,6 +32,7 @@ import PrescriptionsTab, {
   type PrescribedMedItem,
   type PrescriptionOrder,
 } from './PrescriptionsTab';
+import ProcurementsTab from './ProcurementsTab';
 
 function ViewportPortal({ children }: { children: ReactNode }) {
   if (typeof document === 'undefined') return null;
@@ -208,7 +210,7 @@ interface RawInventoryLog {
 }
 
 interface PharmacyContentProps {
-  initialTab?: 'inventory' | 'prescriptions';
+  initialTab?: 'inventory' | 'prescriptions' | 'procurements';
   initialStatus?: 'all' | 'pending' | 'dispensed' | 'insufficient';
   initialSort?: 'newest' | 'oldest';
   currentRole?: string;
@@ -219,8 +221,8 @@ interface PharmacyContentProps {
 
 export default function PharmacyContent({
   initialTab = 'inventory',
-  initialStatus = 'all',
-  initialSort = 'newest',
+  initialStatus = 'pending',
+  initialSort = 'oldest',
   currentRole,
   userName,
   userId,
@@ -237,11 +239,13 @@ export default function PharmacyContent({
   const effectiveRole = currentRole || authRole || 'medical';
   const isAdminOrStaff = effectiveRole === 'admin' || effectiveRole === 'staff_admin' || effectiveRole === 'staff';
   const canManage = !isAdminOrStaff;
-  const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'inventory' | 'prescriptions' | 'procurements'>(initialTab);
   const [prescriptionStatusFilter, setPrescriptionStatusFilter] = useState<'all' | 'pending' | 'dispensed' | 'insufficient'>(initialStatus);
   const [prescriptionSortBy, setPrescriptionSortBy] = useState<'newest' | 'oldest'>(initialSort);
+  const [isProcurementAddOpen, setIsProcurementAddOpen] = useState(false);
+  const [procurementsRefreshKey, setProcurementsRefreshKey] = useState(0);
 
-  const handleSelectTab = (tab: 'inventory' | 'prescriptions') => {
+  const handleSelectTab = (tab: 'inventory' | 'prescriptions' | 'procurements') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       try {
@@ -250,16 +254,11 @@ export default function PharmacyContent({
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
         if (tab === 'prescriptions') {
-          if (prescriptionStatusFilter !== 'all') {
-            url.searchParams.set('status', prescriptionStatusFilter);
-          } else {
-            url.searchParams.delete('status');
-          }
-          if (prescriptionSortBy !== 'newest') {
-            url.searchParams.set('sort', prescriptionSortBy);
-          } else {
-            url.searchParams.delete('sort');
-          }
+          url.searchParams.set('status', prescriptionStatusFilter);
+          url.searchParams.set('sort', prescriptionSortBy);
+        } else {
+          url.searchParams.delete('status');
+          url.searchParams.delete('sort');
         }
         window.history.replaceState({}, '', url.toString());
       } catch {
@@ -274,11 +273,7 @@ export default function PharmacyContent({
       try {
         sessionStorage.setItem('clinic_prescription_status_filter', status);
         const url = new URL(window.location.href);
-        if (status === 'all') {
-          url.searchParams.delete('status');
-        } else {
-          url.searchParams.set('status', status);
-        }
+        url.searchParams.set('status', status);
         window.history.replaceState({}, '', url.toString());
       } catch {
         // ignore
@@ -292,11 +287,7 @@ export default function PharmacyContent({
       try {
         sessionStorage.setItem('clinic_prescription_sort_by', sort);
         const url = new URL(window.location.href);
-        if (sort === 'newest') {
-          url.searchParams.delete('sort');
-        } else {
-          url.searchParams.set('sort', sort);
-        }
+        url.searchParams.set('sort', sort);
         window.history.replaceState({}, '', url.toString());
       } catch {
         // ignore
@@ -618,6 +609,7 @@ export default function PharmacyContent({
   }, [prescriptions]);
 
   const handleReloadAll = useCallback(async () => {
+    setProcurementsRefreshKey((k) => k + 1);
     await Promise.all([loadMedications(), loadPrescriptions()]);
   }, [loadMedications, loadPrescriptions]);
 
@@ -878,11 +870,33 @@ export default function PharmacyContent({
         if (error) throw error;
         setSuccessToast(`อัปเดต "${draft.name}" แล้ว`);
       } else {
-        const { error } = await supabase
+        const { data: insertedMed, error } = await supabase
           .from('medications')
-          .insert([payload]);
+          .insert([payload])
+          .select('id, name, stock')
+          .single();
 
         if (error) throw error;
+
+        // บันทึกประวัติการเพิ่มยาเริ่มต้นเข้าคลัง
+        if (insertedMed && Number(payload.stock) > 0) {
+          try {
+            await supabase.from('inventory_logs').insert([
+              {
+                medication_id: insertedMed.id,
+                pharmacist_id: userId,
+                performed_by: userId,
+                action: 'add',
+                quantity: Number(payload.stock),
+                reason: 'เพิ่มรายการยาใหม่เข้าสู่ระบบ',
+                created_at: new Date().toISOString(),
+              },
+            ]);
+          } catch {
+            // non-fatal
+          }
+        }
+
         setSuccessToast(`เพิ่ม "${draft.name}" แล้ว`);
       }
 
@@ -961,12 +975,14 @@ export default function PharmacyContent({
     if (!canManage) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('medications')
-        .delete()
-        .eq('id', item.id);
+      const res = await fetch(`/api/medications/${item.id}?permanent=true`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || `ลบไม่สำเร็จ (สถานะ ${res.status})`);
+      }
 
-      if (error) throw error;
       setSuccessToast(`ลบ "${item.name}" ถาวรแล้ว`);
       setDeleteTarget(null);
       await loadMedications();
@@ -997,12 +1013,12 @@ export default function PharmacyContent({
 
       {/* Header Section */}
       <div className="mb-6 space-y-4">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
+        <div className="flex flex-col justify-between gap-5 border-b border-brand-border-soft pb-5 sm:flex-row sm:items-start sm:pb-6">
+          <div className="min-w-0 border-l-4 border-brand-strong pl-4 sm:pl-5">
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">
               คลังยาและเวชภัณฑ์
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-brand-muted">
               ตรวจสอบสต็อกและวันหมดอายุของยาและเวชภัณฑ์
             </p>
           </div>
@@ -1035,6 +1051,26 @@ export default function PharmacyContent({
                 >
                   <Lock className="h-4 w-4 shrink-0 text-brand-muted" />
                   <span>เพิ่มรายการยา (ดูอย่างเดียว)</span>
+                </div>
+              )
+            )}
+            {activeTab === 'procurements' && (
+              canManage ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProcurementAddOpen(true)}
+                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl bg-brand-strong px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-xs transition hover:bg-brand-hover active:scale-95"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span>สั่งยาเพิ่ม</span>
+                </button>
+              ) : (
+                <div
+                  title="เฉพาะแพทย์และเภสัชกรเท่านั้นที่สั่งยาเพิ่มได้"
+                  className="inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border border-brand-border-soft bg-brand-surface px-3.5 sm:px-4 text-xs sm:text-sm font-medium text-brand-muted cursor-not-allowed select-none"
+                >
+                  <Lock className="h-4 w-4 shrink-0 text-brand-muted" />
+                  <span>สั่งยาเพิ่ม (ดูอย่างเดียว)</span>
                 </div>
               )
             )}
@@ -1092,6 +1128,19 @@ export default function PharmacyContent({
                 {prescriptions.length}
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSelectTab('procurements')}
+            className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold transition ${
+              activeTab === 'procurements'
+                ? 'border-sky-600 text-sky-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            <Truck className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+            <span>ประวัติสั่งซื้อและนำเข้ายา</span>
           </button>
         </div>
 
@@ -1575,7 +1624,7 @@ export default function PharmacyContent({
         </div>
       </div>
       </>
-      ) : (
+      ) : activeTab === 'prescriptions' ? (
         <PrescriptionsTab
           prescriptions={prescriptions}
           isLoading={isLoadingPrescriptions}
@@ -1592,6 +1641,21 @@ export default function PharmacyContent({
           onStockUpdated={handleReloadAll}
           onPrescriptionDispensed={handlePrescriptionDispensed}
           onShowToast={(msg) => setSuccessToast(msg)}
+        />
+      ) : (
+        <ProcurementsTab
+          medications={medications}
+          canManage={canManage}
+          isAdminOrStaff={isAdminOrStaff}
+          userId={userId}
+          userName={userName}
+          onRefresh={loadMedications}
+          onStockUpdated={handleReloadAll}
+          onShowToast={(msg: string) => setSuccessToast(msg)}
+          isAddModalOpen={isProcurementAddOpen}
+          onOpenAddModal={() => setIsProcurementAddOpen(true)}
+          onCloseAddModal={() => setIsProcurementAddOpen(false)}
+          refreshKey={procurementsRefreshKey}
         />
       )}
 
@@ -2488,7 +2552,7 @@ export default function PharmacyContent({
                         </span>
                       </div>
                       <p className="text-xs text-status-critical/80 leading-relaxed">
-                        ลบข้อมูลถาวรและกู้คืนไม่ได้ ใช้เมื่อต้องการลบรายการที่สร้างผิด
+                        ลบรายการที่สร้างผิดและยังไม่มีประวัติอ้างอิง หากมีประวัติให้พักการใช้งานแทน
                       </p>
                     </div>
                     <button
@@ -2505,7 +2569,7 @@ export default function PharmacyContent({
             ) : (
               <div className="my-5 space-y-4">
                 <div className="rounded-xl border border-status-critical/30 bg-status-critical-bg p-3.5 text-xs text-status-critical leading-relaxed">
-                  รายการนี้ถูกพักใช้งานอยู่แล้ว การยืนยันจะลบข้อมูลถาวรและกู้คืนไม่ได้
+                  รายการนี้ถูกพักใช้งานอยู่แล้ว ลบถาวรได้เฉพาะรายการที่ไม่มีประวัติอ้างอิง และกู้คืนไม่ได้
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-2">
                   <button

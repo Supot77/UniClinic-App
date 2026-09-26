@@ -9,6 +9,7 @@ const PUBLIC_EXACT_PATHS = [
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/team",
 ];
 const PUBLIC_PREFIXES = ["/schedules", "/api"];
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -29,7 +30,23 @@ import { getBangkokToday, isDoctorOnLeave } from '@/features/scheduling/domain/r
 import { THAI_MONTHS_SHORT } from '@/constants/dateTime';
 
 const inputClass =
-  'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-white px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
+  'h-11 w-full min-w-0 rounded-lg border border-brand-border-soft bg-brand-surface px-3.5 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted hover:border-brand-border focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
+const textareaClass =
+  'w-full rounded-xl border border-brand-border-soft bg-brand-surface p-3 text-sm text-brand-ink shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-brand-muted focus:border-brand-strong focus:ring-4 focus:ring-brand-soft';
+const modalBackdropClass =
+  'clinic-modal-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-xs sm:p-6';
+const modalPanelClass =
+  'flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-brand-border-strong bg-brand-surface text-brand-ink shadow-[0_24px_80px_rgba(0,0,0,0.3)] ring-1 ring-brand-border-soft sm:max-h-[calc(100dvh-3rem)]';
+const modalHeaderClass =
+  'flex shrink-0 items-start justify-between gap-4 border-b border-brand-border-soft px-5 py-4 sm:px-6 sm:py-5';
+const modalBodyClass = 'min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6';
+const modalFooterClass =
+  'flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-brand-border-soft px-5 py-4 sm:px-6';
+const modalLabelClass = 'text-sm font-semibold text-brand-ink';
+const modalCancelClass =
+  'rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-body transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong';
+const modalSaveClass =
+  'inline-flex items-center gap-2 rounded-xl bg-brand-strong px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-brand-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 const textActionClass = 'inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50';
 
 type WorkspaceTab = 'departments' | 'doctors' | 'services';
@@ -92,14 +109,12 @@ export default function DepartmentWorkspace() {
     departments,
     doctors,
     services,
-    slots,
     doctorLeaves = [],
     doctorAccounts,
     isLoading,
     saveDepartment: persistDepartment,
     toggleDepartment: persistDepartmentToggle,
     saveDoctor: persistDoctor,
-    toggleDoctor: persistDoctorToggle,
     saveService: persistService,
     toggleService: persistServiceToggle,
     deleteDoctorLeave: persistDoctorLeaveDelete,
@@ -110,7 +125,7 @@ export default function DepartmentWorkspace() {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
 
-  // Drawer state
+  // Modal state
   const [departmentDrawerOpen, setDepartmentDrawerOpen] = useState(false);
   const [doctorDrawerOpen, setDoctorDrawerOpen] = useState(false);
   const [serviceDrawerOpen, setServiceDrawerOpen] = useState(false);
@@ -120,26 +135,28 @@ export default function DepartmentWorkspace() {
 
   const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft>(emptyDepartmentDraft);
   const [doctorDraft, setDoctorDraft] = useState<DoctorDraft>(emptyDoctorDraft);
+  const [isSpecialtyListOpen, setIsSpecialtyListOpen] = useState(false);
+  const [activeSpecialtyIndex, setActiveSpecialtyIndex] = useState(-1);
   const [serviceDraft, setServiceDraft] = useState<ServiceDraft>(emptyServiceDraft);
   const [formError, setFormError] = useState('');
   const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationModalRequest | null>(null);
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const drawerTriggerRef = useRef<HTMLElement | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const modalTriggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (confirmation || (!departmentDrawerOpen && !doctorDrawerOpen && !serviceDrawerOpen)) return;
-    const drawer = drawerRef.current;
-    drawer?.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), textarea')?.focus();
+    const modal = modalRef.current;
+    modal?.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), textarea')?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (departmentDrawerOpen) setDepartmentDrawerOpen(false);
         if (doctorDrawerOpen) setDoctorDrawerOpen(false);
         if (serviceDrawerOpen) setServiceDrawerOpen(false);
       }
-      if (e.key === 'Tab' && drawer) {
-        const controls = drawer.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)');
+      if (e.key === 'Tab' && modal) {
+        const controls = modal.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)');
         const first = controls[0];
         const last = controls[controls.length - 1];
         if (e.shiftKey && document.activeElement === first) {
@@ -154,7 +171,7 @@ export default function DepartmentWorkspace() {
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      drawerTriggerRef.current?.focus();
+      modalTriggerRef.current?.focus();
     };
   }, [confirmation, departmentDrawerOpen, doctorDrawerOpen, serviceDrawerOpen]);
 
@@ -195,8 +212,23 @@ export default function DepartmentWorkspace() {
     [normalizedSearch, services, showInactive],
   );
 
+  const specialtyOptions = useMemo(
+    () => Array.from(new Set(doctors.map((doctor) => doctor.specialty.trim()).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right, 'th')),
+    [doctors],
+  );
+  const normalizedSpecialty = doctorDraft.specialty.trim().toLocaleLowerCase('th');
+  const filteredSpecialtyOptions = specialtyOptions.filter((specialty) =>
+    specialty.toLocaleLowerCase('th').includes(normalizedSpecialty),
+  );
+  const hasMatchingSpecialty = specialtyOptions.some(
+    (specialty) => specialty.toLocaleLowerCase('th') === normalizedSpecialty,
+  );
+  const canAddSpecialty = Boolean(normalizedSpecialty) && !hasMatchingSpecialty;
+  const specialtyItemCount = filteredSpecialtyOptions.length + Number(canAddSpecialty);
+
   const openDepartmentForm = (department?: ScheduleDepartment) => {
-    drawerTriggerRef.current = document.activeElement as HTMLElement;
+    modalTriggerRef.current = document.activeElement as HTMLElement;
     setFormError('');
     setNotice('');
     setEditingDepartmentId(department?.id ?? null);
@@ -279,11 +311,19 @@ export default function DepartmentWorkspace() {
     }));
   };
 
+  const selectSpecialty = (specialty: string) => {
+    setDoctorDraft((current) => ({ ...current, specialty }));
+    setIsSpecialtyListOpen(false);
+    setActiveSpecialtyIndex(-1);
+  };
+
   const openDoctorForm = (doctor?: ScheduleDoctor) => {
-    drawerTriggerRef.current = document.activeElement as HTMLElement;
+    modalTriggerRef.current = document.activeElement as HTMLElement;
     setFormError('');
     setNotice('');
     setEditingDoctorId(doctor?.id ?? null);
+    setIsSpecialtyListOpen(false);
+    setActiveSpecialtyIndex(-1);
     setDoctorDraft(
       doctor
         ? {
@@ -302,6 +342,8 @@ export default function DepartmentWorkspace() {
 
   const closeDoctorDrawer = () => {
     setDoctorDrawerOpen(false);
+    setIsSpecialtyListOpen(false);
+    setActiveSpecialtyIndex(-1);
     setEditingDoctorId(null);
     setDoctorDraft(emptyDoctorDraft);
     setFormError('');
@@ -323,7 +365,7 @@ export default function DepartmentWorkspace() {
   };
 
   const openServiceForm = (service?: ScheduleService) => {
-    drawerTriggerRef.current = document.activeElement as HTMLElement;
+    modalTriggerRef.current = document.activeElement as HTMLElement;
     setFormError('');
     setNotice('');
     setEditingServiceId(service?.id ?? null);
@@ -389,39 +431,6 @@ export default function DepartmentWorkspace() {
       confirmLabel: action,
       tone: service.isActive ? 'danger' : 'primary',
       onConfirm: () => confirmToggleService(service),
-    });
-  };
-
-  const confirmToggleDoctor = async (doctor: ScheduleDoctor) => {
-    setIsSaving(true);
-    const result = await persistDoctorToggle(doctor.id);
-    setIsSaving(false);
-
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
-    }
-
-    if (doctor.availability !== 'inactive') {
-      setShowInactive(true);
-    }
-
-    setConfirmation(null);
-    setNotice(result.value === 'deleted' ? 'ลบแพทย์แล้ว' : doctor.availability === 'inactive' ? 'เปิดใช้งานแพทย์แล้ว' : 'ปิดใช้งานแพทย์แล้ว');
-  };
-
-  const toggleDoctor = (doctor: ScheduleDoctor) => {
-    setFormError('');
-    setNotice('');
-    const hasReferences = Boolean(doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id));
-    const action = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-    const impact = hasReferences ? ' รอบและประวัติเดิมจะยังคงอยู่' : '';
-    setConfirmation({
-      title: `${action}แพทย์`,
-      message: `${action} ${doctor.fullName}?${impact}`,
-      confirmLabel: action,
-      tone: doctor.availability === 'inactive' ? 'primary' : 'danger',
-      onConfirm: () => confirmToggleDoctor(doctor),
     });
   };
 
@@ -674,7 +683,6 @@ export default function DepartmentWorkspace() {
                   const currentStatus = onLeaveToday || doctor.availability === 'on_leave'
                     ? { label: latestLeave ? `ลาตรวจ (${formatLeaveRange(latestLeave)})` : 'ลาตรวจ', text: 'text-status-warning', dot: 'bg-status-warning' }
                     : statusConfig[doctor.availability] ?? statusConfig.active;
-                  const toggleLabel = doctor.availability === 'inactive' ? 'เปิดใช้งาน' : doctor.hasHistory || slots.some((slot) => slot.doctorId === doctor.id) ? 'ปิดใช้งาน' : 'ลบ';
                   return (
                     <article key={doctor.id} className="grid gap-4 py-6 transition-colors hover:bg-brand-surface/60 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_140px_140px] lg:items-center lg:gap-6">
                       <div className="min-w-0">
@@ -697,9 +705,6 @@ export default function DepartmentWorkspace() {
                             <Trash2 className="h-4 w-4" aria-hidden="true" />ยกเลิกวันลา
                           </button>
                         )}
-                        <button type="button" disabled={isSaving} onClick={() => toggleDoctor(doctor)} className={`${textActionClass} ${doctor.availability === 'inactive' ? 'text-status-success' : 'text-status-critical'}`} aria-label={`${toggleLabel} ${doctor.fullName}`}>
-                          {toggleLabel}
-                        </button>
                       </div>
                     </article>
                   );
@@ -764,47 +769,37 @@ export default function DepartmentWorkspace() {
         </section>
       )}
 
-      {/* Slide-over Drawer: Department */}
-      {departmentDrawerOpen && (
-        <div ref={drawerRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="department-drawer-title" role="dialog" aria-modal="true">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={closeDepartmentDrawer}
-            aria-hidden="true"
-          />
-
-          <div className="fixed inset-y-0 right-0 flex w-full max-w-md sm:pl-6">
-            <div className="flex h-full min-h-0 w-full flex-col justify-between bg-white shadow-xl">
-              {/* Drawer Header */}
-              <div className="border-b border-slate-200 px-6 py-5 flex items-start justify-between">
+      {/* Department modal */}
+      {departmentDrawerOpen && typeof document !== 'undefined' && createPortal(
+        <div className={modalBackdropClass} onMouseDown={(event) => { if (event.target === event.currentTarget) closeDepartmentDrawer(); }}>
+          <div ref={modalRef} className={modalPanelClass} aria-labelledby="department-modal-title" role="dialog" aria-modal="true">
+              <div className={modalHeaderClass}>
                 <div>
-                  <h2 id="department-drawer-title" className="text-xl font-bold text-slate-900 mt-1">
+                  <h2 id="department-modal-title" className="mt-1 text-xl font-bold text-brand-ink">
                     {editingDepartmentId ? 'แก้ไขแผนก' : 'เพิ่มแผนก'}
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={closeDepartmentDrawer}
-                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-teal-600"
-                  aria-label="ปิดแผงแก้ไข"
+                  className="rounded-xl p-2 text-brand-muted transition-colors hover:bg-brand-soft hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+                  aria-label="ปิดหน้าต่างแก้ไขแผนก"
                 >
                   <X className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+              <div className={modalBodyClass}>
                 {formError && (
-                  <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+                  <div className="flex items-center gap-2 rounded-xl border border-status-critical/30 bg-brand-surface p-3 text-sm text-status-critical" role="alert">
+                    <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label htmlFor="dept-name" className="text-sm font-semibold text-slate-800">
-                    ชื่อแผนก <span className="text-rose-600">*</span>
+                  <label htmlFor="dept-name" className={modalLabelClass}>
+                    ชื่อแผนก <span className="text-status-critical">*</span>
                   </label>
                   <input
                     id="dept-name"
@@ -816,7 +811,7 @@ export default function DepartmentWorkspace() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="dept-desc" className="text-sm font-semibold text-slate-800">
+                  <label htmlFor="dept-desc" className={modalLabelClass}>
                     คำอธิบายแผนก
                   </label>
                   <textarea
@@ -825,17 +820,16 @@ export default function DepartmentWorkspace() {
                     value={departmentDraft.description}
                     onChange={(e) => setDepartmentDraft((curr) => ({ ...curr, description: e.target.value }))}
                     placeholder="ระบุขอบเขตการรักษาหรือข้อมูลสำหรับผู้รับบริการ"
-                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-50"
+                    className={textareaClass}
                   />
                 </div>
               </div>
 
-              {/* Drawer Footer */}
-              <div className="flex shrink-0 items-center justify-end gap-3 border-t border-brand-border-soft px-6 py-4">
+              <div className={modalFooterClass}>
                 <button
                   type="button"
                   onClick={closeDepartmentDrawer}
-                  className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200/70"
+                  className={modalCancelClass}
                 >
                   ยกเลิก
                 </button>
@@ -844,7 +838,7 @@ export default function DepartmentWorkspace() {
                   disabled={isSaving}
                   aria-busy={isSaving}
                   onClick={saveDepartment}
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
+                  className={modalSaveClass}
                 >
                   {isSaving ? (
                     <>
@@ -856,62 +850,52 @@ export default function DepartmentWorkspace() {
                   )}
                 </button>
               </div>
-            </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Slide-over Drawer: Doctor */}
-      {doctorDrawerOpen && (
-        <div ref={drawerRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="doctor-drawer-title" role="dialog" aria-modal="true">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={closeDoctorDrawer}
-            aria-hidden="true"
-          />
-
-          <div className="fixed inset-y-0 right-0 flex w-full max-w-md sm:pl-6">
-            <div className="flex h-full min-h-0 w-full flex-col justify-between bg-white shadow-xl">
-              {/* Drawer Header */}
-              <div className="border-b border-slate-200 px-6 py-5 flex items-start justify-between">
+      {/* Doctor modal */}
+      {doctorDrawerOpen && typeof document !== 'undefined' && createPortal(
+        <div className={modalBackdropClass} onMouseDown={(event) => { if (event.target === event.currentTarget) closeDoctorDrawer(); }}>
+          <div ref={modalRef} className={modalPanelClass} aria-labelledby="doctor-modal-title" role="dialog" aria-modal="true">
+              <div className={modalHeaderClass}>
                 <div>
-                  <h2 id="doctor-drawer-title" className="text-xl font-bold text-slate-900 mt-1">
+                  <h2 id="doctor-modal-title" className="mt-1 text-xl font-bold text-brand-ink">
                     {editingDoctorId ? 'แก้ไขข้อมูลแพทย์' : 'เพิ่มแพทย์'}
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="mt-1 text-xs text-brand-muted">
                     เลือกบัญชีแพทย์และระบุแผนกสังกัด
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closeDoctorDrawer}
-                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-teal-600"
-                  aria-label="ปิดแผงแก้ไข"
+                  className="rounded-xl p-2 text-brand-muted transition-colors hover:bg-brand-soft hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+                  aria-label="ปิดหน้าต่างแก้ไขแพทย์"
                 >
                   <X className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+              <div className={modalBodyClass}>
                 {formError && (
-                  <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+                  <div className="flex items-center gap-2 rounded-xl border border-status-critical/30 bg-brand-surface p-3 text-sm text-status-critical" role="alert">
+                    <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label htmlFor="doc-account" className="text-sm font-semibold text-slate-800">
-                    เลือกบัญชีแพทย์ <span className="text-rose-600">*</span>
+                  <label htmlFor="doc-account" className={modalLabelClass}>
+                    เลือกบัญชีแพทย์ <span className="text-status-critical">*</span>
                   </label>
                   <select
                     id="doc-account"
                     value={doctorDraft.profileId}
                     disabled={Boolean(editingDoctorId)}
                     onChange={(e) => selectDoctorAccount(e.target.value)}
-                    className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-500`}
+                    className={`${inputClass} disabled:bg-brand-soft disabled:text-brand-muted`}
                   >
                     <option value="">เลือกบัญชีแพทย์</option>
                     {editingDoctorId && (
@@ -931,8 +915,8 @@ export default function DepartmentWorkspace() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="doc-dept" className="text-sm font-semibold text-slate-800">
-                    แผนกสังกัด <span className="text-rose-600">*</span>
+                  <label htmlFor="doc-dept" className={modalLabelClass}>
+                    แผนกสังกัด <span className="text-status-critical">*</span>
                   </label>
                   <select
                     id="doc-dept"
@@ -952,46 +936,123 @@ export default function DepartmentWorkspace() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="doc-spec" className="text-sm font-semibold text-slate-800">
+                  <label htmlFor="doc-spec" className={modalLabelClass}>
                     ความเชี่ยวชาญ
                   </label>
-                  <input
-                    id="doc-spec"
-                    value={doctorDraft.specialty}
-                    onChange={(e) => setDoctorDraft((curr) => ({ ...curr, specialty: e.target.value }))}
-                    placeholder="เช่น เวชปฏิบัติทั่วไป, ทันตกรรมทั่วไป"
-                    className={inputClass}
-                  />
+                  <div className="relative">
+                    <input
+                      id="doc-spec"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-haspopup="listbox"
+                      aria-expanded={isSpecialtyListOpen}
+                      aria-controls={isSpecialtyListOpen ? 'doctor-specialty-options' : undefined}
+                      aria-activedescendant={isSpecialtyListOpen && activeSpecialtyIndex >= 0 ? `doctor-specialty-option-${activeSpecialtyIndex}` : undefined}
+                      autoComplete="off"
+                      value={doctorDraft.specialty}
+                      onFocus={() => {
+                        setIsSpecialtyListOpen(true);
+                        setActiveSpecialtyIndex(-1);
+                      }}
+                      onChange={(event) => {
+                        setDoctorDraft((current) => ({ ...current, specialty: event.target.value }));
+                        setIsSpecialtyListOpen(true);
+                        setActiveSpecialtyIndex(-1);
+                      }}
+                      onBlur={(event) => {
+                        if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) {
+                          setIsSpecialtyListOpen(false);
+                          setActiveSpecialtyIndex(-1);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                          event.preventDefault();
+                          setIsSpecialtyListOpen(true);
+                          setActiveSpecialtyIndex((current) => specialtyItemCount === 0 ? -1 : (current + 1) % specialtyItemCount);
+                        } else if (event.key === 'ArrowUp') {
+                          event.preventDefault();
+                          setIsSpecialtyListOpen(true);
+                          setActiveSpecialtyIndex((current) => specialtyItemCount === 0 ? -1 : current <= 0 ? specialtyItemCount - 1 : current - 1);
+                        } else if (event.key === 'Enter' && isSpecialtyListOpen) {
+                          event.preventDefault();
+                          if (activeSpecialtyIndex >= 0 && activeSpecialtyIndex < filteredSpecialtyOptions.length) {
+                            selectSpecialty(filteredSpecialtyOptions[activeSpecialtyIndex]);
+                          } else if (activeSpecialtyIndex === filteredSpecialtyOptions.length && canAddSpecialty) {
+                            selectSpecialty(doctorDraft.specialty.trim());
+                          } else if (canAddSpecialty) {
+                            selectSpecialty(doctorDraft.specialty.trim());
+                          } else {
+                            setIsSpecialtyListOpen(false);
+                          }
+                        } else if (event.key === 'Escape' && isSpecialtyListOpen) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setIsSpecialtyListOpen(false);
+                          setActiveSpecialtyIndex(-1);
+                        }
+                      }}
+                      placeholder="พิมพ์เพื่อค้นหาหรือเพิ่มความเชี่ยวชาญ"
+                      className={inputClass}
+                    />
+                    {isSpecialtyListOpen && (
+                      <div
+                        id="doctor-specialty-options"
+                        role="listbox"
+                        aria-label="ตัวเลือกความเชี่ยวชาญ"
+                        className="absolute inset-x-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-brand-border-soft bg-brand-surface p-1.5 text-sm text-brand-ink shadow-xl"
+                      >
+                        {filteredSpecialtyOptions.map((specialty, index) => (
+                          <div
+                            key={specialty}
+                            id={`doctor-specialty-option-${index}`}
+                            role="option"
+                            tabIndex={-1}
+                            aria-selected={activeSpecialtyIndex === index}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => selectSpecialty(specialty)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') selectSpecialty(specialty);
+                            }}
+                            className={`cursor-pointer rounded-lg px-3 py-2.5 ${activeSpecialtyIndex === index ? 'bg-brand-soft text-brand-ink' : 'hover:bg-brand-soft'}`}
+                          >
+                            {specialty}
+                          </div>
+                        ))}
+                        {canAddSpecialty && (
+                          <div
+                            id={`doctor-specialty-option-${filteredSpecialtyOptions.length}`}
+                            role="option"
+                            tabIndex={-1}
+                            aria-selected={activeSpecialtyIndex === filteredSpecialtyOptions.length}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => selectSpecialty(doctorDraft.specialty.trim())}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') selectSpecialty(doctorDraft.specialty.trim());
+                            }}
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 font-medium ${activeSpecialtyIndex === filteredSpecialtyOptions.length ? 'bg-brand-soft text-brand-ink' : 'hover:bg-brand-soft'}`}
+                          >
+                            <Plus className="h-4 w-4 text-brand-strong" aria-hidden="true" />
+                            <span>เพิ่ม “{doctorDraft.specialty.trim()}”</span>
+                          </div>
+                        )}
+                        {specialtyItemCount === 0 && (
+                          <div role="option" aria-disabled="true" className="px-3 py-2.5 text-brand-muted">
+                            ยังไม่มีตัวเลือกความเชี่ยวชาญ
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="doc-avail" className="text-sm font-semibold text-slate-800">
-                    สถานะการออกตรวจ
-                  </label>
-                  <select
-                    id="doc-avail"
-                    value={doctorDraft.availability}
-                    onChange={(e) =>
-                      setDoctorDraft((curr) => ({
-                        ...curr,
-                        availability: e.target.value as DoctorAvailability,
-                      }))
-                    }
-                    className={inputClass}
-                  >
-                    <option value="active">พร้อมออกตรวจ</option>
-                    <option value="on_leave">ลาตรวจ</option>
-                    <option value="inactive">ปิดใช้งาน</option>
-                  </select>
-                </div>
               </div>
 
-              {/* Drawer Footer */}
-              <div className="flex shrink-0 items-center justify-end gap-3 border-t border-brand-border-soft px-6 py-4">
+              <div className={modalFooterClass}>
                 <button
                   type="button"
                   onClick={closeDoctorDrawer}
-                  className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200/70"
+                  className={modalCancelClass}
                 >
                   ยกเลิก
                 </button>
@@ -1000,7 +1061,7 @@ export default function DepartmentWorkspace() {
                   disabled={isSaving}
                   aria-busy={isSaving}
                   onClick={saveDoctor}
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
+                  className={modalSaveClass}
                 >
                   {isSaving ? (
                     <>
@@ -1012,51 +1073,44 @@ export default function DepartmentWorkspace() {
                   )}
                 </button>
               </div>
-            </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Slide-over Drawer: Service */}
-      {serviceDrawerOpen && (
-        <div ref={drawerRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="service-drawer-title" role="dialog" aria-modal="true">
-          <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={closeServiceDrawer}
-            aria-hidden="true"
-          />
-
-          <div className="fixed inset-y-0 right-0 flex w-full max-w-md sm:pl-6">
-            <div className="flex h-full min-h-0 w-full flex-col justify-between bg-white shadow-xl">
-              <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+      {/* Service modal */}
+      {serviceDrawerOpen && typeof document !== 'undefined' && createPortal(
+        <div className={modalBackdropClass} onMouseDown={(event) => { if (event.target === event.currentTarget) closeServiceDrawer(); }}>
+          <div ref={modalRef} className={modalPanelClass} aria-labelledby="service-modal-title" role="dialog" aria-modal="true">
+              <div className={modalHeaderClass}>
                 <div>
-                  <h2 id="service-drawer-title" className="mt-1 text-xl font-bold text-slate-900">
+                  <h2 id="service-modal-title" className="mt-1 text-xl font-bold text-brand-ink">
                     {editingServiceId ? 'แก้ไขบริการ' : 'เพิ่มบริการ'}
                   </h2>
-                  <p className="mt-1 text-xs text-slate-500">บริการนี้ใช้กำหนดรอบตรวจที่เปิดรับจอง</p>
+                  <p className="mt-1 text-xs text-brand-muted">บริการนี้ใช้กำหนดรอบตรวจที่เปิดรับจอง</p>
                 </div>
                 <button
                   type="button"
                   disabled={isSaving}
                   onClick={closeServiceDrawer}
-                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-teal-600 disabled:opacity-50"
-                  aria-label="ปิดแผงแก้ไขบริการ"
+                  className="rounded-xl p-2 text-brand-muted transition-colors hover:bg-brand-soft hover:text-brand-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:opacity-50"
+                  aria-label="ปิดหน้าต่างแก้ไขบริการ"
                 >
                   <X className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+              <div className={modalBodyClass}>
                 {formError && (
-                  <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+                  <div className="flex items-center gap-2 rounded-xl border border-status-critical/30 bg-brand-surface p-3 text-sm text-status-critical" role="alert">
+                    <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label htmlFor="service-code" className="text-sm font-semibold text-slate-800">
-                    รหัสบริการ <span className="text-rose-600">*</span>
+                  <label htmlFor="service-code" className={modalLabelClass}>
+                    รหัสบริการ <span className="text-status-critical">*</span>
                   </label>
                   <input
                     id="service-code"
@@ -1068,8 +1122,8 @@ export default function DepartmentWorkspace() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="service-name" className="text-sm font-semibold text-slate-800">
-                    ชื่อบริการ <span className="text-rose-600">*</span>
+                  <label htmlFor="service-name" className={modalLabelClass}>
+                    ชื่อบริการ <span className="text-status-critical">*</span>
                   </label>
                   <input
                     id="service-name"
@@ -1081,24 +1135,24 @@ export default function DepartmentWorkspace() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="service-description" className="text-sm font-semibold text-slate-800">คำอธิบายบริการ</label>
+                  <label htmlFor="service-description" className={modalLabelClass}>คำอธิบายบริการ</label>
                   <textarea
                     id="service-description"
                     rows={4}
                     value={serviceDraft.description}
                     onChange={(event) => setServiceDraft((current) => ({ ...current, description: event.target.value }))}
                     placeholder="รายละเอียดสำหรับผู้รับบริการ"
-                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-50"
+                    className={textareaClass}
                   />
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center justify-end gap-3 border-t border-brand-border-soft px-6 py-4">
+              <div className={modalFooterClass}>
                 <button
                   type="button"
                   disabled={isSaving}
                   onClick={closeServiceDrawer}
-                  className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200/70 disabled:opacity-50"
+                  className={`${modalCancelClass} disabled:opacity-50`}
                 >
                   ยกเลิก
                 </button>
@@ -1107,15 +1161,15 @@ export default function DepartmentWorkspace() {
                   disabled={isSaving}
                   aria-busy={isSaving}
                   onClick={saveService}
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50"
+                  className={modalSaveClass}
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                   {isSaving ? 'กำลังบันทึก…' : 'บันทึกบริการ'}
                 </button>
               </div>
-            </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
