@@ -417,8 +417,13 @@ function RecordList({ data, selectedId, update, busy = false }: { data: ClinicSn
   </section>;
 }
 
-function RecordsIntro({ role, records, pending }: { role: 'patient' | 'medical'; records: number; pending?: number }) {
-  return <div className="flex flex-col justify-between gap-3 rounded-[1.5rem] border border-brand-border-soft bg-[linear-gradient(120deg,#f8fcfb_0%,#ffffff_68%,#fffaf0_100%)] p-5 sm:flex-row sm:items-end sm:p-6"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-strong">{role === 'medical' ? 'พื้นที่ทำงานแพทย์' : 'ข้อมูลของฉัน'}</p>{role === 'medical' ? <h2 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl">บันทึกผลตรวจ</h2> : <p className="mt-1 text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl">ดูผลตรวจและรายการยาของฉัน</p>}<p className="mt-1 max-w-2xl text-sm leading-6 text-brand-body">{role === 'medical' ? 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ' : 'ดูผลตรวจ การตรวจร่างกาย และรายการยาของคุณในที่เดียว'}</p></div><div className="flex gap-2 text-xs font-semibold text-brand-body"><span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{records} ประวัติ</span>{pending !== undefined && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800">{pending} คิวรอบันทึก</span>}</div></div>;
+function RecordsIntro({ role, records, pending }: { role: 'patient' | 'medical' | 'staff_admin'; records: number; pending?: number }) {
+  const isMedical = role === 'medical';
+  const isStaffAdmin = role === 'staff_admin';
+  const eyebrow = isMedical ? 'พื้นที่ทำงานแพทย์' : isStaffAdmin ? 'พื้นที่ทำงานเจ้าหน้าที่' : 'ข้อมูลของฉัน';
+  const title = isMedical ? 'บันทึกผลตรวจ' : isStaffAdmin ? 'ดูผลตรวจของผู้ป่วย' : 'ดูผลตรวจและรายการยาของฉัน';
+  const description = isMedical ? 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ' : isStaffAdmin ? 'ตรวจสอบผลตรวจ การตรวจร่างกาย และรายการยาของผู้ป่วยในความดูแล' : 'ดูผลตรวจ การตรวจร่างกาย และรายการยาของคุณในที่เดียว';
+  return <div className="flex flex-col justify-between gap-3 rounded-[1.5rem] border border-brand-border-soft bg-[linear-gradient(120deg,#f8fcfb_0%,#ffffff_68%,#fffaf0_100%)] p-5 sm:flex-row sm:items-end sm:p-6"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-strong">{eyebrow}</p><h2 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl">{title}</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-brand-body">{description}</p></div><div className="flex gap-2 text-xs font-semibold text-brand-body"><span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{records} ประวัติ</span>{pending !== undefined && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800">{pending} คิวรอบันทึก</span>}</div></div>;
 }
 
 export function PatientRecordsPage({ repository, selectedId }: { repository?: ClinicRepository; selectedId?: string }) {
@@ -429,4 +434,9 @@ export function PatientRecordsPage({ repository, selectedId }: { repository?: Cl
 export function MedicalRecordsPage({ repository, selectedId }: { repository?: ClinicRepository; selectedId?: string }) {
   const state = useClinicWorkspace('medical', repository);
   return <ClinicWorkspaceShell {...state} role="medical" section="records" wide>{state.loading ? <ClinicPageLoading /> : state.data && <div className="space-y-5"><RecordsIntro role="medical" records={state.data.records.length} pending={state.data.appointments.filter((appointment) => appointment.status === 'in_progress' && !appointment.has_record).length} /><MedicalRecordStepper data={state.data} busy={state.busy} selectedId={selectedId} save={(input) => state.run((repositoryInstance) => repositoryInstance.saveRecord(input), input.complete ? 'บันทึกผลและจบการตรวจแล้ว ผู้ป่วยเปิดดูได้' : 'บันทึกผลตรวจแล้ว กรุณาจบการตรวจเพื่อให้ผู้ป่วยเปิดดูผลได้')} /><RecordList data={state.data} selectedId={selectedId} busy={state.busy} update={(input) => state.run((repositoryInstance) => repositoryInstance.updateRecord(input), 'แก้ไขผลตรวจแล้ว')} /></div>}</ClinicWorkspaceShell>;
+}
+
+export function StaffAdminRecordsPage({ repository, selectedId }: { repository?: ClinicRepository; selectedId?: string }) {
+  const state = useClinicWorkspace('staff_admin', repository);
+  return <ClinicWorkspaceShell {...state} role="staff_admin" section="records" wide>{state.loading ? <ClinicPageLoading /> : state.data && <div className="space-y-5"><RecordsIntro role="staff_admin" records={state.data.records.length} /><RecordList data={state.data} selectedId={selectedId} /></div>}</ClinicWorkspaceShell>;
 }

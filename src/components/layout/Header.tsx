@@ -110,6 +110,7 @@ const navigationByRole: Record<UserRole, NavigationGroup[]> = {
       icon: Hospital,
       items: [
         { href: "/appointments", label: "header.appointments", icon: ClipboardClock },
+        { href: "/records", label: "header.medicalRecords", icon: ClipboardClock },
         { href: "/schedules", label: "header.schedulesAndSlots", icon: CalendarDays },
         { href: "/departments", label: "header.manageDepartments", icon: Hospital },
       ],

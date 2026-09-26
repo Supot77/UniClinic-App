@@ -9,15 +9,15 @@
 ## Runtime และพฤติกรรม
 
 - `/appointments` ใช้ route guard เดิมและ container ตาม patient/medical/staff_admin
-- `/records` ตรวจ role ที่ server; เฉพาะผู้ป่วยและแพทย์ เจ้าหน้าที่ไม่เปิด diagnosis
+- `/records` ตรวจ role ที่ server; ผู้ป่วยดูของตน, แพทย์ดู/แก้ตามขอบเขตงาน, `staff_admin` ดูผลตรวจทั้งหมดแบบอ่านอย่างเดียว
 - `src/features/appointments.tsx` เป็นหน้า appointment และ role containers ของ patient/medical/staff_admin
-- `src/features/medical-records.tsx` เป็นหน้าผลตรวจสำหรับ patient/medical
+- `src/features/medical-records.tsx` เป็นหน้าผลตรวจสำหรับ patient/medical/staff_admin โดย staff_admin ไม่มีคำสั่งแก้ไข
 - `src/features/clinic-care.tsx` รวม contract, database/API repository, hook และ shared UI; test repository แยกอยู่ใน `tests/clinic-care-mock-repository.ts`
 - ไม่มี preview workspace หรือ adapter ซ้ำในเส้นทาง runtime
 
 ผู้ป่วยเลือกรอบจากตารางเดิม กรอกเหตุผลและจองเป็น pending มีเลขคิวรายรอบ ปฏิเสธรอบเต็ม/ปิด/เริ่มแล้ว/แพทย์หรือแผนกไม่ active และจองซ้ำ ผู้ป่วยส่งคำขอยกเลิกได้ โดยยังไม่เปลี่ยนสถานะหรือคืนความจุจนเจ้าหน้าที่กดยกเลิก
 
-เจ้าหน้าที่อนุมัติ/ปฏิเสธ/ยกเลิกนัดทีละรายการและเริ่ม/จบตรวจตามสถานะ แพทย์เริ่ม/จบตรวจเฉพาะนัดของตน จบตรวจต้องมีผลตรวจ ผู้ป่วยเห็นผลหลังจบตรวจเท่านั้น แพทย์อ่านประวัติผู้ป่วยที่รับผิดชอบได้ แต่แก้ผลของแพทย์อื่นไม่ได้
+เจ้าหน้าที่อนุมัติ/ปฏิเสธ/ยกเลิกนัดทีละรายการและเริ่ม/จบตรวจตามสถานะ รวมถึงเปิดดูผลตรวจของผู้ป่วยทั้งหมดแบบอ่านอย่างเดียว แพทย์เริ่ม/จบตรวจเฉพาะนัดของตน จบตรวจต้องมีผลตรวจ ผู้ป่วยเห็นผลหลังจบตรวจเท่านั้น แพทย์อ่านประวัติผู้ป่วยที่รับผิดชอบได้ แต่แก้ผลของแพทย์อื่นไม่ได้
 
 บันทึกผลตรวจครั้งเดียวต่อนัด เลือกยาจาก catalog จริง กรอกจำนวน ขนาดยา ความถี่ และระยะเวลา บันทึกพร้อมจบตรวจในธุรกรรมเดียวหรือบันทึกแล้วจบภายหลังก็ได้ ไม่มี version/automation คำสั่งผิดไม่ทิ้งผลตรวจบางส่วน
 
@@ -29,7 +29,7 @@
 
 เอกสาร deployment เดิมอธิบาย migration รุ่นแรกที่สร้างตารางชื่อ `pai_*`; ข้อความนี้เป็น historical design. Migration รุ่นหลัง `21` และ `28` ชี้ PAI RPCs ไปยัง `appointments`/`medical_records` และไม่ควรสรุปว่า `pai_*` tables เป็น active schema จากเอกสารรุ่นแรก
 
-ส่งต่อคู่ตรวจช็อปและเจ้าของโมดูล: การเขียน `appointments`/`medical_records` จาก authenticated client ต้องผ่าน RPC ชื่อ PAI ตาม migration รุ่นปัจจุบัน สิทธิ์อ่านนัดของ medical จำกัดเฉพาะนัดของตน staff ไม่อ่าน diagnosis งาน runtime ใหม่ไม่ใช้ `appointmentService` เก่าที่เขียนตรง ไม่มีการส่งข้อความหรือเปิด PR แทนผู้ใช้
+ส่งต่อคู่ตรวจช็อปและเจ้าของโมดูล: การเขียน `appointments`/`medical_records` จาก authenticated client ต้องผ่าน RPC ชื่อ PAI ตาม migration รุ่นปัจจุบัน สิทธิ์อ่านนัดของ medical จำกัดเฉพาะนัดของตน ส่วน `staff_admin` อ่านผลตรวจทั้งหมดได้แต่ไม่มีสิทธิ์แก้ผล งาน runtime ใหม่ไม่ใช้ `appointmentService` เก่าที่เขียนตรง ไม่มีการส่งข้อความหรือเปิด PR แทนผู้ใช้
 
 ## บันทึกการลงฐานเดิม (historical; รอตรวจ environment ปัจจุบัน)
 

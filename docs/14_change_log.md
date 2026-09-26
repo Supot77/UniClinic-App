@@ -2,6 +2,28 @@
 
 เอกสารนี้ใช้บันทึกส่วนที่แก้ไขหลังงานโค้ดสำเร็จ เพื่อให้ trace จากงานที่ส่งมอบไปยังไฟล์และหลักฐานตรวจจริงได้ชัดเจน
 
+## เปิดให้ staff_admin ดูผลตรวจแบบอ่านอย่างเดียว — 26 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `staff_admin` เปิด `/records` และดูผลตรวจ การตรวจร่างกาย และรายการยาของผู้ป่วยทั้งหมดได้
+- เพิ่มลิงก์จากเมนูและรายการนัดที่มีผลตรวจแล้ว
+- คงสิทธิ์บันทึกและแก้ไขผลตรวจไว้เฉพาะ `medical`; staff_admin ไม่มีคำสั่งเขียนในหน้า
+- เพิ่ม migration 39 ให้ PAI workspace RPC และ RLS อ่านผลตรวจได้สำหรับ `staff_admin`
+
+### ไฟล์หลัก
+
+- `src/app/(clinic)/records/page.tsx`
+- `src/features/clinic-care.tsx`, `src/features/medical-records.tsx`, `src/features/appointments.tsx`
+- `src/components/layout/Header.tsx`, `src/components/layout/Footer.tsx`
+- `supabase/migrations/39_staff_admin_read_medical_records.sql`
+- `tests/appointments-records-runtime.test.ts`, `tests/appointments-records-runtime-ui.test.tsx`, `tests/staff-admin-medical-records-migration.test.ts`
+
+### การตรวจ
+
+- focused tests และ typecheck — รันหลังแก้ไข
+- ยังไม่ได้ deploy migration 39 ไปยังฐานจริง และยังไม่ได้ตรวจ browser session จริง
+
 ## เพิ่ม combobox ความเชี่ยวชาญแพทย์ — 25 กันยายน 2569
 
 ### ขอบเขตและพฤติกรรม
@@ -822,3 +844,21 @@
 - `git diff --check` — ผ่าน
 - Browser QA บน desktop และ 360px — ตรวจการจัดลำดับทั้งสองธีม, รูปสมาชิกที่เลือกขยายเท่ารูปอาจารย์และยังเห็นเต็มตัว; มือถือไม่มี horizontal overflow
 - Full test suite และ production build — ไม่ได้รันในรอบนี้
+
+# ปรับ workflow นัดหมายสำหรับผู้ดูแล — 26 กันยายน 2569
+
+### ขอบเขตและพฤติกรรม
+
+- `staff_admin` เห็นนัดหมายทั้งหมดเป็นค่าเริ่มต้น และค้นหาจากชื่อ เบอร์โทร แพทย์ แผนก คิว และเหตุผลได้
+- แสดงสรุปจำนวนคิวทั้งหมด, รออนุมัติ, ยืนยันแล้ว, กำลังตรวจ และจบตรวจแล้ว
+- เพิ่มตัวกรองคำขอยกเลิก และแสดงปุ่ม `ยกเลิกนัด` เฉพาะ `staff_admin`
+- ผู้ดูแลยกเลิกได้เมื่อเป็นนัดที่ยืนยันแล้ว หรือเป็นนัดรออนุมัติที่ผู้ป่วยส่งคำขอยกเลิกแล้ว; medical และ patient ไม่มีคำสั่งนี้
+- เพิ่ม migration `40_staff_admin_cancellation_rules.sql` เพื่อบังคับกติกาเดียวกันที่ RPC
+
+### Verification
+
+- focused appointment/records tests และ migration test — ผ่าน 3 files / 72 tests
+- `npx.cmd --no-install tsc --noEmit` — ผ่าน
+- targeted ESLint — ผ่าน โดยมี warning เดิมเรื่อง `formatNumber` ไม่ได้ใช้ 1 จุด
+- Full suite — ยังไม่ผ่าน 18 tests เดิมใน dashboard, pharmacy, department, password-reset และ date-time; ไม่เกี่ยวกับชุดนัดหมายนี้
+- `npm.cmd run build` — ติดการดาวน์โหลด Noto Sans Thai จาก Google Fonts ใน environment นี้

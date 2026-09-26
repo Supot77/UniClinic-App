@@ -61,6 +61,7 @@ const staffAdminSections: FooterSection[] = [
       { label: "จัดการแผนก", href: "/departments" },
       { label: "คลังยา", href: "/pharmacy" },
       { label: "ตารางตรวจแพทย์", href: "/schedules" },
+      { label: "ผลตรวจผู้ป่วย", href: "/records" },
     ],
   },
 ];
@@ -75,7 +76,7 @@ export default function Footer() {
     "ตารางตรวจแพทย์": "Doctor schedules", "เข้าสู่ระบบ": "Sign in", "สมัครสมาชิก": "Create an account",
     "นัดหมายของฉัน": "My appointments", "ประวัติการรักษา": "Medical records", "แจ้งเตือนยา": "Medication reminders",
     "โปรไฟล์": "Profile", "ภาพรวม": "Overview", "ค้นหาผู้ป่วย": "Find patients", "คลังยา": "Pharmacy inventory",
-    "นัดหมายผู้ป่วย": "Patient appointments", "จัดการผู้ใช้งาน": "Manage accounts", "จัดการแผนก": "Manage departments",
+    "นัดหมายผู้ป่วย": "Patient appointments", "ผลตรวจผู้ป่วย": "Patient results", "จัดการผู้ใช้งาน": "Manage accounts", "จัดการแผนก": "Manage departments",
   };
 
   const sections: FooterSection[] = (() => {
