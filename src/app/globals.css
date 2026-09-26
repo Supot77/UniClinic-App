@@ -303,7 +303,7 @@ body,
 
 /* Hero ghost button */
 .clinic-btn-ghost {
-  background: rgba(255,255,255,0.10);
+  background: rgba(69, 62, 62, 0.1);
   color: #fff;
   border: 1px solid rgba(255,255,255,0.28);
   backdrop-filter: blur(8px);
