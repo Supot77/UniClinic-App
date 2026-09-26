@@ -43,6 +43,7 @@ function builder(result: { data?: unknown; error?: unknown; count?: number | nul
 import { POST as postDepartment } from '@/app/api/departments/route';
 import { GET as getDepartments } from '@/app/api/departments/route';
 import { POST as postAppointment } from '@/app/api/appointments/route';
+import { GET as getMedicalRecords } from '@/app/api/medical-records/route';
 import { PATCH as patchMedicalRecord } from '@/app/api/medical-records/[id]/route';
 import { GET as getDoctorAccounts } from '@/app/api/doctors/accounts/route';
 import { GET as getDoctors } from '@/app/api/doctors/route';
@@ -214,6 +215,16 @@ describe('API Route Handlers', () => {
 
     expect(response.status).toBe(400);
     expect(supabaseMock.rpc).not.toHaveBeenCalled();
+  });
+
+  it('denies staff_admin access to medical records at the API boundary', async () => {
+    supabaseMock.auth.getUser.mockResolvedValue({ data: { user: { id: 'staff-1' } }, error: null });
+    builders.profiles = builder({ data: { id: 'staff-1', role: 'staff_admin', is_active: true }, error: null });
+
+    const response = await getMedicalRecords(new Request('http://localhost/api/medical-records'));
+
+    expect(response.status).toBe(403);
+    expect(supabaseMock.from).not.toHaveBeenCalledWith('medical_records');
   });
 
   it('passes a medical-record amendment to update_medical_record for the owning medical user', async () => {

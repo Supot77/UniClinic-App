@@ -418,7 +418,11 @@ function RecordList({ data, selectedId, update, busy = false }: { data: ClinicSn
 }
 
 function RecordsIntro({ role, records, pending }: { role: 'patient' | 'medical'; records: number; pending?: number }) {
-  return <div className="flex flex-col justify-between gap-3 rounded-[1.5rem] border border-brand-border-soft bg-[linear-gradient(120deg,#f8fcfb_0%,#ffffff_68%,#fffaf0_100%)] p-5 sm:flex-row sm:items-end sm:p-6"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-strong">{role === 'medical' ? 'พื้นที่ทำงานแพทย์' : 'ข้อมูลของฉัน'}</p>{role === 'medical' ? <h2 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl">บันทึกผลตรวจ</h2> : <p className="mt-1 text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl">ดูผลตรวจและรายการยาของฉัน</p>}<p className="mt-1 max-w-2xl text-sm leading-6 text-brand-body">{role === 'medical' ? 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ' : 'ดูผลตรวจ การตรวจร่างกาย และรายการยาของคุณในที่เดียว'}</p></div><div className="flex gap-2 text-xs font-semibold text-brand-body"><span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{records} ประวัติ</span>{pending !== undefined && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800">{pending} คิวรอบันทึก</span>}</div></div>;
+  const isMedical = role === 'medical';
+  const eyebrow = isMedical ? 'พื้นที่ทำงานแพทย์' : 'ข้อมูลของฉัน';
+  const title = isMedical ? 'บันทึกผลตรวจ' : 'ดูผลตรวจและรายการยาของฉัน';
+  const description = isMedical ? 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ' : 'ดูผลตรวจ การตรวจร่างกาย และรายการยาของคุณในที่เดียว';
+  return <div className="flex flex-col justify-between gap-3 rounded-[1.5rem] border border-brand-border-soft bg-[linear-gradient(120deg,#f8fcfb_0%,#ffffff_68%,#fffaf0_100%)] p-5 sm:flex-row sm:items-end sm:p-6"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-strong">{eyebrow}</p><h2 className="mt-1 text-2xl font-bold tracking-tight text-brand-ink sm:text-3xl">{title}</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-brand-body">{description}</p></div><div className="flex gap-2 text-xs font-semibold text-brand-body"><span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{records} ประวัติ</span>{pending !== undefined && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800">{pending} คิวรอบันทึก</span>}</div></div>;
 }
 
 export function PatientRecordsPage({ repository, selectedId }: { repository?: ClinicRepository; selectedId?: string }) {

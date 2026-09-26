@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { allowedActions, bangkokDate, createClinicDatabaseRepository } from '@/features/clinic-care';
+import { allowedActions, bangkokDate, createClinicApiRepository, createClinicDatabaseRepository } from '@/features/clinic-care';
 import { createClinicMockRepository } from './clinic-care-mock-repository';
 import { appointmentId, doctorId, fixture, medicationId, patientId, serviceId, slotId, staffId, withAppointment } from './clinic-care-fixtures';
 
@@ -70,6 +70,16 @@ describe('Clinic manual contract', () => {
     await repo.transition(appointmentId, 'cancelled');
     expect((await repo.load()).slots[0]).toMatchObject({ booked_count: 0, status: 'closed' });
   });
+  it('exposes cancellation only to staff for approved or requested appointments', () => {
+    const pending = withAppointment('staff_admin').appointments[0];
+    pending.status = 'pending';
+    const confirmed = { ...pending, status: 'confirmed' as const };
+    const requested = { ...pending, cancel_requested_at: '2026-09-08T08:00:00+07:00' };
+    expect(allowedActions('staff_admin', pending)).not.toContain('cancelled');
+    expect(allowedActions('staff_admin', requested)).toContain('cancelled');
+    expect(allowedActions('staff_admin', confirmed)).toContain('cancelled');
+    expect(allowedActions('medical', confirmed)).not.toContain('cancelled');
+  });
   it('cannot complete without a record or modify another doctor appointment', async () => {
     for (const otherDoctor of [false, true]) {
       const seed = withAppointment();
@@ -125,6 +135,20 @@ describe('Clinic manual contract', () => {
 });
 
 describe('Clinic database adapter boundary', () => {
+  it('does not request medical records for staff_admin through the API repository', async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    fetchMock
+      .mockImplementationOnce(() => json([]))
+      .mockImplementationOnce(() => json([]))
+      .mockImplementationOnce(() => json([]))
+      .mockImplementationOnce(() => json({ profile: { id: staffId }, role: 'staff_admin' }));
+
+    const data = await createClinicApiRepository('staff_admin').load();
+    expect(data.records).toEqual([]);
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain('/api/medical-records');
+  });
+
   function client(role = 'patient', active = true) {
     const rpc = vi.fn().mockResolvedValue({ data: fixture(), error: null });
     const single = vi.fn().mockResolvedValue({ data: { role, is_active: active }, error: null });

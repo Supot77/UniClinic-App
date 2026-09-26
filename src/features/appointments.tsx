@@ -182,7 +182,7 @@ function AppointmentCard({ appointment, slot, role, state, bangkokNow, onStartEx
   onStartExam?: (appointmentId: string) => void;
   onOpenExam?: (appointmentId: string) => void;
 }) {
-  const actions = allowedActions(role, appointment, slot, bangkokNow.date, bangkokNow.time).filter((action) => !(role === 'staff_admin' && action === 'cancelled'));
+  const actions = allowedActions(role, appointment, slot, bangkokNow.date, bangkokNow.time);
   const title = role === 'patient' ? `คิว ${appointment.queue_number ?? '—'}` : `${appointment.patient} · คิว ${appointment.queue_number ?? '—'}`;
   async function transition(action: typeof actions[number]) {
     const ok = await state.run((repository) => repository.transition(appointment.id, action), action === 'request_cancel' ? 'ส่งคำขอยกเลิกแล้ว รอเจ้าหน้าที่ดำเนินการ' : 'บันทึกสถานะนัดแล้ว');
@@ -235,7 +235,7 @@ function AppointmentCard({ appointment, slot, role, state, bangkokNow, onStartEx
       </details> : <button key={action} disabled={state.busy} className={`${secondaryButtonClass} rounded-xl`} onClick={() => void transition(action)}>{actionLabels[action]}</button>)}
       {role === 'medical' && appointment.status === 'confirmed' && slot && !isSlotArrived(slot.slot_date, slot.start_time, bangkokNow.date, bangkokNow.time) && <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 ring-1 ring-amber-200"><Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />ยังไม่ถึงเวลารอบตรวจ</span>}
       {role === 'medical' && appointment.status === 'in_progress' && !appointment.has_record && onOpenExam && <button type="button" className={`${primaryButtonClass} rounded-xl`} onClick={() => onOpenExam(appointment.id)}><FileText className="h-4 w-4" aria-hidden="true" />เปิดฟอร์มตรวจ<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></button>}
-      {role === 'medical' && appointment.status === 'in_progress' && (appointment.has_record || !onOpenExam) && <Link href={`/records?appointment=${appointment.id}`} className={`${primaryButtonClass} rounded-xl`}><FileText className="h-4 w-4" aria-hidden="true" />เปิดผลตรวจ<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>}
+      {(role === 'medical' && appointment.status === 'in_progress' && (appointment.has_record || !onOpenExam)) && <Link href={`/records?appointment=${appointment.id}`} className={`${primaryButtonClass} rounded-xl`}><FileText className="h-4 w-4" aria-hidden="true" />เปิดผลตรวจ<ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>}
       {role === 'patient' && appointment.status === 'completed' && <Link href={`/records?appointment=${appointment.id}`} className={`${secondaryButtonClass} w-full !border-brand-border text-brand-strong sm:w-auto`}><FileText className="h-4 w-4" aria-hidden="true" />ดูผลตรวจและยา<ArrowUpRight className="ml-auto h-4 w-4 sm:ml-2" aria-hidden="true" /></Link>}
     </div>}
   </article>;
@@ -247,7 +247,7 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
   const [date, setDate] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [status, setStatus] = useState<string>(() => {
-    if (role === 'staff_admin') return 'pending';
+    if (role === 'staff_admin') return '';
     if (role === 'medical') return 'pending_confirmed';
     return '';
   });
@@ -269,8 +269,12 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
   const activeExam = data?.appointments.find((appointment) => appointment.id === activeExamId && appointment.status === 'in_progress' && !appointment.has_record);
   const rows = data?.appointments.filter((appointment) => {
     const slot = data.slots.find((item) => item.id === appointment.slot_id);
-    const matchesStatus = !status ? true : status === 'pending_confirmed' ? ['pending', 'confirmed'].includes(appointment.status) : appointment.status === status;
-    return (!date || slot?.slot_date === date) && matchesStatus && `${appointment.patient} ${slot?.doctor ?? ''} ${slot?.department ?? ''} ${appointment.queue_number ?? ''}`.toLowerCase().includes(query.toLowerCase());
+    const matchesStatus = !status ? true : status === 'pending_confirmed' ? ['pending', 'confirmed'].includes(appointment.status) : status === 'cancel_requested' ? true : appointment.status === status;
+    const matchesCancellationRequest = status === 'cancel_requested'
+      ? Boolean(appointment.cancel_requested_at) && ['pending', 'confirmed'].includes(appointment.status)
+      : true;
+    const searchable = `${appointment.patient} ${appointment.patient_phone ?? ''} ${slot?.doctor ?? ''} ${slot?.department ?? ''} ${appointment.queue_number ?? ''} ${appointment.reason ?? ''}`;
+    return (!date || slot?.slot_date === date) && matchesStatus && matchesCancellationRequest && searchable.toLowerCase().includes(query.toLowerCase());
   }).sort((left, right) => {
     const leftSlot = data?.slots.find((slot) => slot.id === left.slot_id);
     const rightSlot = data?.slots.find((slot) => slot.id === right.slot_id);
@@ -286,12 +290,14 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
     total: data.appointments.length,
     pending: data.appointments.filter((appointment) => appointment.status === 'pending').length,
     confirmed: data.appointments.filter((appointment) => appointment.status === 'confirmed').length,
+    in_progress: data.appointments.filter((appointment) => appointment.status === 'in_progress').length,
     completed: data.appointments.filter((appointment) => appointment.status === 'completed').length,
   } : null;
   const headerStats: WorkspaceHeaderStat[] = stats ? [
     { label: role === 'patient' ? 'นัดหมายของฉัน' : 'นัดหมายทั้งหมด', value: stats.total, tone: 'default' },
     { label: 'รออนุมัติ', value: stats.pending, tone: 'warning' },
     { label: 'ยืนยันแล้ว', value: stats.confirmed, tone: 'info' },
+    { label: 'กำลังตรวจ', value: stats.in_progress, tone: 'info' },
     { label: 'จบตรวจแล้ว', value: stats.completed, tone: 'success' },
   ] : [];
 
@@ -305,9 +311,9 @@ export default function AppointmentPage({ role, repository, initialSlotId }: { r
           <span className="text-sm text-brand-body"><span className="font-semibold text-brand-ink tabular-nums">{rows.length}</span> รายการ</span>
         </div>
         <div className="grid items-start gap-4 border-y border-brand-border-soft py-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
-          <label className="block min-w-0 text-sm sm:col-span-2 lg:col-span-1"><span className="block min-h-5 font-medium leading-5 text-brand-body">ค้นหานัดหมาย</span><span className="relative mt-2 block h-12"><Search className="pointer-events-none absolute left-3.5 top-4 h-4 w-4 text-brand-body" aria-hidden="true" /><input aria-label="ค้นหาชื่อ แพทย์ หรือคิว" placeholder="ค้นหาชื่อ แพทย์ หรือคิว" className={`${inputClass} !h-12 !border-brand-border pl-10`} value={query} onChange={(event) => setQuery(event.target.value)} /></span></label>
+          <label className="block min-w-0 text-sm sm:col-span-2 lg:col-span-1"><span className="block min-h-5 font-medium leading-5 text-brand-body">ค้นหานัดหมาย</span><span className="relative mt-2 block h-12"><Search className="pointer-events-none absolute left-3.5 top-4 h-4 w-4 text-brand-body" aria-hidden="true" /><input aria-label="ค้นหาชื่อ เบอร์โทร แพทย์ เหตุผล หรือคิว" placeholder="ค้นหาชื่อ เบอร์โทร แพทย์ เหตุผล หรือคิว" className={`${inputClass} !h-12 !border-brand-border pl-10`} value={query} onChange={(event) => setQuery(event.target.value)} /></span></label>
           <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">วันที่นัดหมาย</p><ClinicDatePicker label="กรองวันที่" value={date} onChange={setDate} markedDates={data.appointments.flatMap((appointment) => data.slots.filter((slot) => slot.id === appointment.slot_id).map((slot) => slot.slot_date))} className="mt-2 !h-12 !border-brand-border !shadow-none" /></div>
-          <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">สถานะนัดหมาย</p><ClinicSelect value={status} onChange={setStatus} placeholder="ทุกสถานะ" ariaLabel="สถานะ" className="!mt-2 !h-12 !border-brand-border" options={[...(role === 'medical' ? [{ value: 'pending_confirmed', label: 'รออนุมัติและรอตรวจ' }] : []), ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]} /></div>
+          <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">สถานะนัดหมาย</p><ClinicSelect value={status} onChange={setStatus} placeholder="ทุกสถานะ" ariaLabel="สถานะ" className="!mt-2 !h-12 !border-brand-border" options={[...(role === 'staff_admin' ? [{ value: 'cancel_requested', label: 'คำขอยกเลิก' }] : []), ...(role === 'medical' ? [{ value: 'pending_confirmed', label: 'รออนุมัติและรอตรวจ' }] : []), ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]} /></div>
           <div className="flex min-w-0 flex-col text-sm"><p className="min-h-5 font-medium leading-5 text-brand-body">เรียงคิว</p><ClinicSelect value={sortOrder} onChange={(value) => setSortOrder(value as 'newest' | 'oldest')} placeholder="ใหม่สุดก่อน" ariaLabel="เรียงคิว" className="!mt-2 !h-12 !border-brand-border" options={[{ value: 'newest', label: 'ใหม่สุดก่อน' }, { value: 'oldest', label: 'เก่าสุดก่อน' }]} /></div>
         </div>
         {rows.length === 0 && <div className="flex flex-col items-center px-6 py-14 text-center"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-surface text-brand-strong"><Search className="h-6 w-6" aria-hidden="true" /></span><p className="mt-4 font-semibold text-brand-ink">ไม่พบนัดหมายตามเงื่อนไขนี้</p><p className="mt-1 text-sm text-brand-body">ลองเปลี่ยนสถานะ วันที่ หรือคำค้นหา แล้วลองใหม่</p></div>}

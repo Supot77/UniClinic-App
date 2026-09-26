@@ -88,7 +88,9 @@ export function allowedActions(
     }
     return appointment.status === 'in_progress' && appointment.has_record ? ['completed'] : [];
   }
-  if (appointment.status === 'pending') return ['confirmed', 'rejected', 'cancelled'];
+  if (appointment.status === 'pending') return appointment.cancel_requested_at
+    ? ['confirmed', 'rejected', 'cancelled']
+    : ['confirmed', 'rejected'];
   if (appointment.status === 'confirmed') {
     if (slot && !isSlotArrived(slot.slot_date, slot.start_time, currentDate, currentTime)) return ['cancelled'];
     return ['in_progress', 'cancelled'];
@@ -394,7 +396,7 @@ export interface WorkspaceHeaderStat {
   tone: 'default' | 'success' | 'info' | 'warning' | 'danger';
 }
 
-export function ClinicWorkspaceShell({ role, section, error, message, busy, reload, children, wide = false }: {
+export function ClinicWorkspaceShell({ role, section, error, message, busy, reload, children, stats = [], wide = false }: {
   role: ClinicRole; section: 'appointments' | 'records'; error: string; message: string; busy: boolean;
   reload: () => Promise<void>; children: ReactNode; stats?: WorkspaceHeaderStat[]; wide?: boolean;
 }) {
@@ -405,7 +407,7 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
   const description = section === 'records'
     ? role === 'patient'
       ? text('ดูนัดหมาย ผลตรวจ และรายการยาของคุณ', 'View your appointments, results, and medications.')
-      : 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ'
+      : role === 'medical' ? 'บันทึกผลตรวจ คำแนะนำ และรายการยาก่อนยืนยันผลตรวจ' : 'ดูผลตรวจและรายการยาของผู้ป่วยในความดูแล'
     : role === 'patient'
       ? text('ติดตามสถานะนัดหมายและรายละเอียดการเข้ารับบริการ', 'Track your appointment status and visit details.')
       : role === 'medical'
@@ -425,7 +427,22 @@ export function ClinicWorkspaceShell({ role, section, error, message, busy, relo
       <Link href="/appointments" aria-current={section === 'appointments' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'appointments' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><CalendarDays className="h-4 w-4" aria-hidden="true" />{text('นัดหมายและคิว', 'Appointments')}</Link>
       {role !== 'staff_admin' && <Link href="/records" aria-current={section === 'records' ? 'page' : undefined} className={`relative flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-1 text-sm font-semibold transition ${section === 'records' ? 'border-brand-strong text-brand-strong' : 'border-transparent text-brand-body hover:border-brand-border-strong hover:text-brand-ink'}`}><FileHeart className="h-4 w-4" aria-hidden="true" />{text('ผลตรวจและรายการยา', 'Results and medications')}</Link>}
     </nav>
-    {error && <p role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />{error}</p>}
+     {stats.length > 0 && <div data-appointment-status-summary="true" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+       {stats.map((stat) => {
+         const toneClass = {
+           default: 'border-brand-border-soft bg-white',
+           success: 'border-emerald-200 bg-emerald-50/70',
+           info: 'border-sky-200 bg-sky-50/70',
+           warning: 'border-amber-200 bg-amber-50/70',
+           danger: 'border-red-200 bg-red-50/70',
+         }[stat.tone];
+         return <div key={stat.label} data-appointment-status={stat.label} className={`rounded-2xl border px-4 py-3 shadow-[0_6px_18px_rgba(26,61,62,0.03)] ${toneClass}`}>
+           <p className="text-xs font-semibold text-brand-body">{stat.label}</p>
+           <p className="mt-1 text-2xl font-bold tabular-nums text-brand-ink">{stat.value}</p>
+         </div>;
+       })}
+     </div>}
+     {error && <p role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />{error}</p>}
     {message && <p role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />{message}</p>}
     {children}
   </section>;

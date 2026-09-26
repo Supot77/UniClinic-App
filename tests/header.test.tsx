@@ -86,6 +86,7 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: /^นัดหมาย$/ })).toHaveAttribute("href", "/appointments");
     expect(screen.getByRole("link", { name: /ตารางและรอบตรวจ/ })).toHaveAttribute("href", "/schedules");
     expect(screen.getByRole("link", { name: /แจ้งเตือน/ })).toHaveAttribute("href", "/notifications");
+    expect(screen.queryByRole("link", { name: /ผลตรวจ/ })).not.toBeInTheDocument();
   });
 
   it("shows a compact admin database indicator beside the bell on mobile", async () => {
